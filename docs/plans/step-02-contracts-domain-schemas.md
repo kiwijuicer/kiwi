@@ -1,7 +1,7 @@
 # Step 02: Contracts and Domain Schemas
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-03
 Milestone: MVP 1
 Depends-On: Step 01
 Vision-Refs: 4, 5, 6.1, 17.1
@@ -22,7 +22,7 @@ Implement canonical domain contracts with Zod schemas and strict TypeScript type
   - `GateResult`
   - `ReviewVerdict`
 - Define shared enums for roles, model capability tiers, statuses, artifacts, gates, budget, and risk.
-- Define additive schema evolution conventions for later MVPs.
+- Document that backward compatibility is not required for Steps 01-14.
 - Add serialization and validation tests.
 - Export contracts from `packages/contracts`.
 

@@ -9,6 +9,12 @@ Status: DONE
 Done-Date: YYYY-MM-DD
 ```
 
+## Compatibility Policy
+
+- For Steps 01-14, backward compatibility is not required.
+- Prefer clear contracts and simple refactors over compatibility layers.
+- Add BC constraints only after explicit decision in a later milestone.
+
 ## Execution Order
 
 - Step 01: Clean Start and Repo Baseline
@@ -33,4 +39,3 @@ Done-Date: YYYY-MM-DD
 - MVP 3: Steps 09-10
 - MVP 4: Steps 11-12
 - MVP 5+: Steps 13-14
-
