@@ -48,6 +48,12 @@ approvals:
     - migration
     - dependency_addition
     - production_config_change
+  commandApprovalStates:
+    read_only_command: auto
+    migration: required
+    dependency_addition: required
+    production_config_change: required
+    unrestricted_shell: blocked
 `;
 
 export const DEFAULT_MODEL_REGISTRY_YAML = `version: "1"

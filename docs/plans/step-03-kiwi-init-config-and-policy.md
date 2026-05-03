@@ -1,7 +1,7 @@
 # Step 03: Kiwi Init, Config, and Policy Files
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-03
 Milestone: MVP 1
 Depends-On: Step 02
 Vision-Refs: 8, 12, 13, 17.1

@@ -20,14 +20,13 @@ export async function runInit(
   const policyPath = path.join(cwd, "kiwi-policy.yaml");
   const registryPath = path.join(cwd, "model-registry.yaml");
 
-  if (existsSync(configPath) && !opts.force) {
-    throw new Error("Project already initialized. Use --force to regenerate config files.");
-  }
-
   mkdirSync(path.join(kiwiDir, "runs"), { recursive: true });
   mkdirSync(path.join(kiwiDir, "logs"), { recursive: true });
 
-  writeFileSync(configPath, defaultKiwiConfigYaml(new Date().toISOString()), "utf-8");
+  const shouldWriteConfig = !existsSync(configPath) || Boolean(opts.force);
+  if (shouldWriteConfig) {
+    writeFileSync(configPath, defaultKiwiConfigYaml(new Date().toISOString()), "utf-8");
+  }
 
   const shouldWritePolicy = !existsSync(policyPath) || Boolean(opts.force);
   const shouldWriteRegistry = !existsSync(registryPath) || Boolean(opts.force);
@@ -40,6 +39,10 @@ export async function runInit(
   }
 
   console.log(chalk.green("✓") + " .kiwi initialized");
+  if (!shouldWriteConfig) console.log(chalk.gray("•") + " .kiwi/config.yaml preserved");
+  if (!shouldWritePolicy) console.log(chalk.gray("•") + " kiwi-policy.yaml preserved");
+  if (!shouldWriteRegistry) console.log(chalk.gray("•") + " model-registry.yaml preserved");
+  if (shouldWriteConfig) console.log(chalk.green("✓") + " .kiwi/config.yaml written");
   if (shouldWritePolicy) console.log(chalk.green("✓") + " kiwi-policy.yaml written");
   if (shouldWriteRegistry) console.log(chalk.green("✓") + " model-registry.yaml written");
 }
