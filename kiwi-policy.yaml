@@ -1,0 +1,44 @@
+version: "1"
+project:
+  name: ai-kiwi
+  language: typescript
+  packageManager: pnpm
+
+commands:
+  test: pnpm test
+  lint: pnpm lint
+  typecheck: pnpm typecheck
+
+routing:
+  defaultAgentRole: executor
+  defaultModelCapability: mid
+  stepTypeOverrides:
+    planning:
+      agentRole: planner
+      modelCapability: frontier
+    review:
+      agentRole: reviewer
+      modelCapability: frontier
+    validation:
+      agentRole: reviewer
+      modelCapability: strong
+    coding:
+      agentRole: executor
+      modelCapability: strong
+    test_creation:
+      agentRole: executor
+      modelCapability: mid
+
+riskZones:
+  high:
+    - src/auth/**
+    - src/payment/**
+    - infra/**
+    - migrations/**
+    - .github/workflows/**
+
+approvals:
+  requireFor:
+    - migration
+    - dependency_addition
+    - production_config_change

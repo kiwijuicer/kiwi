@@ -1,0 +1,20 @@
+{
+  "name": "ai-kiwi",
+  "private": true,
+  "version": "0.1.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "pnpm -r --filter '@ai-kiwi/*' build",
+    "dev": "pnpm --filter '@ai-kiwi/cli' dev",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "echo 'lint not configured yet'",
+    "clean": "pnpm -r clean",
+    "kiwi": "tsx apps/cli/src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "tsx": "^4.7.3",
+    "typescript": "^5.4.5"
+  }
+}

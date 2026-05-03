@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "paths": {
+      "@ai-kiwi/adapters": ["../../packages/adapters/src/index.ts"],
+      "@ai-kiwi/core": ["../../packages/core/src/index.ts"],
+      "@ai-kiwi/contracts": ["../../packages/contracts/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

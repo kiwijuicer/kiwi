@@ -1,0 +1,22 @@
+version: "1"
+models:
+  - id: stub-cheap
+    provider: stub
+    capability: cheap
+    roles: [executor, rules]
+    enabled: true
+  - id: stub-mid
+    provider: stub
+    capability: mid
+    roles: [researcher, executor, rules]
+    enabled: true
+  - id: stub-strong
+    provider: stub
+    capability: strong
+    roles: [executor, reviewer, security]
+    enabled: true
+  - id: stub-frontier
+    provider: stub
+    capability: frontier
+    roles: [planner, reviewer, security]
+    enabled: true
