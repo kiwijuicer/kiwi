@@ -1,7 +1,7 @@
 # Step 01: Clean Start and Repo Baseline
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-03
 Milestone: MVP 1
 Depends-On: -
 Vision-Refs: 15, 17.1, 18

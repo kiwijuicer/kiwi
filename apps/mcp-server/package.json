@@ -1,0 +1,15 @@
+{
+  "name": "@ai-kiwi/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'mcp-server placeholder build'",
+    "test": "echo 'mcp-server placeholder test'",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5"
+  }
+}

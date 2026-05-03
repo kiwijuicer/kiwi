@@ -1,0 +1,17 @@
+{
+  "name": "@ai-kiwi/sandbox",
+  "version": "0.1.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "echo 'sandbox placeholder build'",
+    "test": "echo 'sandbox placeholder test'",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5"
+  }
+}
