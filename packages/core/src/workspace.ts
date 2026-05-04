@@ -107,7 +107,7 @@ export function discoverWorkspaceRepos(workspacePath: string): WorkspaceRepo[] {
 
 function findKnownWorkspaceRoot(cwd: string): string | null {
   let current = path.resolve(cwd);
-  while (true) {
+  for (;;) {
     if (codeWorkspaceFiles(current).length > 0) return current;
     if (existsSync(path.join(current, ".kiwi", "config.yaml"))) return current;
     const parent = path.dirname(current);

@@ -671,7 +671,7 @@ export function createMcpMessageDrainer(
     buffer = Buffer.concat([buffer, chunk]);
     debugLog("stdio_chunk", { bytes: chunk.length, bufferedBytes: buffer.length });
 
-    while (true) {
+    for (;;) {
       let body: string | null = null;
 
       if (startsWithContentLength(buffer)) {

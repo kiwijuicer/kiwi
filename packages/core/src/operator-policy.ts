@@ -73,6 +73,10 @@ export function commandForGate(policy: KiwiPolicy, gateType: GateType): string[]
       return splitCommandLine(policy.commands.lint);
     case ContractValues.Tests:
       return splitCommandLine(policy.commands.test);
+    case "forbidden_file_checks":
+    case "secrets_check":
+    case "structured_review_json":
+      return null;
     default:
       return null;
   }

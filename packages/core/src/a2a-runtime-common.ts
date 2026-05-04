@@ -45,8 +45,7 @@ const DEFAULT_POLICY: A2ARuntimePolicy = {
 
 export function effectivePolicy(policy: Partial<A2ARuntimePolicy> | undefined): A2ARuntimePolicy {
   const trustedPeers = policy?.trustedPeers ?? DEFAULT_POLICY.trustedPeers;
-  const trustedAgentIds =
-    policy?.trustedAgentIds ?? trustedPeers.map((peer) => peer.agentId) ?? DEFAULT_POLICY.trustedAgentIds;
+  const trustedAgentIds = policy?.trustedAgentIds ?? trustedPeers.map((peer) => peer.agentId);
   return {
     ...DEFAULT_POLICY,
     ...policy,

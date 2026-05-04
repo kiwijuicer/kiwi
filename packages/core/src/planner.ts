@@ -210,6 +210,18 @@ function requiredGates(stepType: StepType): string[] {
   switch (stepType) {
     case "review":
       return ["structured_review_json"];
+    case "context_discovery":
+    case "planning":
+    case "coding":
+    case "code_creation":
+    case "code_modification":
+    case "refactoring":
+    case "scm_ticket":
+    case "scm_pull_request":
+    case "scm_review":
+    case "rules_update":
+    case "documentation":
+      return [];
     default:
       return [];
   }
