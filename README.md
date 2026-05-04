@@ -6,6 +6,20 @@ Local-first control plane for AI-assisted coding work.
 
 ## 5-minute Quickstart
 
+From a fresh checkout, install the `kiwi` command globally with one command:
+
+```bash
+make install
+```
+
+This bootstraps `pnpm` through Corepack when needed, installs dependencies, builds the CLI, writes `kiwi` to `~/.local/bin`, and adds that directory to `~/.zshrc` when it is missing from `PATH`. The installed command rebuilds from this checkout before each run, so it follows the current local source.
+
+If dependencies are already installed and you only want to refresh the bin wrapper:
+
+```bash
+make install INSTALL_DEPS=0
+```
+
 From this repository:
 
 ```bash
