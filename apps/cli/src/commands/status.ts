@@ -28,9 +28,20 @@ export async function runStatus(cwd: string = process.cwd(), runId?: string): Pr
     console.log(`  title: ${entry.initiativeTitle}`);
     console.log(`  plan: ${entry.currentPlanId}`);
     console.log(`  steps: ${entry.stepCount}`);
+    if (entry.attempts.length > 0) {
+      console.log(`  attempts:`);
+      for (const attempt of entry.attempts) {
+        console.log(
+          `    ${attempt.stepId}/${attempt.attemptId}  ${attempt.status}  gates:${attempt.gateStatus}  review:${attempt.reviewVerdict}  next:${attempt.nextAction}`,
+        );
+      }
+    }
     console.log(`  artifacts:`);
     console.log(`    ${entry.artifactPaths.runManifest}`);
     console.log(`    ${entry.artifactPaths.initiative}`);
     console.log(`    ${entry.artifactPaths.taskGraph}`);
+    if (entry.artifactPaths.finalSummary) console.log(`    ${entry.artifactPaths.finalSummary}`);
+    if (entry.artifactPaths.finalVerdict) console.log(`    ${entry.artifactPaths.finalVerdict}`);
+    if (entry.artifactPaths.finalCostReport) console.log(`    ${entry.artifactPaths.finalCostReport}`);
   }
 }

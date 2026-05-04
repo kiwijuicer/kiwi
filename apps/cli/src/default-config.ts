@@ -54,6 +54,38 @@ approvals:
     dependency_addition: required
     production_config_change: required
     unrestricted_shell: blocked
+
+commandProfiles:
+  default:
+    allowedCommands: [node, pnpm]
+    approvalState: auto
+    approvalRequiredPaths: [migrations/**]
+    deniedPaths: [.env*, secrets/**]
+    envAllowlist: [PATH, CI]
+    secretEnvNames: []
+    networkPolicy: disabled
+    timeoutMs: 120000
+    maxOutputBytes: 65536
+  validation:
+    allowedCommands: [node, pnpm]
+    approvalState: auto
+    approvalRequiredPaths: []
+    deniedPaths: [.env*, secrets/**]
+    envAllowlist: [PATH, CI]
+    secretEnvNames: []
+    networkPolicy: disabled
+    timeoutMs: 120000
+    maxOutputBytes: 65536
+  coding:
+    allowedCommands: [node, pnpm]
+    approvalState: auto
+    approvalRequiredPaths: [migrations/**]
+    deniedPaths: [.env*, secrets/**]
+    envAllowlist: [PATH, CI]
+    secretEnvNames: []
+    networkPolicy: disabled
+    timeoutMs: 120000
+    maxOutputBytes: 65536
 `;
 
 export const DEFAULT_MODEL_REGISTRY_YAML = `version: "1"

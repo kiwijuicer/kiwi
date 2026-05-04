@@ -3,13 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "echo 'mcp-server placeholder build'",
-    "test": "echo 'mcp-server placeholder test'",
+    "build": "tsup",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
+  "dependencies": {
+    "@ai-kiwi/adapters": "workspace:*",
+    "@ai-kiwi/contracts": "workspace:*",
+    "@ai-kiwi/core": "workspace:*",
+    "@ai-kiwi/sandbox": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "^20.12.7",
+    "tsup": "^8.0.2",
+    "vitest": "^1.6.0",
     "typescript": "^5.4.5"
   }
 }

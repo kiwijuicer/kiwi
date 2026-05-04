@@ -16,7 +16,10 @@ export type AuditEventType =
   | "runner_attempt_completed"
   | "runner_attempt_failed"
   | "step_attempt_reviewed"
-  | "step_attempt_next_action";
+  | "step_attempt_next_action"
+  | "approval_decision_recorded"
+  | "run_finalized"
+  | "run_status_updated";
 
 export interface AuditEvent {
   eventType: AuditEventType;

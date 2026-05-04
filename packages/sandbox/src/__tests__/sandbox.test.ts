@@ -3,6 +3,7 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import {
+  captureWorktreeDiffArtifact,
   SandboxCommandPolicy,
   createWorktreeSandbox,
   executeSandboxCommand,
@@ -191,5 +192,38 @@ describe("worktree sandbox command execution", () => {
     const auditLog = readFileSync(path.join(repo, ".kiwi", "logs", "audit.log"), "utf-8");
     expect(auditLog).toContain("sandbox_command_allowed");
     expect(auditLog).toContain("sandbox_command_completed");
+  });
+
+  it("captures worktree diff artifacts without touching main workspace", async () => {
+    const repo = cwd();
+    const sandbox = createWorktreeSandbox({
+      cwd: repo,
+      runId: "run_demo",
+      attemptId: "attempt_007",
+    });
+
+    await executeSandboxCommand({
+      cwd: repo,
+      runId: "run_demo",
+      stepId: "step_001",
+      attemptId: "attempt_007",
+      worktreePath: sandbox.worktreePath,
+      command: [nodeBin, "-e", "require('fs').writeFileSync('feature.txt', 'new')"],
+      env: { PATH: process.env.PATH ?? "" },
+      policy: policy(),
+    });
+
+    const artifact = captureWorktreeDiffArtifact({
+      cwd: repo,
+      runId: "run_demo",
+      stepId: "step_001",
+      attemptId: "attempt_007",
+      worktreePath: sandbox.worktreePath,
+    });
+    expect(artifact?.type).toBe("diff");
+    expect(existsSync(path.join(repo, "feature.txt"))).toBe(false);
+    expect(
+      existsSync(path.join(repo, ".kiwi", "runs", "run_demo", "steps", "step_001", "attempt_007", "artifacts", "diff.patch")),
+    ).toBe(true);
   });
 });

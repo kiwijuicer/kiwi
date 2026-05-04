@@ -1,0 +1,22 @@
+import chalk from "chalk";
+import { finalizeRun } from "@ai-kiwi/core";
+
+export interface FinalizeOptions {
+  now?: Date;
+}
+
+export async function runFinalize(
+  runId: string,
+  opts: FinalizeOptions = {},
+  cwd: string = process.cwd(),
+): Promise<void> {
+  const input: Parameters<typeof finalizeRun>[0] = { cwd, runId };
+  if (opts.now) input.now = opts.now;
+  const result = finalizeRun(input);
+
+  console.log(chalk.green("✓") + " Run finalized");
+  console.log(chalk.dim(`runId: ${runId}`));
+  console.log(chalk.dim(`verdict: ${result.verdict.verdict}`));
+  console.log(chalk.dim(`safeToApply: ${result.verdict.safeToApply}`));
+  console.log(chalk.dim(`summary: .kiwi/runs/${runId}/${result.summaryRef}`));
+}

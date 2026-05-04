@@ -113,6 +113,8 @@ export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
   commandPolicy?: TCommandPolicy;
   env?: Record<string, string>;
   approved?: boolean;
+  additionalGateResults?: GateResult[];
+  additionalArtifacts?: Artifact[];
   reviewEngine?: ReviewEngine;
   now?: Date;
 }
@@ -441,7 +443,10 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       gateResult: GateResultSchema.parse(runnerOutput.gateResult),
     };
 
-    const gateResults = [runnerOutput.gateResult];
+    const gateResults = [
+      runnerOutput.gateResult,
+      ...(input.additionalGateResults ?? []).map((entry) => GateResultSchema.parse(entry)),
+    ];
     const gateResultsRef = saveGateResults({
       cwd: input.cwd,
       runId,
@@ -488,6 +493,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
 
     const artifactsWithoutSummary = dedupeArtifacts([
       ...runnerOutput.artifactRefs,
+      ...(input.additionalArtifacts ?? []).map((entry) => ArtifactSchema.parse(entry)),
       artifact({ type: "review_report", ref: reviewReportRef, createdAt: completedAt }),
       artifact({ type: "cost_report", ref: costReportRef, createdAt: completedAt }),
     ]);

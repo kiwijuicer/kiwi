@@ -1,4 +1,8 @@
-import { executeSandboxCommand, SandboxCommandInput } from "@ai-kiwi/sandbox";
+import {
+  captureWorktreeDiffArtifact,
+  executeSandboxCommand,
+  SandboxCommandInput,
+} from "@ai-kiwi/sandbox";
 import {
   RunnerAdapter,
   RunnerExecutionInput,
@@ -46,10 +50,20 @@ export class LocalShellRunnerAdapter implements RunnerAdapter {
     if (input.requestedAt) sandboxInput.now = new Date(input.requestedAt);
 
     const output = await executeSandboxCommand(sandboxInput);
+    const diffArtifact = captureWorktreeDiffArtifact({
+      cwd: input.workspacePath,
+      runId: input.runId,
+      stepId: input.stepId,
+      attemptId: input.attemptId,
+      worktreePath: input.worktreePath,
+    });
+    const artifactRefs = diffArtifact
+      ? [...output.artifactRefs, diffArtifact]
+      : output.artifactRefs;
     const rawLogsRef = output.artifactRefs[0]?.ref ?? null;
     const result: RunnerExecutionOutput = {
       status: output.status,
-      artifactRefs: output.artifactRefs,
+      artifactRefs,
       rawLogsRef,
       modelUsage: zeroModelUsage(),
       gateResult: output.gateResult,

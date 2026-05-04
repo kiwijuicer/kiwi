@@ -1,7 +1,7 @@
 # Step 13: MCP, Rules Sync, and Operator Surfaces
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-04
 Milestone: MVP 5+
 Depends-On: Step 12
 Vision-Refs: 14, 16, 17.5

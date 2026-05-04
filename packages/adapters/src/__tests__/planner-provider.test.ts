@@ -27,7 +27,8 @@ const policy: KiwiPolicy = {
     stepTypeOverrides: {},
   },
   riskZones: { high: [] },
-  approvals: { requireFor: [] },
+  approvals: { requireFor: [], commandApprovalStates: {} },
+  commandProfiles: {},
 };
 
 const input: PlannerProviderInput = {

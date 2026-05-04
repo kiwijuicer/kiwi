@@ -28,7 +28,8 @@ const policy: KiwiPolicy = {
     },
   },
   riskZones: { high: [] },
-  approvals: { requireFor: [] },
+  approvals: { requireFor: [], commandApprovalStates: {} },
+  commandProfiles: {},
 };
 
 describe("deterministic planner", () => {

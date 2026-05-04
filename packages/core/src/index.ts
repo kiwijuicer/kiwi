@@ -9,3 +9,5 @@ export * from "./quality-gates";
 export * from "./review-engine";
 export * from "./scheduler-policy";
 export * from "./step-attempt-orchestrator";
+export * from "./lifecycle";
+export * from "./operator-policy";

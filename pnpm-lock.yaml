@@ -50,13 +50,32 @@ importers:
         version: 1.6.1(@types/node@20.19.39)
 
   apps/mcp-server:
+    dependencies:
+      '@ai-kiwi/adapters':
+        specifier: workspace:*
+        version: link:../../packages/adapters
+      '@ai-kiwi/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@ai-kiwi/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@ai-kiwi/sandbox':
+        specifier: workspace:*
+        version: link:../../packages/sandbox
     devDependencies:
       '@types/node':
         specifier: ^20.12.7
         version: 20.19.39
+      tsup:
+        specifier: ^8.0.2
+        version: 8.5.1(postcss@8.5.13)(tsx@4.21.0)(typescript@5.9.3)
       typescript:
         specifier: ^5.4.5
         version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.39)
 
   packages/adapters:
     dependencies:

@@ -1,7 +1,7 @@
 # Step 14: A2A Preparation and Future Scale
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-04
 Milestone: MVP 5+
 Depends-On: Step 13
 Vision-Refs: 14.3, 17.5, 19

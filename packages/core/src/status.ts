@@ -8,11 +8,26 @@ import {
   loadRunManifest,
   loadTaskGraph,
 } from "./run-store";
+import { listStepAttemptEvidence } from "./lifecycle";
 
 export interface RunArtifactPaths {
   runManifest: string;
   initiative: string;
   taskGraph: string;
+  finalSummary?: string;
+  finalVerdict?: string;
+  finalCostReport?: string;
+}
+
+export interface RunAttemptStatusEntry {
+  stepId: string;
+  attemptId: string;
+  status: string;
+  runner: string;
+  gateStatus: "pass" | "fail" | "blocked" | "missing";
+  reviewVerdict: string | "missing";
+  nextAction: string | "missing";
+  artifacts: string[];
 }
 
 export interface RunStatusEntry {
@@ -22,6 +37,7 @@ export interface RunStatusEntry {
   initiativeTitle: string;
   currentPlanId: string;
   stepCount: number;
+  attempts: RunAttemptStatusEntry[];
   artifactPaths: RunArtifactPaths;
 }
 
@@ -37,11 +53,46 @@ export interface RunStatusSummary {
 }
 
 function artifactPathsFor(runId: string): RunArtifactPaths {
-  return {
+  const paths: RunArtifactPaths = {
     runManifest: `.kiwi/runs/${runId}/run.json`,
     initiative: `.kiwi/runs/${runId}/initiative.json`,
     taskGraph: `.kiwi/runs/${runId}/plan/task-graph.json`,
   };
+  return paths;
+}
+
+function finalArtifactPathsFor(runId: string, cwd: string): Partial<RunArtifactPaths> {
+  const candidates = {
+    finalSummary: `.kiwi/runs/${runId}/final/final-summary.md`,
+    finalVerdict: `.kiwi/runs/${runId}/final/final-verdict.json`,
+    finalCostReport: `.kiwi/runs/${runId}/final/final-cost-report.json`,
+  };
+  const existing: Partial<RunArtifactPaths> = {};
+  for (const [key, relative] of Object.entries(candidates)) {
+    if (existsSync(path.join(cwd, relative))) {
+      existing[key as keyof RunArtifactPaths] = relative;
+    }
+  }
+  return existing;
+}
+
+function attemptStatusEntries(runId: string, cwd: string): RunAttemptStatusEntry[] {
+  return listStepAttemptEvidence(cwd, runId).map((entry) => {
+    const blocked = entry.gateResults.some((gate) => gate.status === "blocked");
+    const failed = entry.gateResults.some((gate) => gate.status === "fail");
+    const gateStatus = blocked ? "blocked" : failed ? "fail" : entry.gateResults.length > 0 ? "pass" : "missing";
+
+    return {
+      stepId: entry.stepId,
+      attemptId: entry.attemptId,
+      status: entry.attempt.status,
+      runner: entry.attempt.runner,
+      gateStatus,
+      reviewVerdict: entry.reviewVerdict?.verdict ?? "missing",
+      nextAction: entry.summary?.nextAction.type ?? "missing",
+      artifacts: entry.attempt.artifacts.map((artifact) => artifact.ref),
+    };
+  });
 }
 
 function assertRunFolderReadable(runId: string, cwd: string): void {
@@ -68,7 +119,11 @@ function loadRunStatusEntry(runId: string, cwd: string): RunStatusEntry {
     initiativeTitle: initiative.title,
     currentPlanId: run.currentPlanId,
     stepCount: taskGraph.steps.length,
-    artifactPaths: artifactPathsFor(runId),
+    attempts: attemptStatusEntries(runId, cwd),
+    artifactPaths: {
+      ...artifactPathsFor(runId),
+      ...finalArtifactPathsFor(runId, cwd),
+    },
   };
 }
 

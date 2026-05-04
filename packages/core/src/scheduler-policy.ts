@@ -107,7 +107,7 @@ function writeJsonSafely(target: string, value: unknown): void {
 }
 
 function defaultAttemptId(now: Date): string {
-  const stamp = now.toISOString().replace(/[^0-9]/g, "").slice(0, 14);
+  const stamp = now.toISOString().replace(/[^0-9]/g, "").slice(0, 17);
   return `attempt_${stamp}`;
 }
 

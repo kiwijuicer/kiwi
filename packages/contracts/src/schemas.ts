@@ -84,6 +84,10 @@ export const GateTypeSchema = z.enum([
 ]);
 
 export const GateStatusSchema = z.enum(["pass", "fail", "blocked"]);
+export const ApprovalStateSchema = z.enum(["auto", "required", "blocked"]);
+export const NetworkPolicySchema = z.enum(["disabled", "enabled"]);
+export const ContextLevelSchema = z.enum(["L0", "L1", "L2", "L3"]);
+export const SchedulerDecisionStatusSchema = z.enum(["scheduled", "blocked"]);
 export const ReviewVerdictValueSchema = z.enum([
   "pass",
   "pass_with_comments",
@@ -193,9 +197,170 @@ export const ReviewVerdictSchema = z.object({
   confidence: z.number().min(0).max(1),
 });
 
+export const ContextPackageSchema = z.object({
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  stepId: z.string().regex(/^step_\d{3}$/),
+  attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/),
+  level: ContextLevelSchema,
+  include: z.object({
+    initiative: z.boolean(),
+    policy: z.boolean(),
+    registry: z.boolean(),
+    commands: z.boolean(),
+    relevantFiles: z.array(z.string()),
+    tests: z.array(z.string()),
+    recentDiffFiles: z.array(z.string()),
+    symbolHits: z.array(z.string()),
+    traces: z.array(z.string()),
+    architectureFiles: z.array(z.string()),
+    historicalOutcomeRefs: z.array(z.string()),
+  }),
+  generatedAt: IsoDateTimeSchema,
+});
+
+export const SchedulerDecisionSchema = z.object({
+  status: SchedulerDecisionStatusSchema,
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  stepId: z.string().regex(/^step_\d{3}$/),
+  attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/),
+  blockedReason: z.string().min(1).optional(),
+  agentRole: AgentRoleSchema,
+  modelCapability: ModelCapabilitySchema,
+  runner: z.union([RunnerNameSchema, z.null()]),
+  contextLevel: ContextLevelSchema,
+  reviewDepth: ModelCapabilitySchema,
+  requiredGates: z.array(z.string()),
+  contextPackageRef: z.string().min(1),
+});
+
+export const RunnerModelUsageSchema = z.object({
+  inputTokens: z.number().int().min(0),
+  outputTokens: z.number().int().min(0),
+});
+
+export const RunnerExecutionErrorSchema = z.object({
+  code: z.string().min(1),
+  message: z.string().min(1),
+});
+
+export const RunnerExecutionInputSchema = z.object({
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  stepId: z.string().regex(/^step_\d{3}$/),
+  attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/),
+  workspacePath: z.string().min(1),
+  worktreePath: z.string().min(1),
+  stepPrompt: z.string(),
+  contextPackage: z.unknown(),
+  allowedTools: z.array(z.string()),
+  timeouts: z.object({
+    commandTimeoutMs: z.number().int().positive(),
+  }),
+});
+
+export const RunnerExecutionOutputSchema = z.object({
+  status: z.enum(["completed", "failed", "blocked", "approval_required", "timeout"]),
+  artifactRefs: z.array(ArtifactSchema),
+  rawLogsRef: z.union([z.string().min(1), z.null()]),
+  modelUsage: RunnerModelUsageSchema,
+  gateResult: GateResultSchema,
+  error: RunnerExecutionErrorSchema.optional(),
+});
+
+export const AttemptSummarySchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  stepId: z.string().regex(/^step_\d{3}$/),
+  attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/),
+  status: StepAttemptStatusSchema,
+  runnerStatus: z.enum(["completed", "failed", "blocked", "approval_required", "timeout"]),
+  nextAction: z.object({
+    type: z.enum(["continue", "fix_step", "replan"]),
+    reason: z.string().min(1),
+    recommendedNextSteps: z.array(z.string()),
+    issueCodes: z.array(z.string()),
+  }),
+  gateResultsRef: z.string().min(1),
+  reviewReportRef: z.string().min(1),
+  costReportRef: z.string().min(1),
+  artifactRefs: z.array(z.string()),
+  completedAt: IsoDateTimeSchema,
+  error: RunnerExecutionErrorSchema.optional(),
+});
+
+export const FinalVerdictSchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  verdict: ReviewVerdictValueSchema,
+  safeToApply: z.boolean(),
+  completedStepIds: z.array(z.string().regex(/^step_\d{3}$/)),
+  failedStepIds: z.array(z.string().regex(/^step_\d{3}$/)),
+  blockedStepIds: z.array(z.string().regex(/^step_\d{3}$/)),
+  missingStepIds: z.array(z.string().regex(/^step_\d{3}$/)),
+  gateResultRefs: z.array(z.string()),
+  reviewReportRefs: z.array(z.string()),
+  reason: z.string().min(1),
+  createdAt: IsoDateTimeSchema,
+});
+
+export const FinalCostReportSchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  plannerCostUsd: z.number().min(0),
+  runnerCostUsd: z.number().min(0),
+  totalEstimatedUsd: z.number().min(0),
+  currency: z.literal("USD"),
+  createdAt: IsoDateTimeSchema,
+});
+
+export const AuditEventSchema = z.object({
+  eventType: z.string().min(1),
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  timestamp: IsoDateTimeSchema,
+  payload: z.record(z.string(), z.unknown()),
+});
+
+export const ApprovalDecisionSchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/),
+  state: ApprovalStateSchema,
+  reason: z.string().min(1),
+  approvedBy: z.string().min(1),
+  createdAt: IsoDateTimeSchema,
+});
+
+export const ProtocolEnvelopeKindSchema = z.enum([
+  "initiative",
+  "task_graph",
+  "step_attempt",
+  "gate_result",
+  "review_verdict",
+  "artifact",
+]);
+
+export const ProtocolEnvelopeSchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  protocol: z.literal("a2a-prep"),
+  kind: ProtocolEnvelopeKindSchema,
+  payload: z.unknown(),
+  createdAt: IsoDateTimeSchema,
+});
+
 export const PolicyRoutingOverrideSchema = z.object({
   agentRole: AgentRoleSchema,
   modelCapability: ModelCapabilitySchema,
+});
+
+export const CommandProfileSchema = z.object({
+  allowedCommands: z.array(z.string().min(1)).default([]),
+  approvalState: ApprovalStateSchema.default("auto"),
+  approvalRequiredPaths: z.array(z.string()).default([]),
+  deniedPaths: z.array(z.string()).default([]),
+  envAllowlist: z.array(z.string()).default(["PATH"]),
+  secretEnvNames: z.array(z.string()).default([]),
+  networkPolicy: NetworkPolicySchema.default("disabled"),
+  timeoutMs: z.number().int().positive().default(120_000),
+  maxOutputBytes: z.number().int().positive().default(65536),
 });
 
 export const KiwiPolicySchema = z.object({
@@ -220,7 +385,9 @@ export const KiwiPolicySchema = z.object({
   }),
   approvals: z.object({
     requireFor: z.array(z.string()).default([]),
+    commandApprovalStates: z.record(z.string(), ApprovalStateSchema).default({}),
   }),
+  commandProfiles: z.record(z.string(), CommandProfileSchema).default({}),
 });
 
 export const ModelProviderSchema = z.enum(["stub", "openai", "anthropic", "local"]);
@@ -253,6 +420,10 @@ export type StepAttemptStatus = z.infer<typeof StepAttemptStatusSchema>;
 export type ArtifactType = z.infer<typeof ArtifactTypeSchema>;
 export type GateType = z.infer<typeof GateTypeSchema>;
 export type GateStatus = z.infer<typeof GateStatusSchema>;
+export type ApprovalState = z.infer<typeof ApprovalStateSchema>;
+export type NetworkPolicy = z.infer<typeof NetworkPolicySchema>;
+export type ContextLevel = z.infer<typeof ContextLevelSchema>;
+export type SchedulerDecisionStatus = z.infer<typeof SchedulerDecisionStatusSchema>;
 export type ReviewVerdictValue = z.infer<typeof ReviewVerdictValueSchema>;
 export type ReviewIssueSeverity = z.infer<typeof ReviewIssueSeveritySchema>;
 export type Step = z.infer<typeof StepSchema>;
@@ -264,7 +435,21 @@ export type StepAttempt = z.infer<typeof StepAttemptSchema>;
 export type GateResult = z.infer<typeof GateResultSchema>;
 export type ReviewIssue = z.infer<typeof ReviewIssueSchema>;
 export type ReviewVerdict = z.infer<typeof ReviewVerdictSchema>;
+export type ContextPackage = z.infer<typeof ContextPackageSchema>;
+export type SchedulerDecision = z.infer<typeof SchedulerDecisionSchema>;
+export type RunnerModelUsage = z.infer<typeof RunnerModelUsageSchema>;
+export type RunnerExecutionError = z.infer<typeof RunnerExecutionErrorSchema>;
+export type RunnerExecutionInput = z.infer<typeof RunnerExecutionInputSchema>;
+export type RunnerExecutionOutput = z.infer<typeof RunnerExecutionOutputSchema>;
+export type AttemptSummary = z.infer<typeof AttemptSummarySchema>;
+export type FinalVerdict = z.infer<typeof FinalVerdictSchema>;
+export type FinalCostReport = z.infer<typeof FinalCostReportSchema>;
+export type AuditEvent = z.infer<typeof AuditEventSchema>;
+export type ApprovalDecision = z.infer<typeof ApprovalDecisionSchema>;
+export type ProtocolEnvelopeKind = z.infer<typeof ProtocolEnvelopeKindSchema>;
+export type ProtocolEnvelope = z.infer<typeof ProtocolEnvelopeSchema>;
 export type PolicyRoutingOverride = z.infer<typeof PolicyRoutingOverrideSchema>;
+export type CommandProfile = z.infer<typeof CommandProfileSchema>;
 export type KiwiPolicy = z.infer<typeof KiwiPolicySchema>;
 export type ModelProvider = z.infer<typeof ModelProviderSchema>;
 export type ModelEntry = z.infer<typeof ModelEntrySchema>;

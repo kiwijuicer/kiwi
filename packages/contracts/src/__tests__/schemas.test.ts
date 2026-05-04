@@ -1,12 +1,22 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "fs";
+import path from "path";
 import {
+  ApprovalDecisionSchema,
   ArtifactSchema,
+  AttemptSummarySchema,
+  ContextPackageSchema,
   ContractsMetadataSchema,
+  FinalCostReportSchema,
+  FinalVerdictSchema,
   GateResultSchema,
   InitiativeSchema,
   KiwiPolicySchema,
   ModelRegistrySchema,
+  ProtocolEnvelopeSchema,
   ReviewVerdictSchema,
+  RunnerExecutionOutputSchema,
+  SchedulerDecisionSchema,
   RunSchema,
   StepAttemptSchema,
   TaskGraphSchema,
@@ -204,6 +214,120 @@ describe("contracts schemas", () => {
     });
 
     expect(policy.version).toBe("1");
+    expect(policy.commandProfiles.default).toBeUndefined();
     expect(registry.models[0]?.id).toBe("stub-mid");
+  });
+
+  it("parses operator, finalization, and protocol boundary contracts", () => {
+    const contextPackage = ContextPackageSchema.parse({
+      runId: "run_demo",
+      stepId: "step_001",
+      attemptId: "attempt_001",
+      level: "L1",
+      include: {
+        initiative: true,
+        policy: true,
+        registry: true,
+        commands: true,
+        relevantFiles: ["src/index.ts"],
+        tests: ["src/index.test.ts"],
+        recentDiffFiles: [],
+        symbolHits: [],
+        traces: [],
+        architectureFiles: ["docs/architecture.md"],
+        historicalOutcomeRefs: [],
+      },
+      generatedAt: "2026-05-04T08:00:00.000Z",
+    });
+    const decision = SchedulerDecisionSchema.parse({
+      status: "scheduled",
+      runId: "run_demo",
+      stepId: "step_001",
+      attemptId: "attempt_001",
+      agentRole: "executor",
+      modelCapability: "strong",
+      runner: "local-shell",
+      contextLevel: "L1",
+      reviewDepth: "strong",
+      requiredGates: ["tests"],
+      contextPackageRef: "steps/step_001/attempt_001/context-package.json",
+    });
+    const output = RunnerExecutionOutputSchema.parse({
+      status: "completed",
+      artifactRefs: [],
+      rawLogsRef: null,
+      modelUsage: { inputTokens: 0, outputTokens: 0 },
+      gateResult: {
+        gateId: "gate_tests",
+        gateType: "tests",
+        status: "pass",
+        evidenceRefs: [],
+        reason: "ok",
+      },
+    });
+    const summary = AttemptSummarySchema.parse({
+      schemaVersion: "1",
+      runId: "run_demo",
+      stepId: "step_001",
+      attemptId: "attempt_001",
+      status: "completed",
+      runnerStatus: "completed",
+      nextAction: {
+        type: "continue",
+        reason: "pass",
+        recommendedNextSteps: ["Continue"],
+        issueCodes: [],
+      },
+      gateResultsRef: "steps/step_001/attempt_001/gate-results.json",
+      reviewReportRef: "steps/step_001/attempt_001/artifacts/review-report.json",
+      costReportRef: "steps/step_001/attempt_001/artifacts/cost-report.json",
+      artifactRefs: [],
+      completedAt: "2026-05-04T08:00:00.000Z",
+    });
+    const finalVerdict = FinalVerdictSchema.parse({
+      schemaVersion: "1",
+      runId: "run_demo",
+      verdict: "pass",
+      safeToApply: true,
+      completedStepIds: ["step_001"],
+      failedStepIds: [],
+      blockedStepIds: [],
+      missingStepIds: [],
+      gateResultRefs: [],
+      reviewReportRefs: [],
+      reason: "done",
+      createdAt: "2026-05-04T08:00:00.000Z",
+    });
+    const cost = FinalCostReportSchema.parse({
+      schemaVersion: "1",
+      runId: "run_demo",
+      plannerCostUsd: 0,
+      runnerCostUsd: 0,
+      totalEstimatedUsd: 0,
+      currency: "USD",
+      createdAt: "2026-05-04T08:00:00.000Z",
+    });
+    const approval = ApprovalDecisionSchema.parse({
+      schemaVersion: "1",
+      runId: "run_demo",
+      attemptId: "attempt_001",
+      state: "auto",
+      reason: "ok",
+      approvedBy: "operator",
+      createdAt: "2026-05-04T08:00:00.000Z",
+    });
+    const fixture = JSON.parse(
+      readFileSync(path.join(__dirname, "..", "__fixtures__", "a2a-envelope.json"), "utf-8"),
+    ) as unknown;
+    const envelope = ProtocolEnvelopeSchema.parse(fixture);
+
+    expect(contextPackage.level).toBe("L1");
+    expect(decision.runner).toBe("local-shell");
+    expect(output.status).toBe("completed");
+    expect(summary.nextAction.type).toBe("continue");
+    expect(finalVerdict.safeToApply).toBe(true);
+    expect(cost.currency).toBe("USD");
+    expect(approval.state).toBe("auto");
+    expect(envelope.protocol).toBe("a2a-prep");
   });
 });

@@ -1,0 +1,137 @@
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
+import os from "os";
+import path from "path";
+import { describe, expect, it, vi } from "vitest";
+import { runAttempt } from "../commands/attempt";
+import { runFinalize } from "../commands/finalize";
+import { runInit } from "../commands/init";
+import { runPlan } from "../commands/plan";
+import { runRulesSync } from "../commands/rules";
+import { runStatus } from "../commands/status";
+
+function writeFastPolicy(cwd: string): void {
+  writeFileSync(
+    path.join(cwd, "kiwi-policy.yaml"),
+    `version: "1"
+project:
+  name: ai-kiwi
+  language: typescript
+  packageManager: pnpm
+commands:
+  test: node -e 0
+  lint: node -e 0
+  typecheck: node -e 0
+routing:
+  defaultAgentRole: executor
+  defaultModelCapability: mid
+  stepTypeOverrides:
+    validation:
+      agentRole: reviewer
+      modelCapability: strong
+riskZones:
+  high: []
+approvals:
+  requireFor: []
+  commandApprovalStates: {}
+commandProfiles:
+  default:
+    allowedCommands: [node]
+    approvalState: auto
+    approvalRequiredPaths: []
+    deniedPaths: [.env*, secrets/**]
+    envAllowlist: [PATH]
+    secretEnvNames: []
+    networkPolicy: disabled
+    timeoutMs: 1000
+    maxOutputBytes: 4096
+  validation:
+    allowedCommands: [node]
+    approvalState: auto
+    approvalRequiredPaths: []
+    deniedPaths: [.env*, secrets/**]
+    envAllowlist: [PATH]
+    secretEnvNames: []
+    networkPolicy: disabled
+    timeoutMs: 1000
+    maxOutputBytes: 4096
+`,
+    "utf-8",
+  );
+}
+
+describe("kiwi operator flow", () => {
+  it("plans, attempts, finalizes, and reports gate/review evidence", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-operator-"));
+    await runInit({}, cwd);
+    writeFastPolicy(cwd);
+    await runPlan(
+      "# Feature: Operator\n\n## Validate",
+      {
+        now: new Date("2026-05-04T09:00:00.000Z"),
+        runIdSuffix: "op01",
+        initiativeIdSuffix: "op01",
+        planIdSuffix: "op01",
+      },
+      cwd,
+    );
+
+    await runAttempt(
+      "run_20260504_090000_op01",
+      "step_001",
+      {
+        attemptId: "attempt_001",
+        now: new Date("2026-05-04T09:01:00.000Z"),
+      },
+      cwd,
+    );
+    await runFinalize(
+      "run_20260504_090000_op01",
+      { now: new Date("2026-05-04T09:02:00.000Z") },
+      cwd,
+    );
+
+    expect(
+      existsSync(
+        path.join(
+          cwd,
+          ".kiwi",
+          "runs",
+          "run_20260504_090000_op01",
+          "steps",
+          "step_001",
+          "attempt_001",
+          "gate-results.json",
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      readFileSync(
+        path.join(cwd, ".kiwi", "runs", "run_20260504_090000_op01", "final", "final-summary.md"),
+        "utf-8",
+      ),
+    ).toContain("safeToApply: true");
+
+    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await runStatus(cwd, "run_20260504_090000_op01");
+    const output = spy.mock.calls.flat().join("\n");
+    spy.mockRestore();
+
+    expect(output).toContain("attempts:");
+    expect(output).toContain("step_001/attempt_001");
+    expect(output).toContain("review:pass");
+    expect(output).toContain("final/final-summary.md");
+  });
+
+  it("syncs cursor rules from canonical sources", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-rules-"));
+    writeFileSync(path.join(cwd, "AGENTS.md"), "# Agents\n", "utf-8");
+    const rulesDir = path.join(cwd, "docs", "rules");
+    mkdirSync(rulesDir, { recursive: true });
+    writeFileSync(path.join(rulesDir, "project.md"), "# Project\n", "utf-8");
+
+    await runRulesSync({ target: "cursor" }, cwd);
+
+    expect(existsSync(path.join(cwd, ".cursor", "rules", "agents.mdc"))).toBe(true);
+    expect(existsSync(path.join(cwd, ".cursor", "rules", "project.mdc"))).toBe(true);
+  });
+});

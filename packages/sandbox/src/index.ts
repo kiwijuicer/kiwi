@@ -1,14 +1,18 @@
 import { spawn } from "child_process";
 import {
   appendFileSync,
+  copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   renameSync,
+  symlinkSync,
   writeFileSync,
 } from "fs";
 import path from "path";
-import { Artifact, GateResult, GateResultSchema } from "@ai-kiwi/contracts";
+import { Artifact, GateResult, GateResultSchema, GateType } from "@ai-kiwi/contracts";
 
 export type ApprovalState = "auto" | "required" | "blocked";
 export type NetworkPolicy = "disabled" | "enabled";
@@ -48,6 +52,9 @@ export interface SandboxCommandInput {
   env?: Record<string, string>;
   approved?: boolean;
   now?: Date;
+  gateId?: string;
+  gateType?: GateType;
+  artifactLabel?: string;
 }
 
 export interface SandboxCommandOutput {
@@ -67,6 +74,14 @@ interface PolicyDecision {
 }
 
 const NETWORK_COMMANDS = new Set(["curl", "wget", "ssh", "scp", "git", "npm", "pnpm", "yarn"]);
+const WORKSPACE_COPY_EXCLUDES = new Set([
+  ".git",
+  ".kiwi",
+  "node_modules",
+  "dist",
+  ".turbo",
+  ".cache",
+]);
 
 function runsRoot(cwd: string): string {
   return path.join(cwd, ".kiwi", "runs");
@@ -150,6 +165,14 @@ function commandAllowed(command: string[], allowedCommands: string[]): boolean {
 
 function usesNetwork(command: string[]): boolean {
   const executable = path.basename(command[0] ?? "");
+  if (executable === "git") {
+    const subcommand = command[1] ?? "";
+    return ["clone", "fetch", "pull", "push", "submodule"].includes(subcommand);
+  }
+  if (["npm", "pnpm", "yarn"].includes(executable)) {
+    const subcommand = command[1] ?? "";
+    return ["add", "install", "update", "upgrade", "dlx", "create"].includes(subcommand);
+  }
   if (NETWORK_COMMANDS.has(executable)) return true;
   return command.some((arg) => /^https?:\/\//i.test(arg));
 }
@@ -204,13 +227,15 @@ function allowedEnv(env: Record<string, string> | undefined, allowlist: string[]
 }
 
 function gateResult(params: {
+  gateId?: string;
+  gateType?: GateType;
   status: "pass" | "fail" | "blocked";
   reason: string;
   evidenceRefs: string[];
 }): GateResult {
   return GateResultSchema.parse({
-    gateId: "gate_command_execution",
-    gateType: "forbidden_file_checks",
+    gateId: params.gateId ?? "gate_command_execution",
+    gateType: params.gateType ?? "forbidden_file_checks",
     status: params.status,
     evidenceRefs: params.evidenceRefs,
     reason: params.reason,
@@ -231,17 +256,56 @@ function persistOutput(params: {
   stepId: string;
   attemptId: string;
   payload: unknown;
+  artifactLabel?: string;
 }): string {
-  const relativePath = `steps/${params.stepId}/${params.attemptId}/artifacts/command-output.json`;
+  const suffix = params.artifactLabel
+    ? `-${params.artifactLabel.replace(/[^a-z0-9_-]/gi, "_")}`
+    : "";
+  const relativePath = `steps/${params.stepId}/${params.attemptId}/artifacts/command-output${suffix}.json`;
   const target = resolveRunArtifactPath(params.cwd, params.runId, relativePath);
   writeJsonSafely(target, params.payload);
   return relativePath;
+}
+
+function shouldExcludeWorkspaceEntry(entryName: string): boolean {
+  return WORKSPACE_COPY_EXCLUDES.has(entryName);
+}
+
+function copyWorkspaceIntoWorktree(source: string, target: string): void {
+  mkdirSync(target, { recursive: true });
+  for (const entry of readdirSync(source, { withFileTypes: true })) {
+    if (shouldExcludeWorkspaceEntry(entry.name)) continue;
+
+    const sourcePath = path.join(source, entry.name);
+    const targetPath = path.join(target, entry.name);
+    if (entry.isDirectory()) {
+      copyWorkspaceIntoWorktree(sourcePath, targetPath);
+      continue;
+    }
+    if (entry.isSymbolicLink()) continue;
+    if (entry.isFile()) {
+      mkdirSync(path.dirname(targetPath), { recursive: true });
+      copyFileSync(sourcePath, targetPath);
+    }
+  }
+}
+
+function linkNodeModulesIfPresent(source: string, target: string): void {
+  const sourceNodeModules = path.join(source, "node_modules");
+  const targetNodeModules = path.join(target, "node_modules");
+  if (!existsSync(sourceNodeModules) || existsSync(targetNodeModules)) return;
+  try {
+    symlinkSync(sourceNodeModules, targetNodeModules, "dir");
+  } catch {
+    // Best-effort local validation convenience.
+  }
 }
 
 export function createWorktreeSandbox(params: {
   cwd: string;
   runId: string;
   attemptId: string;
+  copyWorkspace?: boolean;
 }): WorktreeSandbox {
   const worktreePath = resolveRunArtifactPath(
     params.cwd,
@@ -249,6 +313,10 @@ export function createWorktreeSandbox(params: {
     `worktrees/${params.attemptId}`,
   );
   mkdirSync(worktreePath, { recursive: true });
+  if (params.copyWorkspace ?? true) {
+    copyWorkspaceIntoWorktree(params.cwd, worktreePath);
+    linkNodeModulesIfPresent(params.cwd, worktreePath);
+  }
   return {
     runId: params.runId,
     attemptId: params.attemptId,
@@ -275,11 +343,14 @@ export async function executeSandboxCommand(input: SandboxCommandInput): Promise
 
   if (policyDecision.status !== "allow") {
     const completedAt = new Date().toISOString();
-    const result = gateResult({
+    const blockedGateParams: Parameters<typeof gateResult>[0] = {
       status: "blocked",
       reason: policyDecision.reason,
       evidenceRefs: [],
-    });
+    };
+    if (input.gateId) blockedGateParams.gateId = input.gateId;
+    if (input.gateType) blockedGateParams.gateType = input.gateType;
+    const result = gateResult(blockedGateParams);
     return {
       status: policyDecision.status,
       exitCode: null,
@@ -323,7 +394,7 @@ export async function executeSandboxCommand(input: SandboxCommandInput): Promise
       const redactedStderr = redact(stderr, input.policy.secretValues);
       const status: SandboxExecutionStatus =
         timedOut ? "timeout" : exitCode === 0 ? "completed" : "failed";
-      const outputRef = persistOutput({
+      const outputParams: Parameters<typeof persistOutput>[0] = {
         cwd: input.cwd,
         runId: input.runId,
         stepId: input.stepId,
@@ -337,9 +408,11 @@ export async function executeSandboxCommand(input: SandboxCommandInput): Promise
           startedAt,
           completedAt,
         },
-      });
+      };
+      if (input.artifactLabel) outputParams.artifactLabel = input.artifactLabel;
+      const outputRef = persistOutput(outputParams);
       const artifactRefs = [artifactRef(outputRef, completedAt)];
-      const result = gateResult({
+      const gateParams: Parameters<typeof gateResult>[0] = {
         status: status === "completed" ? "pass" : "fail",
         reason:
           status === "completed"
@@ -348,7 +421,10 @@ export async function executeSandboxCommand(input: SandboxCommandInput): Promise
               ? "Command timed out"
               : "Command failed",
         evidenceRefs: [outputRef],
-      });
+      };
+      if (input.gateId) gateParams.gateId = input.gateId;
+      if (input.gateType) gateParams.gateType = input.gateType;
+      const result = gateResult(gateParams);
 
       appendAuditEvent(input.cwd, {
         eventType: status === "timeout" ? "sandbox_command_timeout" : "sandbox_command_completed",
@@ -375,6 +451,94 @@ export async function executeSandboxCommand(input: SandboxCommandInput): Promise
       });
     });
   });
+}
+
+function listComparableFiles(root: string, base: string = root): string[] {
+  if (!existsSync(root)) return [];
+  const files: string[] = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (shouldExcludeWorkspaceEntry(entry.name)) continue;
+    const fullPath = path.join(root, entry.name);
+    const relative = path.relative(base, fullPath).replaceAll(path.sep, "/");
+    if (entry.isDirectory()) {
+      files.push(...listComparableFiles(fullPath, base));
+      continue;
+    }
+    if (entry.isFile()) files.push(relative);
+  }
+  return files.sort();
+}
+
+function readTextIfReasonable(target: string): string {
+  if (!existsSync(target)) return "";
+  const stat = lstatSync(target);
+  if (!stat.isFile() || stat.size > 512_000) return "[binary-or-large-file]\n";
+  const raw = readFileSync(target);
+  if (raw.includes(0)) return "[binary-file]\n";
+  return raw.toString("utf-8");
+}
+
+function simplePatchForFile(params: {
+  relativePath: string;
+  before: string;
+  after: string;
+}): string {
+  if (params.before === params.after) return "";
+  const beforeLines = params.before
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => `-${line}`)
+    .join("\n");
+  const afterLines = params.after
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => `+${line}`)
+    .join("\n");
+
+  return [
+    `diff --kiwi a/${params.relativePath} b/${params.relativePath}`,
+    `--- a/${params.relativePath}`,
+    `+++ b/${params.relativePath}`,
+    "@@",
+    beforeLines,
+    afterLines,
+    "",
+  ].join("\n");
+}
+
+export function captureWorktreeDiffArtifact(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  worktreePath: string;
+}): Artifact | null {
+  const workspaceFiles = listComparableFiles(params.cwd);
+  const worktreeFiles = listComparableFiles(params.worktreePath);
+  const allFiles = Array.from(new Set([...workspaceFiles, ...worktreeFiles])).sort();
+  const patch = allFiles
+    .map((relativePath) =>
+      simplePatchForFile({
+        relativePath,
+        before: readTextIfReasonable(path.join(params.cwd, relativePath)),
+        after: readTextIfReasonable(path.join(params.worktreePath, relativePath)),
+      }),
+    )
+    .filter((entry) => entry.length > 0)
+    .join("\n");
+
+  if (patch.trim().length === 0) return null;
+
+  const createdAt = new Date().toISOString();
+  const ref = `steps/${params.stepId}/${params.attemptId}/artifacts/diff.patch`;
+  const target = resolveRunArtifactPath(params.cwd, params.runId, ref);
+  mkdirSync(path.dirname(target), { recursive: true });
+  writeFileSync(target, patch, "utf-8");
+  return {
+    type: "diff",
+    ref,
+    createdAt,
+  };
 }
 
 export function readCommandOutputArtifact(params: {
