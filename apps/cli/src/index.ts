@@ -1,8 +1,10 @@
 import { Command } from "commander";
 import { runApprove } from "./commands/approve";
 import { runAttempt } from "./commands/attempt";
+import { runEvidenceManifest } from "./commands/evidence";
 import { runFinalize } from "./commands/finalize";
 import { runInit } from "./commands/init";
+import { runOperatorSnapshot } from "./commands/operator";
 import { runPlan } from "./commands/plan";
 import { runRun } from "./commands/run";
 import { runRulesSync } from "./commands/rules";
@@ -97,6 +99,26 @@ program
   .description("Write final run verdict, summary, and cost report")
   .action((runId: string) => {
     runFinalize(runId).catch((error: Error) => {
+      console.error(`\n✗ ${error.message}`);
+      process.exit(1);
+    });
+  });
+
+program
+  .command("evidence manifest <runId>")
+  .description("Write evidence manifest and audit snapshot for a run")
+  .action((runId: string) => {
+    runEvidenceManifest(runId).catch((error: Error) => {
+      console.error(`\n✗ ${error.message}`);
+      process.exit(1);
+    });
+  });
+
+program
+  .command("operator snapshot <runId>")
+  .description("Write local operator HTML snapshot for a run")
+  .action((runId: string) => {
+    runOperatorSnapshot(runId).catch((error: Error) => {
       console.error(`\n✗ ${error.message}`);
       process.exit(1);
     });

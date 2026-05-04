@@ -11,12 +11,16 @@ import {
   finalizeRun,
   generateRunId,
   getRunStatusSummary,
+  listStepAttemptEvidence,
+  loadEvidenceManifest,
   loadApprovalDecision,
   loadInitiative,
   loadPolicy,
   loadRegistry,
+  loadRunManifest,
   loadTaskGraph,
   noopCommand,
+  readAuditEvents,
   recordApprovalDecision,
   refreshRunStatusFromAttempts,
   resolveRunArtifactPath,
@@ -25,6 +29,8 @@ import {
   splitCommandLine,
   StepAttemptOrchestrator,
   withRunLock,
+  writeEvidenceManifest,
+  writeOperatorSnapshot,
   writePlannerCostReport,
 } from "@ai-kiwi/core";
 
@@ -196,19 +202,97 @@ async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<
   );
 }
 
-function readResource(uri: string, cwd: string): unknown {
-  if (uri === "kiwi://runs") return getRunStatusSummary(cwd);
-  const runMatch = uri.match(/^kiwi:\/\/runs\/([^/]+)$/);
-  if (runMatch?.[1]) return getRunStatusSummary(cwd, runMatch[1]);
-  const graphMatch = uri.match(/^kiwi:\/\/runs\/([^/]+)\/task-graph$/);
-  if (graphMatch?.[1]) return loadTaskGraph(graphMatch[1], cwd);
-  const artifactMatch = uri.match(/^kiwi:\/\/runs\/([^/]+)\/artifacts\/(.+)$/);
-  if (artifactMatch?.[1] && artifactMatch[2]) {
-    const ref = decodeURIComponent(artifactMatch[2]);
-    const target = resolveRunArtifactPath(artifactMatch[1], ref, cwd);
-    if (!existsSync(target)) throw new Error(`Artifact not found: ${ref}`);
-    return readFileSync(target, "utf-8");
+interface McpResourceContent {
+  uri: string;
+  text: string;
+  mimeType?: string;
+}
+
+function readJsonRunArtifact(runId: string, ref: string, cwd: string): unknown {
+  const target = resolveRunArtifactPath(runId, ref, cwd);
+  if (!existsSync(target)) throw new Error(`Artifact not found: ${ref}`);
+  return JSON.parse(readFileSync(target, "utf-8")) as unknown;
+}
+
+function readTextRunArtifact(runId: string, ref: string, cwd: string): string {
+  const target = resolveRunArtifactPath(runId, ref, cwd);
+  if (!existsSync(target)) throw new Error(`Artifact not found: ${ref}`);
+  return readFileSync(target, "utf-8");
+}
+
+function asContent(uri: string, value: unknown, mimeType?: string): McpResourceContent {
+  const content: McpResourceContent = {
+    uri,
+    text: typeof value === "string" ? value : JSON.stringify(value, null, 2),
+  };
+  if (mimeType) content.mimeType = mimeType;
+  return content;
+}
+
+function readResource(uri: string, cwd: string): McpResourceContent {
+  if (uri === "kiwi://runs") return asContent(uri, getRunStatusSummary(cwd), "application/json");
+  const runMatch = uri.match(/^kiwi:\/\/runs\/([^/]+)(?:\/(.+))?$/);
+  const runId = runMatch?.[1];
+  const tail = runMatch?.[2] ?? "";
+  if (!runId) throw new Error(`Unsupported resource URI: ${uri}`);
+
+  if (!tail) return asContent(uri, getRunStatusSummary(cwd, runId), "application/json");
+  if (tail === "manifest") return asContent(uri, loadRunManifest(runId, cwd), "application/json");
+  if (tail === "initiative") return asContent(uri, loadInitiative(runId, cwd), "application/json");
+  if (tail === "task-graph") return asContent(uri, loadTaskGraph(runId, cwd), "application/json");
+  if (tail === "planner-input") return asContent(uri, readJsonRunArtifact(runId, "plan/planner-input.json", cwd), "application/json");
+  if (tail === "planner-output") return asContent(uri, readJsonRunArtifact(runId, "plan/planner-output.json", cwd), "application/json");
+  if (tail === "planner-cost") return asContent(uri, readJsonRunArtifact(runId, "plan/cost-report.json", cwd), "application/json");
+  if (tail === "attempts") return asContent(uri, listStepAttemptEvidence(cwd, runId), "application/json");
+  if (tail === "final-verdict") return asContent(uri, readJsonRunArtifact(runId, "final/final-verdict.json", cwd), "application/json");
+  if (tail === "final-cost-report") return asContent(uri, readJsonRunArtifact(runId, "final/final-cost-report.json", cwd), "application/json");
+  if (tail === "final-summary") return asContent(uri, readTextRunArtifact(runId, "final/final-summary.md", cwd), "text/markdown");
+  if (tail === "audit") return asContent(uri, readAuditEvents(cwd, runId), "application/json");
+  if (tail === "audit-snapshot") return asContent(uri, readJsonRunArtifact(runId, "final/audit-events.json", cwd), "application/json");
+  if (tail === "evidence-manifest") return asContent(uri, loadEvidenceManifest({ cwd, runId }), "application/json");
+  if (tail === "operator-snapshot") return asContent(uri, readTextRunArtifact(runId, "operator/index.html", cwd), "text/html");
+
+  const attemptMatch = tail.match(/^attempts\/([^/]+)\/([^/]+)(?:\/(.+))?$/);
+  if (attemptMatch?.[1] && attemptMatch[2]) {
+    const stepId = attemptMatch[1];
+    const attemptId = attemptMatch[2];
+    const section = attemptMatch[3] ?? "";
+    if (!section) {
+      return asContent(
+        uri,
+        readJsonRunArtifact(runId, `steps/${stepId}/${attemptId}/attempt.json`, cwd),
+        "application/json",
+      );
+    }
+    if (section === "gate-results") {
+      return asContent(
+        uri,
+        readJsonRunArtifact(runId, `steps/${stepId}/${attemptId}/gate-results.json`, cwd),
+        "application/json",
+      );
+    }
+    if (section === "review-verdict") {
+      return asContent(
+        uri,
+        readJsonRunArtifact(runId, `steps/${stepId}/${attemptId}/artifacts/review-report.json`, cwd),
+        "application/json",
+      );
+    }
+    if (section === "attempt-summary") {
+      return asContent(
+        uri,
+        readJsonRunArtifact(runId, `steps/${stepId}/${attemptId}/artifacts/attempt-summary.json`, cwd),
+        "application/json",
+      );
+    }
   }
+
+  const artifactMatch = tail.match(/^artifacts\/(.+)$/);
+  if (artifactMatch?.[1]) {
+    const ref = decodeURIComponent(artifactMatch[1]);
+    return asContent(uri, readTextRunArtifact(runId, ref, cwd), "text/plain");
+  }
+
   throw new Error(`Unsupported resource URI: ${uri}`);
 }
 
@@ -241,10 +325,85 @@ async function callTool(name: string, args: Record<string, unknown>, cwd: string
             approvedBy: String(args.approvedBy ?? "mcp-operator"),
           }),
       );
+    case "kiwi_evidence_manifest":
+      return withRunLock(
+        { cwd, runId: String(args.runId ?? ""), operation: "mcp_evidence_manifest" },
+        () => writeEvidenceManifest({ cwd, runId: String(args.runId ?? "") }),
+      );
+    case "kiwi_operator_snapshot":
+      return withRunLock(
+        { cwd, runId: String(args.runId ?? ""), operation: "mcp_operator_snapshot" },
+        () => writeOperatorSnapshot({ cwd, runId: String(args.runId ?? "") }),
+      );
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
 }
+
+const RUN_ID_SCHEMA = {
+  type: "object",
+  properties: {
+    runId: { type: "string" },
+  },
+  required: ["runId"],
+} as const;
+
+const TOOLS = [
+  {
+    name: "kiwi_plan",
+    description: "Create a planned ai-kiwi run",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ticket: { type: "string" },
+        rawInput: { type: "string" },
+        riskProfile: { type: "string", enum: ["dev", "production"] },
+        budgetProfile: { type: "string", enum: ["tiny", "normal"] },
+      },
+    },
+  },
+  {
+    name: "kiwi_status",
+    description: "Read run status",
+    inputSchema: {
+      type: "object",
+      properties: {
+        runId: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "kiwi_run_step",
+    description: "Execute a planned step through policy gates",
+    inputSchema: {
+      type: "object",
+      properties: {
+        runId: { type: "string" },
+        stepId: { type: "string" },
+        command: { type: "string" },
+        approved: { type: "boolean" },
+      },
+      required: ["runId", "stepId"],
+    },
+  },
+  { name: "kiwi_finalize", description: "Finalize a run", inputSchema: RUN_ID_SCHEMA },
+  {
+    name: "kiwi_request_approval",
+    description: "Record an approval decision",
+    inputSchema: {
+      type: "object",
+      properties: {
+        runId: { type: "string" },
+        attemptId: { type: "string" },
+        reason: { type: "string" },
+        approvedBy: { type: "string" },
+      },
+      required: ["runId", "attemptId"],
+    },
+  },
+  { name: "kiwi_evidence_manifest", description: "Write evidence manifest and audit snapshot", inputSchema: RUN_ID_SCHEMA },
+  { name: "kiwi_operator_snapshot", description: "Write local operator HTML snapshot", inputSchema: RUN_ID_SCHEMA },
+] as const;
 
 export async function handleMcpRequest(
   request: JsonRpcRequest,
@@ -271,7 +430,24 @@ export async function handleMcpRequest(
           resources: [
             { uri: "kiwi://runs", name: "Runs" },
             { uri: "kiwi://runs/{runId}", name: "Run Status" },
+            { uri: "kiwi://runs/{runId}/manifest", name: "Run Manifest" },
+            { uri: "kiwi://runs/{runId}/initiative", name: "Initiative" },
             { uri: "kiwi://runs/{runId}/task-graph", name: "TaskGraph" },
+            { uri: "kiwi://runs/{runId}/planner-input", name: "Planner Input" },
+            { uri: "kiwi://runs/{runId}/planner-output", name: "Planner Output" },
+            { uri: "kiwi://runs/{runId}/planner-cost", name: "Planner Cost" },
+            { uri: "kiwi://runs/{runId}/attempts", name: "Step Attempts" },
+            { uri: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}", name: "StepAttempt" },
+            { uri: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/gate-results", name: "Gate Results" },
+            { uri: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/review-verdict", name: "Review Verdict" },
+            { uri: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/attempt-summary", name: "Attempt Summary" },
+            { uri: "kiwi://runs/{runId}/final-verdict", name: "Final Verdict" },
+            { uri: "kiwi://runs/{runId}/final-cost-report", name: "Final Cost Report" },
+            { uri: "kiwi://runs/{runId}/final-summary", name: "Final Summary" },
+            { uri: "kiwi://runs/{runId}/audit", name: "Audit Events" },
+            { uri: "kiwi://runs/{runId}/audit-snapshot", name: "Audit Snapshot" },
+            { uri: "kiwi://runs/{runId}/evidence-manifest", name: "Evidence Manifest" },
+            { uri: "kiwi://runs/{runId}/operator-snapshot", name: "Operator Snapshot" },
             { uri: "kiwi://runs/{runId}/artifacts/{artifactRef}", name: "Artifact" },
           ],
         },
@@ -279,20 +455,14 @@ export async function handleMcpRequest(
     }
     if (request.method === "resources/read") {
       const params = asRecord(request.params);
-      return { jsonrpc: "2.0", id, result: { contents: [{ uri: params.uri, text: JSON.stringify(readResource(String(params.uri), cwd), null, 2) }] } };
+      return { jsonrpc: "2.0", id, result: { contents: [readResource(String(params.uri), cwd)] } };
     }
     if (request.method === "tools/list") {
       return {
         jsonrpc: "2.0",
         id,
         result: {
-          tools: [
-            { name: "kiwi_plan", description: "Create a planned ai-kiwi run" },
-            { name: "kiwi_status", description: "Read run status" },
-            { name: "kiwi_run_step", description: "Execute a planned step through policy gates" },
-            { name: "kiwi_finalize", description: "Finalize a run" },
-            { name: "kiwi_request_approval", description: "Record an approval decision" },
-          ],
+          tools: TOOLS,
         },
       };
     }

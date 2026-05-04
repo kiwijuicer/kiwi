@@ -22,7 +22,10 @@ export type AuditEventType =
   | "run_status_updated"
   | "run_lock_acquired"
   | "run_lock_released"
-  | "run_lock_busy";
+  | "run_lock_busy"
+  | "run_audit_snapshot_written"
+  | "evidence_manifest_written"
+  | "operator_snapshot_written";
 
 export interface AuditEvent {
   eventType: AuditEventType;

@@ -7,6 +7,7 @@ import {
   AttemptSummarySchema,
   ContextPackageSchema,
   ContractsMetadataSchema,
+  EvidenceManifestSchema,
   FinalCostReportSchema,
   FinalVerdictSchema,
   GateResultSchema,
@@ -15,6 +16,7 @@ import {
   ModelRegistrySchema,
   ProtocolEnvelopeSchema,
   ReviewVerdictSchema,
+  RunAuditSnapshotSchema,
   RunnerExecutionOutputSchema,
   SchedulerDecisionSchema,
   RunSchema,
@@ -316,6 +318,33 @@ describe("contracts schemas", () => {
       approvedBy: "operator",
       createdAt: "2026-05-04T08:00:00.000Z",
     });
+    const auditSnapshot = RunAuditSnapshotSchema.parse({
+      schemaVersion: "1",
+      runId: "run_demo",
+      eventCount: 1,
+      events: [
+        {
+          eventType: "run_finalized",
+          runId: "run_demo",
+          timestamp: "2026-05-04T08:00:00.000Z",
+          payload: { verdict: "pass" },
+        },
+      ],
+      createdAt: "2026-05-04T08:00:00.000Z",
+    });
+    const evidence = EvidenceManifestSchema.parse({
+      schemaVersion: "1",
+      runId: "run_demo",
+      generatedAt: "2026-05-04T08:00:00.000Z",
+      auditSnapshotRef: "final/audit-events.json",
+      files: [
+        {
+          ref: "run.json",
+          sha256: "a".repeat(64),
+          bytes: 42,
+        },
+      ],
+    });
     const fixture = JSON.parse(
       readFileSync(path.join(__dirname, "..", "__fixtures__", "a2a-envelope.json"), "utf-8"),
     ) as unknown;
@@ -328,6 +357,8 @@ describe("contracts schemas", () => {
     expect(finalVerdict.safeToApply).toBe(true);
     expect(cost.currency).toBe("USD");
     expect(approval.state).toBe("auto");
+    expect(auditSnapshot.eventCount).toBe(1);
+    expect(evidence.files[0]?.ref).toBe("run.json");
     expect(envelope.protocol).toBe("a2a-prep");
   });
 });

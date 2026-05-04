@@ -56,8 +56,8 @@ Turn the current MVP-grade local control plane into a production-usable app with
 ### P1: Required For A Fully-Fledged Local App
 
 6. MCP production parity
-   - Add schema-described tool inputs/outputs for every MCP tool.
-   - Add resources for run manifest, initiative, planner input/output, attempts, gate results, review verdict, final verdict, cost reports, and audit log.
+   - Add schema-described tool inputs/outputs for every MCP tool. `INPUT SCHEMAS DONE 2026-05-04`
+   - Add resources for run manifest, initiative, planner input/output, attempts, gate results, review verdict, final verdict, cost reports, and audit log. `READ RESOURCE PARITY DONE 2026-05-04`
    - Add MCP tools for retry, cancel, replan, apply, export, and rules sync once CLI equivalents exist.
    - Add protocol conformance tests and client setup docs.
    - Keep all MCP mutations on the same core policy path as CLI.
@@ -68,11 +68,11 @@ Turn the current MVP-grade local control plane into a production-usable app with
    - Add migrations or compatibility readers for old run artifacts.
    - Add a run index for fast listing and recovery checks.
    - Add atomic append/repair behavior for audit logs.
-   - Add evidence manifests with hashes for export and review.
+   - Add evidence manifests with hashes for export and review. `DONE 2026-05-04`
    - Acceptance: interrupted or older runs can be recovered or migrated, and exported evidence can be verified locally.
 
 8. Operator app surface
-   - Build either a local TUI or local web UI after CLI/MCP parity is stable.
+   - Build either a local TUI or local web UI after CLI/MCP parity is stable. `STATIC SNAPSHOT FIRST SLICE DONE 2026-05-04`
    - Required views: run list, TaskGraph, step detail, diff/evidence viewer, approval queue, cost/budget, policy/model settings.
    - The app must consume core/MCP surfaces, not create a second orchestration path.
    - Acceptance: an operator can inspect, approve, retry, finalize, and apply without reading JSON artifacts directly.

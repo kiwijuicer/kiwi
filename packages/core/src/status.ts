@@ -17,6 +17,9 @@ export interface RunArtifactPaths {
   finalSummary?: string;
   finalVerdict?: string;
   finalCostReport?: string;
+  auditSnapshot?: string;
+  evidenceManifest?: string;
+  operatorSnapshot?: string;
 }
 
 export interface RunAttemptStatusEntry {
@@ -66,6 +69,9 @@ function finalArtifactPathsFor(runId: string, cwd: string): Partial<RunArtifactP
     finalSummary: `.kiwi/runs/${runId}/final/final-summary.md`,
     finalVerdict: `.kiwi/runs/${runId}/final/final-verdict.json`,
     finalCostReport: `.kiwi/runs/${runId}/final/final-cost-report.json`,
+    auditSnapshot: `.kiwi/runs/${runId}/final/audit-events.json`,
+    evidenceManifest: `.kiwi/runs/${runId}/final/evidence-manifest.json`,
+    operatorSnapshot: `.kiwi/runs/${runId}/operator/index.html`,
   };
   const existing: Partial<RunArtifactPaths> = {};
   for (const [key, relative] of Object.entries(candidates)) {

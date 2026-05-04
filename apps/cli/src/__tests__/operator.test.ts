@@ -3,8 +3,10 @@ import os from "os";
 import path from "path";
 import { describe, expect, it, vi } from "vitest";
 import { runAttempt } from "../commands/attempt";
+import { runEvidenceManifest } from "../commands/evidence";
 import { runFinalize } from "../commands/finalize";
 import { runInit } from "../commands/init";
+import { runOperatorSnapshot } from "../commands/operator";
 import { runPlan } from "../commands/plan";
 import { runRulesSync } from "../commands/rules";
 import { runStatus } from "../commands/status";
@@ -89,6 +91,16 @@ describe("kiwi operator flow", () => {
       { now: new Date("2026-05-04T09:02:00.000Z") },
       cwd,
     );
+    await runEvidenceManifest(
+      "run_20260504_090000_op01",
+      { now: new Date("2026-05-04T09:03:00.000Z") },
+      cwd,
+    );
+    await runOperatorSnapshot(
+      "run_20260504_090000_op01",
+      { now: new Date("2026-05-04T09:04:00.000Z") },
+      cwd,
+    );
 
     expect(
       existsSync(
@@ -120,6 +132,8 @@ describe("kiwi operator flow", () => {
     expect(output).toContain("step_001/attempt_001");
     expect(output).toContain("review:pass");
     expect(output).toContain("final/final-summary.md");
+    expect(output).toContain("final/evidence-manifest.json");
+    expect(output).toContain("operator/index.html");
   });
 
   it("blocks direct attempts when dependencies are incomplete and releases the run lock", async () => {

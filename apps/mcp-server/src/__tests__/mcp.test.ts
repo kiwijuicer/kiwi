@@ -67,9 +67,10 @@ describe("MCP server", () => {
     const tools = await handleMcpRequest({ id: 2, method: "tools/list" }, setupRepo());
     expect(tools.error).toBeUndefined();
     expect(JSON.stringify(tools.result)).toContain("kiwi_plan");
+    expect(JSON.stringify(tools.result)).toContain("inputSchema");
   });
 
-  it("plans and reads run resources", async () => {
+  it("plans, generates P1 artifacts, and reads parity resources", async () => {
     const cwd = setupRepo();
     const planned = await handleMcpRequest(
       {
@@ -97,5 +98,75 @@ describe("MCP server", () => {
     );
     expect(runs.error).toBeUndefined();
     expect(JSON.stringify(runs.result)).toContain(parsed.runId);
+
+    const initiative = await handleMcpRequest(
+      {
+        id: 3,
+        method: "resources/read",
+        params: { uri: `kiwi://runs/${parsed.runId}/initiative` },
+      },
+      cwd,
+    );
+    expect(initiative.error).toBeUndefined();
+    expect(JSON.stringify(initiative.result)).toContain("MCP Feature");
+
+    const plannerOutput = await handleMcpRequest(
+      {
+        id: 4,
+        method: "resources/read",
+        params: { uri: `kiwi://runs/${parsed.runId}/planner-output` },
+      },
+      cwd,
+    );
+    expect(plannerOutput.error).toBeUndefined();
+    expect(JSON.stringify(plannerOutput.result)).toContain("stub-deterministic");
+
+    const evidence = await handleMcpRequest(
+      {
+        id: 5,
+        method: "tools/call",
+        params: {
+          name: "kiwi_evidence_manifest",
+          arguments: { runId: parsed.runId },
+        },
+      },
+      cwd,
+    );
+    expect(evidence.error).toBeUndefined();
+
+    const snapshot = await handleMcpRequest(
+      {
+        id: 6,
+        method: "tools/call",
+        params: {
+          name: "kiwi_operator_snapshot",
+          arguments: { runId: parsed.runId },
+        },
+      },
+      cwd,
+    );
+    expect(snapshot.error).toBeUndefined();
+
+    const evidenceResource = await handleMcpRequest(
+      {
+        id: 7,
+        method: "resources/read",
+        params: { uri: `kiwi://runs/${parsed.runId}/evidence-manifest` },
+      },
+      cwd,
+    );
+    expect(evidenceResource.error).toBeUndefined();
+    expect(JSON.stringify(evidenceResource.result)).toContain("final/audit-events.json");
+
+    const snapshotResource = await handleMcpRequest(
+      {
+        id: 8,
+        method: "resources/read",
+        params: { uri: `kiwi://runs/${parsed.runId}/operator-snapshot` },
+      },
+      cwd,
+    );
+    expect(snapshotResource.error).toBeUndefined();
+    expect(JSON.stringify(snapshotResource.result)).toContain("<!doctype html>");
   });
 });

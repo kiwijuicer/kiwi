@@ -12,3 +12,5 @@ export * from "./step-attempt-orchestrator";
 export * from "./lifecycle";
 export * from "./operator-policy";
 export * from "./run-lock";
+export * from "./evidence";
+export * from "./operator-surface";

@@ -43,5 +43,8 @@ export async function runStatus(cwd: string = process.cwd(), runId?: string): Pr
     if (entry.artifactPaths.finalSummary) console.log(`    ${entry.artifactPaths.finalSummary}`);
     if (entry.artifactPaths.finalVerdict) console.log(`    ${entry.artifactPaths.finalVerdict}`);
     if (entry.artifactPaths.finalCostReport) console.log(`    ${entry.artifactPaths.finalCostReport}`);
+    if (entry.artifactPaths.auditSnapshot) console.log(`    ${entry.artifactPaths.auditSnapshot}`);
+    if (entry.artifactPaths.evidenceManifest) console.log(`    ${entry.artifactPaths.evidenceManifest}`);
+    if (entry.artifactPaths.operatorSnapshot) console.log(`    ${entry.artifactPaths.operatorSnapshot}`);
   }
 }
