@@ -1,7 +1,8 @@
 import chalk from "chalk";
 import { finalizeRun, withRunLock } from "@ai-kiwi/core";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface FinalizeOptions {
+export interface FinalizeOptions extends CliWorkspaceOptions {
   now?: Date;
 }
 
@@ -10,11 +11,12 @@ export async function runFinalize(
   opts: FinalizeOptions = {},
   cwd: string = process.cwd(),
 ): Promise<void> {
-  const input: Parameters<typeof finalizeRun>[0] = { cwd, runId };
+  const workspace = resolveCliWorkspace(opts, cwd, false);
+  const input: Parameters<typeof finalizeRun>[0] = { cwd: workspace.workspacePath, runId };
   if (opts.now) input.now = opts.now;
   const result = await withRunLock(
     {
-      cwd,
+      cwd: workspace.workspacePath,
       runId,
       operation: "finalize",
       now: opts.now,

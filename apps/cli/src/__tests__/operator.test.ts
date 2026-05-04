@@ -178,6 +178,65 @@ describe("kiwi operator flow", () => {
     );
   });
 
+  it("copies only the selected repo into a workspace attempt sandbox", async () => {
+    const workspace = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-workspace-attempt-"));
+    const core = path.join(workspace, "voice-core");
+    const agent = path.join(workspace, "voice-livekit-agent");
+    mkdirSync(core);
+    mkdirSync(agent);
+    writeFileSync(path.join(core, "core.txt"), "core\n", "utf-8");
+    writeFileSync(path.join(agent, "agent.txt"), "agent\n", "utf-8");
+    writeFileSync(
+      path.join(workspace, "workspace.code-workspace"),
+      JSON.stringify({
+        folders: [
+          { name: "voice-core", path: "voice-core" },
+          { name: "voice-livekit-agent", path: "voice-livekit-agent" },
+        ],
+      }),
+      "utf-8",
+    );
+    await runInit({}, workspace);
+    writeFastPolicy(workspace);
+    await runPlan(
+      "# Feature: Workspace Attempt\n\n## Implement",
+      {
+        workspace,
+        repo: "voice-core",
+        now: new Date("2026-05-04T10:00:00.000Z"),
+        runIdSuffix: "ws01",
+        initiativeIdSuffix: "ws01",
+        planIdSuffix: "ws01",
+      },
+      workspace,
+    );
+
+    await runAttempt(
+      "run_20260504_100000_ws01",
+      "step_001",
+      {
+        workspace,
+        attemptId: "attempt_ws",
+        command: "node -e require('fs').writeFileSync('changed.txt','ok')",
+        now: new Date("2026-05-04T10:01:00.000Z"),
+      },
+      workspace,
+    );
+
+    const worktree = path.join(
+      workspace,
+      ".kiwi",
+      "runs",
+      "run_20260504_100000_ws01",
+      "worktrees",
+      "attempt_ws",
+    );
+    expect(existsSync(path.join(worktree, "core.txt"))).toBe(true);
+    expect(existsSync(path.join(worktree, "changed.txt"))).toBe(true);
+    expect(existsSync(path.join(worktree, "voice-livekit-agent"))).toBe(false);
+    expect(existsSync(path.join(worktree, "agent.txt"))).toBe(false);
+  });
+
   it("syncs cursor rules from canonical sources", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-rules-"));
     writeFileSync(path.join(cwd, "AGENTS.md"), "# Agents\n", "utf-8");

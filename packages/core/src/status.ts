@@ -37,6 +37,9 @@ export interface RunStatusEntry {
   runId: string;
   status: RunStatus;
   updatedAt: string;
+  workspacePath?: string;
+  repoId?: string;
+  repoPath?: string;
   initiativeTitle: string;
   currentPlanId: string;
   stepCount: number;
@@ -118,7 +121,7 @@ function loadRunStatusEntry(runId: string, cwd: string): RunStatusEntry {
   const initiative = loadInitiative(runId, cwd);
   const taskGraph = loadTaskGraph(runId, cwd);
 
-  return {
+  const entry: RunStatusEntry = {
     runId,
     status: run.status,
     updatedAt: run.updatedAt,
@@ -131,6 +134,10 @@ function loadRunStatusEntry(runId: string, cwd: string): RunStatusEntry {
       ...finalArtifactPathsFor(runId, cwd),
     },
   };
+  if (run.workspacePath) entry.workspacePath = run.workspacePath;
+  if (run.repoId) entry.repoId = run.repoId;
+  if (run.repoPath) entry.repoPath = run.repoPath;
+  return entry;
 }
 
 export function getRunStatusSummary(cwd: string, runId?: string): RunStatusSummary {

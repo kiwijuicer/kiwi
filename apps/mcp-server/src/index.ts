@@ -24,6 +24,8 @@ import {
   readAuditEvents,
   recordApprovalDecision,
   refreshRunStatusFromAttempts,
+  resolveWorkspace,
+  WorkspaceResolution,
   resolveRunArtifactPath,
   savePlannedRun,
   scheduleStepAttempt,
@@ -79,21 +81,39 @@ function selectPlannerModel(cwd: string) {
   return model;
 }
 
+function workspaceArgs(args: Record<string, unknown>, cwd: string, requireRepo: boolean): WorkspaceResolution {
+  const workspacePath = typeof args.workspacePath === "string" ? args.workspacePath : undefined;
+  const repo = typeof args.repoId === "string"
+    ? args.repoId
+    : typeof args.repoPath === "string"
+      ? args.repoPath
+      : undefined;
+  const input: Parameters<typeof resolveWorkspace>[0] = {
+    cwd,
+    requireRepo,
+  };
+  if (workspacePath) input.workspacePath = workspacePath;
+  if (repo) input.repo = repo;
+  return resolveWorkspace(input);
+}
+
 async function planTool(args: Record<string, unknown>, cwd: string): Promise<unknown> {
   const rawInput = String(args.ticket ?? args.rawInput ?? "");
   if (!rawInput) throw new Error("kiwi_plan requires ticket or rawInput");
+  const workspace = workspaceArgs(args, cwd, true);
+  const repo = workspace.repo!;
   const now = new Date();
   const runId = generateRunId(now);
-  const policy = loadPolicy(path.join(cwd, "kiwi-policy.yaml"));
+  const policy = loadPolicy(path.join(workspace.workspacePath, "kiwi-policy.yaml"));
   const initiative = createInitiativeFromInput({
     rawInput,
-    repoPath: cwd,
+    repoPath: repo.path,
     source: "mcp",
     riskProfile: args.riskProfile === "production" ? "production" : "dev",
     budgetProfile: args.budgetProfile === "tiny" ? "tiny" : "normal",
     now,
   });
-  const plannerModel = selectPlannerModel(cwd);
+  const plannerModel = selectPlannerModel(workspace.workspacePath);
   const provider = new StubPlannerProvider({
     buildTaskGraph: buildDeterministicTaskGraph,
     now: () => now,
@@ -118,10 +138,13 @@ async function planTool(args: Record<string, unknown>, cwd: string): Promise<unk
       budget: { profile: initiative.budgetProfile, remainingUsdEstimate: null },
       ...plannerOutput,
     },
-    cwd,
+    cwd: workspace.workspacePath,
+    workspacePath: workspace.workspacePath,
+    repoId: repo.id,
+    repoPath: repo.path,
     now,
   });
-  writePlannerCostReport(cwd, runId, {
+  writePlannerCostReport(workspace.workspacePath, runId, {
     schemaVersion: "1",
     runId,
     plannerModelId: plannerModel.id,
@@ -134,35 +157,44 @@ async function planTool(args: Record<string, unknown>, cwd: string): Promise<unk
     cost: plannerOutput.cost,
     createdAt: now.toISOString(),
   });
-  return { runId, planId: plannerOutput.taskGraph.planId, steps: plannerOutput.taskGraph.steps.length };
+  return {
+    runId,
+    planId: plannerOutput.taskGraph.planId,
+    steps: plannerOutput.taskGraph.steps.length,
+    workspacePath: workspace.workspacePath,
+    repoId: repo.id,
+    repoPath: repo.path,
+  };
 }
 
 async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<unknown> {
   const runId = String(args.runId ?? "");
   const stepId = String(args.stepId ?? "");
   if (!runId || !stepId) throw new Error("kiwi_run_step requires runId and stepId");
+  const workspace = workspaceArgs(args, cwd, false);
 
   return withRunLock(
     {
-      cwd,
+      cwd: workspace.workspacePath,
       runId,
       operation: `mcp_run_step:${stepId}`,
     },
     async () => {
-      const policy = loadPolicy(path.join(cwd, "kiwi-policy.yaml"));
-      const initiative = loadInitiative(runId, cwd);
-      const taskGraph = loadTaskGraph(runId, cwd);
+      const policy = loadPolicy(path.join(workspace.workspacePath, "kiwi-policy.yaml"));
+      const initiative = loadInitiative(runId, workspace.workspacePath);
+      const repoPath = initiative.repoPath || workspace.workspacePath;
+      const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
       const step = taskGraph.steps.find((entry) => entry.stepId === stepId);
       if (!step) throw new Error(`Step not found: ${stepId}`);
       assertStepDependenciesCompleted({
-        cwd,
+        cwd: workspace.workspacePath,
         runId,
         stepId,
         dependsOn: step.dependsOn,
       });
 
       const decision = scheduleStepAttempt({
-        cwd,
+        cwd: workspace.workspacePath,
         runId,
         step,
         initiative,
@@ -175,13 +207,19 @@ async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<
       });
       if (decision.status !== "scheduled") throw new Error(decision.blockedReason ?? "scheduler blocked");
 
-      const approval = loadApprovalDecision({ cwd, runId, attemptId: decision.attemptId });
-      const sandbox = createWorktreeSandbox({ cwd, runId, attemptId: decision.attemptId });
+      const approval = loadApprovalDecision({ cwd: workspace.workspacePath, runId, attemptId: decision.attemptId });
+      const sandbox = createWorktreeSandbox({
+        cwd: workspace.workspacePath,
+        runId,
+        attemptId: decision.attemptId,
+        sourcePath: repoPath,
+      });
       const profile = commandProfileForStep(policy, step.type);
       const commandPolicy = commandProfileToExecutionPolicy(profile) as SandboxCommandPolicy;
       const command = typeof args.command === "string" ? splitCommandLine(args.command) : noopCommand();
       const result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute({
-        cwd,
+        cwd: workspace.workspacePath,
+        repoPath,
         step,
         schedulerDecision: decision,
         runner: new LocalShellRunnerAdapter(),
@@ -192,7 +230,7 @@ async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<
         commandPolicy,
         approved: Boolean(args.approved) || approval?.state === "auto",
       });
-      const run = refreshRunStatusFromAttempts({ cwd, runId });
+      const run = refreshRunStatusFromAttempts({ cwd: workspace.workspacePath, runId });
       return {
         attemptId: decision.attemptId,
         status: result.status,
@@ -201,6 +239,41 @@ async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<
       };
     },
   );
+}
+
+async function runTool(args: Record<string, unknown>, cwd: string): Promise<unknown> {
+  const runId = String(args.runId ?? "");
+  if (!runId) throw new Error("kiwi_run requires runId");
+  const workspace = workspaceArgs(args, cwd, false);
+  const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
+  const fromStep = typeof args.fromStep === "string" ? args.fromStep : undefined;
+  const startIndex = fromStep
+    ? taskGraph.steps.findIndex((step) => step.stepId === fromStep)
+    : 0;
+  if (startIndex < 0) throw new Error(`Step not found: ${fromStep}`);
+
+  const steps: unknown[] = [];
+  for (const step of taskGraph.steps.slice(startIndex)) {
+    steps.push(
+      await runStepTool(
+        {
+          ...args,
+          workspacePath: workspace.workspacePath,
+          runId,
+          stepId: step.stepId,
+        },
+        cwd,
+      ),
+    );
+    const status = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.status;
+    if (status === "failed" || status === "needs_approval") break;
+  }
+  const run = getRunStatusSummary(workspace.workspacePath, runId).latest[0];
+  return {
+    runId,
+    status: run?.status ?? "missing",
+    steps,
+  };
 }
 
 interface McpResourceContent {
@@ -298,28 +371,31 @@ function readResource(uri: string, cwd: string): McpResourceContent {
 }
 
 async function callTool(name: string, args: Record<string, unknown>, cwd: string): Promise<unknown> {
+  const workspace = workspaceArgs(args, cwd, false);
   switch (name) {
     case "kiwi_plan":
       return planTool(args, cwd);
     case "kiwi_status":
-      return getRunStatusSummary(cwd, typeof args.runId === "string" ? args.runId : undefined);
+      return getRunStatusSummary(workspace.workspacePath, typeof args.runId === "string" ? args.runId : undefined);
+    case "kiwi_run":
+      return runTool(args, cwd);
     case "kiwi_run_step":
       return runStepTool(args, cwd);
     case "kiwi_finalize":
       return withRunLock(
-        { cwd, runId: String(args.runId ?? ""), operation: "mcp_finalize" },
-        () => finalizeRun({ cwd, runId: String(args.runId ?? "") }),
+        { cwd: workspace.workspacePath, runId: String(args.runId ?? ""), operation: "mcp_finalize" },
+        () => finalizeRun({ cwd: workspace.workspacePath, runId: String(args.runId ?? "") }),
       );
     case "kiwi_request_approval":
       return withRunLock(
         {
-          cwd,
+          cwd: workspace.workspacePath,
           runId: String(args.runId ?? ""),
           operation: `mcp_approval:${String(args.attemptId ?? "")}`,
         },
         () =>
           recordApprovalDecision({
-            cwd,
+            cwd: workspace.workspacePath,
             runId: String(args.runId ?? ""),
             attemptId: String(args.attemptId ?? ""),
             reason: String(args.reason ?? "Approved through MCP"),
@@ -328,17 +404,17 @@ async function callTool(name: string, args: Record<string, unknown>, cwd: string
       );
     case "kiwi_evidence_manifest":
       return withRunLock(
-        { cwd, runId: String(args.runId ?? ""), operation: "mcp_evidence_manifest" },
-        () => writeEvidenceManifest({ cwd, runId: String(args.runId ?? "") }),
+        { cwd: workspace.workspacePath, runId: String(args.runId ?? ""), operation: "mcp_evidence_manifest" },
+        () => writeEvidenceManifest({ cwd: workspace.workspacePath, runId: String(args.runId ?? "") }),
       );
     case "kiwi_operator_snapshot":
       return withRunLock(
-        { cwd, runId: String(args.runId ?? ""), operation: "mcp_operator_snapshot" },
-        () => writeOperatorSnapshot({ cwd, runId: String(args.runId ?? "") }),
+        { cwd: workspace.workspacePath, runId: String(args.runId ?? ""), operation: "mcp_operator_snapshot" },
+        () => writeOperatorSnapshot({ cwd: workspace.workspacePath, runId: String(args.runId ?? "") }),
       );
     case "kiwi_a2a_receive":
       return handleA2AEnvelope({
-        cwd,
+        cwd: workspace.workspacePath,
         envelope: args.envelope,
         policy: {
           mode: args.loopback === true ? "loopback" : "disabled",
@@ -357,6 +433,9 @@ const RUN_ID_SCHEMA = {
   type: "object",
   properties: {
     runId: { type: "string" },
+    workspacePath: { type: "string" },
+    repoId: { type: "string" },
+    repoPath: { type: "string" },
   },
   required: ["runId"],
 } as const;
@@ -370,6 +449,9 @@ const TOOLS = [
       properties: {
         ticket: { type: "string" },
         rawInput: { type: "string" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
         riskProfile: { type: "string", enum: ["dev", "production"] },
         budgetProfile: { type: "string", enum: ["tiny", "normal"] },
       },
@@ -382,7 +464,27 @@ const TOOLS = [
       type: "object",
       properties: {
         runId: { type: "string" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
       },
+    },
+  },
+  {
+    name: "kiwi_run",
+    description: "Execute planned steps in order",
+    inputSchema: {
+      type: "object",
+      properties: {
+        runId: { type: "string" },
+        fromStep: { type: "string" },
+        command: { type: "string" },
+        approved: { type: "boolean" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+      required: ["runId"],
     },
   },
   {
@@ -395,6 +497,9 @@ const TOOLS = [
         stepId: { type: "string" },
         command: { type: "string" },
         approved: { type: "boolean" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
       },
       required: ["runId", "stepId"],
     },
@@ -410,6 +515,9 @@ const TOOLS = [
         attemptId: { type: "string" },
         reason: { type: "string" },
         approvedBy: { type: "string" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
       },
       required: ["runId", "attemptId"],
     },
@@ -426,15 +534,22 @@ const TOOLS = [
         loopback: { type: "boolean" },
         localAgentId: { type: "string" },
         trustedAgentIds: { type: "array", items: { type: "string" } },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
       },
       required: ["envelope"],
     },
   },
 ] as const;
 
+function defaultServerCwd(): string {
+  return process.env.AI_KIWI_WORKSPACE ?? process.cwd();
+}
+
 export async function handleMcpRequest(
   request: JsonRpcRequest,
-  cwd: string = process.cwd(),
+  cwd: string = defaultServerCwd(),
 ): Promise<JsonRpcResponse> {
   const id = request.id ?? null;
   try {
@@ -516,7 +631,7 @@ function encodeMessage(payload: unknown): string {
   return `Content-Length: ${Buffer.byteLength(body, "utf-8")}\r\n\r\n${body}`;
 }
 
-export function startMcpServer(cwd: string = process.cwd()): void {
+export function startMcpServer(cwd: string = defaultServerCwd()): void {
   let buffer = "";
   process.stdin.setEncoding("utf-8");
   process.stdin.on("data", (chunk) => {

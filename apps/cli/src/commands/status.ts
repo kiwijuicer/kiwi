@@ -1,10 +1,17 @@
 import chalk from "chalk";
 import { getRunStatusSummary } from "@ai-kiwi/core";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export async function runStatus(cwd: string = process.cwd(), runId?: string): Promise<void> {
-  const summary = getRunStatusSummary(cwd, runId);
+export async function runStatus(
+  cwd: string = process.cwd(),
+  runId?: string,
+  opts: CliWorkspaceOptions = {},
+): Promise<void> {
+  const workspace = resolveCliWorkspace(opts, cwd, false);
+  const summary = getRunStatusSummary(workspace.workspacePath, runId);
 
   console.log(chalk.bold("ai-kiwi status"));
+  console.log(`workspace: ${workspace.workspacePath}`);
   if (runId) {
     console.log(`selected_run: ${runId}`);
   }
@@ -26,6 +33,9 @@ export async function runStatus(cwd: string = process.cwd(), runId?: string): Pr
   for (const entry of summary.latest) {
     console.log(`${entry.runId}  ${entry.status}  ${entry.updatedAt}`);
     console.log(`  title: ${entry.initiativeTitle}`);
+    if (entry.repoId || entry.repoPath) {
+      console.log(`  repo: ${entry.repoId ?? "repo"}${entry.repoPath ? ` (${entry.repoPath})` : ""}`);
+    }
     console.log(`  plan: ${entry.currentPlanId}`);
     console.log(`  steps: ${entry.stepCount}`);
     if (entry.attempts.length > 0) {

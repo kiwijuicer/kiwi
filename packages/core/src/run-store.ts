@@ -89,6 +89,9 @@ export function savePlannedRun(params: {
   plannerInput?: unknown;
   plannerOutput?: unknown;
   cwd: string;
+  workspacePath?: string;
+  repoId?: string;
+  repoPath?: string;
   now?: Date;
 }): RunManifest {
   if (params.taskGraph.runId !== params.runId) {
@@ -96,14 +99,18 @@ export function savePlannedRun(params: {
   }
 
   const now = (params.now ?? new Date()).toISOString();
-  const manifest = RunManifestSchema.parse({
+  const manifestInput: Record<string, unknown> = {
     runId: params.runId,
     initiativeId: params.initiative.id,
     currentPlanId: params.taskGraph.planId,
     status: "planned",
     createdAt: now,
     updatedAt: now,
-  });
+  };
+  if (params.workspacePath) manifestInput.workspacePath = params.workspacePath;
+  if (params.repoId) manifestInput.repoId = params.repoId;
+  if (params.repoPath) manifestInput.repoPath = params.repoPath;
+  const manifest = RunManifestSchema.parse(manifestInput);
 
   const initiative = InitiativeSchema.parse(params.initiative);
   const taskGraph = TaskGraphSchema.parse(params.taskGraph);

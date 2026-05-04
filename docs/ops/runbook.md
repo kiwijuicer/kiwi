@@ -13,11 +13,14 @@ Status: draft
 ## Standard Flow
 
 ```bash
-kiwi init
-kiwi plan ./ticket.md
-kiwi status <run-id>
-kiwi evidence manifest <run-id>
-kiwi operator snapshot <run-id>
+kiwi init --workspace /path/to/workspace
+kiwi workspace list --workspace /path/to/workspace
+kiwi plan ./ticket.md --workspace /path/to/workspace --repo <repo-id>
+kiwi status <run-id> --workspace /path/to/workspace
+kiwi run <run-id> --workspace /path/to/workspace
+kiwi finalize <run-id> --workspace /path/to/workspace
+kiwi evidence manifest <run-id> --workspace /path/to/workspace
+kiwi operator snapshot <run-id> --workspace /path/to/workspace
 ```
 
 ## A2A Loopback Check

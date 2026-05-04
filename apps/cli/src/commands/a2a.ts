@@ -2,8 +2,9 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
 import { handleA2AEnvelope } from "@ai-kiwi/core";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface A2AReceiveOptions {
+export interface A2AReceiveOptions extends CliWorkspaceOptions {
   loopback?: boolean;
   localAgent?: string;
   trustedAgent?: string;
@@ -29,8 +30,9 @@ export async function runA2AReceive(
   opts: A2AReceiveOptions = {},
   cwd: string = process.cwd(),
 ): Promise<void> {
+  const workspace = resolveCliWorkspace(opts, cwd, false);
   const result = handleA2AEnvelope({
-    cwd,
+    cwd: workspace.workspacePath,
     envelope: readEnvelope(envelopeInput, cwd),
     now: opts.now,
     policy: {

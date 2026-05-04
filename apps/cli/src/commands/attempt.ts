@@ -29,8 +29,9 @@ import {
   StepAttemptOrchestrator,
   withRunLock,
 } from "@ai-kiwi/core";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface AttemptOptions {
+export interface AttemptOptions extends CliWorkspaceOptions {
   command?: string;
   approved?: boolean;
   attemptId?: string;
@@ -109,6 +110,7 @@ export async function runAttemptUnlocked(
 ): Promise<void> {
   const policy = loadPolicy(path.join(cwd, "kiwi-policy.yaml"));
   const initiative = loadInitiative(runId, cwd);
+  const repoPath = initiative.repoPath || cwd;
   const taskGraph = loadTaskGraph(runId, cwd);
   const step = taskGraph.steps.find((entry) => entry.stepId === stepId);
   if (!step) throw new Error(`Step not found: ${stepId}`);
@@ -144,6 +146,7 @@ export async function runAttemptUnlocked(
     cwd,
     runId,
     attemptId: decision.attemptId,
+    sourcePath: repoPath,
   });
   const gateEvidence = await runRequiredGates({
     cwd,
@@ -162,6 +165,7 @@ export async function runAttemptUnlocked(
   const command = opts.command ? splitCommandLine(opts.command) : noopCommand();
   const result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute({
     cwd,
+    repoPath,
     step,
     schedulerDecision: decision,
     runner: new LocalShellRunnerAdapter(),
@@ -192,13 +196,14 @@ export async function runAttempt(
   opts: AttemptOptions = {},
   cwd: string = process.cwd(),
 ): Promise<void> {
+  const workspace = resolveCliWorkspace(opts, cwd, false);
   await withRunLock(
     {
-      cwd,
+      cwd: workspace.workspacePath,
       runId,
       operation: `attempt:${stepId}`,
       now: opts.now,
     },
-    () => runAttemptUnlocked(runId, stepId, opts, cwd),
+    () => runAttemptUnlocked(runId, stepId, opts, workspace.workspacePath),
   );
 }

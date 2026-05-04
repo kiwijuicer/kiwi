@@ -9,16 +9,21 @@ import {
 
 export interface InitOptions {
   force?: boolean;
+  workspace?: string;
 }
 
 export async function runInit(
   opts: InitOptions = {},
   cwd: string = process.cwd(),
 ): Promise<void> {
-  const kiwiDir = path.join(cwd, ".kiwi");
+  const targetCwd = opts.workspace ? path.resolve(cwd, opts.workspace) : cwd;
+  if (!existsSync(targetCwd)) {
+    throw new Error(`Workspace path not found: ${targetCwd}`);
+  }
+  const kiwiDir = path.join(targetCwd, ".kiwi");
   const configPath = path.join(kiwiDir, "config.yaml");
-  const policyPath = path.join(cwd, "kiwi-policy.yaml");
-  const registryPath = path.join(cwd, "model-registry.yaml");
+  const policyPath = path.join(targetCwd, "kiwi-policy.yaml");
+  const registryPath = path.join(targetCwd, "model-registry.yaml");
 
   mkdirSync(path.join(kiwiDir, "runs"), { recursive: true });
   mkdirSync(path.join(kiwiDir, "logs"), { recursive: true });
@@ -39,6 +44,7 @@ export async function runInit(
   }
 
   console.log(chalk.green("✓") + " .kiwi initialized");
+  console.log(chalk.dim(`workspace: ${targetCwd}`));
   if (!shouldWriteConfig) console.log(chalk.gray("•") + " .kiwi/config.yaml preserved");
   if (!shouldWritePolicy) console.log(chalk.gray("•") + " kiwi-policy.yaml preserved");
   if (!shouldWriteRegistry) console.log(chalk.gray("•") + " model-registry.yaml preserved");

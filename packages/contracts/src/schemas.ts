@@ -145,6 +145,9 @@ export const RunSchema = z.object({
   initiativeId: z.string().regex(/^init_[a-z0-9_]+$/),
   currentPlanId: z.string().regex(/^plan_[a-z0-9_]+$/),
   status: RunStatusSchema,
+  workspacePath: z.string().min(1).optional(),
+  repoId: z.string().min(1).optional(),
+  repoPath: z.string().min(1).optional(),
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,
 });
@@ -248,6 +251,7 @@ export const RunnerExecutionInputSchema = z.object({
   stepId: z.string().regex(/^step_\d{3}$/),
   attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/),
   workspacePath: z.string().min(1),
+  repoPath: z.string().min(1).optional(),
   worktreePath: z.string().min(1),
   stepPrompt: z.string(),
   contextPackage: z.unknown(),

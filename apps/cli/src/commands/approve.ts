@@ -1,7 +1,8 @@
 import chalk from "chalk";
 import { recordApprovalDecision, withRunLock } from "@ai-kiwi/core";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface ApproveOptions {
+export interface ApproveOptions extends CliWorkspaceOptions {
   reason?: string;
   approvedBy?: string;
   now?: Date;
@@ -13,8 +14,9 @@ export async function runApprove(
   opts: ApproveOptions = {},
   cwd: string = process.cwd(),
 ): Promise<void> {
+  const workspace = resolveCliWorkspace(opts, cwd, false);
   const input: Parameters<typeof recordApprovalDecision>[0] = {
-    cwd,
+    cwd: workspace.workspacePath,
     runId,
     attemptId,
     reason: opts.reason ?? "Approved by local operator",
@@ -23,7 +25,7 @@ export async function runApprove(
   if (opts.now) input.now = opts.now;
   const decision = await withRunLock(
     {
-      cwd,
+      cwd: workspace.workspacePath,
       runId,
       operation: `approve:${attemptId}`,
       now: opts.now,

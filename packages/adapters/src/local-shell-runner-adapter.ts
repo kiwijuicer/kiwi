@@ -50,13 +50,15 @@ export class LocalShellRunnerAdapter implements RunnerAdapter {
     if (input.requestedAt) sandboxInput.now = new Date(input.requestedAt);
 
     const output = await executeSandboxCommand(sandboxInput);
-    const diffArtifact = captureWorktreeDiffArtifact({
+    const diffInput: Parameters<typeof captureWorktreeDiffArtifact>[0] = {
       cwd: input.workspacePath,
       runId: input.runId,
       stepId: input.stepId,
       attemptId: input.attemptId,
       worktreePath: input.worktreePath,
-    });
+    };
+    if (input.repoPath) diffInput.sourcePath = input.repoPath;
+    const diffArtifact = captureWorktreeDiffArtifact(diffInput);
     const artifactRefs = diffArtifact
       ? [...output.artifactRefs, diffArtifact]
       : output.artifactRefs;

@@ -1,7 +1,8 @@
 import chalk from "chalk";
 import { withRunLock, writeEvidenceManifest } from "@ai-kiwi/core";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface EvidenceManifestOptions {
+export interface EvidenceManifestOptions extends CliWorkspaceOptions {
   now?: Date;
 }
 
@@ -10,16 +11,17 @@ export async function runEvidenceManifest(
   opts: EvidenceManifestOptions = {},
   cwd: string = process.cwd(),
 ): Promise<void> {
+  const workspace = resolveCliWorkspace(opts, cwd, false);
   const result = await withRunLock(
     {
-      cwd,
+      cwd: workspace.workspacePath,
       runId,
       operation: "evidence_manifest",
       now: opts.now,
     },
     () =>
       writeEvidenceManifest({
-        cwd,
+        cwd: workspace.workspacePath,
         runId,
         now: opts.now,
       }),

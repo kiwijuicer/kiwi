@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
@@ -56,6 +56,27 @@ models:
     "utf-8",
   );
   return cwd;
+}
+
+function setupWorkspace(): { root: string; core: string; agent: string } {
+  const root = setupRepo();
+  const core = path.join(root, "voice-core");
+  const agent = path.join(root, "voice-livekit-agent");
+  mkdirSync(core);
+  mkdirSync(agent);
+  writeFileSync(path.join(core, "core.txt"), "core\n", "utf-8");
+  writeFileSync(path.join(agent, "agent.txt"), "agent\n", "utf-8");
+  writeFileSync(
+    path.join(root, "workspace.code-workspace"),
+    JSON.stringify({
+      folders: [
+        { name: "voice-core", path: "voice-core" },
+        { name: "voice-livekit-agent", path: "voice-livekit-agent" },
+      ],
+    }),
+    "utf-8",
+  );
+  return { root, core, agent };
 }
 
 describe("MCP server", () => {
@@ -223,5 +244,58 @@ describe("MCP server", () => {
     );
     expect(a2a.error).toBeUndefined();
     expect(JSON.stringify(a2a.result)).toContain("accepted");
+  });
+
+  it("accepts workspace selection and exposes kiwi_run", async () => {
+    const workspace = setupWorkspace();
+    const planned = await handleMcpRequest(
+      {
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: {
+            workspacePath: workspace.root,
+            repoId: "voice-core",
+            ticket: "# Workspace MCP\n\n## Implement",
+          },
+        },
+      },
+      os.tmpdir(),
+    );
+    expect(planned.error).toBeUndefined();
+    const text = (planned.result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
+    const parsed = JSON.parse(text) as { runId: string; repoPath: string };
+    expect(parsed.repoPath).toBe(workspace.core);
+
+    const run = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "kiwi_run",
+          arguments: {
+            workspacePath: workspace.root,
+            runId: parsed.runId,
+            command: "node -e 0",
+          },
+        },
+      },
+      os.tmpdir(),
+    );
+    expect(run.error).toBeUndefined();
+    expect(JSON.stringify(run.result)).toContain("completed");
+
+    const worktrees = path.join(
+      workspace.root,
+      ".kiwi",
+      "runs",
+      parsed.runId,
+      "worktrees",
+    );
+    const attemptDirs = readdirSync(worktrees);
+    const worktree = path.join(worktrees, attemptDirs[0]!);
+    expect(existsSync(path.join(worktree, "core.txt"))).toBe(true);
+    expect(existsSync(path.join(worktree, "voice-livekit-agent"))).toBe(false);
   });
 });

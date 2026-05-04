@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -90,4 +90,53 @@ if (!manifest.includes("sha256") || !operator.includes("<!doctype html>")) {
   throw new Error("smoke artifacts are incomplete");
 }
 
-console.log(`smoke ok: ${runId}`);
+const workspace = mkdtempSync(path.join(tmpdir(), "kiwi-voice-smoke-"));
+const voiceCore = path.join(workspace, "voice-core");
+const voiceAgent = path.join(workspace, "voice-livekit-agent");
+mkdirSync(voiceCore);
+mkdirSync(voiceAgent);
+writeFileSync(path.join(voiceCore, "core.txt"), "core\n", "utf-8");
+writeFileSync(path.join(voiceAgent, "agent.txt"), "agent\n", "utf-8");
+writeFileSync(
+  path.join(workspace, "workspace.code-workspace"),
+  JSON.stringify({
+    folders: [
+      { name: "voice-core", path: "voice-core" },
+      { name: "voice-livekit-agent", path: "voice-livekit-agent" },
+    ],
+  }),
+  "utf-8",
+);
+
+kiwi(["init", "--workspace", workspace]);
+const workspaceList = kiwi(["workspace", "list", "--workspace", workspace]);
+if (!workspaceList.includes("voice-core") || !workspaceList.includes("voice-livekit-agent")) {
+  throw new Error(`workspace smoke did not list voice repos:\n${workspaceList}`);
+}
+const workspacePlanOutput = kiwi([
+  "plan",
+  "# Workspace Smoke\n\n## Plan",
+  "--workspace",
+  workspace,
+  "--repo",
+  "voice-core",
+]);
+const workspaceRunId = workspacePlanOutput.match(/runId:\s+(run_[a-z0-9_]+)/)?.[1];
+if (!workspaceRunId) {
+  throw new Error(`workspace smoke failed to parse runId:\n${workspacePlanOutput}`);
+}
+kiwi(["run", workspaceRunId, "--workspace", workspace, "--command", "node -e 0"]);
+const workspaceRun = readFileSync(
+  path.join(workspace, ".kiwi", "runs", workspaceRunId, "run.json"),
+  "utf-8",
+);
+if (!workspaceRun.includes(`"repoPath": "${voiceCore}"`)) {
+  throw new Error("workspace smoke run did not store target repo metadata");
+}
+const worktrees = path.join(workspace, ".kiwi", "runs", workspaceRunId, "worktrees");
+const firstWorktree = path.join(worktrees, readdirSync(worktrees)[0]);
+if (!existsSync(path.join(firstWorktree, "core.txt")) || existsSync(path.join(firstWorktree, "voice-livekit-agent"))) {
+  throw new Error("workspace smoke sandbox did not isolate the selected repo");
+}
+
+console.log(`smoke ok: ${runId}, ${workspaceRunId}`);

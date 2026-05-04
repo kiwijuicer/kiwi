@@ -20,8 +20,9 @@ import {
   savePlannedRun,
   writePlannerCostReport,
 } from "@ai-kiwi/core";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface PlanOptions {
+export interface PlanOptions extends CliWorkspaceOptions {
   dryRun?: boolean;
   riskProfile?: "local" | "dev" | "staging" | "production";
   budgetProfile?: "tiny" | "small" | "normal" | "large" | "critical";
@@ -80,21 +81,25 @@ export async function runPlan(
   opts: PlanOptions = {},
   cwd: string = process.cwd(),
 ): Promise<void> {
-  if (!isInitialized(cwd)) {
-    throw new NotInitializedError(cwd);
+  const workspace = resolveCliWorkspace(opts, cwd, true);
+  const workspacePath = workspace.workspacePath;
+  const repo = workspace.repo!;
+
+  if (!isInitialized(workspacePath)) {
+    throw new NotInitializedError(workspacePath);
   }
 
-  const policy = loadPolicy(path.join(cwd, "kiwi-policy.yaml"));
-  const registry = loadRegistry(path.join(cwd, "model-registry.yaml"));
+  const policy = loadPolicy(path.join(workspacePath, "kiwi-policy.yaml"));
+  const registry = loadRegistry(path.join(workspacePath, "model-registry.yaml"));
 
   const { rawInput, source } = resolveTicketInput(ticketArg, cwd);
   const now = opts.now ?? new Date();
   const runIdOptions = opts.runIdSuffix ? { suffix: opts.runIdSuffix } : {};
   const runId = opts.runId ?? generateRunId(now, runIdOptions);
   const initiativeParams = opts.initiativeIdSuffix
-    ? {
+      ? {
         rawInput,
-        repoPath: cwd,
+        repoPath: repo.path,
         source,
         riskProfile: opts.riskProfile ?? "dev",
         budgetProfile: opts.budgetProfile ?? "normal",
@@ -103,7 +108,7 @@ export async function runPlan(
       }
     : {
         rawInput,
-        repoPath: cwd,
+        repoPath: repo.path,
         source,
         riskProfile: opts.riskProfile ?? "dev",
         budgetProfile: opts.budgetProfile ?? "normal",
@@ -124,7 +129,7 @@ export async function runPlan(
     requestedAt: now.toISOString(),
   };
   const maxAttempts = 2;
-  appendAuditEvent(cwd, {
+  appendAuditEvent(workspacePath, {
     eventType: "planner_provider_selected",
     runId,
     timestamp: now.toISOString(),
@@ -150,7 +155,7 @@ export async function runPlan(
     if (error instanceof PlannerProviderValidationError) {
       for (const record of error.evidence.records) {
         if (record.status === "invalid") {
-          appendAuditEvent(cwd, {
+          appendAuditEvent(workspacePath, {
             eventType: "planner_retry",
             runId,
             timestamp: now.toISOString(),
@@ -162,7 +167,7 @@ export async function runPlan(
           });
         }
       }
-      appendAuditEvent(cwd, {
+      appendAuditEvent(workspacePath, {
         eventType: "planner_validation_failed",
         runId,
         timestamp: now.toISOString(),
@@ -173,7 +178,7 @@ export async function runPlan(
           lastValidationError: error.evidence.lastValidationError ?? "unknown",
         },
       });
-      appendAuditEvent(cwd, {
+      appendAuditEvent(workspacePath, {
         eventType: "planner_failed",
         runId,
         timestamp: now.toISOString(),
@@ -182,7 +187,7 @@ export async function runPlan(
         },
       });
     } else {
-      appendAuditEvent(cwd, {
+      appendAuditEvent(workspacePath, {
         eventType: "planner_failed",
         runId,
         timestamp: now.toISOString(),
@@ -212,7 +217,7 @@ export async function runPlan(
       });
     }
   }
-  appendAuditEvent(cwd, {
+  appendAuditEvent(workspacePath, {
     eventType: "planner_succeeded",
     runId,
     timestamp: now.toISOString(),
@@ -257,10 +262,13 @@ export async function runPlan(
       budget: budgetMetadata,
       ...plannerOutput,
     },
-    cwd,
+    cwd: workspacePath,
+    workspacePath,
+    repoId: repo.id,
+    repoPath: repo.path,
     now,
   });
-  writePlannerCostReport(cwd, runId, {
+  writePlannerCostReport(workspacePath, runId, {
     schemaVersion: "1",
     runId,
     plannerModelId: plannerModel.id,
@@ -276,6 +284,8 @@ export async function runPlan(
 
   console.log(chalk.green("✓") + " Run planned");
   console.log(chalk.dim(`runId: ${runId}`));
+  console.log(chalk.dim(`workspace: ${workspacePath}`));
+  console.log(chalk.dim(`repo: ${repo.id} (${repo.path})`));
   console.log(chalk.dim(`steps: ${taskGraph.steps.length}`));
   console.log(chalk.dim(`saved: .kiwi/runs/${runId}/`));
 }

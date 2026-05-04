@@ -51,6 +51,7 @@ export interface StepRunnerExecutionInput<TCommandPolicy = unknown> {
   stepId: string;
   attemptId: string;
   workspacePath: string;
+  repoPath?: string;
   worktreePath: string;
   stepPrompt: string;
   contextPackage: unknown;
@@ -102,6 +103,7 @@ export interface StepAttemptOrchestrationResult {
 
 export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
   cwd: string;
+  repoPath?: string;
   step: Step;
   schedulerDecision: SchedulerDecision;
   runner: StepAttemptRunner<TCommandPolicy>;
@@ -264,6 +266,12 @@ function ensureIsolatedWorktree(workspacePath: string, worktreePath: string): vo
   }
 }
 
+function ensureWorktreeIsNotSource(sourcePath: string, worktreePath: string): void {
+  if (path.resolve(sourcePath) === path.resolve(worktreePath)) {
+    throw new Error("runner worktreePath must not be the source repo path");
+  }
+}
+
 function mapRunnerStatusToAttemptStatus(params: {
   runnerStatus: StepRunnerExecutionStatus;
   reviewVerdict: ReviewVerdict;
@@ -373,6 +381,7 @@ function buildRunnerInput<TCommandPolicy>(
     requestedAt,
   };
 
+  if (input.repoPath) runnerInput.repoPath = input.repoPath;
   if (input.command) runnerInput.command = input.command;
   if (input.commandPolicy !== undefined) runnerInput.commandPolicy = input.commandPolicy;
   if (input.env) runnerInput.env = input.env;
@@ -387,6 +396,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
   async execute(input: ExecuteStepAttemptInput<TCommandPolicy>): Promise<StepAttemptOrchestrationResult> {
     ensureRunnerMatchesDecision(input);
     ensureIsolatedWorktree(input.cwd, input.worktreePath);
+    if (input.repoPath) ensureWorktreeIsNotSource(input.repoPath, input.worktreePath);
     ensureRunLayout(input.schedulerDecision.runId, input.cwd);
 
     const now = input.now ?? new Date();

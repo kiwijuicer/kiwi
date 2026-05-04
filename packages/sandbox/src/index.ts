@@ -305,6 +305,7 @@ export function createWorktreeSandbox(params: {
   cwd: string;
   runId: string;
   attemptId: string;
+  sourcePath?: string;
   copyWorkspace?: boolean;
 }): WorktreeSandbox {
   const worktreePath = resolveRunArtifactPath(
@@ -314,8 +315,9 @@ export function createWorktreeSandbox(params: {
   );
   mkdirSync(worktreePath, { recursive: true });
   if (params.copyWorkspace ?? true) {
-    copyWorkspaceIntoWorktree(params.cwd, worktreePath);
-    linkNodeModulesIfPresent(params.cwd, worktreePath);
+    const sourcePath = params.sourcePath ?? params.cwd;
+    copyWorkspaceIntoWorktree(sourcePath, worktreePath);
+    linkNodeModulesIfPresent(sourcePath, worktreePath);
   }
   return {
     runId: params.runId,
@@ -512,15 +514,17 @@ export function captureWorktreeDiffArtifact(params: {
   stepId: string;
   attemptId: string;
   worktreePath: string;
+  sourcePath?: string;
 }): Artifact | null {
-  const workspaceFiles = listComparableFiles(params.cwd);
+  const sourcePath = params.sourcePath ?? params.cwd;
+  const workspaceFiles = listComparableFiles(sourcePath);
   const worktreeFiles = listComparableFiles(params.worktreePath);
   const allFiles = Array.from(new Set([...workspaceFiles, ...worktreeFiles])).sort();
   const patch = allFiles
     .map((relativePath) =>
       simplePatchForFile({
         relativePath,
-        before: readTextIfReasonable(path.join(params.cwd, relativePath)),
+        before: readTextIfReasonable(path.join(sourcePath, relativePath)),
         after: readTextIfReasonable(path.join(params.worktreePath, relativePath)),
       }),
     )

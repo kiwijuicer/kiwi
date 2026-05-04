@@ -85,6 +85,12 @@ Pflichtfelder:
 - `createdAt`
 - `updatedAt`
 
+Workspace-Metadaten fuer Multi-Repo-Workspaces:
+
+- `workspacePath`
+- `repoId`
+- `repoPath`
+
 ### 4.3 TaskGraph
 
 Maschinenlesbarer Plan mit Schritten, Abhaengigkeiten und akzeptierbaren Ergebnissen.

@@ -27,6 +27,7 @@ export interface RunnerExecutionInput {
   stepId: string;
   attemptId: string;
   workspacePath: string;
+  repoPath?: string;
   worktreePath: string;
   stepPrompt: string;
   contextPackage: unknown;

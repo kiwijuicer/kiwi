@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
@@ -89,5 +89,17 @@ models:
 
     expect(policy.version).toBe("1");
     expect(registry.models.length).toBeGreaterThan(0);
+  });
+
+  it("initializes an explicit workspace root", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-cwd-"));
+    const workspace = path.join(cwd, "voice");
+    mkdirSync(workspace);
+
+    await runInit({ workspace: "voice" }, cwd);
+
+    expect(existsSync(path.join(workspace, ".kiwi", "config.yaml"))).toBe(true);
+    expect(existsSync(path.join(workspace, "kiwi-policy.yaml"))).toBe(true);
+    expect(existsSync(path.join(cwd, ".kiwi"))).toBe(false);
   });
 });

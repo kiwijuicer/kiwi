@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { getRunStatusSummary, loadTaskGraph, withRunLock } from "@ai-kiwi/core";
 import { runAttemptUnlocked, AttemptOptions } from "./attempt";
+import { resolveCliWorkspace } from "../workspace-options";
 
 export interface RunOptions extends AttemptOptions {
   fromStep?: string;
@@ -11,15 +12,16 @@ export async function runRun(
   opts: RunOptions = {},
   cwd: string = process.cwd(),
 ): Promise<void> {
+  const workspace = resolveCliWorkspace(opts, cwd, false);
   await withRunLock(
     {
-      cwd,
+      cwd: workspace.workspacePath,
       runId,
       operation: "run",
       now: opts.now,
     },
     async () => {
-      const taskGraph = loadTaskGraph(runId, cwd);
+      const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
       const startIndex = opts.fromStep
         ? taskGraph.steps.findIndex((step) => step.stepId === opts.fromStep)
         : 0;
@@ -30,8 +32,8 @@ export async function runRun(
         if (opts.command) attemptOptions.command = opts.command;
         if (opts.approved !== undefined) attemptOptions.approved = opts.approved;
         if (opts.now) attemptOptions.now = opts.now;
-        await runAttemptUnlocked(runId, step.stepId, attemptOptions, cwd);
-        const status = getRunStatusSummary(cwd, runId).latest[0]?.status;
+        await runAttemptUnlocked(runId, step.stepId, attemptOptions, workspace.workspacePath);
+        const status = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.status;
         if (status === "failed" || status === "needs_approval") {
           throw new Error(`Run stopped after ${step.stepId} with status ${status}`);
         }
