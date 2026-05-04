@@ -3,7 +3,7 @@ import { getRunStatusSummary, loadTaskGraph, withRunLock } from "@kiwi/core";
 import { runAttemptUnlocked, AttemptOptions } from "./attempt";
 import { resolveCliWorkspace } from "../workspace-options";
 
-export interface RunOptions extends AttemptOptions {
+interface RunOptions extends AttemptOptions {
   fromStep?: string;
 }
 

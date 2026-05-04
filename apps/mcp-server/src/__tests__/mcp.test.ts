@@ -99,6 +99,27 @@ function lineMessage(value: unknown): Buffer {
   return Buffer.from(`${JSON.stringify(value)}\n`, "utf-8");
 }
 
+function isLoopbackListenPermissionError(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "EPERM";
+}
+
+async function startLoopbackHttpServer(
+  cwd: string,
+  skip: () => void,
+): Promise<ReturnType<typeof startHttpMcpServer> | null> {
+  const server = startHttpMcpServer({ cwd, host: "127.0.0.1", port: 0 });
+  try {
+    await once(server, "listening");
+    return server;
+  } catch (error) {
+    if (isLoopbackListenPermissionError(error)) {
+      skip();
+      return null;
+    }
+    throw error;
+  }
+}
+
 describe("MCP server", () => {
   it("initializes and lists tools", async () => {
     const response = await handleMcpRequest({ id: 1, method: "initialize" }, setupRepo());
@@ -154,9 +175,9 @@ describe("MCP server", () => {
     expect((responses[0] as { result: { serverInfo: { name: string } } }).result.serverInfo.name).toBe("kiwi");
   });
 
-  it("serves streamable HTTP POST requests", async () => {
-    const server = startHttpMcpServer({ cwd: setupRepo(), host: "127.0.0.1", port: 0 });
-    await once(server, "listening");
+  it("serves streamable HTTP POST requests", async ({ skip }) => {
+    const server = await startLoopbackHttpServer(setupRepo(), skip);
+    if (!server) return;
 
     try {
       const address = server.address() as AddressInfo;
@@ -186,9 +207,9 @@ describe("MCP server", () => {
     }
   });
 
-  it("returns 202 for HTTP notification-only input", async () => {
-    const server = startHttpMcpServer({ cwd: setupRepo(), host: "127.0.0.1", port: 0 });
-    await once(server, "listening");
+  it("returns 202 for HTTP notification-only input", async ({ skip }) => {
+    const server = await startLoopbackHttpServer(setupRepo(), skip);
+    if (!server) return;
 
     try {
       const address = server.address() as AddressInfo;

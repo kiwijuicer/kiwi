@@ -87,6 +87,226 @@ export const A2A_RUNTIME_MODE_VALUES = ["disabled", "loopback", "filesystem"] as
 export const A2A_RUNTIME_DECISION_STATUS_VALUES = ["accepted", "blocked", "duplicate"] as const;
 export const MODEL_PROVIDER_VALUES = ["stub", "openai", "anthropic", "local"] as const;
 
+export const InitiativeSources = {
+  Cli: "cli",
+  File: "file",
+  Mcp: "mcp",
+  Api: "api",
+  A2a: "a2a",
+} as const;
+
+export const RiskProfiles = {
+  Local: "local",
+  Dev: "dev",
+  Staging: "staging",
+  Production: "production",
+} as const;
+
+export const BudgetProfiles = {
+  Tiny: "tiny",
+  Small: "small",
+  Normal: "normal",
+  Large: "large",
+  Critical: "critical",
+} as const;
+
+export const AgentRoles = {
+  Planner: "planner",
+  Researcher: "researcher",
+  Executor: "executor",
+  Reviewer: "reviewer",
+  Security: "security",
+  Rules: "rules",
+} as const;
+
+export const ModelCapabilities = {
+  Cheap: "cheap",
+  Mid: "mid",
+  Strong: "strong",
+  Frontier: "frontier",
+} as const;
+
+export const RunnerNames = {
+  Codex: "codex",
+  ClaudeCode: "claude-code",
+  LocalShell: "local-shell",
+  Api: "api",
+} as const;
+
+export const StepTypes = {
+  ContextDiscovery: "context_discovery",
+  Planning: "planning",
+  TestCreation: "test_creation",
+  Coding: "coding",
+  CodeCreation: "code_creation",
+  CodeModification: "code_modification",
+  Refactoring: "refactoring",
+  Validation: "validation",
+  Review: "review",
+  ScmTicket: "scm_ticket",
+  ScmPullRequest: "scm_pull_request",
+  ScmReview: "scm_review",
+  RulesUpdate: "rules_update",
+  Documentation: "documentation",
+} as const;
+
+export const StepStatuses = {
+  Pending: "pending",
+  Running: "running",
+  Completed: "completed",
+  Failed: "failed",
+  Skipped: "skipped",
+} as const;
+
+export const RunStatuses = {
+  Planned: "planned",
+  Running: "running",
+  NeedsApproval: "needs_approval",
+  Completed: "completed",
+  Failed: "failed",
+  Cancelled: "cancelled",
+} as const;
+
+export const StepAttemptStatuses = {
+  Pending: "pending",
+  Running: "running",
+  Completed: "completed",
+  Failed: "failed",
+  Blocked: "blocked",
+  Cancelled: "cancelled",
+} as const;
+
+export const ArtifactTypes = {
+  Diff: "diff",
+  Patch: "patch",
+  CommandOutput: "command_output",
+  TestReport: "test_report",
+  LintReport: "lint_report",
+  TypecheckReport: "typecheck_report",
+  ReviewReport: "review_report",
+  CostReport: "cost_report",
+  Summary: "summary",
+} as const;
+
+export const GateTypes = {
+  Typecheck: "typecheck",
+  Lint: "lint",
+  Tests: "tests",
+  ForbiddenFileChecks: "forbidden_file_checks",
+  SecretsCheck: "secrets_check",
+  StructuredReviewJson: "structured_review_json",
+} as const;
+
+export const GateStatuses = {
+  Pass: "pass",
+  Fail: "fail",
+  Blocked: "blocked",
+} as const;
+
+export const ApprovalStates = {
+  Auto: "auto",
+  Required: "required",
+  Blocked: "blocked",
+} as const;
+
+export const NetworkPolicies = {
+  Disabled: "disabled",
+  Enabled: "enabled",
+} as const;
+
+export const ContextLevels = {
+  L0: "L0",
+  L1: "L1",
+  L2: "L2",
+  L3: "L3",
+} as const;
+
+export const SchedulerDecisionStatuses = {
+  Scheduled: "scheduled",
+  Blocked: "blocked",
+} as const;
+
+export const ModelInvocationPhases = {
+  Planner: "planner",
+  Executor: "executor",
+  Reviewer: "reviewer",
+} as const;
+
+export const ModelInvocationStatuses = {
+  Completed: "completed",
+  Failed: "failed",
+  Blocked: "blocked",
+} as const;
+
+export const ReviewVerdictValues = {
+  Pass: "pass",
+  PassWithComments: "pass_with_comments",
+  NeedsChanges: "needs_changes",
+  Reject: "reject",
+} as const;
+
+export const ReviewIssueSeverities = {
+  Low: "low",
+  Medium: "medium",
+  High: "high",
+  Critical: "critical",
+} as const;
+
+export const ScmProviders = {
+  BitbucketCloud: "bitbucket-cloud",
+  Github: "github",
+  Local: "local",
+} as const;
+
+export const ScmMutationStatuses = {
+  Draft: "draft",
+  Created: "created",
+  Failed: "failed",
+  Blocked: "blocked",
+} as const;
+
+export const RunnerExecutionStatuses = {
+  Completed: "completed",
+  Failed: "failed",
+  Blocked: "blocked",
+  ApprovalRequired: "approval_required",
+  Timeout: "timeout",
+} as const;
+
+export const NextActionTypes = {
+  Continue: "continue",
+  FixStep: "fix_step",
+  Replan: "replan",
+} as const;
+
+export const ProtocolEnvelopeKinds = {
+  Initiative: "initiative",
+  TaskGraph: "task_graph",
+  StepAttempt: "step_attempt",
+  GateResult: "gate_result",
+  ReviewVerdict: "review_verdict",
+  Artifact: "artifact",
+} as const;
+
+export const A2ARuntimeModes = {
+  Disabled: "disabled",
+  Loopback: "loopback",
+  Filesystem: "filesystem",
+} as const;
+
+export const A2ARuntimeDecisionStatuses = {
+  Accepted: "accepted",
+  Blocked: "blocked",
+  Duplicate: "duplicate",
+} as const;
+
+export const ModelProviders = {
+  Stub: "stub",
+  Openai: "openai",
+  Anthropic: "anthropic",
+  Local: "local",
+} as const;
+
 export const ContractsMetadataSchema = z.object({
   schemaVersion: ContractsSchemaVersionSchema,
   evolutionMode: ContractsSchemaEvolutionModeSchema,

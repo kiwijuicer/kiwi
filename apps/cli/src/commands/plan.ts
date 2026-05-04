@@ -13,7 +13,7 @@ import {
 } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface PlanOptions extends CliWorkspaceOptions {
+interface PlanOptions extends CliWorkspaceOptions {
   dryRun?: boolean;
   riskProfile?: "local" | "dev" | "staging" | "production";
   budgetProfile?: "tiny" | "small" | "normal" | "large" | "critical";

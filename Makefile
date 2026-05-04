@@ -7,7 +7,7 @@ PNPM_VERSION ?= 10.23.0
 SHELL_PROFILE ?= $(HOME)/.zshrc
 REPO_ROOT := $(patsubst %/,%,$(abspath $(dir $(lastword $(MAKEFILE_LIST)))))
 
-.PHONY: install uninstall build check
+.PHONY: install uninstall build check fix
 
 install:
 	@set -eu; \
@@ -68,3 +68,6 @@ build:
 
 check:
 	@if command -v pnpm >/dev/null 2>&1; then pnpm release:check; else corepack pnpm release:check; fi
+
+fix:
+	@if command -v pnpm >/dev/null 2>&1; then pnpm format && pnpm lint:fix; else corepack pnpm format && corepack pnpm lint:fix; fi

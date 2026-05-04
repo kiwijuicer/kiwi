@@ -3,7 +3,7 @@ import path from "path";
 import chalk from "chalk";
 import { DEFAULT_MODEL_REGISTRY_YAML, DEFAULT_POLICY_YAML, defaultKiwiConfigYaml } from "../default-config";
 
-export interface InitOptions {
+interface InitOptions {
   force?: boolean;
   workspace?: string;
   cursorMcp?: boolean;

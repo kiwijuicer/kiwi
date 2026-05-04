@@ -47,9 +47,15 @@ importers:
       '@kiwi/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
+      '@kiwi/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@kiwi/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@kiwi/sandbox':
+        specifier: workspace:*
+        version: link:../../packages/sandbox
       chalk:
         specifier: ^4.1.2
         version: 4.1.2

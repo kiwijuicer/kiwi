@@ -1,10 +1,19 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "workspaces": {
-    ".": {
-      "entry": ["scripts/*.mjs"],
-      "project": ["apps/**/*.{ts,tsx}", "packages/**/*.{ts,tsx}", "scripts/**/*.{ts,js,mjs}"],
-      "ignore": ["**/dist/**", "**/__tests__/**", "**/*.test.ts"]
-    }
+  "entry": [
+    "apps/*/src/index.ts",
+    "apps/mcp-server/bin/stdio-launcher.cjs",
+    "packages/*/src/index.ts",
+    "scripts/*.mjs"
+  ],
+  "project": [
+    "apps/*/bin/**/*.cjs",
+    "apps/*/src/**/*.{ts,tsx}",
+    "packages/*/src/**/*.{ts,tsx}",
+    "scripts/**/*.{js,mjs}"
+  ],
+  "ignoreFiles": ["**/__tests__/**", "**/*.test.ts"],
+  "ignoreIssues": {
+    "packages/contracts/src/schemas.ts": ["duplicates"]
   }
 }

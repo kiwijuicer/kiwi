@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import path from "path";
 import chalk from "chalk";
 
-export interface RulesSyncOptions {
+interface RulesSyncOptions {
   target?: string;
 }
 

@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { withRunLock, writeEvidenceManifest } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface EvidenceManifestOptions extends CliWorkspaceOptions {
+interface EvidenceManifestOptions extends CliWorkspaceOptions {
   now?: Date;
 }
 

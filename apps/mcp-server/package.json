@@ -2,6 +2,9 @@
   "name": "@kiwi/mcp-server",
   "version": "0.1.0",
   "private": true,
+  "bin": {
+    "kiwi-mcp-stdio": "./bin/stdio-launcher.cjs"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",

@@ -55,10 +55,6 @@ function readJson(target: string): unknown {
   return JSON.parse(readFileSync(target, "utf-8")) as unknown;
 }
 
-function attemptRoot(cwd: string, runId: string, stepId: string, attemptId: string): string {
-  return resolveRunArtifactPath(runId, `steps/${stepId}/${attemptId}`, cwd);
-}
-
 function tryReadGateResults(
   cwd: string,
   runId: string,

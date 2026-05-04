@@ -35,7 +35,7 @@ export interface A2ARuntimePolicy {
   acceptedKinds: ProtocolEnvelopeKind[];
 }
 
-export const DEFAULT_POLICY: A2ARuntimePolicy = {
+const DEFAULT_POLICY: A2ARuntimePolicy = {
   mode: "disabled",
   localAgentId: "kiwi-local",
   trustedAgentIds: [],
@@ -56,7 +56,7 @@ export function effectivePolicy(policy: Partial<A2ARuntimePolicy> | undefined): 
   };
 }
 
-export function a2aRoot(cwd: string): string {
+function a2aRoot(cwd: string): string {
   return path.join(cwd, ".kiwi", "a2a");
 }
 
@@ -79,7 +79,7 @@ export function readJson(target: string): unknown {
   return JSON.parse(readFileSync(target, "utf-8")) as unknown;
 }
 
-export function idempotencyRef(idempotencyKey: string): string {
+function idempotencyRef(idempotencyKey: string): string {
   return `idempotency/${safeFileName(idempotencyKey)}.json`;
 }
 
@@ -91,7 +91,7 @@ export function quarantineRef(messageId: string): string {
   return `quarantine/${safeFileName(messageId)}.json`;
 }
 
-export function correlationRef(correlationId: string, messageId: string): string {
+function correlationRef(correlationId: string, messageId: string): string {
   return `ledger/correlations/${safeFileName(correlationId)}/${safeFileName(messageId)}.json`;
 }
 
@@ -104,7 +104,7 @@ export function resolveA2APath(cwd: string, ref: string): string {
   return target;
 }
 
-export function resolveChildPath(root: string, ref: string): string {
+function resolveChildPath(root: string, ref: string): string {
   if (path.isAbsolute(ref)) {
     throw new Error("A2A attachment ref must be relative");
   }
@@ -242,7 +242,7 @@ export function isRemotePatch(envelope: ProtocolEnvelope): boolean {
   return artifact.type === "diff" || artifact.type === "patch";
 }
 
-export function peerForSender(policy: A2ARuntimePolicy, senderAgentId: string): A2ATrustedPeer | undefined {
+function peerForSender(policy: A2ARuntimePolicy, senderAgentId: string): A2ATrustedPeer | undefined {
   return policy.trustedPeers.find((peer) => peer.agentId === senderAgentId);
 }
 
@@ -299,7 +299,7 @@ export function validateAttachments(envelope: ProtocolEnvelope, root: string | u
   }
 }
 
-export function persistAttachmentCopies(params: {
+function persistAttachmentCopies(params: {
   cwd: string;
   envelope: ProtocolEnvelope;
   sourceRoot?: string | undefined;
@@ -316,7 +316,7 @@ export function persistAttachmentCopies(params: {
   }
 }
 
-export function persistIdempotency(params: {
+function persistIdempotency(params: {
   cwd: string;
   envelope: ProtocolEnvelope;
   envelopeRef: string;

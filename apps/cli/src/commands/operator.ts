@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { withRunLock, writeOperatorSnapshot } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface OperatorSnapshotOptions extends CliWorkspaceOptions {
+interface OperatorSnapshotOptions extends CliWorkspaceOptions {
   now?: Date;
 }
 

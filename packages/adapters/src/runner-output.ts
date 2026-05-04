@@ -8,7 +8,7 @@ export function zeroModelUsage(): { inputTokens: number; outputTokens: number } 
   };
 }
 
-export function createRunnerGateResult(params: {
+function createRunnerGateResult(params: {
   gateId: string;
   status: "fail" | "blocked";
   reason: string;

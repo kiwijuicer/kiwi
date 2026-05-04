@@ -1,7 +1,15 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.14/schema.json",
   "files": {
-    "includes": ["**", "!**/dist/**", "!**/coverage/**", "!**/.kiwi/**", "!**/node_modules/**"]
+    "includes": [
+      "**",
+      "!**/dist/**",
+      "!**/coverage/**",
+      "!**/.kiwi/**",
+      "!**/.tmp/**",
+      "!**/node_modules/**",
+      "!pnpm-lock.yaml"
+    ]
   },
   "formatter": {
     "enabled": true,

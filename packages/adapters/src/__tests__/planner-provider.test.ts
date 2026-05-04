@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { KiwiPolicy, TaskGraph } from "@kiwi/contracts";
 import {
-  PlannerProviderValidationError,
   PlannerProvider,
   PlannerProviderInput,
   PlannerProviderOutput,

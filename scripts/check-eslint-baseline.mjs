@@ -1,10 +1,16 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { existsSync, readFileSync } from "node:fs";
+import {
+  eslintBaselinePath,
+  eslintIssueKey,
+  eslintReportPath,
+  isHardEslintIssue,
+  relativeReportPath,
+  repoRootFromMeta,
+} from "./eslint-baseline-utils.mjs";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const reportPath = path.join(repoRoot, ".tmp", "eslint-report.json");
-const baselinePath = path.join(repoRoot, "config", "eslint-baseline.json");
+const repoRoot = repoRootFromMeta(import.meta.url);
+const reportPath = eslintReportPath(repoRoot);
+const baselinePath = eslintBaselinePath(repoRoot);
 
 if (!existsSync(reportPath)) {
   console.error(`Missing ESLint report at ${reportPath}. Run lint:eslint first.`);
@@ -21,21 +27,25 @@ const report = JSON.parse(readFileSync(reportPath, "utf-8"));
 const baseline = JSON.parse(readFileSync(baselinePath, "utf-8"));
 const baselineSet = new Set(baseline.issueKeys ?? baseline.warningKeys ?? []);
 const ignoredRuleIds = new Set(baseline.ignoredRuleIds ?? []);
-
+const hardIssues = [];
 const newIssues = [];
 
 for (const file of report) {
-  const filePath = path.relative(repoRoot, file.filePath).replace(/\\/g, "/");
+  const filePath = relativeReportPath(repoRoot, file.filePath);
+  const source = file.source ?? "";
   for (const message of file.messages) {
-    const ruleId = message.ruleId ?? "unknown";
-    if (typeof message.ruleId !== "string" || message.ruleId.length === 0) continue;
-    if (ignoredRuleIds.has(ruleId)) continue;
-    const key = `${filePath}|${ruleId}|${message.line}|${message.column}|${message.severity}`;
+    if (isHardEslintIssue(message)) {
+      hardIssues.push({ file: filePath, ...message, ruleId: message.ruleId ?? "unknown" });
+      continue;
+    }
+    if (ignoredRuleIds.has(message.ruleId)) continue;
+
+    const key = eslintIssueKey(filePath, message, source);
     if (!baselineSet.has(key)) {
       newIssues.push({
         file: filePath,
         severity: message.severity,
-        ruleId,
+        ruleId: message.ruleId,
         line: message.line,
         column: message.column,
         message: message.message,
@@ -44,8 +54,21 @@ for (const file of report) {
   }
 }
 
+if (hardIssues.length > 0) {
+  console.error(`Found ${hardIssues.length} hard ESLint issue(s). Fix these instead of baselining them.`);
+  for (const issue of hardIssues.slice(0, 40)) {
+    console.error(
+      `${issue.file}:${issue.line ?? "?"}:${issue.column ?? "?"} [${issue.severity}] ${issue.ruleId} ${issue.message}`,
+    );
+  }
+  if (hardIssues.length > 40) {
+    console.error(`... and ${hardIssues.length - 40} more`);
+  }
+  process.exit(1);
+}
+
 if (newIssues.length > 0) {
-  console.error(`Found ${newIssues.length} new issue(s) not in baseline.`);
+  console.error(`Found ${newIssues.length} new warning(s) not in baseline.`);
   for (const issue of newIssues.slice(0, 40)) {
     console.error(`${issue.file}:${issue.line}:${issue.column} [${issue.severity}] ${issue.ruleId} ${issue.message}`);
   }

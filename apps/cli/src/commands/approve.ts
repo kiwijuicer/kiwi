@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { recordApprovalDecision, withRunLock } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface ApproveOptions extends CliWorkspaceOptions {
+interface ApproveOptions extends CliWorkspaceOptions {
   reason?: string;
   approvedBy?: string;
   now?: Date;

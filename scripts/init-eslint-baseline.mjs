@@ -1,10 +1,16 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import {
+  eslintBaselinePath,
+  eslintIssueKey,
+  eslintReportPath,
+  isHardEslintIssue,
+  relativeReportPath,
+  repoRootFromMeta,
+} from "./eslint-baseline-utils.mjs";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const reportPath = path.join(repoRoot, ".tmp", "eslint-report.json");
-const baselinePath = path.join(repoRoot, "config", "eslint-baseline.json");
+const repoRoot = repoRootFromMeta(import.meta.url);
+const reportPath = eslintReportPath(repoRoot);
+const baselinePath = eslintBaselinePath(repoRoot);
 
 if (!existsSync(reportPath)) {
   console.error(`Missing ESLint report at ${reportPath}. Run: pnpm lint:eslint`);
@@ -13,18 +19,35 @@ if (!existsSync(reportPath)) {
 
 const report = JSON.parse(readFileSync(reportPath, "utf-8"));
 const issueKeys = [];
+const hardIssues = [];
 
 for (const file of report) {
-  const filePath = path.relative(repoRoot, file.filePath).replace(/\\/g, "/");
+  const filePath = relativeReportPath(repoRoot, file.filePath);
+  const source = file.source ?? "";
   for (const message of file.messages) {
-    if (typeof message.ruleId !== "string" || message.ruleId.length === 0) continue;
-    const ruleId = message.ruleId ?? "unknown";
-    issueKeys.push(`${filePath}|${ruleId}|${message.line}|${message.column}|${message.severity}`);
+    if (isHardEslintIssue(message)) {
+      hardIssues.push({ file: filePath, ...message, ruleId: message.ruleId ?? "unknown" });
+      continue;
+    }
+    issueKeys.push(eslintIssueKey(filePath, message, source));
   }
 }
 
+if (hardIssues.length > 0) {
+  console.error(`Found ${hardIssues.length} hard ESLint issue(s). Fix these before writing a warning baseline.`);
+  for (const issue of hardIssues.slice(0, 40)) {
+    console.error(
+      `${issue.file}:${issue.line ?? "?"}:${issue.column ?? "?"} [${issue.severity}] ${issue.ruleId} ${issue.message}`,
+    );
+  }
+  if (hardIssues.length > 40) {
+    console.error(`... and ${hardIssues.length - 40} more`);
+  }
+  process.exit(1);
+}
+
 issueKeys.sort();
-mkdirSync(path.dirname(baselinePath), { recursive: true });
+mkdirSync(new URL("../config", import.meta.url), { recursive: true });
 writeFileSync(
   baselinePath,
   JSON.stringify(
@@ -38,4 +61,4 @@ writeFileSync(
   ) + "\n",
 );
 
-console.log(`Wrote baseline with ${issueKeys.length} issue key(s) to ${baselinePath}`);
+console.log(`Wrote baseline with ${issueKeys.length} warning key(s) to ${baselinePath}`);

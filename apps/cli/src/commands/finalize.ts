@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { finalizeRun, withRunLock } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface FinalizeOptions extends CliWorkspaceOptions {
+interface FinalizeOptions extends CliWorkspaceOptions {
   now?: Date;
 }
 

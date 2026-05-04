@@ -16,23 +16,23 @@ import {
 } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface A2AReceiveOptions extends CliWorkspaceOptions {
+interface A2AReceiveOptions extends CliWorkspaceOptions {
   loopback?: boolean;
   localAgent?: string;
   trustedAgent?: string;
   now?: Date;
 }
 
-export interface A2AEnableOptions extends CliWorkspaceOptions {
+interface A2AEnableOptions extends CliWorkspaceOptions {
   localAgent?: string;
 }
 
-export interface A2ATrustAddOptions extends CliWorkspaceOptions {
+interface A2ATrustAddOptions extends CliWorkspaceOptions {
   inboxPath: string;
   allowRemotePatches?: boolean;
 }
 
-export interface A2APublishOptions extends CliWorkspaceOptions {
+interface A2APublishOptions extends CliWorkspaceOptions {
   peer: string;
   runId?: string;
   stepId?: string;
