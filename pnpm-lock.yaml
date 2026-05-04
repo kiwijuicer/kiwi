@@ -53,6 +53,9 @@ importers:
       '@kiwi/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@kiwi/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       '@kiwi/sandbox':
         specifier: workspace:*
         version: link:../../packages/sandbox
@@ -90,6 +93,9 @@ importers:
       '@kiwi/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@kiwi/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       '@kiwi/sandbox':
         specifier: workspace:*
         version: link:../../packages/sandbox
@@ -160,6 +166,34 @@ importers:
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
+      '@types/node':
+        specifier: ^20.12.7
+        version: 20.19.39
+      tsup:
+        specifier: ^8.0.2
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.13)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: ^5.4.5
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/runtime:
+    dependencies:
+      '@kiwi/adapters':
+        specifier: workspace:*
+        version: link:../adapters
+      '@kiwi/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@kiwi/core':
+        specifier: workspace:*
+        version: link:../core
+      '@kiwi/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
+    devDependencies:
       '@types/node':
         specifier: ^20.12.7
         version: 20.19.39
