@@ -80,16 +80,16 @@ Turn the current MVP-grade local control plane into a production-usable app with
 ### P2: A2A Only After Local Production Stability
 
 9. A2A runtime gate
-   - Do not start A2A production runtime until CLI apply/finalize is stable, MCP parity exists, schema compatibility is formalized, and the trust model is documented.
-   - Define agent identity, capability discovery, auth/trust config, correlation IDs, idempotency keys, replay protection, and streaming status.
+   - Do not start A2A production runtime until CLI apply/finalize is stable, MCP parity exists, schema compatibility is formalized, and the trust model is documented. `GATED LOOPBACK ONLY DONE 2026-05-04`
+   - Define agent identity, capability discovery, auth/trust config, correlation IDs, idempotency keys, replay protection, and streaming status. `IDENTITY/TRUST/CORRELATION/IDEMPOTENCY FIRST SLICE DONE 2026-05-04`
    - Version message schemas for initiative handoff, TaskGraph publication, StepAttempt status, artifact exchange, GateResult, and ReviewVerdict.
-   - Require artifact hashes and local gate/review before accepting remote patches.
+   - Require artifact hashes and local gate/review before accepting remote patches. `REMOTE PATCHES BLOCKED 2026-05-04`
    - Acceptance: ai-kiwi can delegate to or consume remote agent work without weakening local policy, audit, or approval gates.
 
 10. Packaging, release, and operations
-    - Add release builds, binary/package install path, upgrade path, and smoke tests on a clean machine.
+    - Add release builds, binary/package install path, upgrade path, and smoke tests on a clean machine. `SMOKE/RELEASE CHECK FIRST SLICE DONE 2026-05-04`
     - Add CI for unit, integration, CLI smoke, MCP smoke, migration fixtures, provider fixtures, and sandbox security tests.
-    - Document quickstart, provider setup, MCP setup, security model, recovery, and production runbook.
+    - Document quickstart, provider setup, MCP setup, security model, recovery, and production runbook. `RELEASE/RUNBOOK DRAFTS DONE 2026-05-04`
     - Acceptance: a clean install can initialize a repo, complete a smoke run, expose MCP, and export evidence reproducibly.
 
 ## Suggested Sequence

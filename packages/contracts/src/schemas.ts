@@ -360,11 +360,35 @@ export const ProtocolEnvelopeKindSchema = z.enum([
   "artifact",
 ]);
 
+export const A2AMessageMetadataSchema = z.object({
+  messageId: z.string().regex(/^msg_[a-z0-9_]+$/),
+  correlationId: z.string().regex(/^corr_[a-z0-9_]+$/),
+  idempotencyKey: z.string().min(8),
+  senderAgentId: z.string().min(1),
+  recipientAgentId: z.string().min(1),
+});
+
 export const ProtocolEnvelopeSchema = z.object({
   schemaVersion: ContractsSchemaVersionSchema,
   protocol: z.literal("a2a-prep"),
   kind: ProtocolEnvelopeKindSchema,
   payload: z.unknown(),
+  createdAt: IsoDateTimeSchema,
+  a2a: A2AMessageMetadataSchema.optional(),
+});
+
+export const A2ARuntimeModeSchema = z.enum(["disabled", "loopback"]);
+export const A2ARuntimeDecisionStatusSchema = z.enum(["accepted", "blocked", "duplicate"]);
+
+export const A2ARuntimeDecisionSchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  status: A2ARuntimeDecisionStatusSchema,
+  reason: z.string().min(1),
+  messageId: z.string().min(1).optional(),
+  correlationId: z.string().min(1).optional(),
+  runId: z.string().regex(/^run_[a-z0-9_]+$/).optional(),
+  inboxRef: z.string().min(1).optional(),
+  duplicateOfRef: z.string().min(1).optional(),
   createdAt: IsoDateTimeSchema,
 });
 
@@ -471,8 +495,12 @@ export type EvidenceFileHash = z.infer<typeof EvidenceFileHashSchema>;
 export type RunAuditSnapshot = z.infer<typeof RunAuditSnapshotSchema>;
 export type EvidenceManifest = z.infer<typeof EvidenceManifestSchema>;
 export type ApprovalDecision = z.infer<typeof ApprovalDecisionSchema>;
+export type A2AMessageMetadata = z.infer<typeof A2AMessageMetadataSchema>;
 export type ProtocolEnvelopeKind = z.infer<typeof ProtocolEnvelopeKindSchema>;
 export type ProtocolEnvelope = z.infer<typeof ProtocolEnvelopeSchema>;
+export type A2ARuntimeMode = z.infer<typeof A2ARuntimeModeSchema>;
+export type A2ARuntimeDecisionStatus = z.infer<typeof A2ARuntimeDecisionStatusSchema>;
+export type A2ARuntimeDecision = z.infer<typeof A2ARuntimeDecisionSchema>;
 export type PolicyRoutingOverride = z.infer<typeof PolicyRoutingOverrideSchema>;
 export type CommandProfile = z.infer<typeof CommandProfileSchema>;
 export type KiwiPolicy = z.infer<typeof KiwiPolicySchema>;

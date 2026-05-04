@@ -9,6 +9,8 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "lint": "echo 'lint not configured yet'",
+    "smoke": "node scripts/smoke.mjs",
+    "release:check": "pnpm typecheck && pnpm test && pnpm build && pnpm smoke",
     "clean": "pnpm -r clean",
     "kiwi": "tsx apps/cli/src/index.ts"
   },

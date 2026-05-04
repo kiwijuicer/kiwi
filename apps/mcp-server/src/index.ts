@@ -11,6 +11,7 @@ import {
   finalizeRun,
   generateRunId,
   getRunStatusSummary,
+  handleA2AEnvelope,
   listStepAttemptEvidence,
   loadEvidenceManifest,
   loadApprovalDecision,
@@ -335,6 +336,18 @@ async function callTool(name: string, args: Record<string, unknown>, cwd: string
         { cwd, runId: String(args.runId ?? ""), operation: "mcp_operator_snapshot" },
         () => writeOperatorSnapshot({ cwd, runId: String(args.runId ?? "") }),
       );
+    case "kiwi_a2a_receive":
+      return handleA2AEnvelope({
+        cwd,
+        envelope: args.envelope,
+        policy: {
+          mode: args.loopback === true ? "loopback" : "disabled",
+          localAgentId: typeof args.localAgentId === "string" ? args.localAgentId : "ai-kiwi-local",
+          trustedAgentIds: Array.isArray(args.trustedAgentIds)
+            ? args.trustedAgentIds.filter((entry): entry is string => typeof entry === "string")
+            : [],
+        },
+      }).decision;
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -403,6 +416,20 @@ const TOOLS = [
   },
   { name: "kiwi_evidence_manifest", description: "Write evidence manifest and audit snapshot", inputSchema: RUN_ID_SCHEMA },
   { name: "kiwi_operator_snapshot", description: "Write local operator HTML snapshot", inputSchema: RUN_ID_SCHEMA },
+  {
+    name: "kiwi_a2a_receive",
+    description: "Validate and optionally accept an A2A envelope into the local loopback inbox",
+    inputSchema: {
+      type: "object",
+      properties: {
+        envelope: { type: "object" },
+        loopback: { type: "boolean" },
+        localAgentId: { type: "string" },
+        trustedAgentIds: { type: "array", items: { type: "string" } },
+      },
+      required: ["envelope"],
+    },
+  },
 ] as const;
 
 export async function handleMcpRequest(

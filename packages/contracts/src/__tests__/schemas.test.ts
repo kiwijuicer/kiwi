@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import path from "path";
 import {
   ApprovalDecisionSchema,
+  A2ARuntimeDecisionSchema,
   ArtifactSchema,
   AttemptSummarySchema,
   ContextPackageSchema,
@@ -349,6 +350,16 @@ describe("contracts schemas", () => {
       readFileSync(path.join(__dirname, "..", "__fixtures__", "a2a-envelope.json"), "utf-8"),
     ) as unknown;
     const envelope = ProtocolEnvelopeSchema.parse(fixture);
+    const a2aDecision = A2ARuntimeDecisionSchema.parse({
+      schemaVersion: "1",
+      status: "accepted",
+      reason: "accepted",
+      messageId: "msg_demo",
+      correlationId: "corr_demo",
+      runId: "run_demo",
+      inboxRef: "inbox/msg_demo.json",
+      createdAt: "2026-05-04T08:00:00.000Z",
+    });
 
     expect(contextPackage.level).toBe("L1");
     expect(decision.runner).toBe("local-shell");
@@ -360,5 +371,6 @@ describe("contracts schemas", () => {
     expect(auditSnapshot.eventCount).toBe(1);
     expect(evidence.files[0]?.ref).toBe("run.json");
     expect(envelope.protocol).toBe("a2a-prep");
+    expect(a2aDecision.status).toBe("accepted");
   });
 });

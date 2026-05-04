@@ -168,5 +168,60 @@ describe("MCP server", () => {
     );
     expect(snapshotResource.error).toBeUndefined();
     expect(JSON.stringify(snapshotResource.result)).toContain("<!doctype html>");
+
+    const a2a = await handleMcpRequest(
+      {
+        id: 9,
+        method: "tools/call",
+        params: {
+          name: "kiwi_a2a_receive",
+          arguments: {
+            loopback: true,
+            trustedAgentIds: ["remote-agent"],
+            envelope: {
+              schemaVersion: "1",
+              protocol: "a2a-prep",
+              kind: "task_graph",
+              payload: {
+                planId: "plan_mcp",
+                runId: parsed.runId,
+                initiativeId: "init_mcp",
+                summary: "MCP A2A graph",
+                steps: [
+                  {
+                    stepId: "step_001",
+                    type: "planning",
+                    title: "Plan",
+                    dependsOn: [],
+                    successCriteria: ["Done"],
+                    requiredGates: [],
+                    recommendedAgentRole: "planner",
+                    recommendedModelCapability: "frontier",
+                    status: "pending",
+                  },
+                ],
+                acceptanceCriteria: ["Done"],
+                assumptions: [],
+                openQuestions: [],
+                riskScore: 2,
+                complexityScore: 1,
+                createdAt: "2026-05-04T12:00:00.000Z",
+              },
+              createdAt: "2026-05-04T12:00:00.000Z",
+              a2a: {
+                messageId: "msg_mcp",
+                correlationId: "corr_mcp",
+                idempotencyKey: "idempotency-mcp",
+                senderAgentId: "remote-agent",
+                recipientAgentId: "ai-kiwi-local",
+              },
+            },
+          },
+        },
+      },
+      cwd,
+    );
+    expect(a2a.error).toBeUndefined();
+    expect(JSON.stringify(a2a.result)).toContain("accepted");
   });
 });

@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { runA2AReceive } from "./commands/a2a";
 import { runApprove } from "./commands/approve";
 import { runAttempt } from "./commands/attempt";
 import { runEvidenceManifest } from "./commands/evidence";
@@ -104,8 +105,9 @@ program
     });
   });
 
-program
-  .command("evidence manifest <runId>")
+const evidenceCommand = program.command("evidence").description("Evidence artifact commands");
+evidenceCommand
+  .command("manifest <runId>")
   .description("Write evidence manifest and audit snapshot for a run")
   .action((runId: string) => {
     runEvidenceManifest(runId).catch((error: Error) => {
@@ -114,8 +116,9 @@ program
     });
   });
 
-program
-  .command("operator snapshot <runId>")
+const operatorCommand = program.command("operator").description("Operator surface commands");
+operatorCommand
+  .command("snapshot <runId>")
   .description("Write local operator HTML snapshot for a run")
   .action((runId: string) => {
     runOperatorSnapshot(runId).catch((error: Error) => {
@@ -123,6 +126,29 @@ program
       process.exit(1);
     });
   });
+
+const a2aCommand = program.command("a2a").description("A2A protocol commands");
+a2aCommand
+  .command("receive <envelope>")
+  .description("Validate and optionally accept an A2A envelope into the local loopback inbox")
+  .option("--loopback", "Enable local loopback receive mode")
+  .option("--local-agent <id>", "Local A2A agent identity", "ai-kiwi-local")
+  .option("--trusted-agent <ids>", "Comma-separated trusted sender agent ids")
+  .action(
+    (
+      envelope: string,
+      opts: {
+        loopback?: boolean;
+        localAgent?: string;
+        trustedAgent?: string;
+      },
+    ) => {
+      runA2AReceive(envelope, opts).catch((error: Error) => {
+        console.error(`\n✗ ${error.message}`);
+        process.exit(1);
+      });
+    },
+  );
 
 program
   .command("rules sync")

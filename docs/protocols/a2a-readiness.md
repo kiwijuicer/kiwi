@@ -1,8 +1,9 @@
 # A2A Readiness
 
-Status: preparation only
+Status: gated loopback only
 
-`ai-kiwi` does not implement an A2A runtime yet. The current boundary is a stable serialization layer for future protocol work.
+`ai-kiwi` now has a disabled-by-default local loopback runtime for validating and recording A2A envelopes.
+It is not a remote execution runtime and does not apply remote patches.
 
 ## Stable Envelope
 
@@ -29,6 +30,20 @@ Future A2A-facing messages must use `ProtocolEnvelopeSchema` from `packages/cont
 - cross-process agent runtime
 - automatic patch application from external agents
 - multi-tenant service behavior
+
+## Runtime Gate
+
+The runtime only accepts envelopes when:
+
+- loopback mode is explicitly enabled
+- `a2a` metadata is present
+- `recipientAgentId` matches the local agent
+- `senderAgentId` is explicitly trusted
+- the envelope kind is allowed by policy
+- the idempotency key has not already been handled
+- payload validates against the canonical schema for its kind
+
+Patch and diff artifacts are blocked until local apply gates exist.
 
 ## Readiness Criteria
 

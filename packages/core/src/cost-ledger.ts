@@ -25,7 +25,8 @@ export type AuditEventType =
   | "run_lock_busy"
   | "run_audit_snapshot_written"
   | "evidence_manifest_written"
-  | "operator_snapshot_written";
+  | "operator_snapshot_written"
+  | "a2a_runtime_event";
 
 export interface AuditEvent {
   eventType: AuditEventType;
