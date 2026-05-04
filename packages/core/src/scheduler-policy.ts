@@ -205,10 +205,14 @@ function determineRiskHigh(input: SchedulerInput): boolean {
   );
 }
 
+function isCodeExecutionStep(step: Step): boolean {
+  return ["coding", "code_creation", "code_modification", "refactoring"].includes(step.type);
+}
+
 function determineAgentRole(input: SchedulerInput): Step["recommendedAgentRole"] {
   const riskHigh = determineRiskHigh(input);
   if (!riskHigh) return input.step.recommendedAgentRole;
-  if (input.step.type === "coding" || input.step.type === "validation") return "security";
+  if (isCodeExecutionStep(input.step) || input.step.type === "validation") return "security";
   if (input.step.type === "review") return "reviewer";
   return input.step.recommendedAgentRole;
 }

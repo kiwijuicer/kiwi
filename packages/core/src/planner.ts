@@ -88,6 +88,15 @@ function inferStepType(title: string): StepType {
   if (/\btest|spec\b/.test(value)) {
     return "test_creation";
   }
+  if (/\b(pull request|merge request)\b|\bpr\b/.test(value)) {
+    return "scm_pull_request";
+  }
+  if (/\b(ticket|issue)\b/.test(value)) {
+    return "scm_ticket";
+  }
+  if (/\b(publish|post|submit)\b.*\b(review|comment|finding)s?\b/.test(value)) {
+    return "scm_review";
+  }
   if (/\breview|audit\b/.test(value)) {
     return "review";
   }
@@ -100,8 +109,21 @@ function inferStepType(title: string): StepType {
   if (/\bdocs?|documentation|readme\b/.test(value)) {
     return "documentation";
   }
+  if (/\brefactor|restructure|rename|extract\b/.test(value)) {
+    return "refactoring";
+  }
+  if (/\b(create|add|scaffold|new)\b.*\b(code|feature|component|module|endpoint|command)\b/.test(value)) {
+    return "code_creation";
+  }
+  if (/\b(change|modify|update|implement|fix)\b/.test(value)) {
+    return "code_modification";
+  }
 
   return "coding";
+}
+
+function isCodeExecutionStep(stepType: StepType): boolean {
+  return ["coding", "code_creation", "code_modification", "refactoring"].includes(stepType);
 }
 
 function defaultRouting(stepType: StepType): RoutingChoice {
@@ -116,10 +138,17 @@ function defaultRouting(stepType: StepType): RoutingChoice {
       return { agentRole: "reviewer", modelCapability: "strong" };
     case "review":
       return { agentRole: "reviewer", modelCapability: "frontier" };
+    case "scm_ticket":
+    case "scm_pull_request":
+    case "scm_review":
+      return { agentRole: "executor", modelCapability: "mid" };
     case "rules_update":
       return { agentRole: "rules", modelCapability: "mid" };
     case "documentation":
       return { agentRole: "executor", modelCapability: "cheap" };
+    case "code_creation":
+    case "code_modification":
+    case "refactoring":
     case "coding":
     default:
       return { agentRole: "executor", modelCapability: "strong" };
@@ -155,6 +184,21 @@ function stepSuccessCriteria(stepType: StepType): string[] {
         "Tests encode expected behavior",
         "Behavior changes are detectable by test suite",
       ];
+    case "code_creation":
+      return [
+        "New code is scoped to the requested feature",
+        "No unrelated modifications are introduced",
+      ];
+    case "code_modification":
+      return [
+        "Change is scoped to required behavior",
+        "Existing behavior stays compatible unless intentionally changed",
+      ];
+    case "refactoring":
+      return [
+        "External behavior stays unchanged",
+        "Refactor reduces complexity or improves local structure",
+      ];
     case "coding":
       return [
         "Change is scoped to required behavior",
@@ -164,6 +208,12 @@ function stepSuccessCriteria(stepType: StepType): string[] {
       return ["Typecheck, lint, and relevant tests are green"];
     case "review":
       return ["Structured review verdict is produced"];
+    case "scm_ticket":
+      return ["Ticket draft or remote ticket result is recorded without storing credentials"];
+    case "scm_pull_request":
+      return ["Pull request draft or remote pull request result is recorded without storing credentials"];
+    case "scm_review":
+      return ["Review draft or remote review result is recorded without storing credentials"];
     case "rules_update":
       return ["Rule files are consistent with project vision"];
     case "documentation":
@@ -174,11 +224,11 @@ function stepSuccessCriteria(stepType: StepType): string[] {
 }
 
 function requiredGates(stepType: StepType): string[] {
+  if (isCodeExecutionStep(stepType) || stepType === "test_creation" || stepType === "validation") {
+    return ["typecheck", "lint", "tests"];
+  }
+
   switch (stepType) {
-    case "coding":
-    case "test_creation":
-    case "validation":
-      return ["typecheck", "lint", "tests"];
     case "review":
       return ["structured_review_json"];
     default:

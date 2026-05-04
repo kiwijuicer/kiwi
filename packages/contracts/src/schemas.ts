@@ -30,8 +30,14 @@ export const StepTypeSchema = z.enum([
   "planning",
   "test_creation",
   "coding",
+  "code_creation",
+  "code_modification",
+  "refactoring",
   "validation",
   "review",
+  "scm_ticket",
+  "scm_pull_request",
+  "scm_review",
   "rules_update",
   "documentation",
 ]);
@@ -100,6 +106,76 @@ export const ReviewIssueSeveritySchema = z.enum([
   "high",
   "critical",
 ]);
+
+export const ScmProviderSchema = z.enum(["bitbucket-cloud", "github", "local"]);
+export const ScmAuthModeSchema = z.literal("external");
+export const ScmMutationStatusSchema = z.enum(["draft", "created", "failed", "blocked"]);
+
+export const ScmRepositoryRefSchema = z.object({
+  provider: ScmProviderSchema,
+  workspace: z.string().min(1).optional(),
+  repoSlug: z.string().min(1).optional(),
+  remoteUrl: z.string().min(1).optional(),
+}).superRefine((value, ctx) => {
+  if (value.provider !== "bitbucket-cloud") return;
+  if (!value.workspace) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["workspace"],
+      message: "bitbucket-cloud repository refs require workspace",
+    });
+  }
+  if (!value.repoSlug) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["repoSlug"],
+      message: "bitbucket-cloud repository refs require repoSlug",
+    });
+  }
+});
+
+export const ScmTicketDraftSchema = z.object({
+  repository: ScmRepositoryRefSchema,
+  title: z.string().min(1),
+  body: z.string().default(""),
+  labels: z.array(z.string().min(1)).default([]),
+});
+
+export const ScmPullRequestDraftSchema = z.object({
+  repository: ScmRepositoryRefSchema,
+  title: z.string().min(1),
+  description: z.string().default(""),
+  sourceBranch: z.string().min(1),
+  destinationBranch: z.string().min(1).optional(),
+  closeSourceBranch: z.boolean().default(false),
+  draft: z.boolean().default(false),
+});
+
+export const ScmPullRequestReviewCommentSchema = z.object({
+  body: z.string().min(1),
+  filePath: z.string().min(1).optional(),
+  line: z.number().int().min(1).optional(),
+  severity: ReviewIssueSeveritySchema.optional(),
+  createTask: z.boolean().default(false),
+});
+
+export const ScmPullRequestReviewDraftSchema = z.object({
+  repository: ScmRepositoryRefSchema,
+  pullRequestId: z.union([z.number().int().positive(), z.string().regex(/^\d+$/)]),
+  summary: z.string().default(""),
+  comments: z.array(ScmPullRequestReviewCommentSchema).default([]),
+  requestChanges: z.boolean().default(false),
+});
+
+export const ScmMutationResultSchema = z.object({
+  provider: ScmProviderSchema,
+  authMode: ScmAuthModeSchema,
+  status: ScmMutationStatusSchema,
+  externalId: z.string().min(1).optional(),
+  externalUrl: z.string().min(1).optional(),
+  evidenceRefs: z.array(z.string().min(1)).default([]),
+  createdAt: IsoDateTimeSchema.optional(),
+});
 
 export const InitiativeSchema = z.object({
   id: z.string().regex(/^init_[a-z0-9_]+$/, "id must look like init_<value>"),
@@ -511,6 +587,9 @@ export type ContextLevel = z.infer<typeof ContextLevelSchema>;
 export type SchedulerDecisionStatus = z.infer<typeof SchedulerDecisionStatusSchema>;
 export type ReviewVerdictValue = z.infer<typeof ReviewVerdictValueSchema>;
 export type ReviewIssueSeverity = z.infer<typeof ReviewIssueSeveritySchema>;
+export type ScmProvider = z.infer<typeof ScmProviderSchema>;
+export type ScmAuthMode = z.infer<typeof ScmAuthModeSchema>;
+export type ScmMutationStatus = z.infer<typeof ScmMutationStatusSchema>;
 export type Step = z.infer<typeof StepSchema>;
 export type TaskGraph = z.infer<typeof TaskGraphSchema>;
 export type Run = z.infer<typeof RunSchema>;
@@ -520,6 +599,15 @@ export type StepAttempt = z.infer<typeof StepAttemptSchema>;
 export type GateResult = z.infer<typeof GateResultSchema>;
 export type ReviewIssue = z.infer<typeof ReviewIssueSchema>;
 export type ReviewVerdict = z.infer<typeof ReviewVerdictSchema>;
+export type ScmRepositoryRef = z.infer<typeof ScmRepositoryRefSchema>;
+export type ScmTicketDraft = z.infer<typeof ScmTicketDraftSchema>;
+export type ScmTicketDraftInput = z.input<typeof ScmTicketDraftSchema>;
+export type ScmPullRequestDraft = z.infer<typeof ScmPullRequestDraftSchema>;
+export type ScmPullRequestDraftInput = z.input<typeof ScmPullRequestDraftSchema>;
+export type ScmPullRequestReviewComment = z.infer<typeof ScmPullRequestReviewCommentSchema>;
+export type ScmPullRequestReviewDraft = z.infer<typeof ScmPullRequestReviewDraftSchema>;
+export type ScmPullRequestReviewDraftInput = z.input<typeof ScmPullRequestReviewDraftSchema>;
+export type ScmMutationResult = z.infer<typeof ScmMutationResultSchema>;
 export type ContextPackage = z.infer<typeof ContextPackageSchema>;
 export type SchedulerDecision = z.infer<typeof SchedulerDecisionSchema>;
 export type RunnerModelUsage = z.infer<typeof RunnerModelUsageSchema>;

@@ -7,6 +7,7 @@
 - No dependency installation without explicit approval.
 - No unrestricted shell by default.
 - No raw secret material in prompts or logs.
+- No SCM/API credentials in Core, run artifacts, prompts, or adapter inputs.
 
 ## Risk Zones
 
@@ -26,6 +27,7 @@ Treat these as high-risk by default:
 - Restrict environment variables to allowlist.
 - Apply timeout and process limits.
 - Keep per-attempt audit evidence.
+- Keep external auth at the boundary: CLI login, OAuth connector, OS keychain, MCP server, or injected transport.
 
 ## Review Controls
 

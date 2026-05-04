@@ -5,6 +5,7 @@
 - `packages/contracts`: schemas, domain types, enums, shared interfaces.
 - `packages/core`: orchestration logic, scheduler, planning flow, run state.
 - `packages/adapters`: provider and runner integrations behind contracts.
+- SCM integrations (Bitbucket/GitHub/etc.) live in `packages/adapters` behind provider-neutral contracts.
 - `packages/sandbox`: worktree lifecycle, process execution, permissions.
 - `apps/cli`: primary user interface.
 - `apps/mcp-server`: integration channel, not orchestration source.
@@ -16,6 +17,7 @@
 - `adapters` may depend on `contracts`.
 - `sandbox` may depend on `contracts`.
 - `core` must not import provider-specific SDKs directly.
+- `core` must not import SCM-provider SDKs or own SCM credentials directly.
 
 ## Canonical Domain Terms
 

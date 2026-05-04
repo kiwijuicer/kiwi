@@ -123,4 +123,39 @@ Constraints:
       "No network calls in planning",
     ]);
   });
+
+  it("routes code orchestration and SCM publication steps explicitly", () => {
+    const initiative = createInitiativeFromInput({
+      rawInput: `# Bitbucket flow
+
+## Create new CLI command code
+## Refactor runner adapter
+## Modify validation behavior
+## Create Bitbucket ticket
+## Create pull request
+## Publish review comments
+`,
+      repoPath: "/tmp/repo",
+      source: "cli",
+      now: new Date("2026-05-03T19:00:00.000Z"),
+    });
+
+    const graph = buildDeterministicTaskGraph({
+      runId: "run_20260503_190000_abcd",
+      initiative,
+      policy,
+      now: new Date("2026-05-03T19:00:00.000Z"),
+    });
+
+    expect(graph.steps.map((step) => step.type)).toEqual([
+      "code_creation",
+      "refactoring",
+      "code_modification",
+      "scm_ticket",
+      "scm_pull_request",
+      "scm_review",
+    ]);
+    expect(graph.steps[0]?.requiredGates).toEqual(["typecheck", "lint", "tests"]);
+    expect(graph.steps[3]?.requiredGates).toEqual([]);
+  });
 });

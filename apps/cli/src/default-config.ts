@@ -36,6 +36,24 @@ routing:
     coding:
       agentRole: executor
       modelCapability: strong
+    code_creation:
+      agentRole: executor
+      modelCapability: strong
+    code_modification:
+      agentRole: executor
+      modelCapability: strong
+    refactoring:
+      agentRole: executor
+      modelCapability: strong
+    scm_ticket:
+      agentRole: executor
+      modelCapability: mid
+    scm_pull_request:
+      agentRole: executor
+      modelCapability: mid
+    scm_review:
+      agentRole: executor
+      modelCapability: mid
     test_creation:
       agentRole: executor
       modelCapability: mid
@@ -85,6 +103,66 @@ commandProfiles:
     allowedCommands: [node, pnpm]
     approvalState: auto
     approvalRequiredPaths: [migrations/**]
+    deniedPaths: [.env*, secrets/**]
+    envAllowlist: [PATH, CI]
+    secretEnvNames: []
+    networkPolicy: disabled
+    timeoutMs: 120000
+    maxOutputBytes: 65536
+  code_creation:
+    allowedCommands: [node, pnpm]
+    approvalState: auto
+    approvalRequiredPaths: [migrations/**]
+    deniedPaths: [.env*, secrets/**]
+    envAllowlist: [PATH, CI]
+    secretEnvNames: []
+    networkPolicy: disabled
+    timeoutMs: 120000
+    maxOutputBytes: 65536
+  code_modification:
+    allowedCommands: [node, pnpm]
+    approvalState: auto
+    approvalRequiredPaths: [migrations/**]
+    deniedPaths: [.env*, secrets/**]
+    envAllowlist: [PATH, CI]
+    secretEnvNames: []
+    networkPolicy: disabled
+    timeoutMs: 120000
+    maxOutputBytes: 65536
+  refactoring:
+    allowedCommands: [node, pnpm]
+    approvalState: auto
+    approvalRequiredPaths: [migrations/**]
+    deniedPaths: [.env*, secrets/**]
+    envAllowlist: [PATH, CI]
+    secretEnvNames: []
+    networkPolicy: disabled
+    timeoutMs: 120000
+    maxOutputBytes: 65536
+  scm_ticket:
+    allowedCommands: []
+    approvalState: required
+    approvalRequiredPaths: []
+    deniedPaths: [.env*, secrets/**]
+    envAllowlist: [PATH, CI]
+    secretEnvNames: []
+    networkPolicy: disabled
+    timeoutMs: 120000
+    maxOutputBytes: 65536
+  scm_pull_request:
+    allowedCommands: []
+    approvalState: required
+    approvalRequiredPaths: []
+    deniedPaths: [.env*, secrets/**]
+    envAllowlist: [PATH, CI]
+    secretEnvNames: []
+    networkPolicy: disabled
+    timeoutMs: 120000
+    maxOutputBytes: 65536
+  scm_review:
+    allowedCommands: []
+    approvalState: required
+    approvalRequiredPaths: []
     deniedPaths: [.env*, secrets/**]
     envAllowlist: [PATH, CI]
     secretEnvNames: []

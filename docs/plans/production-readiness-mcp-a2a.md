@@ -40,14 +40,20 @@ Turn the current MVP-grade local control plane into a production-usable app with
    - Add streaming/progress capture without bypassing artifact persistence.
    - Acceptance: a runner can make a scoped code change in sandbox, produce a diff artifact, and pass required gates.
 
-4. Sandbox and policy hardening
+4. Bitbucket-first SCM boundary
+   - Implement provider-neutral SCM contracts for tickets, pull requests, and pull request reviews.
+   - Ship Bitbucket Cloud as the first remote provider; GitHub must remain optional.
+   - Keep credentials outside Kiwi by requiring external auth through CLI/OAuth/MCP/keychain/injected transport.
+   - Acceptance: Kiwi can prepare or publish Bitbucket issues, pull requests, review comments, tasks, and change requests without persisting secret material.
+
+5. Sandbox and policy hardening
    - Replace copied-folder isolation with real git worktree or container isolation.
    - Enforce denied paths and approval-required paths against the resulting diff, not only command arguments.
    - Add process-tree cleanup, stronger timeout handling, output limits, and network egress controls.
    - Implement real secret scanning for outputs and diffs.
    - Acceptance: denied paths cannot be changed, high-risk paths require explicit approval, and timed-out work leaves no orphaned process.
 
-5. Quality gates that prove safety
+6. Quality gates that prove safety
    - Configure real linting; current root `pnpm lint` is only a placeholder.
    - Persist structured reports for typecheck, lint, tests, forbidden-file checks, secret checks, and structured review.
    - Make final verdict depend on evidence-backed gates and review of the actual diff.
@@ -55,7 +61,7 @@ Turn the current MVP-grade local control plane into a production-usable app with
 
 ### P1: Required For A Fully-Fledged Local App
 
-6. MCP production parity
+7. MCP production parity
    - Add schema-described tool inputs/outputs for every MCP tool. `INPUT SCHEMAS DONE 2026-05-04`
    - Add resources for run manifest, initiative, planner input/output, attempts, gate results, review verdict, final verdict, cost reports, and audit log. `READ RESOURCE PARITY DONE 2026-05-04`
    - Add MCP tools for retry, cancel, replan, apply, export, and rules sync once CLI equivalents exist.
@@ -63,7 +69,7 @@ Turn the current MVP-grade local control plane into a production-usable app with
    - Keep all MCP mutations on the same core policy path as CLI.
    - Acceptance: anything operationally supported in CLI is available through MCP without duplicated orchestration logic.
 
-7. Persistence, audit, and compatibility
+8. Persistence, audit, and compatibility
    - Move schema evolution out of `breaking_allowed`.
    - Add migrations or compatibility readers for old run artifacts.
    - Add a run index for fast listing and recovery checks.
@@ -71,7 +77,7 @@ Turn the current MVP-grade local control plane into a production-usable app with
    - Add evidence manifests with hashes for export and review. `DONE 2026-05-04`
    - Acceptance: interrupted or older runs can be recovered or migrated, and exported evidence can be verified locally.
 
-8. Operator app surface
+9. Operator app surface
    - Build either a local TUI or local web UI after CLI/MCP parity is stable. `STATIC SNAPSHOT FIRST SLICE DONE 2026-05-04`
    - Required views: run list, TaskGraph, step detail, diff/evidence viewer, approval queue, cost/budget, policy/model settings.
    - The app must consume core/MCP surfaces, not create a second orchestration path.
@@ -79,14 +85,14 @@ Turn the current MVP-grade local control plane into a production-usable app with
 
 ### P2: A2A Only After Local Production Stability
 
-9. A2A runtime gate
+10. A2A runtime gate
    - Do not start A2A production runtime until CLI apply/finalize is stable, MCP parity exists, schema compatibility is formalized, and the trust model is documented. `GATED LOOPBACK ONLY DONE 2026-05-04`
    - Define agent identity, capability discovery, auth/trust config, correlation IDs, idempotency keys, replay protection, and streaming status. `IDENTITY/TRUST/CORRELATION/IDEMPOTENCY FIRST SLICE DONE 2026-05-04`
    - Version message schemas for initiative handoff, TaskGraph publication, StepAttempt status, artifact exchange, GateResult, and ReviewVerdict.
    - Require artifact hashes and local gate/review before accepting remote patches. `REMOTE PATCHES BLOCKED 2026-05-04`
    - Acceptance: ai-kiwi can delegate to or consume remote agent work without weakening local policy, audit, or approval gates.
 
-10. Packaging, release, and operations
+11. Packaging, release, and operations
     - Add release builds, binary/package install path, upgrade path, and smoke tests on a clean machine. `SMOKE/RELEASE CHECK FIRST SLICE DONE 2026-05-04`
     - Add CI for unit, integration, CLI smoke, MCP smoke, migration fixtures, provider fixtures, and sandbox security tests.
     - Document quickstart, provider setup, MCP setup, security model, recovery, and production runbook. `RELEASE/RUNBOOK DRAFTS DONE 2026-05-04`
@@ -97,9 +103,10 @@ Turn the current MVP-grade local control plane into a production-usable app with
 1. Foundation hardening: locks, retries/cancel/replan/apply, real lint/gates, schema compatibility decision.
 2. Real AI loop: planner provider, reviewer provider, runner adapter, prompt packaging, cost accounting.
 3. Secure execution: real worktree/container, diff-based policy gates, secret scan, rollback/apply flow.
-4. MCP parity: schema-described tools/resources, mutation parity, conformance tests, client docs.
-5. Local app: TUI or web operator surface on top of CLI/MCP.
-6. A2A beta: loopback runtime, trust model, protocol fixtures, remote artifact exchange.
+4. SCM publication: Bitbucket-first ticket, pull request, and review adapter behind external auth.
+5. MCP parity: schema-described tools/resources, mutation parity, conformance tests, client docs.
+6. Local app: TUI or web operator surface on top of CLI/MCP.
+7. A2A beta: loopback runtime, trust model, protocol fixtures, remote artifact exchange.
 
 ## Production Release Gates
 

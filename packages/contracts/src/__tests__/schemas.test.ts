@@ -23,6 +23,11 @@ import {
   RunAuditSnapshotSchema,
   RunnerExecutionOutputSchema,
   SchedulerDecisionSchema,
+  ScmMutationResultSchema,
+  ScmPullRequestDraftSchema,
+  ScmPullRequestReviewDraftSchema,
+  ScmRepositoryRefSchema,
+  ScmTicketDraftSchema,
   RunSchema,
   StepAttemptSchema,
   TaskGraphSchema,
@@ -180,6 +185,61 @@ describe("contracts schemas", () => {
       artifacts: [],
       startedAt: "2026-05-03T19:00:00.000Z",
       completedAt: null,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("parses SCM contracts with external auth boundary", () => {
+    const repository = ScmRepositoryRefSchema.parse({
+      provider: "bitbucket-cloud",
+      workspace: "kiwi",
+      repoSlug: "ai-kiwi",
+      remoteUrl: "https://bitbucket.org/kiwi/ai-kiwi",
+    });
+    const ticket = ScmTicketDraftSchema.parse({
+      repository,
+      title: "Refactor runner adapter",
+      body: "Keep credentials outside Kiwi.",
+    });
+    const pullRequest = ScmPullRequestDraftSchema.parse({
+      repository,
+      title: "Implement adapter",
+      sourceBranch: "feature/adapter",
+      destinationBranch: "main",
+    });
+    const review = ScmPullRequestReviewDraftSchema.parse({
+      repository,
+      pullRequestId: 42,
+      summary: "Needs one small fix.",
+      comments: [
+        {
+          body: "Please add a regression test.",
+          filePath: "src/index.ts",
+          line: 12,
+          createTask: true,
+        },
+      ],
+      requestChanges: true,
+    });
+    const result = ScmMutationResultSchema.parse({
+      provider: "bitbucket-cloud",
+      authMode: "external",
+      status: "created",
+      externalId: "42",
+      externalUrl: "https://bitbucket.org/kiwi/ai-kiwi/pull-requests/42",
+    });
+
+    expect(ticket.repository.provider).toBe("bitbucket-cloud");
+    expect(pullRequest.closeSourceBranch).toBe(false);
+    expect(review.comments[0]?.createTask).toBe(true);
+    expect(result.authMode).toBe("external");
+  });
+
+  it("rejects incomplete Bitbucket repository refs", () => {
+    const parsed = ScmRepositoryRefSchema.safeParse({
+      provider: "bitbucket-cloud",
+      workspace: "kiwi",
     });
 
     expect(parsed.success).toBe(false);

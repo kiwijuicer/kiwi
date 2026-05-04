@@ -27,10 +27,12 @@ Kernidee:
 ### 2.1 Muss-Ziele
 
 - Aus vagen Inputs reproduzierbare TaskGraphs erzeugen.
+- Code-Erstellung, Code-Aenderung und Refactoring als geplante, gegatete Steps orchestrieren.
 - Execution und Review strikt trennen.
 - Safety und Auditability als First-Class Features behandeln.
 - Kosten aktiv steuern statt nur messen.
 - IDE-unabhaengig bleiben (CLI ist die Kernoberflaeche).
+- SCM-provider-neutral bleiben; Bitbucket Cloud ist ein First-Class Ziel neben GitHub.
 
 ### 2.2 Non-Goals fuer den Start
 
@@ -178,6 +180,23 @@ Pflichtfelder:
 - `issues[]`
 - `recommendedNextSteps[]`
 - `confidence`
+
+### 4.9 SCM Provider Boundary
+
+SCM-Integrationen sind Adapter, nicht Core-Logik.
+
+Pflichtregeln:
+
+- Core speichert keine Credentials.
+- Authentifizierung liegt ausserhalb von Kiwi: lokaler CLI-Login, OAuth Connector, MCP Server, OS Keychain oder ein injizierter HTTP-Transport.
+- Bitbucket Cloud (`bitbucket.org`) ist als First-Class Provider vorgesehen.
+- GitHub bleibt moeglich, darf aber keine Bitbucket-spezifischen Flows erzwingen.
+
+Unterstuetzte SCM-Aktionen:
+
+- Ticket/Issue Draft oder Remote-Erstellung
+- Pull Request Draft oder Remote-Erstellung
+- Pull Request Review Kommentare, Tasks und Change-Request Signal
 
 ---
 
@@ -465,6 +484,16 @@ MCP ist Zugriffskanal, nicht Orchestrator.
 ### 14.3 A2A (deutlich spaeter)
 
 A2A wird erst relevant, wenn interne Rollen stabil sind und ueber saubere contracts verfuegen.
+
+### 14.4 SCM Provider
+
+SCM Provider werden ueber `packages/adapters` angebunden.
+
+Startreihenfolge:
+
+1. Bitbucket Cloud Adapter fuer Issues, Pull Requests und Pull Request Reviews.
+2. GitHub Adapter nur als zweiter Provider, nicht als Annahme im Core.
+3. Lokale Draft-Ausgabe als Fallback, wenn keine externe Auth verfuegbar ist.
 
 ---
 
