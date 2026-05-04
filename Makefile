@@ -5,11 +5,13 @@ INSTALL_DEPS ?= 1
 BUILD ?= 1
 UPDATE_SHELL ?= 1
 INSTALL_CURSOR_AGENT ?= 0
+INSTALL_CLAUDE_CODE ?= 0
+CLAUDE_CODE_INSTALLER ?= native
 PNPM_VERSION ?= 10.23.0
 SHELL_PROFILE ?= $(HOME)/.zshrc
 REPO_ROOT := $(patsubst %/,%,$(abspath $(dir $(lastword $(MAKEFILE_LIST)))))
 
-.PHONY: install install-cursor-agent uninstall build check fix smoke
+.PHONY: install install-cursor-agent install-claude-code uninstall build check fix smoke
 
 install:
 	@set -eu; \
@@ -73,6 +75,18 @@ install:
 			echo "  # or: make install INSTALL_CURSOR_AGENT=1"; \
 		fi; \
 	fi
+	@if command -v claude >/dev/null 2>&1; then \
+		echo "claude detected: $$(command -v claude)"; \
+	else \
+		if [ "$(INSTALL_CLAUDE_CODE)" = "1" ]; then \
+			$(MAKE) install-claude-code; \
+		else \
+			echo "claude missing. Optional Claude Code runner install:"; \
+			echo "  make install-claude-code"; \
+			echo "  # or: make install INSTALL_CLAUDE_CODE=1"; \
+			echo "  # brew path: make install-claude-code CLAUDE_CODE_INSTALLER=brew"; \
+		fi; \
+	fi
 
 install-cursor-agent:
 	@set -eu; \
@@ -93,6 +107,45 @@ install-cursor-agent:
 		exit 0; \
 	fi; \
 	cursor-agent --version
+
+install-claude-code:
+	@set -eu; \
+	if command -v claude >/dev/null 2>&1; then \
+		echo "claude already installed: $$(command -v claude)"; \
+		claude --version || true; \
+		exit 0; \
+	fi; \
+	if [ "$(CLAUDE_CODE_INSTALLER)" = "brew" ]; then \
+		if ! command -v brew >/dev/null 2>&1; then \
+			echo "brew is not on PATH; use CLAUDE_CODE_INSTALLER=native or install Homebrew." >&2; \
+			exit 1; \
+		fi; \
+		echo "Installing Claude Code via Homebrew cask..."; \
+		brew install --cask claude-code; \
+	elif [ "$(CLAUDE_CODE_INSTALLER)" = "brew-latest" ]; then \
+		if ! command -v brew >/dev/null 2>&1; then \
+			echo "brew is not on PATH; use CLAUDE_CODE_INSTALLER=native or install Homebrew." >&2; \
+			exit 1; \
+		fi; \
+		echo "Installing Claude Code latest channel via Homebrew cask..."; \
+		brew install --cask claude-code@latest; \
+	elif [ "$(CLAUDE_CODE_INSTALLER)" = "npm" ]; then \
+		if ! command -v npm >/dev/null 2>&1; then \
+			echo "npm is not on PATH; install Node.js 18+ or use CLAUDE_CODE_INSTALLER=native." >&2; \
+			exit 1; \
+		fi; \
+		echo "Installing Claude Code via npm global package..."; \
+		npm install -g @anthropic-ai/claude-code; \
+	else \
+		echo "Installing Claude Code via official native installer..."; \
+		curl -fsSL https://claude.ai/install.sh | bash; \
+	fi; \
+	if ! command -v claude >/dev/null 2>&1; then \
+		echo "claude installed, but not on PATH yet. Add ~/.local/bin to PATH:"; \
+		echo "  export PATH=\"$$HOME/.local/bin:$$PATH\""; \
+		exit 0; \
+	fi; \
+	claude --version
 
 uninstall:
 	@rm -f "$(KIWI_BIN)"

@@ -28,6 +28,7 @@ currently available.
 
 ```bash
 make install                 # build, install ~/.local/bin/kiwi
+make install-claude-code     # optional Claude Code CLI runner
 make install-cursor-agent    # optional, only when Cursor is already installed
 which claude || true         # optional Claude Code CLI
 which cursor-agent || true   # optional Cursor Agent CLI
@@ -40,6 +41,19 @@ the optional runner install command. To fold it into install, run:
 
 ```bash
 make install INSTALL_CURSOR_AGENT=1
+```
+
+If `claude` is missing, `make install` prints the optional Claude Code install
+command. To fold it into install, run:
+
+```bash
+make install INSTALL_CLAUDE_CODE=1
+```
+
+Claude Code defaults to the official native installer. To use Homebrew instead:
+
+```bash
+make install-claude-code CLAUDE_CODE_INSTALLER=brew
 ```
 
 Cursor SDK is not required for this flow and remains optional because it uses
