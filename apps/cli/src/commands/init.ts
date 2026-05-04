@@ -73,7 +73,7 @@ function resolveMcpServerLaunch(): McpServerLaunch {
   for (const candidate of distCandidates) {
     if (existsSync(candidate)) {
       return {
-        command: "node",
+        command: process.execPath,
         args: [candidate],
       };
     }

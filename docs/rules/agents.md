@@ -12,6 +12,7 @@
 - Keep changes small, reviewable, and reversible.
 - Update docs/contracts when behavior or terminology changes.
 - Preserve auditability of execution decisions and outputs.
+- Do not stage, commit, tag, or push unless the user explicitly asks for that git operation.
 
 ## Validation Expectations
 

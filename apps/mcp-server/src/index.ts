@@ -506,10 +506,12 @@ const RUN_ID_SCHEMA = {
   required: ["runId"],
 } as const;
 
+const NO_AUTO_COMMIT_NOTE = "Do not stage, commit, tag, or push unless the user explicitly requested that git operation.";
+
 const TOOLS = [
   {
     name: "kiwi_plan",
-    description: "Create a planned kiwi run",
+    description: `Create a planned kiwi run. ${NO_AUTO_COMMIT_NOTE}`,
     inputSchema: {
       type: "object",
       properties: {
@@ -538,7 +540,7 @@ const TOOLS = [
   },
   {
     name: "kiwi_run",
-    description: "Execute planned steps in order",
+    description: `Execute planned steps in order. ${NO_AUTO_COMMIT_NOTE}`,
     inputSchema: {
       type: "object",
       properties: {
@@ -555,7 +557,7 @@ const TOOLS = [
   },
   {
     name: "kiwi_run_step",
-    description: "Execute a planned step through policy gates",
+    description: `Execute a planned step through policy gates. ${NO_AUTO_COMMIT_NOTE}`,
     inputSchema: {
       type: "object",
       properties: {
@@ -570,7 +572,7 @@ const TOOLS = [
       required: ["runId", "stepId"],
     },
   },
-  { name: "kiwi_finalize", description: "Finalize a run", inputSchema: RUN_ID_SCHEMA },
+  { name: "kiwi_finalize", description: `Finalize a run. ${NO_AUTO_COMMIT_NOTE}`, inputSchema: RUN_ID_SCHEMA },
   {
     name: "kiwi_request_approval",
     description: "Record an approval decision",
@@ -817,6 +819,14 @@ function encodeMessage(payload: unknown): string {
   return `Content-Length: ${Buffer.byteLength(body, "utf-8")}\r\n\r\n${body}`;
 }
 
+function findHeaderSeparator(buffer: Buffer): { index: number; length: number } | null {
+  const crlf = buffer.indexOf("\r\n\r\n");
+  const lf = buffer.indexOf("\n\n");
+  if (crlf < 0 && lf < 0) return null;
+  if (crlf >= 0 && (lf < 0 || crlf <= lf)) return { index: crlf, length: 4 };
+  return { index: lf, length: 2 };
+}
+
 export function createMcpMessageDrainer(
   cwd: string,
   writeResponse: (payload: unknown) => void,
@@ -827,15 +837,15 @@ export function createMcpMessageDrainer(
     buffer = Buffer.concat([buffer, chunk]);
 
     while (true) {
-      const separator = buffer.indexOf("\r\n\r\n");
-      if (separator < 0) return;
+      const separator = findHeaderSeparator(buffer);
+      if (!separator) return;
 
-      const header = buffer.subarray(0, separator).toString("ascii");
+      const header = buffer.subarray(0, separator.index).toString("ascii");
       const match = header.match(/Content-Length:\s*(\d+)/i);
       if (!match?.[1]) return;
 
       const length = Number(match[1]);
-      const start = separator + 4;
+      const start = separator.index + separator.length;
       const end = start + length;
       if (buffer.length < end) return;
 

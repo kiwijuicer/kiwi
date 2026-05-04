@@ -74,6 +74,36 @@ interface PolicyDecision {
 }
 
 const NETWORK_COMMANDS = new Set(["curl", "wget", "ssh", "scp", "git", "npm", "pnpm", "yarn"]);
+const MUTATING_GIT_SUBCOMMANDS = new Set([
+  "add",
+  "am",
+  "apply",
+  "branch",
+  "checkout",
+  "cherry-pick",
+  "clean",
+  "commit",
+  "merge",
+  "mv",
+  "push",
+  "rebase",
+  "reset",
+  "restore",
+  "revert",
+  "rm",
+  "stash",
+  "switch",
+  "tag",
+]);
+const GIT_OPTIONS_WITH_VALUE = new Set([
+  "-C",
+  "-c",
+  "--config-env",
+  "--exec-path",
+  "--git-dir",
+  "--namespace",
+  "--work-tree",
+]);
 const WORKSPACE_COPY_EXCLUDES = new Set([
   ".git",
   ".kiwi",
@@ -177,12 +207,41 @@ function usesNetwork(command: string[]): boolean {
   return command.some((arg) => /^https?:\/\//i.test(arg));
 }
 
+function gitSubcommand(command: string[], gitIndex: number): string | null {
+  let skipNext = false;
+  for (const token of command.slice(gitIndex + 1)) {
+    if (skipNext) {
+      skipNext = false;
+      continue;
+    }
+    if (GIT_OPTIONS_WITH_VALUE.has(token)) {
+      skipNext = true;
+      continue;
+    }
+    if (token.startsWith("--") && token.includes("=")) continue;
+    if (token.startsWith("-")) continue;
+    return token;
+  }
+  return null;
+}
+
+function requiresExplicitGitMutationApproval(command: string[]): boolean {
+  return command.some((token, index) => {
+    if (path.basename(token) !== "git") return false;
+    const subcommand = gitSubcommand(command, index);
+    return subcommand !== null && MUTATING_GIT_SUBCOMMANDS.has(subcommand);
+  });
+}
+
 function evaluatePolicy(input: SandboxCommandInput): PolicyDecision {
   if (input.command.length === 0) {
     return { status: "blocked", reason: "empty command" };
   }
   if (input.policy.approvalState === "blocked") {
     return { status: "blocked", reason: "command approval state is blocked" };
+  }
+  if (requiresExplicitGitMutationApproval(input.command) && !input.approved) {
+    return { status: "approval_required", reason: "git state changes require explicit approval" };
   }
   if (!commandAllowed(input.command, input.policy.allowedCommands)) {
     return { status: "blocked", reason: "command is not allowlisted" };

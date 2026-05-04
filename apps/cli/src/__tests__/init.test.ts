@@ -139,7 +139,7 @@ models:
 
     const config = readCursorMcpConfig(cwd);
     const server = config.mcpServers?.kiwi;
-    expect(server?.command).toMatch(/^(node|pnpm)$/);
+    expect(server?.command).toBe(process.execPath);
     expect(server?.args?.join(" ")).toContain("mcp-server");
     expect(server?.env).toEqual({ KIWI_WORKSPACE: "${workspaceFolder}" });
   });
@@ -151,7 +151,7 @@ models:
 
     const config = readClaudeCodeMcpConfig(cwd);
     const server = config.mcpServers?.kiwi;
-    expect(server?.command).toMatch(/^(node|pnpm)$/);
+    expect(server?.command).toBe(process.execPath);
     expect(server?.args?.join(" ")).toContain("mcp-server");
     expect(server?.env).toEqual({ KIWI_WORKSPACE: cwd });
   });

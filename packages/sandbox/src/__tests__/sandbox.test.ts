@@ -122,6 +122,29 @@ describe("worktree sandbox command execution", () => {
     expect(result.stderr).toContain("approval");
   });
 
+  it("requires explicit approval for git state changes", async () => {
+    const repo = cwd();
+    const sandbox = createWorktreeSandbox({
+      cwd: repo,
+      runId: "run_demo",
+      attemptId: "attempt_git",
+    });
+
+    const result = await executeSandboxCommand({
+      cwd: repo,
+      runId: "run_demo",
+      stepId: "step_001",
+      attemptId: "attempt_git",
+      worktreePath: sandbox.worktreePath,
+      command: ["git", "-C", ".", "commit", "-m", "update"],
+      policy: policy({ allowedCommands: ["git"] }),
+    });
+
+    expect(result.status).toBe("approval_required");
+    expect(result.gateResult.status).toBe("blocked");
+    expect(result.stderr).toContain("git state changes require explicit approval");
+  });
+
   it("times out long-running commands and persists failure evidence", async () => {
     const repo = cwd();
     const sandbox = createWorktreeSandbox({

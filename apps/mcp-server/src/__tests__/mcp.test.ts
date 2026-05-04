@@ -84,9 +84,9 @@ function toolJson(response: Awaited<ReturnType<typeof handleMcpRequest>>): unkno
   return JSON.parse(text) as unknown;
 }
 
-function framedMessage(value: unknown): Buffer {
+function framedMessage(value: unknown, separator = "\r\n\r\n"): Buffer {
   const body = JSON.stringify(value);
-  return Buffer.from(`Content-Length: ${Buffer.byteLength(body, "utf-8")}\r\n\r\n${body}`, "utf-8");
+  return Buffer.from(`Content-Length: ${Buffer.byteLength(body, "utf-8")}${separator}${body}`, "utf-8");
 }
 
 describe("MCP server", () => {
@@ -114,6 +114,16 @@ describe("MCP server", () => {
     expect(responses).toHaveLength(2);
     expect(responses.map((response) => (response as { id: number }).id)).toEqual([1, 2]);
     expect(JSON.stringify(responses[1])).toContain("kiwi_plan");
+  });
+
+  it("accepts lf-only stdio headers", async () => {
+    const responses: unknown[] = [];
+    const drain = createMcpMessageDrainer(setupRepo(), (response) => responses.push(response));
+
+    await drain(framedMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }, "\n\n"));
+
+    expect(responses).toHaveLength(1);
+    expect((responses[0] as { result: { serverInfo: { name: string } } }).result.serverInfo.name).toBe("kiwi");
   });
 
   it("plans, generates P1 artifacts, and reads parity resources", async () => {
