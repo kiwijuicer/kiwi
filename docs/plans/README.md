@@ -31,6 +31,14 @@ Done-Date: YYYY-MM-DD
 - Step 12: Runner Adapters and Step Orchestration
 - Step 13: MCP, Rules Sync, and Operator Surfaces
 - Step 14: A2A Preparation and Future Scale
+- Step 15: Scope Freeze and Model Tier Collapse
+- Step 16: Anthropic Planner Provider
+- Step 17: Anthropic Reviewer Provider
+- Step 18: Claude Code Runner Adapter
+- Step 19: Real Quality Gate Execution
+- Step 20: Git Worktree Sandbox Hardening
+- Step 21: Install and Distribution Hygiene
+- Step 22: End-to-End Real Run Demo
 
 ## Milestone Mapping
 
@@ -39,7 +47,19 @@ Done-Date: YYYY-MM-DD
 - MVP 3: Steps 09-10
 - MVP 4: Steps 11-12
 - MVP 5+: Steps 13-14
+- Production Milestone 1 (Real Loop): Steps 15-22
+
+## Scope Freeze During Production Milestone 1
+
+While Steps 15-22 are open, the following are explicitly frozen and must not be extended:
+
+- A2A runtime (`packages/core/src/a2a-runtime*.ts`, `apps/cli/src/commands/a2a.ts`, A2A MCP tools).
+- Operator UI surfaces beyond the existing static snapshot.
+- GitHub SCM adapter parity work (Bitbucket Cloud remains the demo target).
+
+The freeze lifts when Step 22 is `DONE`.
 
 ## Post-MVP Production Plan
 
 - `docs/plans/production-readiness-mcp-a2a.md`
+- `docs/plans/production-milestone-1-real-loop.md`

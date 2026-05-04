@@ -59,3 +59,40 @@ flowchart TD
 - MCP server
 - dashboard/tui
 - A2A runtime
+
+## Model Tier Mapping
+
+Capability tiers in `model-registry.yaml` map to real Anthropic models.
+`cheap` is an alias of `mid` with a reduced context budget; there is no
+separate `cheap` provider entry once stubs are retired.
+
+| Capability | Real Provider                | Notes                          |
+| ---------- | ---------------------------- | ------------------------------ |
+| frontier   | claude-opus-4-6              | planner, high-risk reviewer    |
+| strong     | claude-sonnet-4-6            | default coding, default reviewer |
+| mid        | claude-haiku-4-5-20251001    | tests, docs, rules, research   |
+| cheap      | claude-haiku-4-5-20251001    | alias of mid, smaller context  |
+
+## Tier-to-Step-Type Defaults
+
+The scheduler picks `agentRole` and `modelCapability` from the policy
+`stepTypeOverrides`. Defaults below match `kiwi-policy.yaml` and the
+defaults written by `kiwi init`. Risk zones from `riskZones.high` may
+escalate execution and review tiers; downgrading for security-sensitive
+steps is not allowed.
+
+| Step Type           | Agent Role | Model Capability |
+| ------------------- | ---------- | ---------------- |
+| planning            | planner    | frontier         |
+| review              | reviewer   | frontier         |
+| validation          | reviewer   | strong           |
+| coding              | executor   | strong           |
+| code_creation       | executor   | strong           |
+| code_modification   | executor   | strong           |
+| refactoring         | executor   | strong           |
+| test_creation       | executor   | mid              |
+| documentation       | executor   | mid              |
+| rules_update        | executor   | mid              |
+| scm_ticket          | executor   | mid              |
+| scm_pull_request    | executor   | mid              |
+| scm_review          | executor   | mid              |

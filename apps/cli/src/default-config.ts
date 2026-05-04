@@ -172,7 +172,35 @@ commandProfiles:
 `;
 
 export const DEFAULT_MODEL_REGISTRY_YAML = `version: "1"
+# Model registry. Capability tiers map to real Anthropic models below.
+# \`cheap\` is documented as an alias of \`mid\` (Haiku) with a smaller context
+# budget; it is not a separate model entry.
+#
+# The real Anthropic entries are disabled by default until Steps 16 and 17
+# (Planner Provider, Reviewer Provider) land. At that point, flip the
+# Anthropic entries to \`enabled: true\` and the matching stubs to
+# \`enabled: false\`. See docs/plans/step-15-scope-freeze-and-tier-collapse.md.
 models:
+  # Real Anthropic providers. Disabled until Step 16/17 implementations land.
+  - id: claude-opus-4-6
+    provider: anthropic
+    capability: frontier
+    roles: [planner, reviewer, security]
+    enabled: false
+  - id: claude-sonnet-4-6
+    provider: anthropic
+    capability: strong
+    roles: [executor, reviewer, security]
+    enabled: false
+  - id: claude-haiku-4-5-20251001
+    provider: anthropic
+    capability: mid
+    roles: [researcher, executor, rules]
+    enabled: false
+
+  # Stub providers. Default until Anthropic entries above are enabled.
+  # \`stub-cheap\` exists for parity with the four-tier enum; once stubs are
+  # retired, \`cheap\` requests resolve to the \`mid\` (Haiku) entry.
   - id: stub-cheap
     provider: stub
     capability: cheap

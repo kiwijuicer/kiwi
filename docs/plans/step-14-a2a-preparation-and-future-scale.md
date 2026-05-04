@@ -2,9 +2,14 @@
 
 Status: DONE
 Done-Date: 2026-05-04
+Frozen-During: Production Milestone 1 (Real Loop)
 Milestone: MVP 5+
 Depends-On: Step 13
 Vision-Refs: 14.3, 17.5, 19
+
+> A2A surfaces are frozen during Production Milestone 1. No new A2A
+> features land until Step 22 is `DONE`. See
+> `docs/plans/step-15-scope-freeze-and-tier-collapse.md`.
 
 ## Goal
 
