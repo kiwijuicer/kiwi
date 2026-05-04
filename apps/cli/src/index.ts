@@ -41,10 +41,10 @@ program
   );
 
 program
-  .command("status")
+  .command("status [runId]")
   .description("Show summary for stored runs")
-  .action(() => {
-    runStatus().catch((error: Error) => {
+  .action((runId?: string) => {
+    runStatus(process.cwd(), runId).catch((error: Error) => {
       console.error(`\n✗ ${error.message}`);
       process.exit(1);
     });

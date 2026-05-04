@@ -1,7 +1,7 @@
 # Step 06: Status Command and MVP1 Hardening
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-04
 Milestone: MVP 1
 Depends-On: Step 05
 Vision-Refs: 8, 17.1

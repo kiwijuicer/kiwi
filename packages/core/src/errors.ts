@@ -28,3 +28,9 @@ export class RunNotFoundError extends KiwiError {
     super("RUN_NOT_FOUND", `Run not found: ${runId}`);
   }
 }
+
+export class RunCorruptError extends KiwiError {
+  public constructor(runId: string, reason: string) {
+    super("RUN_CORRUPT", `Run ${runId} is corrupt: ${reason}`);
+  }
+}

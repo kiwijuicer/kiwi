@@ -151,9 +151,7 @@ export function listRunManifests(cwd: string): RunManifest[] {
   const root = runsRoot(cwd);
   if (!existsSync(root)) return [];
 
-  const runIds = readdirSync(root, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name);
+  const runIds = listRunIds(cwd);
 
   const manifests: RunManifest[] = [];
   for (const runId of runIds) {
@@ -163,4 +161,14 @@ export function listRunManifests(cwd: string): RunManifest[] {
   }
 
   return manifests.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function listRunIds(cwd: string): string[] {
+  const root = runsRoot(cwd);
+  if (!existsSync(root)) return [];
+
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
 }
