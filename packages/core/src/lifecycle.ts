@@ -264,6 +264,27 @@ function latestAttemptByStep(attempts: StepAttemptEvidence[]): Map<string, StepA
   return latest;
 }
 
+export function assertStepDependenciesCompleted(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  dependsOn: string[];
+}): void {
+  if (params.dependsOn.length === 0) return;
+
+  const latest = latestAttemptByStep(listStepAttemptEvidence(params.cwd, params.runId));
+  const incomplete = params.dependsOn.filter((stepId) => {
+    const attempt = latest.get(stepId);
+    return attempt?.attempt.status !== "completed";
+  });
+
+  if (incomplete.length > 0) {
+    throw new Error(
+      `Cannot execute ${params.stepId} before dependencies complete: ${incomplete.join(", ")}`,
+    );
+  }
+}
+
 function sumRunnerCost(cwd: string, runId: string, attempts: StepAttemptEvidence[]): number {
   let total = 0;
   for (const attempt of attempts) {

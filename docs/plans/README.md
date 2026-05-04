@@ -39,3 +39,7 @@ Done-Date: YYYY-MM-DD
 - MVP 3: Steps 09-10
 - MVP 4: Steps 11-12
 - MVP 5+: Steps 13-14
+
+## Post-MVP Production Plan
+
+- `docs/plans/production-readiness-mcp-a2a.md`

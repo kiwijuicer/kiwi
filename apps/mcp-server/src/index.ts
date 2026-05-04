@@ -3,6 +3,7 @@ import path from "path";
 import { LocalShellRunnerAdapter, StubPlannerProvider, runPlannerProviderWithRetries } from "@ai-kiwi/adapters";
 import { createWorktreeSandbox, SandboxCommandPolicy } from "@ai-kiwi/sandbox";
 import {
+  assertStepDependenciesCompleted,
   buildDeterministicTaskGraph,
   commandProfileForStep,
   commandProfileToExecutionPolicy,
@@ -23,6 +24,7 @@ import {
   scheduleStepAttempt,
   splitCommandLine,
   StepAttemptOrchestrator,
+  withRunLock,
   writePlannerCostReport,
 } from "@ai-kiwi/core";
 
@@ -133,45 +135,65 @@ async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<
   const stepId = String(args.stepId ?? "");
   if (!runId || !stepId) throw new Error("kiwi_run_step requires runId and stepId");
 
-  const policy = loadPolicy(path.join(cwd, "kiwi-policy.yaml"));
-  const initiative = loadInitiative(runId, cwd);
-  const taskGraph = loadTaskGraph(runId, cwd);
-  const step = taskGraph.steps.find((entry) => entry.stepId === stepId);
-  if (!step) throw new Error(`Step not found: ${stepId}`);
+  return withRunLock(
+    {
+      cwd,
+      runId,
+      operation: `mcp_run_step:${stepId}`,
+    },
+    async () => {
+      const policy = loadPolicy(path.join(cwd, "kiwi-policy.yaml"));
+      const initiative = loadInitiative(runId, cwd);
+      const taskGraph = loadTaskGraph(runId, cwd);
+      const step = taskGraph.steps.find((entry) => entry.stepId === stepId);
+      if (!step) throw new Error(`Step not found: ${stepId}`);
+      assertStepDependenciesCompleted({
+        cwd,
+        runId,
+        stepId,
+        dependsOn: step.dependsOn,
+      });
 
-  const decision = scheduleStepAttempt({
-    cwd,
-    runId,
-    step,
-    initiative,
-    budgetProfile: initiative.budgetProfile,
-    budgetRemainingUsdEstimate: null,
-    blastRadius: initiative.riskProfile === "production" ? "high" : "low",
-    securitySensitivity: initiative.riskProfile === "production" ? "high" : "low",
-    contextSize: "small",
-    runnerAvailability: ["local-shell"],
-  });
-  if (decision.status !== "scheduled") throw new Error(decision.blockedReason ?? "scheduler blocked");
+      const decision = scheduleStepAttempt({
+        cwd,
+        runId,
+        step,
+        initiative,
+        budgetProfile: initiative.budgetProfile,
+        budgetRemainingUsdEstimate: null,
+        blastRadius: initiative.riskProfile === "production" ? "high" : "low",
+        securitySensitivity: initiative.riskProfile === "production" ? "high" : "low",
+        contextSize: "small",
+        runnerAvailability: ["local-shell"],
+      });
+      if (decision.status !== "scheduled") throw new Error(decision.blockedReason ?? "scheduler blocked");
 
-  const approval = loadApprovalDecision({ cwd, runId, attemptId: decision.attemptId });
-  const sandbox = createWorktreeSandbox({ cwd, runId, attemptId: decision.attemptId });
-  const profile = commandProfileForStep(policy, step.type);
-  const commandPolicy = commandProfileToExecutionPolicy(profile) as SandboxCommandPolicy;
-  const command = typeof args.command === "string" ? splitCommandLine(args.command) : noopCommand();
-  const result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute({
-    cwd,
-    step,
-    schedulerDecision: decision,
-    runner: new LocalShellRunnerAdapter(),
-    worktreePath: sandbox.worktreePath,
-    stepPrompt: step.title,
-    allowedTools: ["shell"],
-    command,
-    commandPolicy,
-    approved: Boolean(args.approved) || approval?.state === "auto",
-  });
-  const run = refreshRunStatusFromAttempts({ cwd, runId });
-  return { attemptId: decision.attemptId, status: result.status, nextAction: result.nextAction, runStatus: run.status };
+      const approval = loadApprovalDecision({ cwd, runId, attemptId: decision.attemptId });
+      const sandbox = createWorktreeSandbox({ cwd, runId, attemptId: decision.attemptId });
+      const profile = commandProfileForStep(policy, step.type);
+      const commandPolicy = commandProfileToExecutionPolicy(profile) as SandboxCommandPolicy;
+      const command = typeof args.command === "string" ? splitCommandLine(args.command) : noopCommand();
+      const result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute({
+        cwd,
+        step,
+        schedulerDecision: decision,
+        runner: new LocalShellRunnerAdapter(),
+        worktreePath: sandbox.worktreePath,
+        stepPrompt: step.title,
+        allowedTools: ["shell"],
+        command,
+        commandPolicy,
+        approved: Boolean(args.approved) || approval?.state === "auto",
+      });
+      const run = refreshRunStatusFromAttempts({ cwd, runId });
+      return {
+        attemptId: decision.attemptId,
+        status: result.status,
+        nextAction: result.nextAction,
+        runStatus: run.status,
+      };
+    },
+  );
 }
 
 function readResource(uri: string, cwd: string): unknown {
@@ -199,15 +221,26 @@ async function callTool(name: string, args: Record<string, unknown>, cwd: string
     case "kiwi_run_step":
       return runStepTool(args, cwd);
     case "kiwi_finalize":
-      return finalizeRun({ cwd, runId: String(args.runId ?? "") });
+      return withRunLock(
+        { cwd, runId: String(args.runId ?? ""), operation: "mcp_finalize" },
+        () => finalizeRun({ cwd, runId: String(args.runId ?? "") }),
+      );
     case "kiwi_request_approval":
-      return recordApprovalDecision({
-        cwd,
-        runId: String(args.runId ?? ""),
-        attemptId: String(args.attemptId ?? ""),
-        reason: String(args.reason ?? "Approved through MCP"),
-        approvedBy: String(args.approvedBy ?? "mcp-operator"),
-      });
+      return withRunLock(
+        {
+          cwd,
+          runId: String(args.runId ?? ""),
+          operation: `mcp_approval:${String(args.attemptId ?? "")}`,
+        },
+        () =>
+          recordApprovalDecision({
+            cwd,
+            runId: String(args.runId ?? ""),
+            attemptId: String(args.attemptId ?? ""),
+            reason: String(args.reason ?? "Approved through MCP"),
+            approvedBy: String(args.approvedBy ?? "mcp-operator"),
+          }),
+      );
     default:
       throw new Error(`Unknown tool: ${name}`);
   }

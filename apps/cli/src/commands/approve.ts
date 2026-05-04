@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { recordApprovalDecision } from "@ai-kiwi/core";
+import { recordApprovalDecision, withRunLock } from "@ai-kiwi/core";
 
 export interface ApproveOptions {
   reason?: string;
@@ -21,7 +21,15 @@ export async function runApprove(
   };
   if (opts.approvedBy) input.approvedBy = opts.approvedBy;
   if (opts.now) input.now = opts.now;
-  const decision = recordApprovalDecision(input);
+  const decision = await withRunLock(
+    {
+      cwd,
+      runId,
+      operation: `approve:${attemptId}`,
+      now: opts.now,
+    },
+    () => recordApprovalDecision(input),
+  );
 
   console.log(chalk.green("✓") + " Approval recorded");
   console.log(chalk.dim(`runId: ${runId}`));

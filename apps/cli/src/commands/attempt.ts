@@ -14,6 +14,7 @@ import {
   SandboxCommandPolicy,
 } from "@ai-kiwi/sandbox";
 import {
+  assertStepDependenciesCompleted,
   commandForGate,
   commandProfileForStep,
   commandProfileToExecutionPolicy,
@@ -26,6 +27,7 @@ import {
   scheduleStepAttempt,
   splitCommandLine,
   StepAttemptOrchestrator,
+  withRunLock,
 } from "@ai-kiwi/core";
 
 export interface AttemptOptions {
@@ -99,7 +101,7 @@ async function runRequiredGates(params: {
   return { gateResults, artifacts };
 }
 
-export async function runAttempt(
+export async function runAttemptUnlocked(
   runId: string,
   stepId: string,
   opts: AttemptOptions = {},
@@ -110,6 +112,12 @@ export async function runAttempt(
   const taskGraph = loadTaskGraph(runId, cwd);
   const step = taskGraph.steps.find((entry) => entry.stepId === stepId);
   if (!step) throw new Error(`Step not found: ${stepId}`);
+  assertStepDependenciesCompleted({
+    cwd,
+    runId,
+    stepId,
+    dependsOn: step.dependsOn,
+  });
 
   const now = opts.now ?? new Date();
   const decision = scheduleStepAttempt({
@@ -176,4 +184,21 @@ export async function runAttempt(
   console.log(chalk.dim(`status: ${result.status}`));
   console.log(chalk.dim(`nextAction: ${result.nextAction.type}`));
   console.log(chalk.dim(`runStatus: ${run.status}`));
+}
+
+export async function runAttempt(
+  runId: string,
+  stepId: string,
+  opts: AttemptOptions = {},
+  cwd: string = process.cwd(),
+): Promise<void> {
+  await withRunLock(
+    {
+      cwd,
+      runId,
+      operation: `attempt:${stepId}`,
+      now: opts.now,
+    },
+    () => runAttemptUnlocked(runId, stepId, opts, cwd),
+  );
 }

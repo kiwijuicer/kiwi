@@ -122,6 +122,48 @@ describe("kiwi operator flow", () => {
     expect(output).toContain("final/final-summary.md");
   });
 
+  it("blocks direct attempts when dependencies are incomplete and releases the run lock", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-dependencies-"));
+    await runInit({}, cwd);
+    writeFastPolicy(cwd);
+    await runPlan(
+      "# Feature: Dependencies\n\n## First\n\n## Second",
+      {
+        now: new Date("2026-05-04T09:10:00.000Z"),
+        runIdSuffix: "deps",
+        initiativeIdSuffix: "deps",
+        planIdSuffix: "deps",
+      },
+      cwd,
+    );
+
+    await expect(
+      runAttempt(
+        "run_20260504_091000_deps",
+        "step_002",
+        {
+          attemptId: "attempt_002",
+          now: new Date("2026-05-04T09:11:00.000Z"),
+        },
+        cwd,
+      ),
+    ).rejects.toThrow("Cannot execute step_002 before dependencies complete: step_001");
+
+    expect(
+      existsSync(path.join(cwd, ".kiwi", "runs", "run_20260504_091000_deps", "run.lock")),
+    ).toBe(false);
+
+    await runAttempt(
+      "run_20260504_091000_deps",
+      "step_001",
+      {
+        attemptId: "attempt_001",
+        now: new Date("2026-05-04T09:12:00.000Z"),
+      },
+      cwd,
+    );
+  });
+
   it("syncs cursor rules from canonical sources", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-rules-"));
     writeFileSync(path.join(cwd, "AGENTS.md"), "# Agents\n", "utf-8");

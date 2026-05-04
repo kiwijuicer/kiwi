@@ -6,6 +6,7 @@ import { Initiative, Step } from "@ai-kiwi/contracts";
 import { savePlannedRun } from "../run-store";
 import { scheduleStepAttempt } from "../scheduler-policy";
 import {
+  assertStepDependenciesCompleted,
   finalizeRun,
   listStepAttemptEvidence,
   recordApprovalDecision,
@@ -46,6 +47,13 @@ const step: Step = {
   status: "pending",
 };
 
+const dependentStep: Step = {
+  ...step,
+  stepId: "step_002",
+  title: "Second",
+  dependsOn: ["step_001"],
+};
+
 class PassRunner implements StepAttemptRunner {
   readonly name = "local-shell";
 
@@ -66,7 +74,7 @@ class PassRunner implements StepAttemptRunner {
   }
 }
 
-function createRun(repo: string): void {
+function createRun(repo: string, steps: Step[] = [step]): void {
   savePlannedRun({
     cwd: repo,
     runId: "run_demo",
@@ -76,7 +84,7 @@ function createRun(repo: string): void {
       runId: "run_demo",
       initiativeId: "init_demo",
       summary: "Demo",
-      steps: [step],
+      steps,
       acceptanceCriteria: ["Done"],
       assumptions: [],
       openQuestions: [],
@@ -155,5 +163,53 @@ describe("run lifecycle", () => {
     expect(
       readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", "final", "final-summary.md"), "utf-8"),
     ).toContain("safeToApply: true");
+  });
+
+  it("requires dependency steps to have completed attempts", async () => {
+    const repo = cwd();
+    createRun(repo, [step, dependentStep]);
+
+    expect(() =>
+      assertStepDependenciesCompleted({
+        cwd: repo,
+        runId: "run_demo",
+        stepId: dependentStep.stepId,
+        dependsOn: dependentStep.dependsOn,
+      }),
+    ).toThrow("Cannot execute step_002 before dependencies complete: step_001");
+
+    const decision = scheduleStepAttempt({
+      cwd: repo,
+      runId: "run_demo",
+      step,
+      initiative,
+      budgetProfile: "normal",
+      budgetRemainingUsdEstimate: null,
+      blastRadius: "low",
+      securitySensitivity: "low",
+      contextSize: "small",
+      runnerAvailability: ["local-shell"],
+      attemptId: "attempt_001",
+      now: new Date("2026-05-04T08:05:00.000Z"),
+    });
+
+    await new StepAttemptOrchestrator().execute({
+      cwd: repo,
+      step,
+      schedulerDecision: decision,
+      runner: new PassRunner(),
+      worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_001"),
+      stepPrompt: "ok",
+      now: new Date("2026-05-04T08:06:00.000Z"),
+    });
+
+    expect(() =>
+      assertStepDependenciesCompleted({
+        cwd: repo,
+        runId: "run_demo",
+        stepId: dependentStep.stepId,
+        dependsOn: dependentStep.dependsOn,
+      }),
+    ).not.toThrow();
   });
 });

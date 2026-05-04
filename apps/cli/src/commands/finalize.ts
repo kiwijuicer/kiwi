@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { finalizeRun } from "@ai-kiwi/core";
+import { finalizeRun, withRunLock } from "@ai-kiwi/core";
 
 export interface FinalizeOptions {
   now?: Date;
@@ -12,7 +12,15 @@ export async function runFinalize(
 ): Promise<void> {
   const input: Parameters<typeof finalizeRun>[0] = { cwd, runId };
   if (opts.now) input.now = opts.now;
-  const result = finalizeRun(input);
+  const result = await withRunLock(
+    {
+      cwd,
+      runId,
+      operation: "finalize",
+      now: opts.now,
+    },
+    () => finalizeRun(input),
+  );
 
   console.log(chalk.green("✓") + " Run finalized");
   console.log(chalk.dim(`runId: ${runId}`));
