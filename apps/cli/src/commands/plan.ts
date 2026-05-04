@@ -1,6 +1,12 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
+import { ModelEntry } from "@ai-kiwi/contracts";
+import {
+  PlannerProviderInput,
+  StubPlannerProvider,
+  runPlannerProviderWithRetries,
+} from "@ai-kiwi/adapters";
 import {
   NotInitializedError,
   buildDeterministicTaskGraph,
@@ -21,6 +27,18 @@ export interface PlanOptions {
   runIdSuffix?: string;
   initiativeIdSuffix?: string;
   planIdSuffix?: string;
+}
+
+function selectPlannerModel(models: ModelEntry[]): ModelEntry {
+  const candidate = models.find(
+    (model) => model.enabled && model.roles.includes("planner") && model.capability === "frontier",
+  ) ?? models.find((model) => model.enabled && model.roles.includes("planner"));
+
+  if (!candidate) {
+    throw new Error("No enabled planner model found in model-registry.yaml");
+  }
+
+  return candidate;
 }
 
 function looksLikeTicketPath(ticketArg: string): boolean {
@@ -64,7 +82,7 @@ export async function runPlan(
   }
 
   const policy = loadPolicy(path.join(cwd, "kiwi-policy.yaml"));
-  loadRegistry(path.join(cwd, "model-registry.yaml"));
+  const registry = loadRegistry(path.join(cwd, "model-registry.yaml"));
 
   const { rawInput, source } = resolveTicketInput(ticketArg, cwd);
   const now = opts.now ?? new Date();
@@ -89,16 +107,44 @@ export async function runPlan(
         now,
       };
   const initiative = createInitiativeFromInput(initiativeParams);
-  const taskGraph = buildDeterministicTaskGraph({
+  const plannerModel = selectPlannerModel(registry.models);
+  if (plannerModel.provider !== "stub") {
+    throw new Error(
+      `Planner provider '${plannerModel.provider}' is not supported yet. Use a stub planner model.`,
+    );
+  }
+
+  const plannerInput: PlannerProviderInput = {
     runId,
     initiative,
     policy,
-    now,
+    requestedAt: now.toISOString(),
+  };
+  const provider = new StubPlannerProvider({
+    buildTaskGraph: buildDeterministicTaskGraph,
+    now: () => now,
     ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
   });
+  const plannerOutput = await runPlannerProviderWithRetries(provider, plannerInput, {
+    maxAttempts: 2,
+  });
+  const taskGraph = plannerOutput.taskGraph;
 
   if (opts.dryRun) {
-    console.log(JSON.stringify({ runId, initiative, taskGraph }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          runId,
+          initiative,
+          plannerModelId: plannerModel.id,
+          taskGraph,
+          plannerInput,
+          plannerOutput,
+        },
+        null,
+        2,
+      ),
+    );
     return;
   }
 
@@ -106,6 +152,11 @@ export async function runPlan(
     runId,
     initiative,
     taskGraph,
+    plannerInput,
+    plannerOutput: {
+      plannerModelId: plannerModel.id,
+      ...plannerOutput,
+    },
     cwd,
     now,
   });

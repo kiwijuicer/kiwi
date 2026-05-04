@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { KiwiPolicy, TaskGraph } from "@ai-kiwi/contracts";
 import {
+  PlannerProviderValidationError,
   PlannerProvider,
   PlannerProviderInput,
   PlannerProviderOutput,
@@ -106,5 +107,23 @@ describe("planner provider", () => {
 
     expect(output.attempts).toBe(2);
     expect(output.taskGraph.planId).toBe("plan_20260503_190000_abcd");
+  });
+
+  it("fails when provider output stays invalid", async () => {
+    const provider: PlannerProvider = {
+      name: "always-invalid",
+      async plan(): Promise<PlannerProviderOutput> {
+        return {
+          providerName: "always-invalid",
+          taskGraph: { invalid: true },
+          modelUsage: { inputTokens: 0, outputTokens: 0 },
+          cost: { estimatedUsd: 0, currency: "USD" },
+        };
+      },
+    };
+
+    await expect(
+      runPlannerProviderWithRetries(provider, input, { maxAttempts: 2 }),
+    ).rejects.toBeInstanceOf(PlannerProviderValidationError);
   });
 });

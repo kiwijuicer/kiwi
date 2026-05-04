@@ -1,7 +1,7 @@
 # Step 07: Planner Provider Boundary
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-04
 Milestone: MVP 2
 Depends-On: Step 06
 Vision-Refs: 6.1, 13, 17.2

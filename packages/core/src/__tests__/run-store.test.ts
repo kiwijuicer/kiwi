@@ -98,6 +98,27 @@ describe("run store", () => {
     expect(run.updatedAt).toBe(now.toISOString());
   });
 
+  it("persists planner input and output artifacts when provided", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-run-store-planner-artifacts-"));
+
+    savePlannedRun({
+      runId: "run_demo",
+      initiative: fixtureInitiative(),
+      taskGraph: fixtureTaskGraph(),
+      plannerInput: { runId: "run_demo", requestedAt: "2026-05-04T00:00:00.000Z" },
+      plannerOutput: { providerName: "stub-deterministic", validation: { valid: true } },
+      cwd,
+      now: new Date("2026-05-04T00:00:00.000Z"),
+    });
+
+    expect(
+      existsSync(path.join(cwd, ".kiwi", "runs", "run_demo", "plan", "planner-input.json")),
+    ).toBe(true);
+    expect(
+      existsSync(path.join(cwd, ".kiwi", "runs", "run_demo", "plan", "planner-output.json")),
+    ).toBe(true);
+  });
+
   it("loads initiative and rejects invalid artifacts on read", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-run-store-validate-"));
     savePlannedRun({
