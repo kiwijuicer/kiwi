@@ -1,9 +1,17 @@
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { Initiative, TaskGraph } from "@ai-kiwi/contracts";
-import { isInitialized, listRunManifests, loadTaskGraph, savePlannedRun } from "../run-store";
+import {
+  isInitialized,
+  listRunManifests,
+  loadInitiative,
+  loadRunManifest,
+  loadTaskGraph,
+  resolveRunArtifactPath,
+  savePlannedRun,
+} from "../run-store";
 
 function fixtureInitiative(): Initiative {
   return {
@@ -47,7 +55,7 @@ function fixtureTaskGraph(): TaskGraph {
 }
 
 describe("run store", () => {
-  it("persists planned runs under .kiwi/runs/<run-id>/", () => {
+  it("persists planned runs under .kiwi/runs/<run-id>/ with reserved layout", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-run-store-"));
     mkdirSync(path.join(cwd, ".kiwi"), { recursive: true });
     writeFileSync(path.join(cwd, ".kiwi", "config.yaml"), "version: \"1\"\n");
@@ -69,27 +77,55 @@ describe("run store", () => {
 
     const loadedPlan = loadTaskGraph("run_demo", cwd);
     expect(loadedPlan.steps[0]?.title).toBe("Plan");
+    expect(existsSync(path.join(cwd, ".kiwi", "runs", "run_demo", "steps"))).toBe(true);
+    expect(existsSync(path.join(cwd, ".kiwi", "runs", "run_demo", "final"))).toBe(true);
   });
 
-  it("persists planner input and output artifacts when provided", () => {
-    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-run-store-artifacts-"));
-    const taskGraph = fixtureTaskGraph();
+  it("writes deterministic manifest timestamp when now is injected", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-run-store-time-"));
+    const now = new Date("2026-05-03T19:00:00.000Z");
 
     savePlannedRun({
       runId: "run_demo",
       initiative: fixtureInitiative(),
-      taskGraph,
-      plannerInput: { runId: "run_demo" },
-      plannerOutput: { taskGraph, attempts: 1 },
+      taskGraph: fixtureTaskGraph(),
       cwd,
-      now: new Date("2026-05-03T19:00:00.000Z"),
+      now,
     });
 
-    expect(existsSync(path.join(cwd, ".kiwi", "runs", "run_demo", "plan", "planner-input.json"))).toBe(
-      true,
+    const run = loadRunManifest("run_demo", cwd);
+    expect(run.createdAt).toBe(now.toISOString());
+    expect(run.updatedAt).toBe(now.toISOString());
+  });
+
+  it("loads initiative and rejects invalid artifacts on read", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-run-store-validate-"));
+    savePlannedRun({
+      runId: "run_demo",
+      initiative: fixtureInitiative(),
+      taskGraph: fixtureTaskGraph(),
+      cwd,
+    });
+
+    const loadedInitiative = loadInitiative("run_demo", cwd);
+    expect(loadedInitiative.id).toBe("init_demo");
+
+    const runManifestPath = path.join(cwd, ".kiwi", "runs", "run_demo", "run.json");
+    const original = JSON.parse(readFileSync(runManifestPath, "utf-8")) as Record<string, unknown>;
+    original.status = "definitely-invalid";
+    writeFileSync(runManifestPath, JSON.stringify(original), "utf-8");
+
+    expect(() => loadRunManifest("run_demo", cwd)).toThrow();
+  });
+
+  it("prevents path traversal in run artifact paths", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-run-store-paths-"));
+
+    expect(() => resolveRunArtifactPath("run_demo", "../outside.json", cwd)).toThrow(
+      "artifact path escapes run directory",
     );
-    expect(existsSync(path.join(cwd, ".kiwi", "runs", "run_demo", "plan", "planner-output.json"))).toBe(
-      true,
+    expect(() => resolveRunArtifactPath("run_demo", "/etc/passwd", cwd)).toThrow(
+      "artifact path must be relative to run directory",
     );
   });
 });

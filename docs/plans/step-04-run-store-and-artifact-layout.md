@@ -1,7 +1,7 @@
 # Step 04: Run Store and Artifact Layout
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-04
 Milestone: MVP 1
 Depends-On: Step 03
 Vision-Refs: 4.2, 4.6, 8, 17.1

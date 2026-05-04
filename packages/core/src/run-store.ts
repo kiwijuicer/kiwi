@@ -3,11 +3,13 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
   writeFileSync,
 } from "fs";
 import path from "path";
 import {
   Initiative,
+  InitiativeSchema,
   RunManifest,
   RunManifestSchema,
   TaskGraph,
@@ -23,8 +25,53 @@ function runDir(runId: string, cwd: string): string {
   return path.join(runsRoot(cwd), runId);
 }
 
-function writeJson(target: string, value: unknown): void {
-  writeFileSync(target, JSON.stringify(value, null, 2), "utf-8");
+function assertSafeArtifactRelativePath(artifactRelativePath: string): void {
+  if (path.isAbsolute(artifactRelativePath)) {
+    throw new Error("artifact path must be relative to run directory");
+  }
+}
+
+export function resolveRunArtifactPath(
+  runId: string,
+  artifactRelativePath: string,
+  cwd: string,
+): string {
+  assertSafeArtifactRelativePath(artifactRelativePath);
+
+  const base = path.resolve(runDir(runId, cwd));
+  const target = path.resolve(base, artifactRelativePath);
+  if (!(target === base || target.startsWith(`${base}${path.sep}`))) {
+    throw new Error(`artifact path escapes run directory: ${artifactRelativePath}`);
+  }
+
+  return target;
+}
+
+export interface RunLayout {
+  baseDir: string;
+  planDir: string;
+  stepsDir: string;
+  finalDir: string;
+}
+
+export function ensureRunLayout(runId: string, cwd: string): RunLayout {
+  const baseDir = runDir(runId, cwd);
+  const planDir = path.join(baseDir, "plan");
+  const stepsDir = path.join(baseDir, "steps");
+  const finalDir = path.join(baseDir, "final");
+
+  mkdirSync(planDir, { recursive: true });
+  mkdirSync(stepsDir, { recursive: true });
+  mkdirSync(finalDir, { recursive: true });
+
+  return { baseDir, planDir, stepsDir, finalDir };
+}
+
+function writeJsonSafely(target: string, value: unknown): void {
+  mkdirSync(path.dirname(target), { recursive: true });
+  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
+  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
+  renameSync(tempPath, target);
 }
 
 function readJson(target: string): unknown {
@@ -49,33 +96,43 @@ export function savePlannedRun(params: {
   }
 
   const now = (params.now ?? new Date()).toISOString();
-  const manifest: RunManifest = {
+  const manifest = RunManifestSchema.parse({
     runId: params.runId,
     initiativeId: params.initiative.id,
     currentPlanId: params.taskGraph.planId,
     status: "planned",
     createdAt: now,
     updatedAt: now,
-  };
+  });
 
-  const base = runDir(params.runId, params.cwd);
-  mkdirSync(path.join(base, "plan"), { recursive: true });
+  const initiative = InitiativeSchema.parse(params.initiative);
+  const taskGraph = TaskGraphSchema.parse(params.taskGraph);
 
-  writeJson(path.join(base, "run.json"), manifest);
-  writeJson(path.join(base, "initiative.json"), params.initiative);
-  writeJson(path.join(base, "plan", "task-graph.json"), params.taskGraph);
+  const layout = ensureRunLayout(params.runId, params.cwd);
+
+  writeJsonSafely(path.join(layout.baseDir, "run.json"), manifest);
+  writeJsonSafely(path.join(layout.baseDir, "initiative.json"), initiative);
+  writeJsonSafely(path.join(layout.planDir, "task-graph.json"), taskGraph);
   if (params.plannerInput !== undefined) {
-    writeJson(path.join(base, "plan", "planner-input.json"), params.plannerInput);
+    writeJsonSafely(path.join(layout.planDir, "planner-input.json"), params.plannerInput);
   }
   if (params.plannerOutput !== undefined) {
-    writeJson(path.join(base, "plan", "planner-output.json"), params.plannerOutput);
+    writeJsonSafely(path.join(layout.planDir, "planner-output.json"), params.plannerOutput);
   }
 
   return manifest;
 }
 
+export function loadInitiative(runId: string, cwd: string): Initiative {
+  const target = resolveRunArtifactPath(runId, "initiative.json", cwd);
+  if (!existsSync(target)) {
+    throw new RunNotFoundError(runId);
+  }
+  return InitiativeSchema.parse(readJson(target));
+}
+
 export function loadRunManifest(runId: string, cwd: string): RunManifest {
-  const target = path.join(runDir(runId, cwd), "run.json");
+  const target = resolveRunArtifactPath(runId, "run.json", cwd);
   if (!existsSync(target)) {
     throw new RunNotFoundError(runId);
   }
@@ -83,7 +140,7 @@ export function loadRunManifest(runId: string, cwd: string): RunManifest {
 }
 
 export function loadTaskGraph(runId: string, cwd: string): TaskGraph {
-  const target = path.join(runDir(runId, cwd), "plan", "task-graph.json");
+  const target = resolveRunArtifactPath(runId, "plan/task-graph.json", cwd);
   if (!existsSync(target)) {
     throw new RunNotFoundError(runId);
   }
@@ -100,7 +157,7 @@ export function listRunManifests(cwd: string): RunManifest[] {
 
   const manifests: RunManifest[] = [];
   for (const runId of runIds) {
-    const target = path.join(runDir(runId, cwd), "run.json");
+    const target = resolveRunArtifactPath(runId, "run.json", cwd);
     if (!existsSync(target)) continue;
     manifests.push(RunManifestSchema.parse(readJson(target)));
   }
