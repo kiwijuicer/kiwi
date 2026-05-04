@@ -7,6 +7,7 @@ import { runInit } from "../commands/init";
 
 interface CursorMcpConfig {
   mcpServers?: Record<string, {
+    type?: string;
     command?: string;
     args?: string[];
     env?: Record<string, string>;
@@ -29,6 +30,22 @@ function readCodexConfig(cwd: string): CodexConfig {
   return {
     content: readFileSync(path.join(cwd, ".codex", "config.toml"), "utf-8"),
   };
+}
+
+function expectMcpLaunchForWorkspace(
+  server: NonNullable<CursorMcpConfig["mcpServers"]>[string] | undefined,
+  cwd: string,
+): void {
+  expect(server?.type).toBe("stdio");
+  expect(server?.args?.join(" ")).toContain("mcp-server");
+  if (server?.args?.some((arg) => arg.endsWith("stdio-launcher.cjs"))) {
+    expect(server.command).toBe(process.execPath);
+    expect(server.args).toContain("--workspace");
+    expect(server.args).toContain(cwd);
+    expect(server.env).toBeUndefined();
+    return;
+  }
+  expect(server?.env).toEqual({ KIWI_WORKSPACE: cwd });
 }
 
 describe("kiwi init", () => {
@@ -139,9 +156,7 @@ models:
 
     const config = readCursorMcpConfig(cwd);
     const server = config.mcpServers?.kiwi;
-    expect(server?.command).toBe(process.execPath);
-    expect(server?.args?.join(" ")).toContain("mcp-server");
-    expect(server?.env).toEqual({ KIWI_WORKSPACE: "${workspaceFolder}" });
+    expectMcpLaunchForWorkspace(server, cwd);
   });
 
   it("writes Claude Code MCP config for the workspace", async () => {
@@ -151,9 +166,7 @@ models:
 
     const config = readClaudeCodeMcpConfig(cwd);
     const server = config.mcpServers?.kiwi;
-    expect(server?.command).toBe(process.execPath);
-    expect(server?.args?.join(" ")).toContain("mcp-server");
-    expect(server?.env).toEqual({ KIWI_WORKSPACE: cwd });
+    expectMcpLaunchForWorkspace(server, cwd);
   });
 
   it("writes Codex MCP config for the workspace", async () => {
@@ -165,7 +178,7 @@ models:
     expect(config).toContain("[mcp_servers.kiwi]");
     expect(config).toContain("command = ");
     expect(config).toContain("args = ");
-    expect(config).toContain(`env = { KIWI_WORKSPACE = "${cwd}" }`);
+    expect(config).toContain(cwd);
   });
 
   it("merges Cursor MCP config without dropping existing servers", async () => {
@@ -189,7 +202,7 @@ models:
 
     const config = readCursorMcpConfig(cwd);
     expect(config.mcpServers?.existing?.args).toEqual(["existing.js"]);
-    expect(config.mcpServers?.kiwi?.env).toEqual({ KIWI_WORKSPACE: "${workspaceFolder}" });
+    expectMcpLaunchForWorkspace(config.mcpServers?.kiwi, cwd);
   });
 
   it("merges Claude Code MCP config without dropping existing servers", async () => {
@@ -211,7 +224,7 @@ models:
 
     const config = readClaudeCodeMcpConfig(cwd);
     expect(config.mcpServers?.existing?.args).toEqual(["existing.js"]);
-    expect(config.mcpServers?.kiwi?.env).toEqual({ KIWI_WORKSPACE: cwd });
+    expectMcpLaunchForWorkspace(config.mcpServers?.kiwi, cwd);
   });
 
   it("merges Codex MCP config without dropping existing tables", async () => {

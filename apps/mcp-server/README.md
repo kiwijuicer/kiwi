@@ -4,15 +4,41 @@ Thin MCP access channel over `packages/core`.
 
 The CLI remains the reference operator surface. MCP clients use the same run store, policy, locks, evidence, and audit artifacts.
 
-## Start
+## Start stdio
 
 ```bash
 pnpm build
 KIWI_WORKSPACE=/Users/norberthanauer/Projects/voice \
-  node /Users/norberthanauer/Projects/kiwi-juicer/kiwi/apps/mcp-server/dist/index.js
+  node apps/mcp-server/dist/index.js
 ```
 
 For single-repo use, set `KIWI_WORKSPACE` to the repo root or omit it when the client starts the server from the repo root.
+
+## Start HTTP
+
+```bash
+pnpm build
+node apps/mcp-server/dist/index.js \
+  --transport http \
+  --workspace /Users/norberthanauer/Projects/voice \
+  --host 127.0.0.1 \
+  --port 3333
+```
+
+Cursor config for local Streamable HTTP:
+
+```json
+{
+  "mcpServers": {
+    "kiwi": {
+      "type": "http",
+      "url": "http://127.0.0.1:3333/mcp"
+    }
+  }
+}
+```
+
+The HTTP transport binds to `127.0.0.1` by default and rejects non-local `Origin` headers unless explicitly allowed with `KIWI_MCP_ALLOWED_ORIGINS`.
 
 ## Tool API
 

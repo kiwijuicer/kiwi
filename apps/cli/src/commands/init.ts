@@ -18,6 +18,7 @@ export interface InitOptions {
 interface McpServerLaunch {
   command: string;
   args: string[];
+  env?: Record<string, string>;
 }
 
 interface JsonMcpConfig {
@@ -63,7 +64,7 @@ function resolveKiwiRoot(): string {
   return path.resolve(__dirname, "../../..");
 }
 
-function resolveMcpServerLaunch(): McpServerLaunch {
+function resolveMcpServerLaunch(workspaceValue: string): McpServerLaunch {
   const distCandidates = [
     path.resolve(__dirname, "../../mcp-server/dist/index.js"),
     path.resolve(__dirname, "../../../mcp-server/dist/index.js"),
@@ -72,9 +73,17 @@ function resolveMcpServerLaunch(): McpServerLaunch {
 
   for (const candidate of distCandidates) {
     if (existsSync(candidate)) {
+      const launcher = path.join(path.dirname(path.dirname(candidate)), "bin", "stdio-launcher.cjs");
+      if (existsSync(launcher)) {
+        return {
+          command: process.execPath,
+          args: [launcher, "--server", candidate, "--workspace", workspaceValue],
+        };
+      }
       return {
         command: process.execPath,
         args: [candidate],
+        env: { KIWI_WORKSPACE: workspaceValue },
       };
     }
   }
@@ -82,18 +91,19 @@ function resolveMcpServerLaunch(): McpServerLaunch {
   return {
     command: "pnpm",
     args: ["--dir", resolveKiwiRoot(), "tsx", "apps/mcp-server/src/index.ts"],
+    env: { KIWI_WORKSPACE: workspaceValue },
   };
 }
 
 function desiredJsonMcpServer(workspaceValue: string): Record<string, unknown> {
-  const launch = resolveMcpServerLaunch();
-  return {
+  const launch = resolveMcpServerLaunch(workspaceValue);
+  const server: Record<string, unknown> = {
+    type: "stdio",
     command: launch.command,
     args: launch.args,
-    env: {
-      KIWI_WORKSPACE: workspaceValue,
-    },
   };
+  if (launch.env) server.env = launch.env;
+  return server;
 }
 
 function readJsonMcpConfig(configPath: string, label: string): JsonMcpConfig {
@@ -155,7 +165,7 @@ function writeCursorMcpConfig(targetCwd: string, force: boolean): ConfigWriteRes
     configPath: path.join(cursorDir, "mcp.json"),
     directoryPath: cursorDir,
     label: "Cursor",
-    workspaceValue: "${workspaceFolder}",
+    workspaceValue: targetCwd,
     force,
   });
 }
@@ -178,14 +188,19 @@ function tomlArray(values: string[]): string {
   return `[${values.map((value) => tomlString(value)).join(", ")}]`;
 }
 
+function tomlInlineTable(values: Record<string, string>): string {
+  return `{ ${Object.entries(values).map(([key, value]) => `${key} = ${tomlString(value)}`).join(", ")} }`;
+}
+
 function desiredCodexMcpBlock(targetCwd: string): string {
-  const launch = resolveMcpServerLaunch();
-  return [
+  const launch = resolveMcpServerLaunch(targetCwd);
+  const lines = [
     "[mcp_servers.kiwi]",
     `command = ${tomlString(launch.command)}`,
     `args = ${tomlArray(launch.args)}`,
-    `env = { KIWI_WORKSPACE = ${tomlString(targetCwd)} }`,
-  ].join("\n");
+  ];
+  if (launch.env) lines.push(`env = ${tomlInlineTable(launch.env)}`);
+  return lines.join("\n");
 }
 
 function upsertTomlTable(existing: string, tableName: string, block: string): string {

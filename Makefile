@@ -23,6 +23,7 @@ install:
 		if command -v pnpm >/dev/null 2>&1; then pnpm "$$@"; else corepack pnpm "$$@"; fi; \
 	}; \
 	if [ "$(INSTALL_DEPS)" = "1" ]; then CI=true; export CI; run_pnpm install --frozen-lockfile; fi; \
+	run_pnpm --filter @kiwi/mcp-server build; \
 	run_pnpm --filter @kiwi/cli build
 	@mkdir -p "$(BINDIR)"
 	@printf '%s\n' \
@@ -40,6 +41,7 @@ install:
 		'  fi' \
 		'}' \
 		'if [ "$${KIWI_SKIP_AUTO_BUILD:-0}" != "1" ]; then' \
+		'  run_pnpm --dir "$$REPO_ROOT" --filter @kiwi/mcp-server build >/dev/null' \
 		'  run_pnpm --dir "$$REPO_ROOT" --filter @kiwi/cli build >/dev/null' \
 		'fi' \
 		'exec node "$$REPO_ROOT/apps/cli/dist/index.js" "$$@"' \
@@ -62,7 +64,7 @@ uninstall:
 	@echo "kiwi removed: $(KIWI_BIN)"
 
 build:
-	@if command -v pnpm >/dev/null 2>&1; then pnpm --filter @kiwi/cli build; else corepack pnpm --filter @kiwi/cli build; fi
+	@if command -v pnpm >/dev/null 2>&1; then pnpm --filter @kiwi/mcp-server build && pnpm --filter @kiwi/cli build; else corepack pnpm --filter @kiwi/mcp-server build && corepack pnpm --filter @kiwi/cli build; fi
 
 check:
 	@if command -v pnpm >/dev/null 2>&1; then pnpm release:check; else corepack pnpm release:check; fi

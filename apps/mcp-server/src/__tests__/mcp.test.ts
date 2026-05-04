@@ -1,8 +1,10 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "fs";
+import { once } from "events";
+import { AddressInfo } from "net";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { createMcpMessageDrainer, handleMcpRequest } from "../index";
+import { createMcpMessageDrainer, handleMcpRequest, startHttpMcpServer } from "../index";
 
 function setupRepo(): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-"));
@@ -89,6 +91,10 @@ function framedMessage(value: unknown, separator = "\r\n\r\n"): Buffer {
   return Buffer.from(`Content-Length: ${Buffer.byteLength(body, "utf-8")}${separator}${body}`, "utf-8");
 }
 
+function lineMessage(value: unknown): Buffer {
+  return Buffer.from(`${JSON.stringify(value)}\n`, "utf-8");
+}
+
 describe("MCP server", () => {
   it("initializes and lists tools", async () => {
     const response = await handleMcpRequest({ id: 1, method: "initialize" }, setupRepo());
@@ -101,14 +107,14 @@ describe("MCP server", () => {
     expect(JSON.stringify(tools.result)).toContain("inputSchema");
   });
 
-  it("drains multiple stdio messages from one chunk and skips notifications", async () => {
+  it("drains multiple newline-delimited stdio messages and skips notifications", async () => {
     const responses: unknown[] = [];
     const drain = createMcpMessageDrainer(setupRepo(), (response) => responses.push(response));
 
     await drain(Buffer.concat([
-      framedMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
-      framedMessage({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }),
-      framedMessage({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
+      lineMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+      lineMessage({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }),
+      lineMessage({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
     ]));
 
     expect(responses).toHaveLength(2);
@@ -116,14 +122,79 @@ describe("MCP server", () => {
     expect(JSON.stringify(responses[1])).toContain("kiwi_plan");
   });
 
-  it("accepts lf-only stdio headers", async () => {
+  it("drains batched stdio messages", async () => {
     const responses: unknown[] = [];
     const drain = createMcpMessageDrainer(setupRepo(), (response) => responses.push(response));
 
-    await drain(framedMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }, "\n\n"));
+    await drain(lineMessage([
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: {} },
+      { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
+      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+    ]));
+
+    expect(responses).toHaveLength(1);
+    expect((responses[0] as Array<{ id: number }>).map((response) => response.id)).toEqual([1, 2]);
+  });
+
+  it("accepts legacy content-length stdio frames", async () => {
+    const responses: unknown[] = [];
+    const drain = createMcpMessageDrainer(setupRepo(), (response) => responses.push(response));
+
+    await drain(framedMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }));
 
     expect(responses).toHaveLength(1);
     expect((responses[0] as { result: { serverInfo: { name: string } } }).result.serverInfo.name).toBe("kiwi");
+  });
+
+  it("serves streamable HTTP POST requests", async () => {
+    const server = startHttpMcpServer({ cwd: setupRepo(), host: "127.0.0.1", port: 0 });
+    await once(server, "listening");
+
+    try {
+      const address = server.address() as AddressInfo;
+      const response = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
+        method: "POST",
+        headers: {
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26" } }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("application/json");
+      const payload = await response.json() as { result: { protocolVersion: string; serverInfo: { name: string } } };
+      expect(payload.result.protocolVersion).toBe("2025-03-26");
+      expect(payload.result.serverInfo.name).toBe("kiwi");
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => error ? reject(error) : resolve());
+      });
+    }
+  });
+
+  it("returns 202 for HTTP notification-only input", async () => {
+    const server = startHttpMcpServer({ cwd: setupRepo(), host: "127.0.0.1", port: 0 });
+    await once(server, "listening");
+
+    try {
+      const address = server.address() as AddressInfo;
+      const response = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
+        method: "POST",
+        headers: {
+          accept: "application/json, text/event-stream",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }),
+      });
+
+      expect(response.status).toBe(202);
+      expect(await response.text()).toBe("");
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => error ? reject(error) : resolve());
+      });
+    }
   });
 
   it("plans, generates P1 artifacts, and reads parity resources", async () => {

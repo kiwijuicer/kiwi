@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from "fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "fs";
+import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 import path from "path";
 import { LocalShellRunnerAdapter, StubPlannerProvider, runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { ProtocolEnvelopeKindSchema } from "@kiwi/contracts";
@@ -742,11 +743,15 @@ export async function handleMcpRequest(
   const id = request.id ?? null;
   try {
     if (request.method === "initialize") {
+      const params = asRecord(request.params);
+      const protocolVersion = typeof params.protocolVersion === "string"
+        ? params.protocolVersion
+        : "2024-11-05";
       return {
         jsonrpc: "2.0",
         id,
         result: {
-          protocolVersion: "2024-11-05",
+          protocolVersion,
           serverInfo: { name: "kiwi", version: "0.1.0" },
           capabilities: { resources: {}, tools: {} },
         },
@@ -814,9 +819,19 @@ export async function handleMcpRequest(
   }
 }
 
-function encodeMessage(payload: unknown): string {
-  const body = JSON.stringify(payload);
-  return `Content-Length: ${Buffer.byteLength(body, "utf-8")}\r\n\r\n${body}`;
+function encodeStdioMessage(payload: unknown): string {
+  return `${JSON.stringify(payload)}\n`;
+}
+
+function debugLog(message: string, details: Record<string, unknown> = {}): void {
+  const target = process.env.KIWI_MCP_DEBUG_LOG;
+  if (!target) return;
+  mkdirSync(path.dirname(target), { recursive: true });
+  appendFileSync(target, `${JSON.stringify({
+    ts: new Date().toISOString(),
+    message,
+    ...details,
+  })}\n`, "utf-8");
 }
 
 function findHeaderSeparator(buffer: Buffer): { index: number; length: number } | null {
@@ -827,6 +842,48 @@ function findHeaderSeparator(buffer: Buffer): { index: number; length: number } 
   return { index: lf, length: 2 };
 }
 
+function startsWithContentLength(buffer: Buffer): boolean {
+  return buffer.subarray(0, Math.min(buffer.length, 32)).toString("ascii").toLowerCase().startsWith("content-length:");
+}
+
+function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
+  return typeof value === "object"
+    && value !== null
+    && typeof (value as { method?: unknown }).method === "string";
+}
+
+async function handleMcpMessage(value: unknown, cwd: string): Promise<unknown | undefined> {
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return {
+        jsonrpc: "2.0",
+        id: null,
+        error: { code: -32600, message: "Invalid request" },
+      };
+    }
+
+    const responses: JsonRpcResponse[] = [];
+    for (const entry of value) {
+      if (!isJsonRpcRequest(entry) || entry.id === undefined) continue;
+      responses.push(await handleMcpRequest(entry, cwd));
+    }
+    return responses.length > 0 ? responses : undefined;
+  }
+
+  if (!isJsonRpcRequest(value)) return undefined;
+  if (value.id === undefined) return undefined;
+  return handleMcpRequest(value, cwd);
+}
+
+async function handleParsedMcpMessage(
+  value: unknown,
+  cwd: string,
+  writeResponse: (payload: unknown) => void,
+): Promise<void> {
+  const response = await handleMcpMessage(value, cwd);
+  if (response !== undefined) writeResponse(response);
+}
+
 export function createMcpMessageDrainer(
   cwd: string,
   writeResponse: (payload: unknown) => void,
@@ -835,27 +892,40 @@ export function createMcpMessageDrainer(
 
   return async function drainMessages(chunk: Buffer): Promise<void> {
     buffer = Buffer.concat([buffer, chunk]);
+    debugLog("stdio_chunk", { bytes: chunk.length, bufferedBytes: buffer.length });
 
     while (true) {
-      const separator = findHeaderSeparator(buffer);
-      if (!separator) return;
+      let body: string | null = null;
 
-      const header = buffer.subarray(0, separator.index).toString("ascii");
-      const match = header.match(/Content-Length:\s*(\d+)/i);
-      if (!match?.[1]) return;
+      if (startsWithContentLength(buffer)) {
+        const separator = findHeaderSeparator(buffer);
+        if (!separator) return;
 
-      const length = Number(match[1]);
-      const start = separator.index + separator.length;
-      const end = start + length;
-      if (buffer.length < end) return;
+        const header = buffer.subarray(0, separator.index).toString("ascii");
+        const match = header.match(/Content-Length:\s*(\d+)/i);
+        if (!match?.[1]) return;
 
-      const body = buffer.subarray(start, end).toString("utf-8");
-      buffer = buffer.subarray(end);
+        const length = Number(match[1]);
+        const start = separator.index + separator.length;
+        const end = start + length;
+        if (buffer.length < end) return;
 
-      let request: JsonRpcRequest;
+        body = buffer.subarray(start, end).toString("utf-8");
+        buffer = buffer.subarray(end);
+      } else {
+        const newline = buffer.indexOf("\n");
+        if (newline < 0) return;
+
+        body = buffer.subarray(0, newline).toString("utf-8").replace(/\r$/, "");
+        buffer = buffer.subarray(newline + 1);
+        if (body.length === 0) continue;
+      }
+
+      let message: unknown;
       try {
-        request = JSON.parse(body) as JsonRpcRequest;
+        message = JSON.parse(body) as unknown;
       } catch {
+        debugLog("parse_error", { bytes: body.length });
         writeResponse({
           jsonrpc: "2.0",
           id: null,
@@ -864,17 +934,189 @@ export function createMcpMessageDrainer(
         continue;
       }
 
-      if (request.id === undefined) continue;
-
-      const response = await handleMcpRequest(request, cwd);
-      writeResponse(response);
+      debugLog("message", { batch: Array.isArray(message) });
+      await handleParsedMcpMessage(message, cwd, writeResponse);
     }
   };
 }
 
+export interface HttpMcpServerOptions {
+  cwd?: string;
+  host?: string;
+  port?: number;
+  path?: string;
+  allowedOrigins?: string[];
+}
+
+function parsePort(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error(`Invalid HTTP port: ${value}`);
+  }
+  return port;
+}
+
+function allowedOriginsFromEnv(): string[] {
+  return (process.env.KIWI_MCP_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function isAllowedOrigin(origin: string | undefined, allowedOrigins: string[]): boolean {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+
+  try {
+    const parsed = new URL(origin);
+    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+function applyCorsHeaders(
+  request: IncomingMessage,
+  response: ServerResponse,
+  allowedOrigins: string[],
+): void {
+  const origin = request.headers.origin;
+  if (typeof origin !== "string" || !isAllowedOrigin(origin, allowedOrigins)) return;
+
+  response.setHeader("Access-Control-Allow-Origin", origin);
+  response.setHeader("Vary", "Origin");
+  response.setHeader("Access-Control-Allow-Headers", "content-type, accept, mcp-session-id");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+}
+
+function sendJson(response: ServerResponse, statusCode: number, payload: unknown): void {
+  const body = JSON.stringify(payload);
+  response.writeHead(statusCode, {
+    "content-type": "application/json",
+    "content-length": Buffer.byteLength(body, "utf-8"),
+  });
+  response.end(body);
+}
+
+function readRequestBody(request: IncomingMessage, maxBytes = 1024 * 1024): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+
+    request.on("data", (chunk: Buffer | string) => {
+      const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, "utf-8");
+      totalBytes += data.length;
+      if (totalBytes > maxBytes) {
+        reject(new Error("MCP HTTP request body is too large"));
+        request.destroy();
+        return;
+      }
+      chunks.push(data);
+    });
+    request.on("end", () => resolve(Buffer.concat(chunks)));
+    request.on("error", reject);
+  });
+}
+
+async function handleHttpMcpRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  params: {
+    cwd: string;
+    endpointPath: string;
+    allowedOrigins: string[];
+  },
+): Promise<void> {
+  const { cwd, endpointPath, allowedOrigins } = params;
+  applyCorsHeaders(request, response, allowedOrigins);
+
+  if (!isAllowedOrigin(typeof request.headers.origin === "string" ? request.headers.origin : undefined, allowedOrigins)) {
+    response.writeHead(403);
+    response.end();
+    return;
+  }
+
+  const url = new URL(request.url ?? "/", "http://127.0.0.1");
+  if (url.pathname !== endpointPath) {
+    response.writeHead(404);
+    response.end();
+    return;
+  }
+
+  if (request.method === "OPTIONS") {
+    response.writeHead(204);
+    response.end();
+    return;
+  }
+
+  if (request.method === "GET") {
+    response.writeHead(405, { allow: "POST, GET, OPTIONS" });
+    response.end();
+    return;
+  }
+
+  if (request.method !== "POST") {
+    response.writeHead(405, { allow: "POST, GET, OPTIONS" });
+    response.end();
+    return;
+  }
+
+  let message: unknown;
+  try {
+    message = JSON.parse((await readRequestBody(request)).toString("utf-8")) as unknown;
+  } catch (error) {
+    const parseMessage = error instanceof SyntaxError ? "Parse error" : error instanceof Error ? error.message : "Parse error";
+    sendJson(response, 400, {
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32700, message: parseMessage },
+    });
+    return;
+  }
+
+  const payload = await handleMcpMessage(message, cwd);
+  if (payload === undefined) {
+    response.writeHead(202);
+    response.end();
+    return;
+  }
+
+  sendJson(response, 200, payload);
+}
+
+export function startHttpMcpServer(options: HttpMcpServerOptions = {}): Server {
+  const cwd = options.cwd ?? defaultServerCwd();
+  const host = options.host ?? process.env.KIWI_MCP_HTTP_HOST ?? "127.0.0.1";
+  const port = options.port ?? parsePort(process.env.KIWI_MCP_HTTP_PORT, 3333);
+  const endpointPath = options.path ?? process.env.KIWI_MCP_HTTP_PATH ?? "/mcp";
+  const allowedOrigins = options.allowedOrigins ?? allowedOriginsFromEnv();
+
+  const server = createServer((request, response) => {
+    void handleHttpMcpRequest(request, response, { cwd, endpointPath, allowedOrigins }).catch((error) => {
+      debugLog("http_error", { error: error instanceof Error ? error.stack || error.message : String(error) });
+      if (!response.headersSent) {
+        sendJson(response, 500, {
+          jsonrpc: "2.0",
+          id: null,
+          error: { code: -32000, message: "Internal server error" },
+        });
+        return;
+      }
+      response.end();
+    });
+  });
+
+  server.listen(port, host, () => {
+    debugLog("http_server_start", { cwd, host, port, endpointPath });
+  });
+  return server;
+}
+
 export function startMcpServer(cwd: string = defaultServerCwd()): void {
+  debugLog("server_start", { cwd, pid: process.pid });
   const drainMessages = createMcpMessageDrainer(cwd, (payload) => {
-    process.stdout.write(encodeMessage(payload));
+    process.stdout.write(encodeStdioMessage(payload));
   });
   let drain = Promise.resolve();
 
@@ -884,6 +1126,25 @@ export function startMcpServer(cwd: string = defaultServerCwd()): void {
   });
 }
 
+function cliOption(name: string): string | undefined {
+  const index = process.argv.indexOf(name);
+  if (index < 0) return undefined;
+  return process.argv[index + 1];
+}
+
 if (require.main === module) {
-  startMcpServer();
+  const cwd = cliOption("--workspace") ?? defaultServerCwd();
+  const transport = cliOption("--transport") ?? process.env.KIWI_MCP_TRANSPORT ?? "stdio";
+  if (transport === "http" || transport === "streamable-http") {
+    const options: HttpMcpServerOptions = { cwd };
+    const host = cliOption("--host");
+    const port = cliOption("--port");
+    const endpointPath = cliOption("--path");
+    if (host) options.host = host;
+    if (port) options.port = parsePort(port, 3333);
+    if (endpointPath) options.path = endpointPath;
+    startHttpMcpServer(options);
+  } else {
+    startMcpServer(cwd);
+  }
 }
