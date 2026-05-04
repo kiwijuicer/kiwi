@@ -1,6 +1,7 @@
 import { captureWorktreeDiffArtifact, executeSandboxCommand, SandboxCommandInput } from "@kiwi/sandbox";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "./runner-adapter";
 import { createFailedRunnerOutput, zeroModelUsage } from "./runner-output";
+import { ContractValues } from "@kiwi/contracts";
 
 export class LocalShellRunnerAdapter implements RunnerAdapter {
   readonly name = "local-shell";
@@ -8,19 +9,19 @@ export class LocalShellRunnerAdapter implements RunnerAdapter {
   async execute(input: RunnerExecutionInput): Promise<RunnerExecutionOutput> {
     if (!input.command || input.command.length === 0) {
       return createFailedRunnerOutput({
-        status: "blocked",
+        status: ContractValues.Blocked,
         code: "MISSING_COMMAND",
         message: "local-shell runner requires a command",
-        gateStatus: "blocked",
+        gateStatus: ContractValues.Blocked,
       });
     }
 
     if (!input.commandPolicy) {
       return createFailedRunnerOutput({
-        status: "blocked",
+        status: ContractValues.Blocked,
         code: "MISSING_COMMAND_POLICY",
         message: "local-shell runner requires a sandbox command policy",
-        gateStatus: "blocked",
+        gateStatus: ContractValues.Blocked,
       });
     }
 
@@ -61,7 +62,7 @@ export class LocalShellRunnerAdapter implements RunnerAdapter {
       gateResult: output.gateResult,
     };
 
-    if (output.status === "completed") {
+    if (output.status === ContractValues.Completed) {
       return result;
     }
 

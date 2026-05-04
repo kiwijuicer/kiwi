@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import path from "path";
 import {
   BudgetProfile,
+  ContractValues,
   Initiative,
   ModelCapability,
   ModelCapabilitySchema,
@@ -129,15 +130,15 @@ function maxCapability(a: ModelCapability, b: ModelCapability): ModelCapability 
 
 function downgradeCapability(capability: ModelCapability): ModelCapability {
   switch (capability) {
-    case "frontier":
-      return "strong";
-    case "strong":
-      return "mid";
-    case "mid":
-      return "cheap";
-    case "cheap":
+    case ContractValues.Frontier:
+      return ContractValues.Strong;
+    case ContractValues.Strong:
+      return ContractValues.Mid;
+    case ContractValues.Mid:
+      return ContractValues.Cheap;
+    case ContractValues.Cheap:
     default:
-      return "cheap";
+      return ContractValues.Cheap;
   }
 }
 
@@ -214,8 +215,8 @@ function isCodeExecutionStep(step: Step): boolean {
 function determineAgentRole(input: SchedulerInput): Step["recommendedAgentRole"] {
   const riskHigh = determineRiskHigh(input);
   if (!riskHigh) return input.step.recommendedAgentRole;
-  if (isCodeExecutionStep(input.step) || input.step.type === "validation") return "security";
-  if (input.step.type === "review") return "reviewer";
+  if (isCodeExecutionStep(input.step) || input.step.type === "validation") return ContractValues.Security;
+  if (input.step.type === "review") return ContractValues.Reviewer;
   return input.step.recommendedAgentRole;
 }
 
@@ -227,7 +228,7 @@ function determineModelCapability(input: SchedulerInput): ModelCapability {
     capability = downgradeCapability(capability);
   }
   if (riskHigh) {
-    capability = maxCapability(capability, "strong");
+    capability = maxCapability(capability, ContractValues.Strong);
   }
 
   return capability;
@@ -235,10 +236,10 @@ function determineModelCapability(input: SchedulerInput): ModelCapability {
 
 function determineReviewDepth(input: SchedulerInput, capability: ModelCapability): ModelCapability {
   const riskHigh = determineRiskHigh(input);
-  if (input.step.type === "review") return "frontier";
-  if (riskHigh) return "frontier";
-  if (CAPABILITY_RANK[capability] >= CAPABILITY_RANK.strong) return "strong";
-  return "mid";
+  if (input.step.type === "review") return ContractValues.Frontier;
+  if (riskHigh) return ContractValues.Frontier;
+  if (CAPABILITY_RANK[capability] >= CAPABILITY_RANK.strong) return ContractValues.Strong;
+  return ContractValues.Mid;
 }
 
 function determineRequiredGates(input: SchedulerInput): string[] {
@@ -272,7 +273,7 @@ function saveAttemptAndContext(params: {
     runner: params.decision.runner ?? "api",
     agentRole: params.decision.agentRole,
     modelCapability: params.decision.modelCapability,
-    status: "pending",
+    status: ContractValues.Pending,
     contextPackageRef: contextRef,
     artifacts: [],
     startedAt: params.now.toISOString(),
@@ -326,7 +327,7 @@ export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
       },
     });
     return {
-      status: "blocked",
+      status: ContractValues.Blocked,
       runId: input.runId,
       stepId: input.step.stepId,
       attemptId,

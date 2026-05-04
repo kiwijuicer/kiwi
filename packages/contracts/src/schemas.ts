@@ -307,6 +307,36 @@ export const ModelProviders = {
   Local: "local",
 } as const;
 
+export const ContractValues = {
+  Planner: AgentRoles.Planner,
+  Researcher: AgentRoles.Researcher,
+  Executor: AgentRoles.Executor,
+  Reviewer: AgentRoles.Reviewer,
+  Security: AgentRoles.Security,
+  Rules: AgentRoles.Rules,
+  Cheap: ModelCapabilities.Cheap,
+  Mid: ModelCapabilities.Mid,
+  Strong: ModelCapabilities.Strong,
+  Frontier: ModelCapabilities.Frontier,
+  Typecheck: GateTypes.Typecheck,
+  Lint: GateTypes.Lint,
+  Tests: GateTypes.Tests,
+  Pass: GateStatuses.Pass,
+  Fail: GateStatuses.Fail,
+  Blocked: GateStatuses.Blocked,
+  Pending: StepAttemptStatuses.Pending,
+  Running: RunStatuses.Running,
+  Completed: RunStatuses.Completed,
+  Failed: RunStatuses.Failed,
+  Cancelled: RunStatuses.Cancelled,
+  NeedsChanges: ReviewVerdictValues.NeedsChanges,
+  PassWithComments: ReviewVerdictValues.PassWithComments,
+  Reject: ReviewVerdictValues.Reject,
+  BitbucketCloud: ScmProviders.BitbucketCloud,
+  Github: ScmProviders.Github,
+  Local: ScmProviders.Local,
+} as const;
+
 export const ContractsMetadataSchema = z.object({
   schemaVersion: ContractsSchemaVersionSchema,
   evolutionMode: ContractsSchemaEvolutionModeSchema,

@@ -1,4 +1,5 @@
 import {
+  ContractValues,
   AgentRole,
   BudgetProfile,
   Initiative,
@@ -125,29 +126,29 @@ function isCodeExecutionStep(stepType: StepType): boolean {
 function defaultRouting(stepType: StepType): RoutingChoice {
   switch (stepType) {
     case "context_discovery":
-      return { agentRole: "researcher", modelCapability: "mid" };
+      return { agentRole: ContractValues.Researcher, modelCapability: ContractValues.Mid };
     case "planning":
-      return { agentRole: "planner", modelCapability: "frontier" };
+      return { agentRole: ContractValues.Planner, modelCapability: ContractValues.Frontier };
     case "test_creation":
-      return { agentRole: "executor", modelCapability: "mid" };
+      return { agentRole: ContractValues.Executor, modelCapability: ContractValues.Mid };
     case "validation":
-      return { agentRole: "reviewer", modelCapability: "strong" };
+      return { agentRole: ContractValues.Reviewer, modelCapability: ContractValues.Strong };
     case "review":
-      return { agentRole: "reviewer", modelCapability: "frontier" };
+      return { agentRole: ContractValues.Reviewer, modelCapability: ContractValues.Frontier };
     case "scm_ticket":
     case "scm_pull_request":
     case "scm_review":
-      return { agentRole: "executor", modelCapability: "mid" };
+      return { agentRole: ContractValues.Executor, modelCapability: ContractValues.Mid };
     case "rules_update":
-      return { agentRole: "rules", modelCapability: "mid" };
+      return { agentRole: ContractValues.Rules, modelCapability: ContractValues.Mid };
     case "documentation":
-      return { agentRole: "executor", modelCapability: "cheap" };
+      return { agentRole: ContractValues.Executor, modelCapability: ContractValues.Cheap };
     case "code_creation":
     case "code_modification":
     case "refactoring":
     case "coding":
     default:
-      return { agentRole: "executor", modelCapability: "strong" };
+      return { agentRole: ContractValues.Executor, modelCapability: ContractValues.Strong };
   }
 }
 
@@ -203,7 +204,7 @@ function stepSuccessCriteria(stepType: StepType): string[] {
 
 function requiredGates(stepType: StepType): string[] {
   if (isCodeExecutionStep(stepType) || stepType === "test_creation" || stepType === "validation") {
-    return ["typecheck", "lint", "tests"];
+    return [ContractValues.Typecheck, ContractValues.Lint, ContractValues.Tests];
   }
 
   switch (stepType) {
@@ -282,7 +283,7 @@ export function buildDeterministicTaskGraph(params: {
       requiredGates: requiredGates(type),
       recommendedAgentRole: route.agentRole,
       recommendedModelCapability: route.modelCapability,
-      status: "pending",
+      status: ContractValues.Pending,
     };
   });
 

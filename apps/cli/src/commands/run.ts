@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { ContractValues } from "@kiwi/contracts";
 import { getRunStatusSummary, loadTaskGraph, withRunLock } from "@kiwi/core";
 import { runAttemptUnlocked, AttemptOptions } from "./attempt";
 import { resolveCliWorkspace } from "../workspace-options";
@@ -28,7 +29,7 @@ export async function runRun(runId: string, opts: RunOptions = {}, cwd: string =
         if (opts.now) attemptOptions.now = opts.now;
         await runAttemptUnlocked(runId, step.stepId, attemptOptions, workspace.workspacePath);
         const status = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.status;
-        if (status === "failed" || status === "needs_approval") {
+        if (status === ContractValues.Failed || status === "needs_approval") {
           throw new Error(`Run stopped after ${step.stepId} with status ${status}`);
         }
       }

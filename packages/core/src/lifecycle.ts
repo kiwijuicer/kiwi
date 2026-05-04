@@ -5,6 +5,7 @@ import {
   ApprovalDecisionSchema,
   AttemptSummary,
   AttemptSummarySchema,
+  ContractValues,
   FinalCostReport,
   FinalCostReportSchema,
   FinalVerdict,
@@ -219,23 +220,23 @@ export function refreshRunStatusFromAttempts(params: { cwd: string; runId: strin
     return updateRunStatus({ ...params, status: "planned" });
   }
 
-  if (attempts.some((entry) => entry.attempt.status === "blocked")) {
+  if (attempts.some((entry) => entry.attempt.status === ContractValues.Blocked)) {
     return updateRunStatus({ ...params, status: "needs_approval" });
   }
-  if (attempts.some((entry) => entry.attempt.status === "failed")) {
-    return updateRunStatus({ ...params, status: "failed" });
+  if (attempts.some((entry) => entry.attempt.status === ContractValues.Failed)) {
+    return updateRunStatus({ ...params, status: ContractValues.Failed });
   }
-  if (attempts.some((entry) => entry.attempt.status === "running")) {
-    return updateRunStatus({ ...params, status: "running" });
+  if (attempts.some((entry) => entry.attempt.status === ContractValues.Running)) {
+    return updateRunStatus({ ...params, status: ContractValues.Running });
   }
 
   const completedStepIds = new Set(
-    attempts.filter((entry) => entry.attempt.status === "completed").map((entry) => entry.stepId),
+    attempts.filter((entry) => entry.attempt.status === ContractValues.Completed).map((entry) => entry.stepId),
   );
   const allStepsCompleted = taskGraph.steps.every((step) => completedStepIds.has(step.stepId));
   return updateRunStatus({
     ...params,
-    status: allStepsCompleted ? "completed" : "running",
+    status: allStepsCompleted ? ContractValues.Completed : ContractValues.Running,
   });
 }
 
@@ -261,7 +262,7 @@ export function assertStepDependenciesCompleted(params: {
   const latest = latestAttemptByStep(listStepAttemptEvidence(params.cwd, params.runId));
   const incomplete = params.dependsOn.filter((stepId) => {
     const attempt = latest.get(stepId);
-    return attempt?.attempt.status !== "completed";
+    return attempt?.attempt.status !== ContractValues.Completed;
   });
 
   if (incomplete.length > 0) {
@@ -338,16 +339,16 @@ export function finalizeRun(params: { cwd: string; runId: string; now?: Date }):
     }
     if (attempt.gateResultsRef) gateResultRefs.push(attempt.gateResultsRef);
     if (attempt.reviewReportRef) reviewReportRefs.push(attempt.reviewReportRef);
-    if (attempt.attempt.status === "completed") completedStepIds.push(step.stepId);
-    if (attempt.attempt.status === "failed") failedStepIds.push(step.stepId);
-    if (attempt.attempt.status === "blocked") blockedStepIds.push(step.stepId);
+    if (attempt.attempt.status === ContractValues.Completed) completedStepIds.push(step.stepId);
+    if (attempt.attempt.status === ContractValues.Failed) failedStepIds.push(step.stepId);
+    if (attempt.attempt.status === ContractValues.Blocked) blockedStepIds.push(step.stepId);
   }
 
   const safeToApply = failedStepIds.length === 0 && blockedStepIds.length === 0 && missingStepIds.length === 0;
   const verdict = FinalVerdictSchema.parse({
     schemaVersion: "1",
     runId: params.runId,
-    verdict: safeToApply ? "pass" : "needs_changes",
+    verdict: safeToApply ? ContractValues.Pass : ContractValues.NeedsChanges,
     safeToApply,
     completedStepIds,
     failedStepIds,
@@ -392,7 +393,7 @@ export function finalizeRun(params: { cwd: string; runId: string; now?: Date }):
   const run = updateRunStatus({
     cwd: params.cwd,
     runId: params.runId,
-    status: safeToApply ? "completed" : "failed",
+    status: safeToApply ? ContractValues.Completed : ContractValues.Failed,
     now,
   });
 

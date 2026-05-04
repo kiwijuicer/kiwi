@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
-import { GateResult, GateResultSchema, GateStatus, GateType } from "@kiwi/contracts";
+import { ContractValues, GateResult, GateResultSchema, GateStatus, GateType } from "@kiwi/contracts";
 import { resolveRunArtifactPath } from "./run-store";
 
 export interface CreateGateResultParams {
@@ -39,13 +39,13 @@ export function createGateResult(params: CreateGateResultParams): GateResult {
 
 export function summarizeGateResults(results: GateResult[]): QualityGateSummary {
   const parsed = results.map((entry) => GateResultSchema.parse(entry));
-  const failing = parsed.filter((entry) => entry.status === "fail");
-  const blocked = parsed.filter((entry) => entry.status === "blocked");
+  const failing = parsed.filter((entry) => entry.status === ContractValues.Fail);
+  const blocked = parsed.filter((entry) => entry.status === ContractValues.Blocked);
   const evidenceRefs = parsed.flatMap((entry) => entry.evidenceRefs);
 
   if (blocked.length > 0) {
     return {
-      overallStatus: "blocked",
+      overallStatus: ContractValues.Blocked,
       safeToContinue: false,
       failingGateIds: failing.map((entry) => entry.gateId),
       blockedGateIds: blocked.map((entry) => entry.gateId),
@@ -55,7 +55,7 @@ export function summarizeGateResults(results: GateResult[]): QualityGateSummary 
 
   if (failing.length > 0) {
     return {
-      overallStatus: "fail",
+      overallStatus: ContractValues.Fail,
       safeToContinue: false,
       failingGateIds: failing.map((entry) => entry.gateId),
       blockedGateIds: [],
@@ -64,7 +64,7 @@ export function summarizeGateResults(results: GateResult[]): QualityGateSummary 
   }
 
   return {
-    overallStatus: "pass",
+    overallStatus: ContractValues.Pass,
     safeToContinue: true,
     failingGateIds: [],
     blockedGateIds: [],

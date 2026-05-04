@@ -1,6 +1,6 @@
 import { existsSync } from "fs";
 import path from "path";
-import { RunStatus } from "@kiwi/contracts";
+import { ContractValues, RunStatus } from "@kiwi/contracts";
 import { RunCorruptError, RunNotFoundError } from "./errors";
 import { listRunIds, loadInitiative, loadRunManifest, loadTaskGraph } from "./run-store";
 import { listStepAttemptEvidence } from "./lifecycle";
@@ -82,9 +82,15 @@ function finalArtifactPathsFor(runId: string, cwd: string): Partial<RunArtifactP
 
 function attemptStatusEntries(runId: string, cwd: string): RunAttemptStatusEntry[] {
   return listStepAttemptEvidence(cwd, runId).map((entry) => {
-    const blocked = entry.gateResults.some((gate) => gate.status === "blocked");
-    const failed = entry.gateResults.some((gate) => gate.status === "fail");
-    const gateStatus = blocked ? "blocked" : failed ? "fail" : entry.gateResults.length > 0 ? "pass" : "missing";
+    const blocked = entry.gateResults.some((gate) => gate.status === ContractValues.Blocked);
+    const failed = entry.gateResults.some((gate) => gate.status === ContractValues.Fail);
+    const gateStatus = blocked
+      ? ContractValues.Blocked
+      : failed
+        ? ContractValues.Fail
+        : entry.gateResults.length > 0
+          ? ContractValues.Pass
+          : "missing";
 
     return {
       stepId: entry.stepId,
@@ -149,11 +155,11 @@ export function getRunStatusSummary(cwd: string, runId?: string): RunStatusSumma
   return {
     total: entries.length,
     planned: entries.filter((entry) => entry.status === "planned").length,
-    running: entries.filter((entry) => entry.status === "running").length,
+    running: entries.filter((entry) => entry.status === ContractValues.Running).length,
     needsApproval: entries.filter((entry) => entry.status === "needs_approval").length,
-    completed: entries.filter((entry) => entry.status === "completed").length,
-    failed: entries.filter((entry) => entry.status === "failed").length,
-    cancelled: entries.filter((entry) => entry.status === "cancelled").length,
+    completed: entries.filter((entry) => entry.status === ContractValues.Completed).length,
+    failed: entries.filter((entry) => entry.status === ContractValues.Failed).length,
+    cancelled: entries.filter((entry) => entry.status === ContractValues.Cancelled).length,
     latest: entries.slice(0, 10),
   };
 }

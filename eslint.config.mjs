@@ -65,7 +65,7 @@ const CANONICAL_LITERAL_VALUES = [
 ];
 
 const CANONICAL_LITERAL_RULES = CANONICAL_LITERAL_VALUES.map((value) => ({
-  selector: `Literal[value='${value}']`,
+  selector: `Literal[value='${value}']:not(TSLiteralType > Literal)`,
   message:
     `Avoid canonical domain string '${value}' outside contracts/constants. ` +
     "Use exported constants/unions from @kiwi/contracts.",

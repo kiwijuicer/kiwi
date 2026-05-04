@@ -1,4 +1,4 @@
-import { RunnerName } from "@kiwi/contracts";
+import { ContractValues, RunnerName } from "@kiwi/contracts";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "./runner-adapter";
 import { createFailedRunnerOutput } from "./runner-output";
 
@@ -13,7 +13,7 @@ export class StubExternalRunnerAdapter implements RunnerAdapter {
 
   async execute(_input: RunnerExecutionInput): Promise<RunnerExecutionOutput> {
     return createFailedRunnerOutput({
-      status: "failed",
+      status: ContractValues.Failed,
       code: "RUNNER_NOT_IMPLEMENTED",
       message: `external runner ${this.name} is not configured`,
     });

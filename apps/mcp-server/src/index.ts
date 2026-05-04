@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from "fs";
 import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 import path from "path";
 import { LocalShellRunnerAdapter, StubPlannerProvider, runPlannerProviderWithRetries } from "@kiwi/adapters";
-import { ProtocolEnvelopeKindSchema } from "@kiwi/contracts";
+import { ContractValues, ProtocolEnvelopeKindSchema } from "@kiwi/contracts";
 import { createWorktreeSandbox, SandboxCommandPolicy } from "@kiwi/sandbox";
 import {
   acceptA2AHandoff,
@@ -278,7 +278,7 @@ async function runTool(args: Record<string, unknown>, cwd: string): Promise<unkn
       ),
     );
     const status = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.status;
-    if (status === "failed" || status === "needs_approval") break;
+    if (status === ContractValues.Failed || status === "needs_approval") break;
   }
   const run = getRunStatusSummary(workspace.workspacePath, runId).latest[0];
   return {

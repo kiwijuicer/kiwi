@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
+import { ContractValues } from "@kiwi/contracts";
 
 interface RulesSyncOptions {
   target?: string;
@@ -23,11 +24,11 @@ export async function runRulesSync(opts: RulesSyncOptions = {}, cwd: string = pr
   }
 
   const agentsPath = path.join(cwd, "AGENTS.md");
-  const rulesDir = path.join(cwd, "docs", "rules");
+  const rulesDir = path.join(cwd, "docs", ContractValues.Rules);
   if (!existsSync(agentsPath)) throw new Error("AGENTS.md not found");
   if (!existsSync(rulesDir)) throw new Error("docs/rules not found");
 
-  const cursorRulesDir = path.join(cwd, ".cursor", "rules");
+  const cursorRulesDir = path.join(cwd, ".cursor", ContractValues.Rules);
   mkdirSync(cursorRulesDir, { recursive: true });
   writeCursorRule({
     sourcePath: agentsPath,

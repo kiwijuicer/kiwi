@@ -4,6 +4,7 @@ import {
   Artifact,
   ArtifactSchema,
   AgentRole,
+  ContractValues,
   GateResult,
   GateResultSchema,
   ModelCapability,
@@ -277,11 +278,13 @@ function mapRunnerStatusToAttemptStatus(params: {
   reviewVerdict: ReviewVerdict;
   gateResults: GateResult[];
 }): StepAttemptStatus {
-  if (params.runnerStatus === "blocked" || params.runnerStatus === "approval_required") return "blocked";
-  if (params.runnerStatus === "failed" || params.runnerStatus === "timeout") return "failed";
-  if (!summarizeGateResults(params.gateResults).safeToContinue) return "failed";
-  if (!params.reviewVerdict.safeToContinue) return "failed";
-  return "completed";
+  if (params.runnerStatus === ContractValues.Blocked || params.runnerStatus === "approval_required") {
+    return ContractValues.Blocked;
+  }
+  if (params.runnerStatus === ContractValues.Failed || params.runnerStatus === "timeout") return ContractValues.Failed;
+  if (!summarizeGateResults(params.gateResults).safeToContinue) return ContractValues.Failed;
+  if (!params.reviewVerdict.safeToContinue) return ContractValues.Failed;
+  return ContractValues.Completed;
 }
 
 function nextActionFromReview(verdict: ReviewVerdict): StepAttemptNextAction {
@@ -304,19 +307,19 @@ function enforceGateResultsBeforePositiveReview(params: {
   }
 
   return ReviewVerdictSchema.parse({
-    verdict: gateSummary.overallStatus === "blocked" ? "reject" : "needs_changes",
+    verdict: gateSummary.overallStatus === ContractValues.Blocked ? ContractValues.Reject : ContractValues.NeedsChanges,
     safeToContinue: false,
     issues: [
       {
         code: "GATE_REVIEW_CONFLICT",
         title: "Positive review cannot override failing gates",
-        severity: gateSummary.overallStatus === "blocked" ? "high" : "medium",
+        severity: gateSummary.overallStatus === ContractValues.Blocked ? "high" : "medium",
         detail:
           `Failing gates: ${gateSummary.failingGateIds.join(", ")} Blocked gates: ${gateSummary.blockedGateIds.join(", ")}`.trim(),
       },
     ],
     recommendedNextSteps: [
-      gateSummary.overallStatus === "blocked"
+      gateSummary.overallStatus === ContractValues.Blocked
         ? "Replan with policy-compliant steps"
         : "Create a fix step and re-run gates",
     ],
@@ -328,7 +331,7 @@ function gateResultFromRunnerException(error: StepRunnerExecutionError, evidence
   return GateResultSchema.parse({
     gateId: "gate_runner_execution",
     gateType: "forbidden_file_checks",
-    status: "fail",
+    status: ContractValues.Fail,
     evidenceRefs,
     reason: error.message,
   });
@@ -348,7 +351,7 @@ function normalizeRunnerException(error: unknown): {
   };
   return {
     output: {
-      status: "failed",
+      status: ContractValues.Failed,
       artifactRefs,
       rawLogsRef: artifactRefs[0]?.ref ?? null,
       modelUsage: {
@@ -423,7 +426,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       runId,
       attempt: StepAttemptSchema.parse({
         ...existingAttempt,
-        status: "running",
+        status: ContractValues.Running,
         modelInvocationRefs: existingAttempt.modelInvocationRefs,
         completedAt: null,
       }),
@@ -489,23 +492,23 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
     const runnerInvocationRef = appendModelInvocation(input.cwd, {
       schemaVersion: "1",
       runId,
-      phase: "executor",
+      phase: ContractValues.Executor,
       stepId,
       attemptId,
       agentRole: input.schedulerDecision.agentRole,
       requestedCapability: input.step.recommendedModelCapability,
       selectedCapability: input.schedulerDecision.modelCapability,
       modelId: null,
-      providerName: "local",
+      providerName: ContractValues.Local,
       runner: input.runner.name,
       usage: runnerOutput.modelUsage,
       estimatedCostUsd: 0,
       status:
-        runnerOutput.status === "completed"
-          ? "completed"
-          : runnerOutput.status === "blocked" || runnerOutput.status === "approval_required"
-            ? "blocked"
-            : "failed",
+        runnerOutput.status === ContractValues.Completed
+          ? ContractValues.Completed
+          : runnerOutput.status === ContractValues.Blocked || runnerOutput.status === "approval_required"
+            ? ContractValues.Blocked
+            : ContractValues.Failed,
       evidenceRefs: runnerOutput.artifactRefs.map((entry) => entry.ref),
       startedAt,
       completedAt,
@@ -513,10 +516,10 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
     const reviewerInvocationRef = appendModelInvocation(input.cwd, {
       schemaVersion: "1",
       runId,
-      phase: "reviewer",
+      phase: ContractValues.Reviewer,
       stepId,
       attemptId,
-      agentRole: "reviewer",
+      agentRole: ContractValues.Reviewer,
       requestedCapability: input.schedulerDecision.reviewDepth,
       selectedCapability: input.schedulerDecision.reviewDepth,
       modelId: reviewEngine.name === "stub-review" ? "stub-reviewer" : reviewEngine.name,
@@ -524,7 +527,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       runner: null,
       usage: { inputTokens: 0, outputTokens: 0 },
       estimatedCostUsd: 0,
-      status: "completed",
+      status: ContractValues.Completed,
       evidenceRefs: [gateResultsRef, reviewReportRef],
       startedAt: reviewStartedAt,
       completedAt,
@@ -543,7 +546,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       attemptId,
       runner: input.runner.name,
       modelId: null,
-      providerName: "local",
+      providerName: ContractValues.Local,
       agentRole: input.schedulerDecision.agentRole,
       modelCapability: input.schedulerDecision.modelCapability,
       reviewDepth: input.schedulerDecision.reviewDepth,
@@ -598,7 +601,8 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
     });
 
     appendAuditEvent(input.cwd, {
-      eventType: runnerOutput.status === "completed" ? "runner_attempt_completed" : "runner_attempt_failed",
+      eventType:
+        runnerOutput.status === ContractValues.Completed ? "runner_attempt_completed" : "runner_attempt_failed",
       runId,
       timestamp: completedAt,
       payload: {

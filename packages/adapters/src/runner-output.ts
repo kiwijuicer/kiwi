@@ -1,4 +1,4 @@
-import { GateResult, GateResultSchema } from "@kiwi/contracts";
+import { ContractValues, GateResult, GateResultSchema } from "@kiwi/contracts";
 import { RunnerExecutionError, RunnerExecutionOutput, RunnerExecutionStatus } from "./runner-adapter";
 
 export function zeroModelUsage(): { inputTokens: number; outputTokens: number } {
@@ -24,7 +24,7 @@ function createRunnerGateResult(params: {
 }
 
 export function createFailedRunnerOutput(params: {
-  status: Exclude<RunnerExecutionStatus, "completed">;
+  status: Exclude<RunnerExecutionStatus, typeof ContractValues.Completed>;
   code: string;
   message: string;
   gateStatus?: "fail" | "blocked";
@@ -42,7 +42,7 @@ export function createFailedRunnerOutput(params: {
     modelUsage: zeroModelUsage(),
     gateResult: createRunnerGateResult({
       gateId: params.gateId ?? "gate_runner_adapter",
-      status: params.gateStatus ?? "fail",
+      status: params.gateStatus ?? ContractValues.Fail,
       reason: params.message,
     }),
     error,

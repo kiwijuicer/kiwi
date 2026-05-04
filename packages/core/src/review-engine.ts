@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
-import { GateResult, ReviewVerdict, ReviewVerdictSchema } from "@kiwi/contracts";
+import { ContractValues, GateResult, ReviewVerdict, ReviewVerdictSchema } from "@kiwi/contracts";
 import { summarizeGateResults } from "./quality-gates";
 import { resolveRunArtifactPath } from "./run-store";
 
@@ -25,19 +25,20 @@ export class StubReviewEngine implements ReviewEngine {
     const gateSummary = summarizeGateResults(input.gateResults);
     if (!gateSummary.safeToContinue) {
       return ReviewVerdictSchema.parse({
-        verdict: gateSummary.overallStatus === "blocked" ? "reject" : "needs_changes",
+        verdict:
+          gateSummary.overallStatus === ContractValues.Blocked ? ContractValues.Reject : ContractValues.NeedsChanges,
         safeToContinue: false,
         issues: [
           {
             code: "GATE_FAILURE",
             title: "Required quality gates are not passing",
-            severity: gateSummary.overallStatus === "blocked" ? "high" : "medium",
+            severity: gateSummary.overallStatus === ContractValues.Blocked ? "high" : "medium",
             detail:
               `Failing gates: ${gateSummary.failingGateIds.join(", ")} Blocked gates: ${gateSummary.blockedGateIds.join(", ")}`.trim(),
           },
         ],
         recommendedNextSteps: [
-          gateSummary.overallStatus === "blocked"
+          gateSummary.overallStatus === ContractValues.Blocked
             ? "Replan with policy-compliant steps"
             : "Create a fix step and re-run gates",
         ],
@@ -46,7 +47,7 @@ export class StubReviewEngine implements ReviewEngine {
     }
 
     return ReviewVerdictSchema.parse({
-      verdict: "pass",
+      verdict: ContractValues.Pass,
       safeToContinue: true,
       issues: [],
       recommendedNextSteps: ["Continue to next step"],
@@ -63,8 +64,8 @@ function writeJsonSafely(target: string, value: unknown): void {
 }
 
 export function classifyReviewAction(verdict: ReviewVerdict): ReviewAction {
-  if (verdict.verdict === "reject") return "replan";
-  if (verdict.verdict === "needs_changes") return "fix_step";
+  if (verdict.verdict === ContractValues.Reject) return "replan";
+  if (verdict.verdict === ContractValues.NeedsChanges) return "fix_step";
   return "continue";
 }
 

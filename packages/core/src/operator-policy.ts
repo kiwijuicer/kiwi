@@ -1,4 +1,4 @@
-import { CommandProfile, GateType, KiwiPolicy, StepType } from "@kiwi/contracts";
+import { ContractValues, CommandProfile, GateType, KiwiPolicy, StepType } from "@kiwi/contracts";
 
 export interface CommandExecutionPolicy {
   allowedCommands: string[];
@@ -67,11 +67,11 @@ export function commandProfileToExecutionPolicy(
 
 export function commandForGate(policy: KiwiPolicy, gateType: GateType): string[] | null {
   switch (gateType) {
-    case "typecheck":
+    case ContractValues.Typecheck:
       return splitCommandLine(policy.commands.typecheck);
-    case "lint":
+    case ContractValues.Lint:
       return splitCommandLine(policy.commands.lint);
-    case "tests":
+    case ContractValues.Tests:
       return splitCommandLine(policy.commands.test);
     default:
       return null;

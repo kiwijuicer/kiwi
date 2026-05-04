@@ -1,4 +1,5 @@
 import {
+  ContractValues,
   BudgetProfile,
   Initiative,
   InitiativeSource,
@@ -103,8 +104,10 @@ export interface PlanRunParams {
 
 export function selectPlannerModel(models: ModelEntry[]): ModelEntry {
   const candidate =
-    models.find((model) => model.enabled && model.roles.includes("planner") && model.capability === "frontier") ??
-    models.find((model) => model.enabled && model.roles.includes("planner"));
+    models.find(
+      (model) =>
+        model.enabled && model.roles.includes(ContractValues.Planner) && model.capability === ContractValues.Frontier,
+    ) ?? models.find((model) => model.enabled && model.roles.includes(ContractValues.Planner));
 
   if (!candidate) {
     throw new Error("No enabled planner model found in model-registry.yaml");
@@ -142,8 +145,8 @@ function appendPlannerFailureInvocation(params: {
   appendModelInvocation(params.workspacePath, {
     schemaVersion: "1",
     runId: params.runId,
-    phase: "planner",
-    agentRole: "planner",
+    phase: ContractValues.Planner,
+    agentRole: ContractValues.Planner,
     requestedCapability: params.plannerModel.capability,
     selectedCapability: params.plannerModel.capability,
     modelId: params.plannerModel.id,
@@ -151,7 +154,7 @@ function appendPlannerFailureInvocation(params: {
     runner: null,
     usage: { inputTokens: 0, outputTokens: 0 },
     estimatedCostUsd: 0,
-    status: "failed",
+    status: ContractValues.Failed,
     evidenceRefs: [],
     startedAt: params.now.toISOString(),
     completedAt: params.now.toISOString(),
@@ -309,8 +312,8 @@ export async function planRun(params: PlanRunParams): Promise<PlanRunResult> {
     modelInvocationRef = appendModelInvocation(params.workspacePath, {
       schemaVersion: "1",
       runId,
-      phase: "planner",
-      agentRole: "planner",
+      phase: ContractValues.Planner,
+      agentRole: ContractValues.Planner,
       requestedCapability: params.plannerModel.capability,
       selectedCapability: params.plannerModel.capability,
       modelId: params.plannerModel.id,
@@ -318,7 +321,7 @@ export async function planRun(params: PlanRunParams): Promise<PlanRunResult> {
       runner: null,
       usage: plannerOutput.modelUsage,
       estimatedCostUsd: plannerOutput.cost.estimatedUsd,
-      status: "completed",
+      status: ContractValues.Completed,
       evidenceRefs: ["plan/planner-input.json", "plan/planner-output.json", "plan/cost-report.json"],
       startedAt: now.toISOString(),
       completedAt: now.toISOString(),

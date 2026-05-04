@@ -1,13 +1,14 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from "fs";
 import path from "path";
 import {
-  A2AConfig,
   A2AAttachmentDescriptor,
+  A2AConfig,
   A2ARuntimeDecision,
   A2ARuntimeDecisionSchema,
   A2ATrustedPeer,
   Artifact,
   ArtifactSchema,
+  ContractValues,
   GateResult,
   GateResultSchema,
   Initiative,
@@ -207,7 +208,7 @@ export function handleA2AEnvelope(input: HandleA2AEnvelopeInput): HandleA2AEnvel
 
   if (policy.mode === "disabled") {
     const blocked = decision({
-      status: "blocked",
+      status: ContractValues.Blocked,
       reason: "A2A runtime is disabled by policy",
       envelope,
       createdAt,
@@ -223,7 +224,7 @@ export function handleA2AEnvelope(input: HandleA2AEnvelopeInput): HandleA2AEnvel
 
   if (!envelope.a2a) {
     const blocked = decision({
-      status: "blocked",
+      status: ContractValues.Blocked,
       reason: "A2A metadata is required for runtime handling",
       envelope,
       createdAt,
@@ -255,7 +256,7 @@ export function handleA2AEnvelope(input: HandleA2AEnvelopeInput): HandleA2AEnvel
   const runId = runIdFromPayload(envelope.payload);
   if (envelope.a2a.recipientAgentId !== policy.localAgentId) {
     const blocked = decision({
-      status: "blocked",
+      status: ContractValues.Blocked,
       reason: "A2A recipient does not match local agent identity",
       envelope,
       runId,
@@ -273,7 +274,7 @@ export function handleA2AEnvelope(input: HandleA2AEnvelopeInput): HandleA2AEnvel
 
   if (!policy.trustedAgentIds.includes(envelope.a2a.senderAgentId)) {
     const blocked = decision({
-      status: "blocked",
+      status: ContractValues.Blocked,
       reason: "A2A sender is not trusted",
       envelope,
       runId,
@@ -294,7 +295,7 @@ export function handleA2AEnvelope(input: HandleA2AEnvelopeInput): HandleA2AEnvel
 
   if (!policy.acceptedKinds.includes(envelope.kind)) {
     const blocked = decision({
-      status: "blocked",
+      status: ContractValues.Blocked,
       reason: "A2A envelope kind is not accepted by policy",
       envelope,
       runId,
@@ -315,7 +316,7 @@ export function handleA2AEnvelope(input: HandleA2AEnvelopeInput): HandleA2AEnvel
     validateAttachments(envelope, input.incomingRoot);
   } catch (error) {
     const blocked = decision({
-      status: "blocked",
+      status: ContractValues.Blocked,
       reason: error instanceof Error ? error.message : String(error),
       envelope,
       runId,
@@ -333,7 +334,7 @@ export function handleA2AEnvelope(input: HandleA2AEnvelopeInput): HandleA2AEnvel
 
   if (isRemotePatch(envelope) && policy.mode !== "filesystem") {
     const blocked = decision({
-      status: "blocked",
+      status: ContractValues.Blocked,
       reason: "Remote patch artifacts require local apply gates and are not accepted yet",
       envelope,
       runId,
@@ -455,8 +456,8 @@ function inferArtifactType(ref: string, explicit: Artifact["type"] | undefined):
   if (ref.endsWith(".diff")) return "diff";
   if (ref.includes("review")) return "review_report";
   if (ref.includes("cost")) return "cost_report";
-  if (ref.includes("lint")) return "lint_report";
-  if (ref.includes("typecheck")) return "typecheck_report";
+  if (ref.includes(ContractValues.Lint)) return "lint_report";
+  if (ref.includes(ContractValues.Typecheck)) return "typecheck_report";
   if (ref.includes("test")) return "test_report";
   if (ref.includes("summary")) return "summary";
   return "command_output";
@@ -773,7 +774,7 @@ export function listA2AInbox(params: { cwd: string; includeQuarantine?: boolean 
   const inboxDir = resolveA2APath(params.cwd, "inbox");
   for (const entry of readdirSync(inboxDir, { withFileTypes: true })) {
     if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
-    items.push(inboxItemFromRecord(readJson(path.join(inboxDir, entry.name)), "pending"));
+    items.push(inboxItemFromRecord(readJson(path.join(inboxDir, entry.name)), ContractValues.Pending));
   }
   if (params.includeQuarantine) {
     const quarantineDir = resolveA2APath(params.cwd, "quarantine");

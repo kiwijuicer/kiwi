@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "fs";
 import path from "path";
-import { Artifact, GateResult, GateResultSchema, GateType } from "@kiwi/contracts";
+import { Artifact, ContractValues, GateResult, GateResultSchema, GateType } from "@kiwi/contracts";
 
 export type ApprovalState = "auto" | "required" | "blocked";
 export type NetworkPolicy = "disabled" | "enabled";
@@ -223,22 +223,22 @@ function requiresExplicitGitMutationApproval(command: string[]): boolean {
 
 function evaluatePolicy(input: SandboxCommandInput): PolicyDecision {
   if (input.command.length === 0) {
-    return { status: "blocked", reason: "empty command" };
+    return { status: ContractValues.Blocked, reason: "empty command" };
   }
-  if (input.policy.approvalState === "blocked") {
-    return { status: "blocked", reason: "command approval state is blocked" };
+  if (input.policy.approvalState === ContractValues.Blocked) {
+    return { status: ContractValues.Blocked, reason: "command approval state is blocked" };
   }
   if (requiresExplicitGitMutationApproval(input.command) && !input.approved) {
     return { status: "approval_required", reason: "git state changes require explicit approval" };
   }
   if (!commandAllowed(input.command, input.policy.allowedCommands)) {
-    return { status: "blocked", reason: "command is not allowlisted" };
+    return { status: ContractValues.Blocked, reason: "command is not allowlisted" };
   }
   if (input.policy.networkPolicy === "disabled" && usesNetwork(input.command)) {
-    return { status: "blocked", reason: "network access is disabled for this attempt" };
+    return { status: ContractValues.Blocked, reason: "network access is disabled for this attempt" };
   }
   if (commandTouchesPath(input.command, input.worktreePath, input.policy.deniedPaths)) {
-    return { status: "blocked", reason: "command touches a denied path" };
+    return { status: ContractValues.Blocked, reason: "command touches a denied path" };
   }
   const needsPathApproval = commandTouchesPath(input.command, input.worktreePath, input.policy.approvalRequiredPaths);
   if ((input.policy.approvalState === "required" || needsPathApproval) && !input.approved) {
@@ -383,7 +383,7 @@ export async function executeSandboxCommand(input: SandboxCommandInput): Promise
   if (policyDecision.status !== "allow") {
     const completedAt = new Date().toISOString();
     const blockedGateParams: Parameters<typeof gateResult>[0] = {
-      status: "blocked",
+      status: ContractValues.Blocked,
       reason: policyDecision.reason,
       evidenceRefs: [],
     };
@@ -431,7 +431,11 @@ export async function executeSandboxCommand(input: SandboxCommandInput): Promise
       const completedAt = new Date().toISOString();
       const redactedStdout = redact(stdout, input.policy.secretValues);
       const redactedStderr = redact(stderr, input.policy.secretValues);
-      const status: SandboxExecutionStatus = timedOut ? "timeout" : exitCode === 0 ? "completed" : "failed";
+      const status: SandboxExecutionStatus = timedOut
+        ? "timeout"
+        : exitCode === 0
+          ? ContractValues.Completed
+          : ContractValues.Failed;
       const outputParams: Parameters<typeof persistOutput>[0] = {
         cwd: input.cwd,
         runId: input.runId,
@@ -451,9 +455,9 @@ export async function executeSandboxCommand(input: SandboxCommandInput): Promise
       const outputRef = persistOutput(outputParams);
       const artifactRefs = [artifactRef(outputRef, completedAt)];
       const gateParams: Parameters<typeof gateResult>[0] = {
-        status: status === "completed" ? "pass" : "fail",
+        status: status === ContractValues.Completed ? ContractValues.Pass : ContractValues.Fail,
         reason:
-          status === "completed"
+          status === ContractValues.Completed
             ? "Command completed successfully"
             : status === "timeout"
               ? "Command timed out"

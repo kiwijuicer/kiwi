@@ -1,4 +1,5 @@
 import {
+  ContractValues,
   ScmMutationResult,
   ScmMutationResultSchema,
   ScmPullRequestDraftInput,
@@ -44,7 +45,7 @@ interface BitbucketResponseBody {
 }
 
 export class BitbucketCloudScmAdapter implements ScmAdapter {
-  readonly provider = "bitbucket-cloud";
+  readonly provider = ContractValues.BitbucketCloud;
   readonly authMode = "external";
   private readonly request: BitbucketCloudRequestExecutor;
   private readonly apiBaseUrl: string;
@@ -215,7 +216,7 @@ export class BitbucketCloudScmAdapter implements ScmAdapter {
 
   private url(repository: ScmRepositoryRef, suffix: string): string {
     const repo = ScmRepositoryRefSchema.parse(repository);
-    if (repo.provider !== "bitbucket-cloud") {
+    if (repo.provider !== ContractValues.BitbucketCloud) {
       throw new Error(`BitbucketCloudScmAdapter cannot publish to provider '${repo.provider}'`);
     }
 
@@ -228,7 +229,7 @@ export class BitbucketCloudScmAdapter implements ScmAdapter {
     return ScmMutationResultSchema.parse({
       provider: this.provider,
       authMode: this.authMode,
-      status: isSuccess(response.status) ? "created" : "failed",
+      status: isSuccess(response.status) ? "created" : ContractValues.Failed,
       ...(id ? { externalId: id } : {}),
       ...(typeof body.links?.html?.href === "string" ? { externalUrl: body.links.html.href } : {}),
       evidenceRefs: [],
