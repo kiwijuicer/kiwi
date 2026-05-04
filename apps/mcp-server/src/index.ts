@@ -817,25 +817,60 @@ function encodeMessage(payload: unknown): string {
   return `Content-Length: ${Buffer.byteLength(body, "utf-8")}\r\n\r\n${body}`;
 }
 
-export function startMcpServer(cwd: string = defaultServerCwd()): void {
-  let buffer = "";
-  process.stdin.setEncoding("utf-8");
-  process.stdin.on("data", (chunk) => {
-    buffer += chunk;
-    void (async () => {
+export function createMcpMessageDrainer(
+  cwd: string,
+  writeResponse: (payload: unknown) => void,
+): (chunk: Buffer) => Promise<void> {
+  let buffer = Buffer.alloc(0);
+
+  return async function drainMessages(chunk: Buffer): Promise<void> {
+    buffer = Buffer.concat([buffer, chunk]);
+
+    while (true) {
       const separator = buffer.indexOf("\r\n\r\n");
       if (separator < 0) return;
-      const header = buffer.slice(0, separator);
+
+      const header = buffer.subarray(0, separator).toString("ascii");
       const match = header.match(/Content-Length:\s*(\d+)/i);
       if (!match?.[1]) return;
+
       const length = Number(match[1]);
       const start = separator + 4;
-      const body = buffer.slice(start, start + length);
-      if (body.length < length) return;
-      buffer = buffer.slice(start + length);
-      const response = await handleMcpRequest(JSON.parse(body) as JsonRpcRequest, cwd);
-      process.stdout.write(encodeMessage(response));
-    })();
+      const end = start + length;
+      if (buffer.length < end) return;
+
+      const body = buffer.subarray(start, end).toString("utf-8");
+      buffer = buffer.subarray(end);
+
+      let request: JsonRpcRequest;
+      try {
+        request = JSON.parse(body) as JsonRpcRequest;
+      } catch {
+        writeResponse({
+          jsonrpc: "2.0",
+          id: null,
+          error: { code: -32700, message: "Parse error" },
+        });
+        continue;
+      }
+
+      if (request.id === undefined) continue;
+
+      const response = await handleMcpRequest(request, cwd);
+      writeResponse(response);
+    }
+  };
+}
+
+export function startMcpServer(cwd: string = defaultServerCwd()): void {
+  const drainMessages = createMcpMessageDrainer(cwd, (payload) => {
+    process.stdout.write(encodeMessage(payload));
+  });
+  let drain = Promise.resolve();
+
+  process.stdin.on("data", (chunk) => {
+    const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), "utf-8");
+    drain = drain.then(() => drainMessages(data), () => drainMessages(data));
   });
 }
 

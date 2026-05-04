@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { handleMcpRequest } from "../index";
+import { createMcpMessageDrainer, handleMcpRequest } from "../index";
 
 function setupRepo(): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-"));
@@ -84,6 +84,11 @@ function toolJson(response: Awaited<ReturnType<typeof handleMcpRequest>>): unkno
   return JSON.parse(text) as unknown;
 }
 
+function framedMessage(value: unknown): Buffer {
+  const body = JSON.stringify(value);
+  return Buffer.from(`Content-Length: ${Buffer.byteLength(body, "utf-8")}\r\n\r\n${body}`, "utf-8");
+}
+
 describe("MCP server", () => {
   it("initializes and lists tools", async () => {
     const response = await handleMcpRequest({ id: 1, method: "initialize" }, setupRepo());
@@ -94,6 +99,21 @@ describe("MCP server", () => {
     expect(tools.error).toBeUndefined();
     expect(JSON.stringify(tools.result)).toContain("kiwi_plan");
     expect(JSON.stringify(tools.result)).toContain("inputSchema");
+  });
+
+  it("drains multiple stdio messages from one chunk and skips notifications", async () => {
+    const responses: unknown[] = [];
+    const drain = createMcpMessageDrainer(setupRepo(), (response) => responses.push(response));
+
+    await drain(Buffer.concat([
+      framedMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+      framedMessage({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }),
+      framedMessage({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
+    ]));
+
+    expect(responses).toHaveLength(2);
+    expect(responses.map((response) => (response as { id: number }).id)).toEqual([1, 2]);
+    expect(JSON.stringify(responses[1])).toContain("kiwi_plan");
   });
 
   it("plans, generates P1 artifacts, and reads parity resources", async () => {
