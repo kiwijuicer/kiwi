@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { ModelEntry, Step } from "@kiwi/contracts";
+import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "@kiwi/adapters";
+import { RunnerRegistry } from "../runner-registry";
 import { resolveRunner } from "../runner-resolution";
+
+class FakeCodexAdapter implements RunnerAdapter {
+  readonly name = "codex";
+
+  execute(_input: RunnerExecutionInput): Promise<RunnerExecutionOutput> {
+    throw new Error("not needed for registry construction test");
+  }
+}
 
 const codingStep: Step = {
   stepId: "step_001",
@@ -51,5 +61,30 @@ describe("runner resolution", () => {
 
     expect(resolution.runnerAvailability).toEqual(["local-shell"]);
     expect(() => resolution.buildAdapter("api")).toThrow("has no adapter wiring yet");
+  });
+
+  it("allows fake adapter registration without probing a real CLI", () => {
+    const registry = new RunnerRegistry({
+      definitions: [
+        {
+          runner: "codex",
+          accessMode: "codex-cli",
+          availability: () => ({ runner: "codex", accessMode: "codex-cli", available: true }),
+          buildAdapter: () => new FakeCodexAdapter(),
+        },
+      ],
+    });
+
+    const resolution = registry.resolve({
+      registryModels: [],
+      step: codingStep,
+      env: { PATH: "/empty" },
+    });
+
+    expect(resolution.runnerAvailability).toEqual(["codex"]);
+    expect(resolution.runnerAvailabilityDetails).toEqual([
+      { runner: "codex", accessMode: "codex-cli", available: true },
+    ]);
+    expect(resolution.buildAdapter("codex").name).toBe("codex");
   });
 });

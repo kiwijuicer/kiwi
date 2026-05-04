@@ -1,11 +1,8 @@
 import {
-  AnthropicReviewerProvider,
-  ClaudeCodeCliReviewerProvider,
-  ReviewerProvider,
   ReviewerProviderInput,
   runReviewerProviderWithRetries,
 } from "@kiwi/adapters";
-import { ContractValues, KiwiPolicy, ModelEntry, ReviewVerdict } from "@kiwi/contracts";
+import { KiwiPolicy, ModelEntry, ReviewVerdict } from "@kiwi/contracts";
 import {
   appendAuditEvent,
   persistReviewerProviderArtifacts,
@@ -13,7 +10,7 @@ import {
   ReviewExecutionResult,
   ReviewInput,
 } from "@kiwi/core";
-import { selectEnabledModelByAccessMode } from "./access-mode-resolver";
+import { ReviewerProviderRegistry } from "./reviewer-provider-registry";
 
 export interface ProviderReviewEngineOptions {
   cwd: string;
@@ -21,36 +18,34 @@ export interface ProviderReviewEngineOptions {
   registryModels: ModelEntry[];
   env?: Record<string, string | undefined>;
   maxAttempts?: number;
-}
-
-function buildReviewerProvider(
-  model: ModelEntry,
-  env: Record<string, string | undefined>,
-  policy: KiwiPolicy,
-): ReviewerProvider {
-  if (model.accessMode === "anthropic-api") {
-    return new AnthropicReviewerProvider({ model: model.id, env, policy });
-  }
-  if (model.accessMode === "claude-code-cli") {
-    return new ClaudeCodeCliReviewerProvider({ model: model.id, env, policy });
-  }
-  throw new Error(`Reviewer access mode '${model.accessMode}' is not supported yet (modelId: ${model.id}).`);
+  reviewerProviderRegistry?: ReviewerProviderRegistry;
 }
 
 function emptyDiffEnvelope(stepId: string): { diff: string; diffHash: string } {
   return { diff: `No diff captured for ${stepId}.`, diffHash: "sha256:empty" };
 }
 
-function pickReviewerCandidates(models: ModelEntry[], riskHigh: boolean): ModelEntry[] {
-  const reviewers = models.filter((model) => model.roles.includes(ContractValues.Reviewer));
-  const targetCapability = riskHigh ? ContractValues.Frontier : ContractValues.Strong;
-  const exact = reviewers.filter((model) => model.capability === targetCapability);
-  if (exact.length > 0) return exact;
-  const frontier = reviewers.filter((model) => model.capability === ContractValues.Frontier);
-  if (frontier.length > 0) return frontier;
-  const strong = reviewers.filter((model) => model.capability === ContractValues.Strong);
-  if (strong.length > 0) return strong;
-  return reviewers;
+function buildReviewerInput(input: ReviewInput): ReviewerProviderInput {
+  if (!input.step) {
+    throw new Error("ProviderReviewEngine requires a focal step in ReviewInput");
+  }
+  const fallbackDiff = emptyDiffEnvelope(input.stepId);
+  return {
+    runId: input.runId,
+    stepId: input.stepId,
+    attemptId: input.attemptId,
+    step: {
+      stepId: input.step.stepId,
+      type: input.step.type,
+      title: input.step.title,
+      successCriteria: input.step.successCriteria,
+      requiredGates: input.step.requiredGates,
+    },
+    diff: input.diff ?? fallbackDiff.diff,
+    diffHash: input.diffHash ?? fallbackDiff.diffHash,
+    gateResults: input.gateResults,
+    requestedAt: new Date().toISOString(),
+  };
 }
 
 export class ProviderReviewEngine implements ReviewEngine {
@@ -63,18 +58,19 @@ export class ProviderReviewEngine implements ReviewEngine {
   }
 
   async reviewWithExecution(input: ReviewInput): Promise<ReviewExecutionResult> {
-    if (!input.step) {
-      throw new Error("ProviderReviewEngine requires a focal step in ReviewInput");
-    }
-
+    const reviewerInput = buildReviewerInput(input);
     const env = this.options.env ?? process.env;
-    const candidates = pickReviewerCandidates(this.options.registryModels, input.riskHigh ?? false);
-    const selected = selectEnabledModelByAccessMode({ candidates, env, excludeStub: true });
+    const registry = this.options.reviewerProviderRegistry ?? new ReviewerProviderRegistry();
+    const selected = registry.select({
+      registryModels: this.options.registryModels,
+      policy: this.options.policy,
+      env,
+      riskHigh: input.riskHigh ?? false,
+    });
     if (!selected) {
       throw new Error("No reviewer model with an available access mode is enabled in model-registry.yaml");
     }
-    const { model } = selected;
-    const provider = buildReviewerProvider(model, env, this.options.policy);
+    const { model, provider } = selected;
 
     appendAuditEvent(this.options.cwd, {
       eventType: "reviewer_provider_selected",
@@ -90,24 +86,6 @@ export class ProviderReviewEngine implements ReviewEngine {
         riskHigh: input.riskHigh ?? false,
       },
     });
-
-    const fallbackDiff = emptyDiffEnvelope(input.stepId);
-    const reviewerInput: ReviewerProviderInput = {
-      runId: input.runId,
-      stepId: input.stepId,
-      attemptId: input.attemptId,
-      step: {
-        stepId: input.step.stepId,
-        type: input.step.type,
-        title: input.step.title,
-        successCriteria: input.step.successCriteria,
-        requiredGates: input.step.requiredGates,
-      },
-      diff: input.diff ?? fallbackDiff.diff,
-      diffHash: input.diffHash ?? fallbackDiff.diffHash,
-      gateResults: input.gateResults,
-      requestedAt: new Date().toISOString(),
-    };
 
     let validated;
     try {
@@ -191,15 +169,11 @@ export class ProviderReviewEngine implements ReviewEngine {
 }
 
 export function createReviewEngineFromRegistry(options: ProviderReviewEngineOptions): ReviewEngine | null {
-  const env = options.env ?? process.env;
-  const reviewers = options.registryModels.filter(
-    (model) => model.enabled && model.roles.includes(ContractValues.Reviewer),
-  );
-  if (reviewers.length === 0) return null;
-  const candidatesHigh = pickReviewerCandidates(options.registryModels, true);
-  const candidatesStandard = pickReviewerCandidates(options.registryModels, false);
-  const probeHigh = selectEnabledModelByAccessMode({ candidates: candidatesHigh, env, excludeStub: true });
-  const probeStandard = selectEnabledModelByAccessMode({ candidates: candidatesStandard, env, excludeStub: true });
-  if (!probeHigh && !probeStandard) return null;
-  return new ProviderReviewEngine(options);
+  const registry = options.reviewerProviderRegistry ?? new ReviewerProviderRegistry();
+  const hasReviewer = registry.hasAvailableReviewer({
+    registryModels: options.registryModels,
+    policy: options.policy,
+    env: options.env ?? process.env,
+  });
+  return hasReviewer ? new ProviderReviewEngine({ ...options, reviewerProviderRegistry: registry }) : null;
 }

@@ -1,11 +1,23 @@
 import path from "path";
 import chalk from "chalk";
-import { ACCESS_MODE_VALUES, AccessMode, ContractValues } from "@kiwi/contracts";
+import { ACCESS_MODE_VALUES, AccessMode, ContractValues, Step } from "@kiwi/contracts";
 import { isInitialized, loadPolicy, loadRegistry, NotInitializedError } from "@kiwi/core";
-import { evaluateAccessModeAvailability, preferredAccessModes } from "@kiwi/runtime";
+import { evaluateAccessModeAvailability, preferredAccessModes, RunnerRegistry } from "@kiwi/runtime";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 export type DoctorOptions = CliWorkspaceOptions;
+
+const DOCTOR_RUNNER_STEP: Step = {
+  stepId: "doctor_runner_probe",
+  type: "coding",
+  title: "Probe runner availability",
+  dependsOn: [],
+  successCriteria: [],
+  requiredGates: [],
+  recommendedAgentRole: ContractValues.Executor,
+  recommendedModelCapability: ContractValues.Strong,
+  status: ContractValues.Pending,
+};
 
 export async function runDoctor(opts: DoctorOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const env = process.env;
@@ -40,6 +52,19 @@ export async function runDoctor(opts: DoctorOptions = {}, cwd: string = process.
 
     const order = preferredAccessModes(env);
     console.log(`preferred order: ${order.join(" > ")}`);
+
+    const runnerResolution = new RunnerRegistry().resolve({
+      registryModels: registry.models,
+      step: DOCTOR_RUNNER_STEP,
+      env,
+    });
+    const runners = runnerResolution.runnerAvailabilityDetails
+      .map((entry) => {
+        const status = entry.available ? "ok" : "unavailable";
+        return entry.reason ? `${entry.runner}:${status} (${entry.reason})` : `${entry.runner}:${status}`;
+      })
+      .join(", ");
+    console.log(`runner registry: ${runners}`);
 
     const planners = enabled.filter((entry) => entry.roles.includes(ContractValues.Planner));
     const reviewers = enabled.filter((entry) => entry.roles.includes(ContractValues.Reviewer));
