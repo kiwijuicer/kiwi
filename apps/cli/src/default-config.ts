@@ -172,54 +172,88 @@ commandProfiles:
 `;
 
 export const DEFAULT_MODEL_REGISTRY_YAML = `version: "1"
-# Model registry. Capability tiers map to real Anthropic models below.
+# Model registry. Capability tiers map to real models below.
 # \`cheap\` is documented as an alias of \`mid\` (Haiku) with a smaller context
 # budget; it is not a separate model entry.
 #
-# The Anthropic planner adapter is available after Step 16. The real Anthropic
-# entries stay disabled by default until the full real loop (Steps 17-18) lands.
-# At that point, flip the
-# Anthropic entries to \`enabled: true\` and the matching stubs to
-# \`enabled: false\`. See docs/plans/step-15-scope-freeze-and-tier-collapse.md.
+# Each entry declares an \`accessMode\`. Resolution priority at invocation:
+#   1. \`KIWI_FORCE_ACCESS_MODE\` env override
+#   2. claude-code-cli (uses local \`claude\` authentication)
+#   3. anthropic-api / openai-api (when API key is set)
+#   4. codex-cli, cursor-agent-cli, cursor, jetbrains, local
+#   5. stub (tests only)
 models:
-  # Real Anthropic providers. Disabled until the full real loop lands.
+  # Claude Code CLI — preferred default, reuses local claude auth
+  - id: claude-code-cli-opus-4-6
+    provider: anthropic
+    capability: frontier
+    roles: [planner, reviewer, security]
+    accessMode: claude-code-cli
+    enabled: true
+  - id: claude-code-cli-sonnet-4-6
+    provider: anthropic
+    capability: strong
+    roles: [executor, reviewer, security]
+    accessMode: claude-code-cli
+    enabled: true
+  - id: claude-code-cli-haiku-4-5
+    provider: anthropic
+    capability: mid
+    roles: [researcher, executor, rules]
+    accessMode: claude-code-cli
+    enabled: true
+
+  # Cursor Agent CLI — uses local cursor-agent login, no direct provider API key
+  - id: cursor-agent-auto
+    provider: local
+    capability: strong
+    roles: [executor]
+    accessMode: cursor-agent-cli
+    enabled: true
+
+  # Direct Anthropic API — opt-in, requires ANTHROPIC_API_KEY
   - id: claude-opus-4-6
     provider: anthropic
     capability: frontier
     roles: [planner, reviewer, security]
+    accessMode: anthropic-api
     enabled: false
   - id: claude-sonnet-4-6
     provider: anthropic
     capability: strong
     roles: [executor, reviewer, security]
+    accessMode: anthropic-api
     enabled: false
   - id: claude-haiku-4-5-20251001
     provider: anthropic
     capability: mid
     roles: [researcher, executor, rules]
+    accessMode: anthropic-api
     enabled: false
 
-  # Stub providers. Default until Anthropic entries above are enabled.
-  # \`stub-cheap\` exists for parity with the four-tier enum; once stubs are
-  # retired, \`cheap\` requests resolve to the \`mid\` (Haiku) entry.
+  # Stub providers — tests/dev fixtures only
   - id: stub-cheap
     provider: stub
     capability: cheap
     roles: [executor, rules]
+    accessMode: stub
     enabled: true
   - id: stub-mid
     provider: stub
     capability: mid
     roles: [researcher, executor, rules]
+    accessMode: stub
     enabled: true
   - id: stub-strong
     provider: stub
     capability: strong
     roles: [executor, reviewer, security]
+    accessMode: stub
     enabled: true
   - id: stub-frontier
     provider: stub
     capability: frontier
     roles: [planner, reviewer, security]
+    accessMode: stub
     enabled: true
 `;

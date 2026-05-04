@@ -265,6 +265,44 @@ describe("step attempt orchestrator", () => {
     expect(result.error?.code).toBe("RUNNER_FAILED");
   });
 
+  it("applies post-runner gate results before accepting review", async () => {
+    const repo = cwd();
+    const decision = schedule(repo, "attempt_004");
+    const result = await new StepAttemptOrchestrator().execute({
+      cwd: repo,
+      step: fixtureStep(),
+      schedulerDecision: decision,
+      runner: new SafeSampleRunner(),
+      worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_004"),
+      stepPrompt: "safe sample with failing post gate",
+      reviewEngine: new UnsafePositiveReviewEngine(),
+      postRunnerGateExecutor: async () => ({
+        gateResults: [
+          GateResultSchema.parse({
+            gateId: "gate_tests",
+            gateType: "tests",
+            status: "fail",
+            evidenceRefs: ["steps/step_001/attempt_004/artifacts/tests.json"],
+            reason: "post-run tests failed",
+          }),
+        ],
+        artifacts: [
+          {
+            type: "test_report",
+            ref: "steps/step_001/attempt_004/artifacts/tests.json",
+            createdAt: "2026-05-04T06:00:02.000Z",
+          },
+        ],
+      }),
+      now: new Date("2026-05-04T06:00:01.000Z"),
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.reviewVerdict.verdict).toBe("needs_changes");
+    expect(result.gateResults.some((entry) => entry.gateId === "gate_tests" && entry.status === "fail")).toBe(true);
+    expect(result.artifactRefs.some((entry) => entry.type === "test_report")).toBe(true);
+  });
+
   it("turns runner exceptions with artifacts into structured attempt errors", async () => {
     const repo = cwd();
     const decision = schedule(repo, "attempt_003");

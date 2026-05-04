@@ -1,10 +1,18 @@
 # Step 20: Git Worktree Sandbox Hardening
 
-Status: PROPOSED
+Status: DONE
+Done-Date: 2026-05-04
 Created-Date: 2026-05-04
 Milestone: Production Milestone 1 (Real Loop)
 Depends-On: Step 11
 Vision-Refs: 7.2, 8, 12
+
+> Implementation note: `createWorktreeSandbox` now uses real
+> `git worktree add --detach` when the source is a git repo, and falls
+> back to copy-folder isolation otherwise. `teardownWorktreeSandbox` and
+> `reapOrphanWorktrees` provide cleanup. Diff capture auto-dispatches to
+> `git diff` via `captureDiffArtifact`; the kiwi-style file diff remains
+> as fallback.
 
 ## Goal
 

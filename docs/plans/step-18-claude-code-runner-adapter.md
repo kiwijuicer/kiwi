@@ -1,10 +1,18 @@
 # Step 18: Claude Code Runner Adapter
 
-Status: PROPOSED
+Status: DONE
+Done-Date: 2026-05-04
 Created-Date: 2026-05-04
 Milestone: Production Milestone 1 (Real Loop)
 Depends-On: Step 16
 Vision-Refs: 7.1, 7.2, 8, 11.1, 12
+
+> Implementation note: `ClaudeCodeRunnerAdapter` lives in
+> `packages/adapters/src/claude-code-cli/runner-adapter.ts` and shares the
+> CLI client with the Claude Code planner/reviewer providers. The runtime
+> picks it via `resolveRunner` based on the step type (coding steps prefer
+> `claude-code` when the binary is available; other step types prefer
+> `local-shell`).
 
 ## Goal
 

@@ -32,7 +32,7 @@ function emptyTotals(): ModelUsageSummaryTotals {
 function addTotals(target: ModelUsageSummaryTotals, record: ModelInvocationRecord): void {
   target.inputTokens += record.usage.inputTokens;
   target.outputTokens += record.usage.outputTokens;
-  target.estimatedCostUsd += record.estimatedCostUsd;
+  target.estimatedCostUsd += record.estimatedCostUsd ?? 0;
 }
 
 export function appendModelInvocation(cwd: string, record: ModelInvocationRecord): string {
@@ -56,6 +56,7 @@ export function appendModelInvocation(cwd: string, record: ModelInvocationRecord
       runner: parsed.runner,
       status: parsed.status,
       usage: parsed.usage,
+      usagePrecision: parsed.usagePrecision,
       estimatedCostUsd: parsed.estimatedCostUsd,
     },
   });

@@ -35,6 +35,7 @@ const plannerModel: ModelEntry = {
   provider: "stub",
   capability: "frontier",
   roles: ["planner"],
+  accessMode: "stub",
   enabled: true,
 };
 

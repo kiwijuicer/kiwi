@@ -1,4 +1,4 @@
-import { Artifact, GateResult, RunnerName } from "@kiwi/contracts";
+import { AccessMode, Artifact, GateResult, RunnerName, UsagePrecision } from "@kiwi/contracts";
 import { SandboxCommandPolicy } from "@kiwi/sandbox";
 
 export type RunnerExecutionStatus = "completed" | "failed" | "blocked" | "approval_required" | "timeout";
@@ -40,6 +40,11 @@ export interface RunnerExecutionOutput {
   artifactRefs: Artifact[];
   rawLogsRef: string | null;
   modelUsage: RunnerModelUsage;
+  modelId?: string | null;
+  providerName?: string;
+  accessMode?: AccessMode;
+  usagePrecision?: UsagePrecision;
+  estimatedCostUsd?: number | null;
   gateResult: GateResult;
   error?: RunnerExecutionError;
 }

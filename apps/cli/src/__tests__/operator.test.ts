@@ -207,10 +207,19 @@ describe("kiwi operator flow", () => {
     );
 
     const worktree = path.join(workspace, ".kiwi", "runs", "run_20260504_100000_ws01", "worktrees", "attempt_ws");
-    expect(existsSync(path.join(worktree, "core.txt"))).toBe(true);
-    expect(existsSync(path.join(worktree, "changed.txt"))).toBe(true);
-    expect(existsSync(path.join(worktree, "voice-livekit-agent"))).toBe(false);
-    expect(existsSync(path.join(worktree, "agent.txt"))).toBe(false);
+    expect(existsSync(worktree)).toBe(false);
+    const diff = path.join(
+      workspace,
+      ".kiwi",
+      "runs",
+      "run_20260504_100000_ws01",
+      "steps",
+      "step_001",
+      "attempt_ws",
+      "artifacts",
+      "diff.patch",
+    );
+    expect(existsSync(diff)).toBe(true);
   });
 
   it("syncs cursor rules from canonical sources", async () => {

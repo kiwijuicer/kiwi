@@ -1,10 +1,18 @@
 # Step 22: End-to-End Real Run Demo
 
-Status: PROPOSED
+Status: PARTIAL
+Blocked-Reason: Live run and Bitbucket PR evidence still require operator credentials and target repo.
 Created-Date: 2026-05-04
 Milestone: Production Milestone 1 (Real Loop)
 Depends-On: Steps 16, 17, 18, 19, 20
 Vision-Refs: 4.9, 11, 12, 14.4, 17.5, 20
+
+> Implementation note: end-to-end demo machinery is in place, but the live
+> Bitbucket run has not produced PR evidence yet. Local CLI auth is preferred
+> (`claude`, `cursor-agent`, or future `codex` runner support); direct API keys
+> remain optional. The demo command sequence and acceptance checklist live in
+> `docs/ops/real-run-demo.md`. `kiwi doctor` introspects the workspace and
+> reports which access modes are usable.
 
 ## Goal
 
@@ -30,7 +38,7 @@ Prove the milestone end-to-end with a single real run: from a Bitbucket ticket t
 - A2A delegation of any step.
 - GitHub adapter parity for this demo.
 - Operator UI surfaces.
-- Runner adapters other than Claude Code.
+- Runner adapters other than locally available CLI runners.
 
 ## Tasks
 

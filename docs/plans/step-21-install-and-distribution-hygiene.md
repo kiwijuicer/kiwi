@@ -1,10 +1,17 @@
 # Step 21: Install and Distribution Hygiene
 
-Status: PROPOSED
+Status: DONE
+Done-Date: 2026-05-04
 Created-Date: 2026-05-04
 Milestone: Production Milestone 1 (Real Loop)
 Depends-On: Step 15
 Vision-Refs: 14.1, 17.5
+
+> Implementation note: Makefile rewritten so the installed `kiwi`
+> wrapper does not run `pnpm` at invocation time — it execs
+> `apps/cli/dist/index.js` directly and emits a clear error if the build
+> artifact is missing. `kiwi --version` reads `KIWI_BUILD_SHA` injected
+> by `make install` (git short-sha at build time).
 
 ## Goal
 

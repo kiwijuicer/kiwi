@@ -1,8 +1,7 @@
 import path from "path";
 import chalk from "chalk";
-import { ContractValues, Artifact, GateResult, GateResultSchema, GateType, GateTypeSchema } from "@kiwi/contracts";
-import { LocalShellRunnerAdapter } from "@kiwi/adapters";
-import { createWorktreeSandbox, executeSandboxCommand, SandboxCommandPolicy } from "@kiwi/sandbox";
+import { Artifact, GateResult, GateResultSchema, GateType, GateTypeSchema } from "@kiwi/contracts";
+import { createWorktreeSandbox, executeSandboxCommand, SandboxCommandPolicy, teardownWorktreeSandbox } from "@kiwi/sandbox";
 import {
   assertStepDependenciesCompleted,
   commandForGate,
@@ -11,14 +10,17 @@ import {
   loadApprovalDecision,
   loadInitiative,
   loadPolicy,
+  loadRegistry,
   loadTaskGraph,
   noopCommand,
   refreshRunStatusFromAttempts,
+  ReviewEngine,
   scheduleStepAttempt,
   splitCommandLine,
   StepAttemptOrchestrator,
   withRunLock,
 } from "@kiwi/core";
+import { createReviewEngineFromRegistry, resolveRunner } from "@kiwi/runtime";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 export interface AttemptOptions extends CliWorkspaceOptions {
@@ -33,16 +35,6 @@ function safeGateType(value: string): GateType | null {
   return parsed.success ? parsed.data : null;
 }
 
-function passPolicyGate(gateType: GateType): GateResult {
-  return GateResultSchema.parse({
-    gateId: `gate_${gateType}`,
-    gateType,
-    status: ContractValues.Pass,
-    evidenceRefs: [],
-    reason: `${gateType} satisfied by policy precheck`,
-  });
-}
-
 async function runRequiredGates(params: {
   cwd: string;
   runId: string;
@@ -52,6 +44,7 @@ async function runRequiredGates(params: {
   policy: ReturnType<typeof loadPolicy>;
   requiredGates: string[];
   approved: boolean;
+  diffHash?: string | null;
   now?: Date;
 }): Promise<{ gateResults: GateResult[]; artifacts: Artifact[] }> {
   const profile = commandProfileForStep(params.policy, "validation");
@@ -62,13 +55,9 @@ async function runRequiredGates(params: {
   for (const gate of params.requiredGates) {
     const gateType = safeGateType(gate);
     if (!gateType) continue;
+    if (gateType === "forbidden_file_checks" || gateType === "secrets_check") continue;
     const command = commandForGate(params.policy, gateType);
-    if (!command) {
-      if (gateType === "forbidden_file_checks" || gateType === "secrets_check") {
-        gateResults.push(passPolicyGate(gateType));
-      }
-      continue;
-    }
+    if (!command) continue;
 
     const gateInput: Parameters<typeof executeSandboxCommand>[0] = {
       cwd: params.cwd,
@@ -85,7 +74,14 @@ async function runRequiredGates(params: {
     };
     if (params.now) gateInput.now = params.now;
     const output = await executeSandboxCommand(gateInput);
-    gateResults.push(output.gateResult);
+    gateResults.push(
+      params.diffHash
+        ? GateResultSchema.parse({
+            ...output.gateResult,
+            reason: `${output.gateResult.reason} (diffHash: ${params.diffHash})`,
+          })
+        : output.gateResult,
+    );
     artifacts.push(...output.artifactRefs);
   }
 
@@ -99,6 +95,7 @@ export async function runAttemptUnlocked(
   cwd: string = process.cwd(),
 ): Promise<void> {
   const policy = loadPolicy(path.join(cwd, "kiwi-policy.yaml"));
+  const registry = loadRegistry(path.join(cwd, "model-registry.yaml"));
   const initiative = loadInitiative(runId, cwd);
   const repoPath = initiative.repoPath || cwd;
   const taskGraph = loadTaskGraph(runId, cwd);
@@ -112,6 +109,7 @@ export async function runAttemptUnlocked(
   });
 
   const now = opts.now ?? new Date();
+  const runnerResolution = resolveRunner({ registryModels: registry.models, step });
   const decision = scheduleStepAttempt({
     cwd,
     runId,
@@ -122,12 +120,15 @@ export async function runAttemptUnlocked(
     blastRadius: initiative.riskProfile === "production" ? "high" : "low",
     securitySensitivity: initiative.riskProfile === "production" ? "high" : "low",
     contextSize: "small",
-    runnerAvailability: ["local-shell"],
+    runnerAvailability: runnerResolution.runnerAvailability,
     now,
     ...(opts.attemptId ? { attemptId: opts.attemptId } : {}),
   });
   if (decision.status !== "scheduled") {
     throw new Error(`Step could not be scheduled: ${decision.blockedReason ?? "unknown"}`);
+  }
+  if (!decision.runner) {
+    throw new Error("Scheduler selected no runner");
   }
 
   const approval = loadApprovalDecision({ cwd, runId, attemptId: decision.attemptId });
@@ -138,37 +139,57 @@ export async function runAttemptUnlocked(
     attemptId: decision.attemptId,
     sourcePath: repoPath,
   });
-  const gateEvidence = await runRequiredGates({
-    cwd,
-    runId,
-    stepId,
-    attemptId: decision.attemptId,
-    worktreePath: sandbox.worktreePath,
-    policy,
-    requiredGates: decision.requiredGates,
-    approved,
-    now,
-  });
-
   const profile = commandProfileForStep(policy, step.type);
   const commandPolicy = commandProfileToExecutionPolicy(profile) as SandboxCommandPolicy;
   const command = opts.command ? splitCommandLine(opts.command) : noopCommand();
-  const result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute({
+  const reviewEngine: ReviewEngine | null = createReviewEngineFromRegistry({
     cwd,
-    repoPath,
-    step,
-    schedulerDecision: decision,
-    runner: new LocalShellRunnerAdapter(),
-    worktreePath: sandbox.worktreePath,
-    stepPrompt: step.title,
-    allowedTools: ["shell"],
-    command,
-    commandPolicy,
-    approved,
-    additionalGateResults: gateEvidence.gateResults,
-    additionalArtifacts: gateEvidence.artifacts,
-    now,
+    policy,
+    registryModels: registry.models,
   });
+  const runnerAdapter = runnerResolution.buildAdapter(decision.runner);
+  let result: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>;
+  try {
+    const orchestratorInput: Parameters<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>[0] = {
+      cwd,
+      repoPath,
+      step,
+      schedulerDecision: decision,
+      runner: runnerAdapter,
+      worktreePath: sandbox.worktreePath,
+      stepPrompt: step.title,
+      allowedTools: ["shell"],
+      command,
+      commandPolicy,
+      approved,
+      postRunnerGateExecutor: (params) =>
+        runRequiredGates({
+          cwd,
+          runId,
+          stepId,
+          attemptId: decision.attemptId,
+          worktreePath: sandbox.worktreePath,
+          policy,
+          requiredGates: decision.requiredGates,
+          approved,
+          diffHash: params.diffHash,
+          now,
+        }),
+      policy,
+      now,
+    };
+    if (reviewEngine) orchestratorInput.reviewEngine = reviewEngine;
+    result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute(orchestratorInput);
+  } finally {
+    teardownWorktreeSandbox({
+      cwd,
+      runId,
+      attemptId: decision.attemptId,
+      sourcePath: sandbox.sourcePath,
+      isolation: sandbox.isolation,
+      worktreePath: sandbox.worktreePath,
+    });
+  }
   const run = refreshRunStatusFromAttempts({ cwd, runId, now: new Date() });
 
   console.log(chalk.green("✓") + " Step attempted");

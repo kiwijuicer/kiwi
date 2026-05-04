@@ -115,9 +115,13 @@ function defaultAttemptId(now: Date): string {
   return `attempt_${stamp}`;
 }
 
-function pickRunner(runners: RunnerName[]): RunnerName | null {
+function pickRunner(runners: RunnerName[], step: Step): RunnerName | null {
   const parsed = runners.map((entry) => RunnerNameSchema.parse(entry));
-  const priority: RunnerName[] = ["local-shell", "api", "codex", "claude-code"];
+  const codingPriority: RunnerName[] = ["claude-code", "codex", "cursor-agent", "local-shell", "api"];
+  const otherPriority: RunnerName[] = ["local-shell", "cursor-agent", "codex", "claude-code", "api"];
+  const priority = ["coding", "code_creation", "code_modification", "refactoring"].includes(step.type)
+    ? codingPriority
+    : otherPriority;
   for (const candidate of priority) {
     if (parsed.includes(candidate)) return candidate;
   }
@@ -288,7 +292,7 @@ function saveAttemptAndContext(params: {
 export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
   const now = input.now ?? new Date();
   const attemptId = input.attemptId ?? defaultAttemptId(now);
-  const runner = pickRunner(input.runnerAvailability);
+  const runner = pickRunner(input.runnerAvailability, input.step);
   const agentRole = determineAgentRole(input);
   const riskHigh = determineRiskHigh(input);
   const contextLevel = determineContextLevel({

@@ -313,6 +313,7 @@ describe("contracts schemas", () => {
           provider: "stub",
           capability: "mid",
           roles: ["executor"],
+          accessMode: "stub",
           enabled: true,
         },
       ],

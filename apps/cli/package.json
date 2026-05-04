@@ -19,6 +19,7 @@
     "@kiwi/adapters": "workspace:*",
     "@kiwi/contracts": "workspace:*",
     "@kiwi/core": "workspace:*",
+    "@kiwi/runtime": "workspace:*",
     "@kiwi/sandbox": "workspace:*",
     "chalk": "^4.1.2",
     "commander": "^12.0.0"

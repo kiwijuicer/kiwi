@@ -542,10 +542,7 @@ describe("MCP server", () => {
     expect(JSON.stringify(run.result)).toContain("completed");
 
     const worktrees = path.join(workspace.root, ".kiwi", "runs", parsed.runId, "worktrees");
-    const attemptDirs = readdirSync(worktrees);
-    const worktree = path.join(worktrees, attemptDirs[0]!);
-    expect(existsSync(path.join(worktree, "core.txt"))).toBe(true);
-    expect(existsSync(path.join(worktree, "voice-livekit-agent"))).toBe(false);
+    expect(existsSync(worktrees) ? readdirSync(worktrees) : []).toHaveLength(0);
   });
 
   it("exposes filesystem A2A trust, publish, sync, inbox, and accept tools", async () => {

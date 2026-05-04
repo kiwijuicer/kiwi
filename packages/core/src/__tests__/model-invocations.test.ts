@@ -22,6 +22,7 @@ describe("model invocations", () => {
       providerName: "stub-deterministic",
       runner: null,
       usage: { inputTokens: 10, outputTokens: 20 },
+      usagePrecision: "exact",
       estimatedCostUsd: 0,
       status: "completed",
       evidenceRefs: ["plan/planner-output.json"],

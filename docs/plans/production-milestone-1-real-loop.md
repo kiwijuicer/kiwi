@@ -1,9 +1,18 @@
 # Production Milestone 1: Real Loop
 
-Status: PROPOSED
+Status: DONE
+Done-Date: 2026-05-04
 Created-Date: 2026-05-04
 Targets: Steps 15-22
 Depends-On: Steps 01-14 DONE
+
+> Architectural pivot landed mid-milestone: API keys are not the default
+> path. `accessMode` is a first-class concept in `model-registry.yaml`,
+> and the runtime resolves the best available access mode per
+> invocation. Claude Code CLI is the preferred default; direct
+> Anthropic/OpenAI APIs are opt-in. Cost evidence distinguishes exact /
+> estimated / unknown precision so CLI/IDE invocations are auditable
+> without faking zero-cost. See `docs/ops/real-run-demo.md`.
 
 ## Goal
 

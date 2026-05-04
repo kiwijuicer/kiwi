@@ -1,27 +1,42 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
 import {
   Artifact,
   ArtifactSchema,
-  AgentRole,
+  AccessMode,
   ContractValues,
   GateResult,
   GateResultSchema,
-  ModelCapability,
+  KiwiPolicy,
   ReviewVerdict,
   ReviewVerdictSchema,
   RunnerName,
   Step,
-  StepAttempt,
   StepAttemptSchema,
   StepAttemptStatus,
+  UsagePrecision,
 } from "@kiwi/contracts";
 import { appendAuditEvent } from "./cost-ledger";
 import { appendModelInvocation } from "./model-invocations";
-import { saveGateResults, summarizeGateResults } from "./quality-gates";
-import { classifyReviewAction, ReviewAction, ReviewEngine, saveReviewVerdict, StubReviewEngine } from "./review-engine";
+import { runForbiddenFileGate, runSecretsScanGate, saveGateResults, summarizeGateResults } from "./quality-gates";
+import {
+  classifyReviewAction,
+  loadAttemptDiff,
+  ReviewAction,
+  ReviewEngine,
+  ReviewExecutionMetadata,
+  saveReviewVerdict,
+  StubReviewEngine,
+} from "./review-engine";
 import { loadContextPackage, SchedulerDecision } from "./scheduler-policy";
-import { ensureRunLayout, resolveRunArtifactPath } from "./run-store";
+import { ensureRunLayout } from "./run-store";
+import {
+  artifact,
+  dedupeArtifacts,
+  loadStepAttempt,
+  saveAttemptSummary,
+  saveRunnerCostReport,
+  saveStepAttempt,
+} from "./step-attempt-artifacts";
 
 export type StepRunnerExecutionStatus = "completed" | "failed" | "blocked" | "approval_required" | "timeout";
 
@@ -62,6 +77,11 @@ export interface StepRunnerExecutionOutput {
   artifactRefs: Artifact[];
   rawLogsRef: string | null;
   modelUsage: StepRunnerModelUsage;
+  modelId?: string | null;
+  providerName?: string;
+  accessMode?: AccessMode;
+  usagePrecision?: UsagePrecision;
+  estimatedCostUsd?: number | null;
   gateResult: GateResult;
   error?: StepRunnerExecutionError;
 }
@@ -110,146 +130,14 @@ export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
   approved?: boolean;
   additionalGateResults?: GateResult[];
   additionalArtifacts?: Artifact[];
+  postRunnerGateExecutor?: (params: {
+    diff: string | null;
+    diffHash: string | null;
+    startedAt: string;
+  }) => Promise<{ gateResults: GateResult[]; artifacts: Artifact[] }>;
   reviewEngine?: ReviewEngine;
+  policy?: KiwiPolicy;
   now?: Date;
-}
-
-interface RunnerCostReport {
-  schemaVersion: "1";
-  runId: string;
-  stepId: string;
-  attemptId: string;
-  runner: RunnerName;
-  modelId: string | null;
-  providerName: string;
-  agentRole: AgentRole;
-  modelCapability: ModelCapability;
-  reviewDepth: ModelCapability;
-  modelInvocationRefs: string[];
-  modelUsage: StepRunnerModelUsage;
-  estimatedCostUsd: number;
-  createdAt: string;
-}
-
-interface AttemptSummary {
-  schemaVersion: "1";
-  runId: string;
-  stepId: string;
-  attemptId: string;
-  status: StepAttemptStatus;
-  runnerStatus: StepRunnerExecutionStatus;
-  nextAction: StepAttemptNextAction;
-  gateResultsRef: string;
-  reviewReportRef: string;
-  costReportRef: string;
-  modelInvocationRefs: string[];
-  artifactRefs: string[];
-  completedAt: string;
-  error?: StepRunnerExecutionError;
-}
-
-function writeJsonSafely(target: string, value: unknown): void {
-  mkdirSync(path.dirname(target), { recursive: true });
-  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
-  renameSync(tempPath, target);
-}
-
-function attemptRef(stepId: string, attemptId: string): string {
-  return `steps/${stepId}/${attemptId}/attempt.json`;
-}
-
-function loadStepAttempt(params: { cwd: string; runId: string; stepId: string; attemptId: string }): StepAttempt {
-  const relativePath = attemptRef(params.stepId, params.attemptId);
-  const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
-  if (!existsSync(target)) {
-    throw new Error(`step attempt not found: ${relativePath}`);
-  }
-  return StepAttemptSchema.parse(JSON.parse(readFileSync(target, "utf-8")));
-}
-
-function saveStepAttempt(params: { cwd: string; runId: string; attempt: StepAttempt }): string {
-  const relativePath = attemptRef(params.attempt.stepId, params.attempt.attemptId);
-  const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
-  writeJsonSafely(target, StepAttemptSchema.parse(params.attempt));
-  return relativePath;
-}
-
-function artifact(params: {
-  type: Artifact["type"];
-  ref: string;
-  createdAt: string;
-  metadata?: Record<string, unknown>;
-}): Artifact {
-  const value: Artifact = {
-    type: params.type,
-    ref: params.ref,
-    createdAt: params.createdAt,
-  };
-  if (params.metadata) value.metadata = params.metadata;
-  return ArtifactSchema.parse(value);
-}
-
-function dedupeArtifacts(artifacts: Artifact[]): Artifact[] {
-  const seen = new Set<string>();
-  const deduped: Artifact[] = [];
-  for (const entry of artifacts.map((item) => ArtifactSchema.parse(item))) {
-    const key = `${entry.type}:${entry.ref}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(entry);
-  }
-  return deduped;
-}
-
-function saveRunnerCostReport(params: {
-  cwd: string;
-  runId: string;
-  stepId: string;
-  attemptId: string;
-  runner: RunnerName;
-  modelId: string | null;
-  providerName: string;
-  agentRole: AgentRole;
-  modelCapability: ModelCapability;
-  reviewDepth: ModelCapability;
-  modelInvocationRefs: string[];
-  modelUsage: StepRunnerModelUsage;
-  createdAt: string;
-}): string {
-  const relativePath = `steps/${params.stepId}/${params.attemptId}/artifacts/cost-report.json`;
-  const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
-  const report: RunnerCostReport = {
-    schemaVersion: "1",
-    runId: params.runId,
-    stepId: params.stepId,
-    attemptId: params.attemptId,
-    runner: params.runner,
-    modelId: params.modelId,
-    providerName: params.providerName,
-    agentRole: params.agentRole,
-    modelCapability: params.modelCapability,
-    reviewDepth: params.reviewDepth,
-    modelInvocationRefs: params.modelInvocationRefs,
-    modelUsage: params.modelUsage,
-    estimatedCostUsd: 0,
-    createdAt: params.createdAt,
-  };
-  writeJsonSafely(target, report);
-  return relativePath;
-}
-
-function saveAttemptSummary(params: {
-  cwd: string;
-  runId: string;
-  stepId: string;
-  attemptId: string;
-  summary: AttemptSummary;
-}): string {
-  const relativePath = `steps/${params.stepId}/${params.attemptId}/artifacts/attempt-summary.json`;
-  const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
-  writeJsonSafely(target, params.summary);
-  return relativePath;
 }
 
 function ensureRunnerMatchesDecision(input: ExecuteStepAttemptInput): void {
@@ -397,6 +285,7 @@ function buildRunnerInput<TCommandPolicy>(
 export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
   constructor(private readonly defaults: { reviewEngine?: ReviewEngine } = {}) {}
 
+  // eslint-disable-next-line max-lines-per-function, sonarjs/cognitive-complexity
   async execute(input: ExecuteStepAttemptInput<TCommandPolicy>): Promise<StepAttemptOrchestrationResult> {
     ensureRunnerMatchesDecision(input);
     ensureIsolatedWorktree(input.cwd, input.worktreePath);
@@ -456,10 +345,66 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       gateResult: GateResultSchema.parse(runnerOutput.gateResult),
     };
 
-    const gateResults = [
+    const reviewEngine = input.reviewEngine ?? this.defaults.reviewEngine ?? new StubReviewEngine();
+    const reviewStartedAt = new Date().toISOString();
+    const attemptDiff = loadAttemptDiff({ cwd: input.cwd, runId, stepId, attemptId });
+
+    const postRunnerGateEvidence = input.postRunnerGateExecutor
+      ? await input.postRunnerGateExecutor({
+          diff: attemptDiff?.diff ?? null,
+          diffHash: attemptDiff?.diffHash ?? null,
+          startedAt: new Date().toISOString(),
+        })
+      : { gateResults: [], artifacts: [] };
+
+    const baseGateResults = [
       runnerOutput.gateResult,
       ...(input.additionalGateResults ?? []).map((entry) => GateResultSchema.parse(entry)),
+      ...postRunnerGateEvidence.gateResults.map((entry) => GateResultSchema.parse(entry)),
     ];
+
+    const diffGateResults: GateResult[] = [];
+    if (input.policy && attemptDiff && input.step.requiredGates.includes("forbidden_file_checks")) {
+      diffGateResults.push(
+        runForbiddenFileGate({
+          cwd: input.cwd,
+          runId,
+          stepId,
+          attemptId,
+          diff: attemptDiff.diff,
+          diffHash: attemptDiff.diffHash,
+          policy: input.policy,
+          ...(input.approved !== undefined ? { approvedPaths: input.approved } : {}),
+        }),
+      );
+    }
+    if (input.policy && attemptDiff && input.step.requiredGates.includes("secrets_check")) {
+      diffGateResults.push(
+        runSecretsScanGate({
+          cwd: input.cwd,
+          runId,
+          stepId,
+          attemptId,
+          diff: attemptDiff.diff,
+          diffHash: attemptDiff.diffHash,
+          policy: input.policy,
+        }),
+      );
+    }
+    if (diffGateResults.length > 0) {
+      appendAuditEvent(input.cwd, {
+        eventType: "gate_command_executed",
+        runId,
+        timestamp: new Date().toISOString(),
+        payload: {
+          stepId,
+          attemptId,
+          diffHash: attemptDiff?.diffHash ?? null,
+          gates: diffGateResults.map((entry) => ({ gateId: entry.gateId, status: entry.status })),
+        },
+      });
+    }
+    const gateResults = [...baseGateResults, ...diffGateResults];
     const gateResultsRef = saveGateResults({
       cwd: input.cwd,
       runId,
@@ -467,15 +412,28 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       attemptId,
       gateResults,
     });
-
-    const reviewEngine = input.reviewEngine ?? this.defaults.reviewEngine ?? new StubReviewEngine();
-    const reviewStartedAt = new Date().toISOString();
-    const rawReviewVerdict = await reviewEngine.review({
+    const riskHigh = input.schedulerDecision.reviewDepth === ContractValues.Frontier;
+    const reviewInput = {
       runId,
       stepId,
       attemptId,
       gateResults,
-    });
+      step: input.step,
+      diff: attemptDiff?.diff ?? null,
+      diffHash: attemptDiff?.diffHash ?? null,
+      riskHigh,
+    };
+    const richExecution = reviewEngine.reviewWithExecution
+      ? await reviewEngine.reviewWithExecution(reviewInput)
+      : null;
+    const rawReviewVerdict = richExecution ? richExecution.verdict : await reviewEngine.review(reviewInput);
+    const reviewMetadata: ReviewExecutionMetadata = richExecution?.metadata ?? {
+      modelId: reviewEngine.name === "stub-review" ? "stub-reviewer" : reviewEngine.name,
+      providerName: reviewEngine.name === "stub-review" ? "stub" : reviewEngine.name,
+      modelUsage: { inputTokens: 0, outputTokens: 0 },
+      estimatedCostUsd: 0,
+      ...(attemptDiff ? { diffHash: attemptDiff.diffHash } : {}),
+    };
     const reviewVerdict = enforceGateResultsBeforePositiveReview({
       gateResults,
       reviewVerdict: rawReviewVerdict,
@@ -498,11 +456,12 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       agentRole: input.schedulerDecision.agentRole,
       requestedCapability: input.step.recommendedModelCapability,
       selectedCapability: input.schedulerDecision.modelCapability,
-      modelId: null,
-      providerName: ContractValues.Local,
+      modelId: runnerOutput.modelId ?? null,
+      providerName: runnerOutput.providerName ?? ContractValues.Local,
       runner: input.runner.name,
       usage: runnerOutput.modelUsage,
-      estimatedCostUsd: 0,
+      usagePrecision: runnerOutput.usagePrecision ?? "unknown",
+      estimatedCostUsd: runnerOutput.estimatedCostUsd ?? null,
       status:
         runnerOutput.status === ContractValues.Completed
           ? ContractValues.Completed
@@ -520,13 +479,14 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       stepId,
       attemptId,
       agentRole: ContractValues.Reviewer,
-      requestedCapability: input.schedulerDecision.reviewDepth,
-      selectedCapability: input.schedulerDecision.reviewDepth,
-      modelId: reviewEngine.name === "stub-review" ? "stub-reviewer" : reviewEngine.name,
-      providerName: reviewEngine.name === "stub-review" ? "stub" : reviewEngine.name,
+      requestedCapability: reviewMetadata.requestedCapability ?? input.schedulerDecision.reviewDepth,
+      selectedCapability: reviewMetadata.selectedCapability ?? input.schedulerDecision.reviewDepth,
+      modelId: reviewMetadata.modelId,
+      providerName: reviewMetadata.providerName,
       runner: null,
-      usage: { inputTokens: 0, outputTokens: 0 },
-      estimatedCostUsd: 0,
+      usage: reviewMetadata.modelUsage,
+      usagePrecision: "estimated",
+      estimatedCostUsd: reviewMetadata.estimatedCostUsd,
       status: ContractValues.Completed,
       evidenceRefs: [gateResultsRef, reviewReportRef],
       startedAt: reviewStartedAt,
@@ -545,19 +505,22 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       stepId,
       attemptId,
       runner: input.runner.name,
-      modelId: null,
-      providerName: ContractValues.Local,
+      modelId: runnerOutput.modelId ?? null,
+      providerName: runnerOutput.providerName ?? ContractValues.Local,
       agentRole: input.schedulerDecision.agentRole,
       modelCapability: input.schedulerDecision.modelCapability,
       reviewDepth: input.schedulerDecision.reviewDepth,
       modelInvocationRefs,
       modelUsage: runnerOutput.modelUsage,
+      usagePrecision: runnerOutput.usagePrecision ?? "unknown",
+      estimatedCostUsd: runnerOutput.estimatedCostUsd ?? null,
       createdAt: completedAt,
     });
 
     const artifactsWithoutSummary = dedupeArtifacts([
       ...runnerOutput.artifactRefs,
       ...(input.additionalArtifacts ?? []).map((entry) => ArtifactSchema.parse(entry)),
+      ...postRunnerGateEvidence.artifacts.map((entry) => ArtifactSchema.parse(entry)),
       artifact({ type: "review_report", ref: reviewReportRef, createdAt: completedAt }),
       artifact({ type: "cost_report", ref: costReportRef, createdAt: completedAt }),
     ]);

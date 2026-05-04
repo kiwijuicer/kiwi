@@ -1,14 +1,15 @@
+/* eslint-disable max-lines */
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "fs";
 import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 import path from "path";
-import { LocalShellRunnerAdapter, StubPlannerProvider, runPlannerProviderWithRetries } from "@kiwi/adapters";
+import { runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { ContractValues, ProtocolEnvelopeKindSchema } from "@kiwi/contracts";
-import { createWorktreeSandbox, SandboxCommandPolicy } from "@kiwi/sandbox";
+import { createReviewEngineFromRegistry, resolvePlannerProvider, resolveRunner } from "@kiwi/runtime";
+import { createWorktreeSandbox, SandboxCommandPolicy, teardownWorktreeSandbox } from "@kiwi/sandbox";
 import {
   acceptA2AHandoff,
   addA2ATrustedPeer,
   assertStepDependenciesCompleted,
-  buildDeterministicTaskGraph,
   commandProfileForStep,
   commandProfileToExecutionPolicy,
   finalizeRun,
@@ -37,7 +38,6 @@ import {
   WorkspaceResolution,
   resolveRunArtifactPath,
   scheduleStepAttempt,
-  selectPlannerModel,
   setA2AEnabled,
   splitCommandLine,
   StepAttemptOrchestrator,
@@ -47,6 +47,7 @@ import {
   writeEvidenceManifest,
   writeOperatorSnapshot,
 } from "@kiwi/core";
+import { runRequiredGates } from "./required-gates";
 import { TOOLS } from "./tool-definitions";
 
 export interface JsonRpcRequest {
@@ -102,15 +103,6 @@ function textContent(value: unknown): { content: Array<{ type: "text"; text: str
   };
 }
 
-function loadPlannerModel(cwd: string) {
-  const registry = loadRegistry(path.join(cwd, "model-registry.yaml"));
-  const model = selectPlannerModel(registry.models);
-  if (model.provider !== "stub") {
-    throw new Error(`Planner provider '${model.provider}' is not supported yet`);
-  }
-  return model;
-}
-
 function workspaceArgs(args: Record<string, unknown>, cwd: string, requireRepo: boolean): WorkspaceResolution {
   const workspacePath = typeof args.workspacePath === "string" ? args.workspacePath : undefined;
   const repoPath = typeof args.repoPath === "string" ? args.repoPath : undefined;
@@ -153,11 +145,13 @@ async function planTool(args: Record<string, unknown>, cwd: string): Promise<unk
     );
   }
   const policy = loadPolicy(policyPath);
-  const plannerModel = loadPlannerModel(workspace.workspacePath);
-  const provider = new StubPlannerProvider({
-    buildTaskGraph: buildDeterministicTaskGraph,
+  const registry = loadRegistry(path.join(workspace.workspacePath, "model-registry.yaml"));
+  const resolution = resolvePlannerProvider({
+    registryModels: registry.models,
     now: () => now,
   });
+  const plannerModel = resolution.model;
+  const provider = resolution.provider;
   const planned = await planRun({
     workspacePath: workspace.workspacePath,
     repoId: repo.id,
@@ -195,6 +189,7 @@ async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<
     },
     async () => {
       const policy = loadPolicy(path.join(workspace.workspacePath, "kiwi-policy.yaml"));
+      const registry = loadRegistry(path.join(workspace.workspacePath, "model-registry.yaml"));
       const initiative = loadInitiative(runId, workspace.workspacePath);
       const repoPath = initiative.repoPath || workspace.workspacePath;
       const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
@@ -207,6 +202,7 @@ async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<
         dependsOn: step.dependsOn,
       });
 
+      const runnerResolution = resolveRunner({ registryModels: registry.models, step });
       const decision = scheduleStepAttempt({
         cwd: workspace.workspacePath,
         runId,
@@ -217,9 +213,10 @@ async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<
         blastRadius: initiative.riskProfile === "production" ? "high" : "low",
         securitySensitivity: initiative.riskProfile === "production" ? "high" : "low",
         contextSize: "small",
-        runnerAvailability: ["local-shell"],
+        runnerAvailability: runnerResolution.runnerAvailability,
       });
       if (decision.status !== "scheduled") throw new Error(decision.blockedReason ?? "scheduler blocked");
+      if (!decision.runner) throw new Error("Scheduler selected no runner");
 
       const approval = loadApprovalDecision({ cwd: workspace.workspacePath, runId, attemptId: decision.attemptId });
       const sandbox = createWorktreeSandbox({
@@ -231,19 +228,53 @@ async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<
       const profile = commandProfileForStep(policy, step.type);
       const commandPolicy = commandProfileToExecutionPolicy(profile) as SandboxCommandPolicy;
       const command = typeof args.command === "string" ? splitCommandLine(args.command) : noopCommand();
-      const result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute({
+      const reviewEngine = createReviewEngineFromRegistry({
         cwd: workspace.workspacePath,
-        repoPath,
-        step,
-        schedulerDecision: decision,
-        runner: new LocalShellRunnerAdapter(),
-        worktreePath: sandbox.worktreePath,
-        stepPrompt: step.title,
-        allowedTools: ["shell"],
-        command,
-        commandPolicy,
-        approved: Boolean(args.approved) || approval?.state === "auto",
+        policy,
+        registryModels: registry.models,
       });
+      const runnerAdapter = runnerResolution.buildAdapter(decision.runner);
+      let result: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>;
+      const approved = Boolean(args.approved) || approval?.state === "auto";
+      try {
+        const orchestratorInput: Parameters<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>[0] = {
+          cwd: workspace.workspacePath,
+          repoPath,
+          step,
+          schedulerDecision: decision,
+          runner: runnerAdapter,
+          worktreePath: sandbox.worktreePath,
+          stepPrompt: step.title,
+          allowedTools: ["shell"],
+          command,
+          commandPolicy,
+          approved,
+          postRunnerGateExecutor: (params) =>
+            runRequiredGates({
+              cwd: workspace.workspacePath,
+              runId,
+              stepId,
+              attemptId: decision.attemptId,
+              worktreePath: sandbox.worktreePath,
+              policy,
+              requiredGates: decision.requiredGates,
+              approved,
+              diffHash: params.diffHash,
+            }),
+          policy,
+        };
+        if (reviewEngine) orchestratorInput.reviewEngine = reviewEngine;
+        result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute(orchestratorInput);
+      } finally {
+        teardownWorktreeSandbox({
+          cwd: workspace.workspacePath,
+          runId,
+          attemptId: decision.attemptId,
+          sourcePath: sandbox.sourcePath,
+          isolation: sandbox.isolation,
+          worktreePath: sandbox.worktreePath,
+        });
+      }
       const run = refreshRunStatusFromAttempts({ cwd: workspace.workspacePath, runId });
       return {
         attemptId: decision.attemptId,

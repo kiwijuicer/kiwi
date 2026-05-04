@@ -1,7 +1,7 @@
-import { captureWorktreeDiffArtifact, executeSandboxCommand, SandboxCommandInput } from "@kiwi/sandbox";
+import { captureDiffArtifact, executeSandboxCommand, SandboxCommandInput } from "@kiwi/sandbox";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "./runner-adapter";
 import { createFailedRunnerOutput, zeroModelUsage } from "./runner-output";
-import { ContractValues } from "@kiwi/contracts";
+import { AccessModes, ContractValues } from "@kiwi/contracts";
 
 export class LocalShellRunnerAdapter implements RunnerAdapter {
   readonly name = "local-shell";
@@ -43,7 +43,7 @@ export class LocalShellRunnerAdapter implements RunnerAdapter {
     if (input.requestedAt) sandboxInput.now = new Date(input.requestedAt);
 
     const output = await executeSandboxCommand(sandboxInput);
-    const diffInput: Parameters<typeof captureWorktreeDiffArtifact>[0] = {
+    const diffInput: Parameters<typeof captureDiffArtifact>[0] = {
       cwd: input.workspacePath,
       runId: input.runId,
       stepId: input.stepId,
@@ -51,7 +51,7 @@ export class LocalShellRunnerAdapter implements RunnerAdapter {
       worktreePath: input.worktreePath,
     };
     if (input.repoPath) diffInput.sourcePath = input.repoPath;
-    const diffArtifact = captureWorktreeDiffArtifact(diffInput);
+    const diffArtifact = captureDiffArtifact(diffInput);
     const artifactRefs = diffArtifact ? [...output.artifactRefs, diffArtifact] : output.artifactRefs;
     const rawLogsRef = output.artifactRefs[0]?.ref ?? null;
     const result: RunnerExecutionOutput = {
@@ -59,6 +59,11 @@ export class LocalShellRunnerAdapter implements RunnerAdapter {
       artifactRefs,
       rawLogsRef,
       modelUsage: zeroModelUsage(),
+      modelId: null,
+      providerName: "local-shell",
+      accessMode: AccessModes.Local,
+      usagePrecision: "exact",
+      estimatedCostUsd: 0,
       gateResult: output.gateResult,
     };
 

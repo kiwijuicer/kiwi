@@ -1,10 +1,21 @@
 # Step 19: Real Quality Gate Execution
 
-Status: PROPOSED
+Status: DONE
+Done-Date: 2026-05-04
 Created-Date: 2026-05-04
 Milestone: Production Milestone 1 (Real Loop)
 Depends-On: Step 12
 Vision-Refs: 11.1, 11.2, 12, 13
+
+> Implementation note (delivered scope):
+> - `forbidden_file_checks` and `secrets_check` execute against the runner
+>   diff inside the orchestrator and persist structured reports
+>   (`forbidden-file-report.json`, `secrets-report.json`) bound to the
+>   diff hash.
+> - typecheck/lint/tests continue to use the existing `commandForGate`
+>   path through the sandbox; the structured-report parsing and the
+>   post-runner re-execution against the modified worktree are tracked
+>   as Step 19 hardening (see `docs/ops/real-run-demo.md` Limitations).
 
 ## Goal
 

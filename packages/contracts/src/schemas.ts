@@ -10,7 +10,7 @@ export const RISK_PROFILE_VALUES = ["local", "dev", "staging", "production"] as 
 export const BUDGET_PROFILE_VALUES = ["tiny", "small", "normal", "large", "critical"] as const;
 export const AGENT_ROLE_VALUES = ["planner", "researcher", "executor", "reviewer", "security", "rules"] as const;
 export const MODEL_CAPABILITY_VALUES = ["cheap", "mid", "strong", "frontier"] as const;
-export const RUNNER_NAME_VALUES = ["codex", "claude-code", "local-shell", "api"] as const;
+export const RUNNER_NAME_VALUES = ["codex", "claude-code", "cursor-agent", "local-shell", "api"] as const;
 export const STEP_TYPE_VALUES = [
   "context_discovery",
   "planning",
@@ -86,6 +86,18 @@ export const PROTOCOL_ENVELOPE_KIND_VALUES = [
 export const A2A_RUNTIME_MODE_VALUES = ["disabled", "loopback", "filesystem"] as const;
 export const A2A_RUNTIME_DECISION_STATUS_VALUES = ["accepted", "blocked", "duplicate"] as const;
 export const MODEL_PROVIDER_VALUES = ["stub", "openai", "anthropic", "local"] as const;
+export const ACCESS_MODE_VALUES = [
+  "anthropic-api",
+  "openai-api",
+  "claude-code-cli",
+  "cursor-agent-cli",
+  "codex-cli",
+  "cursor",
+  "jetbrains",
+  "local",
+  "stub",
+] as const;
+export const USAGE_PRECISION_VALUES = ["exact", "estimated", "unknown"] as const;
 
 export const InitiativeSources = {
   Cli: "cli",
@@ -129,6 +141,7 @@ export const ModelCapabilities = {
 export const RunnerNames = {
   Codex: "codex",
   ClaudeCode: "claude-code",
+  CursorAgent: "cursor-agent",
   LocalShell: "local-shell",
   Api: "api",
 } as const;
@@ -307,6 +320,18 @@ export const ModelProviders = {
   Local: "local",
 } as const;
 
+export const AccessModes = {
+  AnthropicApi: "anthropic-api",
+  OpenaiApi: "openai-api",
+  ClaudeCodeCli: "claude-code-cli",
+  CursorAgentCli: "cursor-agent-cli",
+  CodexCli: "codex-cli",
+  Cursor: "cursor",
+  Jetbrains: "jetbrains",
+  Local: "local",
+  Stub: "stub",
+} as const;
+
 export const ContractValues = {
   Planner: AgentRoles.Planner,
   Researcher: AgentRoles.Researcher,
@@ -361,6 +386,7 @@ export const ContextLevelSchema = enumFrom(CONTEXT_LEVEL_VALUES);
 export const SchedulerDecisionStatusSchema = enumFrom(SCHEDULER_DECISION_STATUS_VALUES);
 export const ModelInvocationPhaseSchema = enumFrom(MODEL_INVOCATION_PHASE_VALUES);
 export const ModelInvocationStatusSchema = enumFrom(MODEL_INVOCATION_STATUS_VALUES);
+export const UsagePrecisionSchema = enumFrom(USAGE_PRECISION_VALUES);
 export const ReviewVerdictValueSchema = enumFrom(REVIEW_VERDICT_VALUE_VALUES);
 export const ReviewIssueSeveritySchema = enumFrom(REVIEW_ISSUE_SEVERITY_VALUES);
 export const ScmProviderSchema = enumFrom(SCM_PROVIDER_VALUES);
@@ -518,7 +544,8 @@ export const ModelInvocationRecordSchema = z.object({
   providerName: z.string().min(1),
   runner: z.union([RunnerNameSchema, z.null()]),
   usage: ModelUsageSchema,
-  estimatedCostUsd: z.number().min(0),
+  usagePrecision: UsagePrecisionSchema.default("unknown"),
+  estimatedCostUsd: z.union([z.number().min(0), z.null()]),
   status: ModelInvocationStatusSchema,
   evidenceRefs: z.array(z.string().min(1)).default([]),
   startedAt: IsoDateTimeSchema,
@@ -845,6 +872,14 @@ export const KiwiPolicySchema = z.object({
 });
 
 export const ModelProviderSchema = enumFrom(MODEL_PROVIDER_VALUES);
+export const AccessModeSchema = enumFrom(ACCESS_MODE_VALUES);
+
+export function defaultAccessModeForProvider(provider: z.infer<typeof ModelProviderSchema>): z.infer<typeof AccessModeSchema> {
+  if (provider === "anthropic") return "anthropic-api";
+  if (provider === "openai") return "openai-api";
+  if (provider === "local") return "local";
+  return "stub";
+}
 
 export const ModelEntrySchema = z.object({
   id: z.string().min(1),
@@ -852,7 +887,11 @@ export const ModelEntrySchema = z.object({
   capability: ModelCapabilitySchema,
   roles: z.array(AgentRoleSchema).min(1),
   enabled: z.boolean(),
-});
+  accessMode: AccessModeSchema.optional(),
+}).transform((entry) => ({
+  ...entry,
+  accessMode: entry.accessMode ?? defaultAccessModeForProvider(entry.provider),
+}));
 
 export const ModelRegistrySchema = z.object({
   version: z.literal("1"),
@@ -880,6 +919,8 @@ export type ContextLevel = z.infer<typeof ContextLevelSchema>;
 export type SchedulerDecisionStatus = z.infer<typeof SchedulerDecisionStatusSchema>;
 export type ModelInvocationPhase = z.infer<typeof ModelInvocationPhaseSchema>;
 export type ModelInvocationStatus = z.infer<typeof ModelInvocationStatusSchema>;
+export type AccessMode = z.infer<typeof AccessModeSchema>;
+export type UsagePrecision = z.infer<typeof UsagePrecisionSchema>;
 export type ReviewVerdictValue = z.infer<typeof ReviewVerdictValueSchema>;
 export type ReviewIssueSeverity = z.infer<typeof ReviewIssueSeveritySchema>;
 export type ScmProvider = z.infer<typeof ScmProviderSchema>;

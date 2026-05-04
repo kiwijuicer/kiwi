@@ -14,6 +14,7 @@ import {
 } from "./commands/a2a";
 import { runApprove } from "./commands/approve";
 import { runAttempt } from "./commands/attempt";
+import { runDoctor } from "./commands/doctor";
 import { runEvidenceManifest } from "./commands/evidence";
 import { runFinalize } from "./commands/finalize";
 import { runInit } from "./commands/init";
@@ -26,10 +27,19 @@ import { runWorkspaceList } from "./commands/workspace";
 
 const program = new Command();
 
+function buildVersionString(): string {
+  const pkgVersion = "0.1.0";
+  const sha = process.env.KIWI_BUILD_SHA;
+  if (sha && sha.length > 0 && sha !== "unknown") {
+    return `${pkgVersion} (${sha})`;
+  }
+  return pkgVersion;
+}
+
 program
   .name("kiwi")
   .description("kiwi local-first control plane")
-  .version("0.1.0")
+  .version(buildVersionString())
   .option("--workspace <path>", "Workspace control root")
   .option("--repo <idOrPath>", "Target repo inside the workspace");
 
@@ -118,6 +128,17 @@ addWorkspaceOptions(program.command("status [runId]").description("Show summary 
     });
   },
 );
+
+addWorkspaceOptions(
+  program
+    .command("doctor")
+    .description("Probe configured policies, registry entries, and available access modes"),
+).action((opts: { workspace?: string; repo?: string }) => {
+  runDoctor(withGlobalWorkspaceOptions(opts)).catch((error: Error) => {
+    console.error(`\n✗ ${error.message}`);
+    process.exit(1);
+  });
+});
 
 addWorkspaceOptions(
   program

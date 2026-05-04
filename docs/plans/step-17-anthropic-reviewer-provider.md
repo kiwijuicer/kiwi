@@ -1,10 +1,17 @@
 # Step 17: Anthropic Reviewer Provider
 
-Status: PROPOSED
+Status: DONE
+Done-Date: 2026-05-04
 Created-Date: 2026-05-04
 Milestone: Production Milestone 1 (Real Loop)
 Depends-On: Step 16
 Vision-Refs: 4.8, 5.3, 11.2, 11.3, 13
+
+> Implementation note: reviewer-provider boundary delivered with two access
+> modes — `anthropic-api` (`AnthropicReviewerProvider`) and
+> `claude-code-cli` (`ClaudeCodeCliReviewerProvider`). The runtime selects
+> the access mode dynamically via `accessMode` on each registry entry; see
+> `packages/runtime/src/access-mode-resolver.ts`.
 
 ## Goal
 

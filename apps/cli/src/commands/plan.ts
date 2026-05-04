@@ -1,17 +1,9 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
-import { AnthropicPlannerProvider, StubPlannerProvider, runPlannerProviderWithRetries } from "@kiwi/adapters";
-import { ModelEntry } from "@kiwi/contracts";
-import {
-  NotInitializedError,
-  buildDeterministicTaskGraph,
-  isInitialized,
-  loadPolicy,
-  loadRegistry,
-  planRun,
-  selectPlannerModel,
-} from "@kiwi/core";
+import { runPlannerProviderWithRetries } from "@kiwi/adapters";
+import { NotInitializedError, isInitialized, loadPolicy, loadRegistry, planRun } from "@kiwi/core";
+import { resolvePlannerProvider } from "@kiwi/runtime";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 interface PlanOptions extends CliWorkspaceOptions {
@@ -23,24 +15,6 @@ interface PlanOptions extends CliWorkspaceOptions {
   runIdSuffix?: string;
   initiativeIdSuffix?: string;
   planIdSuffix?: string;
-}
-
-function createPlannerProvider(plannerModel: ModelEntry, now: Date, opts: PlanOptions) {
-  if (plannerModel.provider === "anthropic") {
-    return new AnthropicPlannerProvider({
-      model: plannerModel.id,
-    });
-  }
-
-  if (plannerModel.provider === "stub") {
-    return new StubPlannerProvider({
-      buildTaskGraph: buildDeterministicTaskGraph,
-      now: () => now,
-      ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
-    });
-  }
-
-  throw new Error(`Planner provider '${plannerModel.provider}' is not supported yet.`);
 }
 
 function looksLikeTicketPath(ticketArg: string): boolean {
@@ -85,8 +59,13 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
 
   const { rawInput, source } = resolveTicketInput(ticketArg, cwd);
   const now = opts.now ?? new Date();
-  const plannerModel = selectPlannerModel(registry.models);
-  const provider = createPlannerProvider(plannerModel, now, opts);
+  const resolution = resolvePlannerProvider({
+    registryModels: registry.models,
+    now: () => now,
+    ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
+  });
+  const plannerModel = resolution.model;
+  const provider = resolution.provider;
   const planned = await planRun({
     workspacePath,
     repoId: repo.id,

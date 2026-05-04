@@ -9,6 +9,11 @@ export type AuditEventType =
   | "planner_validation_failed"
   | "planner_succeeded"
   | "planner_failed"
+  | "reviewer_provider_selected"
+  | "reviewer_retry"
+  | "reviewer_validation_failed"
+  | "reviewer_succeeded"
+  | "reviewer_failed"
   | "scheduler_routing_decided"
   | "scheduler_blocked"
   | "context_package_created"
@@ -27,7 +32,14 @@ export type AuditEventType =
   | "run_audit_snapshot_written"
   | "evidence_manifest_written"
   | "operator_snapshot_written"
-  | "a2a_runtime_event";
+  | "a2a_runtime_event"
+  | "gate_command_executed"
+  | "gate_command_blocked"
+  | "diff_path_blocked"
+  | "worktree_created"
+  | "worktree_removed"
+  | "worktree_remove_failed"
+  | "worktree_orphan_reaped";
 
 export interface AuditEvent {
   eventType: AuditEventType;
