@@ -6,12 +6,16 @@
   "files": ["dist"],
   "scripts": {
     "build": "echo 'sandbox placeholder build'",
-    "test": "echo 'sandbox placeholder test'",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
+  "dependencies": {
+    "@ai-kiwi/contracts": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "^20.12.7",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
   }
 }

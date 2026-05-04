@@ -1,7 +1,7 @@
 # Step 11: Worktree Sandbox and Command Execution
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-04
 Milestone: MVP 4
 Depends-On: Step 10
 Vision-Refs: 7.2, 8, 12, 17.4
