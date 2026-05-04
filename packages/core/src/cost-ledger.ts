@@ -8,7 +8,10 @@ export type AuditEventType =
   | "planner_retry"
   | "planner_validation_failed"
   | "planner_succeeded"
-  | "planner_failed";
+  | "planner_failed"
+  | "scheduler_routing_decided"
+  | "scheduler_blocked"
+  | "context_package_created";
 
 export interface AuditEvent {
   eventType: AuditEventType;

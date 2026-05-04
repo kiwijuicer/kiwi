@@ -1,7 +1,7 @@
 # Step 10: Scheduler Policy and Context Packaging
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-04
 Milestone: MVP 3
 Depends-On: Step 09
 Vision-Refs: 9, 10, 12, 13, 17.3
