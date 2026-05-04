@@ -4,10 +4,18 @@ Official MCP docs: https://docs.cursor.com/advanced/model-context-protocol
 
 ## Project Config
 
-Build `ai-kiwi`:
+From the Cursor project terminal:
 
 ```bash
-cd /Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi
+kiwi init
+```
+
+This writes or merges `.cursor/mcp.json` with a `kiwi` MCP server entry and preserves other configured servers.
+
+Manual setup is still possible. Build `kiwi`:
+
+```bash
+cd /Users/norberthanauer/Projects/kiwi-juicer/kiwi
 pnpm build
 ```
 
@@ -16,12 +24,12 @@ Create `/Users/norberthanauer/Projects/voice/.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "ai-kiwi": {
+    "kiwi": {
       "type": "stdio",
       "command": "node",
-      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js"],
+      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/kiwi/apps/mcp-server/dist/index.js"],
       "env": {
-        "AI_KIWI_WORKSPACE": "/Users/norberthanauer/Projects/voice"
+        "KIWI_WORKSPACE": "/Users/norberthanauer/Projects/voice"
       }
     }
   }
@@ -31,7 +39,7 @@ Create `/Users/norberthanauer/Projects/voice/.cursor/mcp.json`:
 Restart Cursor, then ask:
 
 ```text
-Use ai-kiwi for workspace /Users/norberthanauer/Projects/voice and repo livekit-agent.
+Use kiwi for workspace /Users/norberthanauer/Projects/voice and repo livekit-agent.
 Plan this change and show the TaskGraph summary.
 ```
 

@@ -6,13 +6,13 @@ import {
   GateResultSchema,
   GateType,
   GateTypeSchema,
-} from "@ai-kiwi/contracts";
-import { LocalShellRunnerAdapter } from "@ai-kiwi/adapters";
+} from "@kiwi/contracts";
+import { LocalShellRunnerAdapter } from "@kiwi/adapters";
 import {
   createWorktreeSandbox,
   executeSandboxCommand,
   SandboxCommandPolicy,
-} from "@ai-kiwi/sandbox";
+} from "@kiwi/sandbox";
 import {
   assertStepDependenciesCompleted,
   commandForGate,
@@ -28,7 +28,7 @@ import {
   splitCommandLine,
   StepAttemptOrchestrator,
   withRunLock,
-} from "@ai-kiwi/core";
+} from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 export interface AttemptOptions extends CliWorkspaceOptions {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { KiwiPolicy } from "@ai-kiwi/contracts";
+import { KiwiPolicy } from "@kiwi/contracts";
 import {
   buildDeterministicTaskGraph,
   createInitiativeFromInput,
@@ -8,7 +8,7 @@ import {
 const policy: KiwiPolicy = {
   version: "1",
   project: {
-    name: "ai-kiwi",
+    name: "kiwi",
     language: "typescript",
     packageManager: "pnpm",
   },

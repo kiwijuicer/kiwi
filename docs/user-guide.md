@@ -6,7 +6,7 @@
 - MCP is the IDE/assistant access channel over the same core behavior.
 - A2A is a gated handoff inbox. It is disabled by default and does not apply remote patches.
 
-`ai-kiwi` stores every run under:
+`kiwi` stores every run under:
 
 ```text
 <workspace>/.kiwi/runs/<run-id>/
@@ -49,7 +49,7 @@ trunk-manager
 workspace
 ```
 
-When running from inside a listed repo, `ai-kiwi` selects that repo automatically. When running from the workspace root, pass `--repo`. The selector can be the listed id (`core`) or a folder path (`voice-core`).
+When running from inside a listed repo, `kiwi` selects that repo automatically. When running from the workspace root, pass `--repo`. The selector can be the listed id (`core`) or a folder path (`voice-core`).
 
 ## Assistant Interaction
 
@@ -66,13 +66,13 @@ All assistants use the same MCP server. The assistant can call:
 Good assistant prompt:
 
 ```text
-Use ai-kiwi. Workspace: /Users/norberthanauer/Projects/voice. Repo: core.
+Use kiwi. Workspace: /Users/norberthanauer/Projects/voice. Repo: core.
 Plan this ticket, run the planned steps, then finalize and show me the evidence manifest path.
 ```
 
 ## A2A
 
-A2A is disabled by default. For trusted local filesystem exchange between two `ai-kiwi` workspaces:
+A2A is disabled by default. For trusted local filesystem exchange between two `kiwi` workspaces:
 
 ```bash
 kiwi a2a enable --local-agent agent-a --workspace /path/to/workspace-a

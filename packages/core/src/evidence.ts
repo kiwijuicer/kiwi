@@ -14,7 +14,7 @@ import {
   EvidenceManifestSchema,
   RunAuditSnapshot,
   RunAuditSnapshotSchema,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 import { appendAuditEvent, readAuditEvents } from "./cost-ledger";
 import { ensureRunLayout, resolveRunArtifactPath } from "./run-store";
 

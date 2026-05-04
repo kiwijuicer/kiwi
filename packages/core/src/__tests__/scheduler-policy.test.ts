@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { Initiative, Step } from "@ai-kiwi/contracts";
+import { Initiative, Step } from "@kiwi/contracts";
 import { readAuditEvents } from "../cost-ledger";
 import { loadContextPackage, scheduleStepAttempt } from "../scheduler-policy";
 

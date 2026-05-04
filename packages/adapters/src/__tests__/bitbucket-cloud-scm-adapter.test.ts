@@ -7,7 +7,7 @@ import {
 const repository = {
   provider: "bitbucket-cloud" as const,
   workspace: "kiwi",
-  repoSlug: "ai-kiwi",
+  repoSlug: "kiwi",
 };
 
 function adapterWithCapturedRequests(requests: BitbucketCloudRequest[]): BitbucketCloudScmAdapter {
@@ -23,7 +23,7 @@ function adapterWithCapturedRequests(requests: BitbucketCloudRequest[]): Bitbuck
           id,
           links: {
             html: {
-              href: `https://bitbucket.org/kiwi/ai-kiwi/pull-requests/${id}`,
+              href: `https://bitbucket.org/kiwi/kiwi/pull-requests/${id}`,
             },
           },
         },
@@ -45,7 +45,7 @@ describe("BitbucketCloudScmAdapter", () => {
 
     expect(requests[0]).toMatchObject({
       method: "POST",
-      url: "https://api.bitbucket.org/2.0/repositories/kiwi/ai-kiwi/issues",
+      url: "https://api.bitbucket.org/2.0/repositories/kiwi/kiwi/issues",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -83,7 +83,7 @@ describe("BitbucketCloudScmAdapter", () => {
 
     expect(requests[0]).toMatchObject({
       method: "POST",
-      url: "https://api.bitbucket.org/2.0/repositories/kiwi/ai-kiwi/pullrequests",
+      url: "https://api.bitbucket.org/2.0/repositories/kiwi/kiwi/pullrequests",
       body: {
         title: "Runner adapter",
         description: "Adds the provider-neutral boundary.",
@@ -116,10 +116,10 @@ describe("BitbucketCloudScmAdapter", () => {
     });
 
     expect(requests.map((request) => request.url)).toEqual([
-      "https://api.bitbucket.org/2.0/repositories/kiwi/ai-kiwi/pullrequests/7/comments",
-      "https://api.bitbucket.org/2.0/repositories/kiwi/ai-kiwi/pullrequests/7/comments",
-      "https://api.bitbucket.org/2.0/repositories/kiwi/ai-kiwi/pullrequests/7/tasks",
-      "https://api.bitbucket.org/2.0/repositories/kiwi/ai-kiwi/pullrequests/7/request-changes",
+      "https://api.bitbucket.org/2.0/repositories/kiwi/kiwi/pullrequests/7/comments",
+      "https://api.bitbucket.org/2.0/repositories/kiwi/kiwi/pullrequests/7/comments",
+      "https://api.bitbucket.org/2.0/repositories/kiwi/kiwi/pullrequests/7/tasks",
+      "https://api.bitbucket.org/2.0/repositories/kiwi/kiwi/pullrequests/7/request-changes",
     ]);
     expect(requests[1]?.body).toMatchObject({
       content: {
@@ -154,7 +154,7 @@ describe("BitbucketCloudScmAdapter", () => {
     await expect(adapter.createTicket({
       repository: {
         provider: "github",
-        remoteUrl: "https://github.com/kiwi/ai-kiwi",
+        remoteUrl: "https://github.com/kiwi/kiwi",
       },
       title: "Wrong provider",
       body: "",

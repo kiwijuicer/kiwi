@@ -1,5 +1,5 @@
-import { Artifact, GateResult, RunnerName } from "@ai-kiwi/contracts";
-import { SandboxCommandPolicy } from "@ai-kiwi/sandbox";
+import { Artifact, GateResult, RunnerName } from "@kiwi/contracts";
+import { SandboxCommandPolicy } from "@kiwi/sandbox";
 
 export type RunnerExecutionStatus =
   | "completed"

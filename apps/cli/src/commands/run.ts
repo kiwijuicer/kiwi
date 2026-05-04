@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { getRunStatusSummary, loadTaskGraph, withRunLock } from "@ai-kiwi/core";
+import { getRunStatusSummary, loadTaskGraph, withRunLock } from "@kiwi/core";
 import { runAttemptUnlocked, AttemptOptions } from "./attempt";
 import { resolveCliWorkspace } from "../workspace-options";
 

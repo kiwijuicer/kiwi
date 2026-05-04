@@ -1,8 +1,8 @@
-# ai-kiwi
+# kiwi
 
 Local-first control plane for AI-assisted coding work.
 
-`ai-kiwi` turns a ticket into a TaskGraph, runs scoped steps through local policy gates, and keeps reproducible evidence under `.kiwi/runs/<run-id>/`.
+`kiwi` turns a ticket into a TaskGraph, runs scoped steps through local policy gates, and keeps reproducible evidence under `.kiwi/runs/<run-id>/`.
 
 ## 5-minute Quickstart
 
@@ -44,6 +44,7 @@ pnpm kiwi operator snapshot <run-id> --workspace /Users/norberthanauer/Projects/
 ```
 
 The workspace root owns `.kiwi/runs`. The selected repo is copied into the per-attempt sandbox, so sibling repos are not pulled into a worktree.
+`kiwi init` also writes or merges `.cursor/mcp.json` so Cursor can start the local Kiwi MCP server from the project. Use `kiwi init --no-cursor-mcp` to skip that file.
 
 ## CLI Surface
 
@@ -61,11 +62,11 @@ kiwi evidence manifest <run-id> [--workspace <path>]
 kiwi operator snapshot <run-id> [--workspace <path>]
 ```
 
-Without `--workspace`, `ai-kiwi` keeps the old single-repo behavior. In a known workspace, it detects repos from `*.code-workspace`; if more than one repo matches, pass `--repo`. The selector can be the listed id, such as `core`, or a folder path, such as `voice-core`.
+Without `--workspace`, `kiwi` keeps the old single-repo behavior. In a known workspace, it detects repos from `*.code-workspace`; if more than one repo matches, pass `--repo`. The selector can be the listed id, such as `core`, or a folder path, such as `voice-core`.
 
 ## MCP / IDE Assistants
 
-Build the MCP server:
+For Cursor, `kiwi init` writes the project MCP config automatically. For other clients, build the MCP server and add this stdio server manually:
 
 ```bash
 pnpm build
@@ -76,18 +77,18 @@ Use this local stdio server in Claude, Cursor, Codex, or PhpStorm AI Assistant:
 ```json
 {
   "mcpServers": {
-    "ai-kiwi": {
+    "kiwi": {
       "command": "node",
-      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js"],
+      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/kiwi/apps/mcp-server/dist/index.js"],
       "env": {
-        "AI_KIWI_WORKSPACE": "/Users/norberthanauer/Projects/voice"
+        "KIWI_WORKSPACE": "/Users/norberthanauer/Projects/voice"
       }
     }
   }
 }
 ```
 
-Ask the assistant to use `ai-kiwi` to plan, run, finalize, and inspect evidence. For workspace tasks, include the target repo, for example: `Plan this for repo core in workspace /Users/norberthanauer/Projects/voice`.
+Ask the assistant to use `kiwi` to plan, run, finalize, and inspect evidence. For workspace tasks, include the target repo, for example: `Plan this for repo core in workspace /Users/norberthanauer/Projects/voice`.
 
 More detail:
 

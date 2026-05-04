@@ -2,7 +2,7 @@
 
 ## Ziel
 
-Eine kleine, stabile Planning Foundation fuer `ai-kiwi`, ohne Runner oder echte LLM-Ausfuehrung.
+Eine kleine, stabile Planning Foundation fuer `kiwi`, ohne Runner oder echte LLM-Ausfuehrung.
 
 ## In Scope
 

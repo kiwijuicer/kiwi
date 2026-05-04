@@ -68,7 +68,7 @@ const envelope = {
     correlationId: "corr_smoke",
     idempotencyKey: "idempotency-smoke",
     senderAgentId: "smoke-agent",
-    recipientAgentId: "ai-kiwi-local",
+    recipientAgentId: "kiwi-local",
   },
 };
 const envelopePath = path.join(cwd, "a2a-envelope.json");

@@ -2,8 +2,20 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { loadPolicy, loadRegistry } from "@ai-kiwi/core";
+import { loadPolicy, loadRegistry } from "@kiwi/core";
 import { runInit } from "../commands/init";
+
+interface CursorMcpConfig {
+  mcpServers?: Record<string, {
+    command?: string;
+    args?: string[];
+    env?: Record<string, string>;
+  }>;
+}
+
+function readCursorMcpConfig(cwd: string): CursorMcpConfig {
+  return JSON.parse(readFileSync(path.join(cwd, ".cursor", "mcp.json"), "utf-8")) as CursorMcpConfig;
+}
 
 describe("kiwi init", () => {
   it("creates .kiwi and default config files", async () => {
@@ -15,6 +27,7 @@ describe("kiwi init", () => {
     expect(existsSync(path.join(cwd, ".kiwi", "runs"))).toBe(true);
     expect(existsSync(path.join(cwd, "kiwi-policy.yaml"))).toBe(true);
     expect(existsSync(path.join(cwd, "model-registry.yaml"))).toBe(true);
+    expect(existsSync(path.join(cwd, ".cursor", "mcp.json"))).toBe(true);
   });
 
   it("is idempotent and preserves user-edited policy/registry by default", async () => {
@@ -101,5 +114,49 @@ models:
     expect(existsSync(path.join(workspace, ".kiwi", "config.yaml"))).toBe(true);
     expect(existsSync(path.join(workspace, "kiwi-policy.yaml"))).toBe(true);
     expect(existsSync(path.join(cwd, ".kiwi"))).toBe(false);
+  });
+
+  it("writes Cursor MCP config for the workspace", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-cursor-"));
+
+    await runInit({}, cwd);
+
+    const config = readCursorMcpConfig(cwd);
+    const server = config.mcpServers?.kiwi;
+    expect(server?.command).toMatch(/^(node|pnpm)$/);
+    expect(server?.args?.join(" ")).toContain("mcp-server");
+    expect(server?.env).toEqual({ KIWI_WORKSPACE: "${workspaceFolder}" });
+  });
+
+  it("merges Cursor MCP config without dropping existing servers", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-cursor-merge-"));
+    const cursorDir = path.join(cwd, ".cursor");
+    mkdirSync(cursorDir);
+    writeFileSync(
+      path.join(cursorDir, "mcp.json"),
+      JSON.stringify({
+        mcpServers: {
+          existing: {
+            command: "node",
+            args: ["existing.js"],
+          },
+        },
+      }, null, 2),
+      "utf-8",
+    );
+
+    await runInit({}, cwd);
+
+    const config = readCursorMcpConfig(cwd);
+    expect(config.mcpServers?.existing?.args).toEqual(["existing.js"]);
+    expect(config.mcpServers?.kiwi?.env).toEqual({ KIWI_WORKSPACE: "${workspaceFolder}" });
+  });
+
+  it("can skip Cursor MCP config", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-no-cursor-"));
+
+    await runInit({ cursorMcp: false }, cwd);
+
+    expect(existsSync(path.join(cwd, ".cursor", "mcp.json"))).toBe(false);
   });
 });

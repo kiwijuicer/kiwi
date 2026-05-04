@@ -1,4 +1,4 @@
-import { resolveWorkspace, WorkspaceResolution } from "@ai-kiwi/core";
+import { resolveWorkspace, WorkspaceResolution } from "@kiwi/core";
 
 export interface CliWorkspaceOptions {
   workspace?: string;

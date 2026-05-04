@@ -31,7 +31,7 @@ MVP1 wird gegen die Akzeptanzkriterien gehaertet. Danach wird der kleinste MVP2-
 
 ## Akzeptanzkriterien
 
-- MVP1-Artefakte validieren in Tests ueber `@ai-kiwi/contracts`.
+- MVP1-Artefakte validieren in Tests ueber `@kiwi/contracts`.
 - Planning bleibt local-first und in Tests reproduzierbar.
 - Provider-Grenze existiert ohne echte LLM-Abhaengigkeit.
 - Planner-Input und Planner-Output werden im dokumentierten Run-Layout persistiert.

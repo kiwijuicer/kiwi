@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "fs";
 import path from "path";
-import { Artifact, GateResult, GateResultSchema, GateType } from "@ai-kiwi/contracts";
+import { Artifact, GateResult, GateResultSchema, GateType } from "@kiwi/contracts";
 
 export type ApprovalState = "auto" | "required" | "blocked";
 export type NetworkPolicy = "disabled" | "enabled";

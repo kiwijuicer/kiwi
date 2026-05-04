@@ -3,7 +3,7 @@ export function defaultKiwiConfigYaml(nowIso: string): string {
 initializedAt: "${nowIso}"
 a2a:
   enabled: false
-  localAgentId: ai-kiwi-local
+  localAgentId: kiwi-local
   acceptedKinds: [initiative, task_graph, step_attempt, gate_result, review_verdict, artifact]
   peers: []
 `;
@@ -11,7 +11,7 @@ a2a:
 
 export const DEFAULT_POLICY_YAML = `version: "1"
 project:
-  name: ai-kiwi
+  name: kiwi
   language: typescript
   packageManager: pnpm
 

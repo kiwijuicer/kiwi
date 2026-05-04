@@ -10,7 +10,7 @@ import {
   TaskGraph,
   TaskGraphSchema,
   KiwiPolicy,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 import {
   generateInitiativeId,
   generatePlanId,

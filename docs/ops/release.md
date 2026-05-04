@@ -33,7 +33,7 @@ This currently runs:
 
 ## Packaging Notes
 
-- CLI package: `@ai-kiwi/cli`
+- CLI package: `@kiwi/cli`
 - CLI binary: `kiwi`
 - Build output: `apps/cli/dist`
 - Runtime requirement: Node.js 20+

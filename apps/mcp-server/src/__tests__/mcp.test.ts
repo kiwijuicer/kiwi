@@ -13,7 +13,7 @@ function setupRepo(): string {
     path.join(cwd, "kiwi-policy.yaml"),
     `version: "1"
 project:
-  name: ai-kiwi
+  name: kiwi
   language: typescript
   packageManager: pnpm
 commands:
@@ -88,7 +88,7 @@ describe("MCP server", () => {
   it("initializes and lists tools", async () => {
     const response = await handleMcpRequest({ id: 1, method: "initialize" }, setupRepo());
     expect(response.error).toBeUndefined();
-    expect((response.result as { serverInfo: { name: string } }).serverInfo.name).toBe("ai-kiwi");
+    expect((response.result as { serverInfo: { name: string } }).serverInfo.name).toBe("kiwi");
 
     const tools = await handleMcpRequest({ id: 2, method: "tools/list" }, setupRepo());
     expect(tools.error).toBeUndefined();
@@ -239,7 +239,7 @@ describe("MCP server", () => {
                 correlationId: "corr_mcp",
                 idempotencyKey: "idempotency-mcp",
                 senderAgentId: "remote-agent",
-                recipientAgentId: "ai-kiwi-local",
+                recipientAgentId: "kiwi-local",
               },
             },
           },

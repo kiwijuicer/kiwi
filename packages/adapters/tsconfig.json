@@ -3,8 +3,8 @@
   "compilerOptions": {
     "outDir": "dist",
     "paths": {
-      "@ai-kiwi/contracts": ["../../packages/contracts/src/index.ts"],
-      "@ai-kiwi/sandbox": ["../../packages/sandbox/src/index.ts"]
+      "@kiwi/contracts": ["../../packages/contracts/src/index.ts"],
+      "@kiwi/sandbox": ["../../packages/sandbox/src/index.ts"]
     }
   },
   "include": ["src"]

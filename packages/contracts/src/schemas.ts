@@ -489,7 +489,7 @@ export const A2ATrustedPeerSchema = z.object({
 
 export const A2AConfigSchema = z.object({
   enabled: z.boolean().default(false),
-  localAgentId: z.string().min(1).default("ai-kiwi-local"),
+  localAgentId: z.string().min(1).default("kiwi-local"),
   acceptedKinds: z.array(ProtocolEnvelopeKindSchema).default([
     "initiative",
     "task_graph",

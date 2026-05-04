@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file is the canonical entrypoint for coding agents working on `ai-kiwi`.
+This file is the canonical entrypoint for coding agents working on `kiwi`.
 
 Follow these rule documents first:
 
@@ -21,7 +21,7 @@ Follow these rule documents first:
 
 ## Core Product Intent
 
-`ai-kiwi` is a local-first AI coding control plane.
+`kiwi` is a local-first AI coding control plane.
 
 Primary outcome:
 

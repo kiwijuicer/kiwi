@@ -45,6 +45,6 @@ Add post-MVP orchestration surfaces once CLI-first flows are stable.
 
 ## Validation
 
-- `pnpm --filter @ai-kiwi/mcp-server test`
+- `pnpm --filter @kiwi/mcp-server test`
 - `pnpm test`
 - `pnpm typecheck`

@@ -1,5 +1,5 @@
 {
-  "name": "@ai-kiwi/adapters",
+  "name": "@kiwi/adapters",
   "version": "0.1.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,8 +11,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ai-kiwi/contracts": "workspace:*",
-    "@ai-kiwi/sandbox": "workspace:*"
+    "@kiwi/contracts": "workspace:*",
+    "@kiwi/sandbox": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",

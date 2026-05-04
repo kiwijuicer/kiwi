@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { Initiative, Step } from "@ai-kiwi/contracts";
+import { Initiative, Step } from "@kiwi/contracts";
 import { savePlannedRun } from "../run-store";
 import { scheduleStepAttempt } from "../scheduler-policy";
 import {
@@ -18,7 +18,7 @@ import {
   StepRunnerExecutionInput,
   StepRunnerExecutionOutput,
 } from "../step-attempt-orchestrator";
-import { GateResultSchema } from "@ai-kiwi/contracts";
+import { GateResultSchema } from "@kiwi/contracts";
 
 function cwd(): string {
   return mkdtempSync(path.join(os.tmpdir(), "kiwi-lifecycle-"));

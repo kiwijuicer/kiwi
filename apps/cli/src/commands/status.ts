@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { getRunStatusSummary } from "@ai-kiwi/core";
+import { getRunStatusSummary } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 export async function runStatus(
@@ -10,7 +10,7 @@ export async function runStatus(
   const workspace = resolveCliWorkspace(opts, cwd, false);
   const summary = getRunStatusSummary(workspace.workspacePath, runId);
 
-  console.log(chalk.bold("ai-kiwi status"));
+  console.log(chalk.bold("kiwi status"));
   console.log(`workspace: ${workspace.workspacePath}`);
   if (runId) {
     console.log(`selected_run: ${runId}`);

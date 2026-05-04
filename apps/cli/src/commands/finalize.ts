@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { finalizeRun, withRunLock } from "@ai-kiwi/core";
+import { finalizeRun, withRunLock } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 export interface FinalizeOptions extends CliWorkspaceOptions {

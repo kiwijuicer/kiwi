@@ -46,5 +46,5 @@ Implement policy-based scheduling decisions and persisted context packages for s
 
 ## Validation
 
-- `pnpm --filter @ai-kiwi/core test`
+- `pnpm --filter @kiwi/core test`
 - `pnpm typecheck`

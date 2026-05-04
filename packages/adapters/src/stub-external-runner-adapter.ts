@@ -1,4 +1,4 @@
-import { RunnerName } from "@ai-kiwi/contracts";
+import { RunnerName } from "@kiwi/contracts";
 import {
   RunnerAdapter,
   RunnerExecutionInput,

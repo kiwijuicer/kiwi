@@ -1,5 +1,5 @@
 {
-  "name": "@ai-kiwi/mcp-server",
+  "name": "@kiwi/mcp-server",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,10 +9,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ai-kiwi/adapters": "workspace:*",
-    "@ai-kiwi/contracts": "workspace:*",
-    "@ai-kiwi/core": "workspace:*",
-    "@ai-kiwi/sandbox": "workspace:*"
+    "@kiwi/adapters": "workspace:*",
+    "@kiwi/contracts": "workspace:*",
+    "@kiwi/core": "workspace:*",
+    "@kiwi/sandbox": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",

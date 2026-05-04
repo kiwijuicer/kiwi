@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
-import { GateResult, ReviewVerdict, ReviewVerdictSchema } from "@ai-kiwi/contracts";
+import { GateResult, ReviewVerdict, ReviewVerdictSchema } from "@kiwi/contracts";
 import { summarizeGateResults } from "./quality-gates";
 import { resolveRunArtifactPath } from "./run-store";
 

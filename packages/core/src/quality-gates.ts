@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
-import { GateResult, GateResultSchema, GateStatus, GateType } from "@ai-kiwi/contracts";
+import { GateResult, GateResultSchema, GateStatus, GateType } from "@kiwi/contracts";
 import { resolveRunArtifactPath } from "./run-store";
 
 export interface CreateGateResultParams {

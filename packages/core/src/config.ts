@@ -8,7 +8,7 @@ import {
   KiwiPolicySchema,
   ModelRegistry,
   ModelRegistrySchema,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 
 export function loadPolicy(path: string): KiwiPolicy {
   if (!existsSync(path)) {

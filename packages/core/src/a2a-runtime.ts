@@ -31,7 +31,7 @@ import {
   ReviewVerdictSchema,
   StepAttemptSchema,
   TaskGraphSchema,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 import { appendAuditEvent } from "./cost-ledger";
 import {
   buildDeterministicTaskGraph,
@@ -136,7 +136,7 @@ export interface A2AAcceptHandoffResult {
 
 const DEFAULT_POLICY: A2ARuntimePolicy = {
   mode: "disabled",
-  localAgentId: "ai-kiwi-local",
+  localAgentId: "kiwi-local",
   trustedAgentIds: [],
   trustedPeers: [],
   acceptedKinds: ["task_graph", "step_attempt", "gate_result", "review_verdict", "artifact"],

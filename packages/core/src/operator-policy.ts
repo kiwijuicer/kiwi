@@ -1,4 +1,4 @@
-import { CommandProfile, GateType, KiwiPolicy, StepType } from "@ai-kiwi/contracts";
+import { CommandProfile, GateType, KiwiPolicy, StepType } from "@kiwi/contracts";
 
 export interface CommandExecutionPolicy {
   allowedCommands: string[];

@@ -49,5 +49,5 @@ Implement structured quality gate evidence and review verdicts before any automa
 
 ## Validation
 
-- `pnpm --filter @ai-kiwi/core test`
+- `pnpm --filter @kiwi/core test`
 - `pnpm typecheck`

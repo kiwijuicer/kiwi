@@ -90,7 +90,7 @@ Turn the current MVP-grade local control plane into a production-usable app with
    - Define agent identity, capability discovery, auth/trust config, correlation IDs, idempotency keys, replay protection, and streaming status. `IDENTITY/TRUST/CORRELATION/IDEMPOTENCY FIRST SLICE DONE 2026-05-04`
    - Version message schemas for initiative handoff, TaskGraph publication, StepAttempt status, artifact exchange, GateResult, and ReviewVerdict.
    - Require artifact hashes and local gate/review before accepting remote patches. `REMOTE PATCHES BLOCKED 2026-05-04`
-   - Acceptance: ai-kiwi can delegate to or consume remote agent work without weakening local policy, audit, or approval gates.
+   - Acceptance: kiwi can delegate to or consume remote agent work without weakening local policy, audit, or approval gates.
 
 11. Packaging, release, and operations
     - Add release builds, binary/package install path, upgrade path, and smoke tests on a clean machine. `SMOKE/RELEASE CHECK FIRST SLICE DONE 2026-05-04`

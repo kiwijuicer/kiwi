@@ -6,7 +6,7 @@ export async function runWorkspaceList(
   cwd: string = process.cwd(),
 ): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
-  console.log(chalk.bold("ai-kiwi workspace"));
+  console.log(chalk.bold("kiwi workspace"));
   console.log(`workspace: ${workspace.workspacePath}`);
   console.log(`repos: ${workspace.repos.length}`);
   for (const repo of workspace.repos) {

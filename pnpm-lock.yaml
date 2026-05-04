@@ -20,10 +20,10 @@ importers:
 
   apps/cli:
     dependencies:
-      '@ai-kiwi/adapters':
+      '@kiwi/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
-      '@ai-kiwi/core':
+      '@kiwi/core':
         specifier: workspace:*
         version: link:../../packages/core
       chalk:
@@ -51,16 +51,16 @@ importers:
 
   apps/mcp-server:
     dependencies:
-      '@ai-kiwi/adapters':
+      '@kiwi/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
-      '@ai-kiwi/contracts':
+      '@kiwi/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@ai-kiwi/core':
+      '@kiwi/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@ai-kiwi/sandbox':
+      '@kiwi/sandbox':
         specifier: workspace:*
         version: link:../../packages/sandbox
     devDependencies:
@@ -79,10 +79,10 @@ importers:
 
   packages/adapters:
     dependencies:
-      '@ai-kiwi/contracts':
+      '@kiwi/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@ai-kiwi/sandbox':
+      '@kiwi/sandbox':
         specifier: workspace:*
         version: link:../sandbox
     devDependencies:
@@ -120,7 +120,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@ai-kiwi/contracts':
+      '@kiwi/contracts':
         specifier: workspace:*
         version: link:../contracts
       js-yaml:
@@ -145,7 +145,7 @@ importers:
 
   packages/sandbox:
     dependencies:
-      '@ai-kiwi/contracts':
+      '@kiwi/contracts':
         specifier: workspace:*
         version: link:../contracts
     devDependencies:

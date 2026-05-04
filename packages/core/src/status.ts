@@ -1,6 +1,6 @@
 import { existsSync } from "fs";
 import path from "path";
-import { RunStatus } from "@ai-kiwi/contracts";
+import { RunStatus } from "@kiwi/contracts";
 import { RunCorruptError, RunNotFoundError } from "./errors";
 import {
   listRunIds,

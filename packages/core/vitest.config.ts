@@ -4,7 +4,7 @@ import path from "path";
 export default defineConfig({
   resolve: {
     alias: {
-      "@ai-kiwi/contracts": path.resolve(
+      "@kiwi/contracts": path.resolve(
         __dirname,
         "../../packages/contracts/src/index.ts",
       ),

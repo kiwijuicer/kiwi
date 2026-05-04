@@ -1,4 +1,4 @@
-# ai-kiwi Architecture
+# kiwi Architecture
 
 ## Scope
 

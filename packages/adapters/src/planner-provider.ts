@@ -3,7 +3,7 @@ import {
   KiwiPolicy,
   TaskGraph,
   TaskGraphSchema,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 
 export interface PlannerProviderInput {
   runId: string;

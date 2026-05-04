@@ -2,7 +2,7 @@
 
 Status: trusted filesystem beta
 
-`ai-kiwi` now has a disabled-by-default A2A runtime for validating, recording, and exchanging canonical envelopes between explicitly trusted local peers.
+`kiwi` now has a disabled-by-default A2A runtime for validating, recording, and exchanging canonical envelopes between explicitly trusted local peers.
 The beta transport is filesystem outbox/inbox. It is not remote discovery, auth negotiation, SaaS behavior, or automatic patch application.
 
 ## Stable Envelope

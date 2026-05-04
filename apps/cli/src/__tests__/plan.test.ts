@@ -6,7 +6,7 @@ import {
   InitiativeSchema,
   RunManifestSchema,
   TaskGraphSchema,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 import { runInit } from "../commands/init";
 import { runPlan } from "../commands/plan";
 

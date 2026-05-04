@@ -28,7 +28,7 @@ const program = new Command();
 
 program
   .name("kiwi")
-  .description("ai-kiwi local-first control plane")
+  .description("kiwi local-first control plane")
   .version("0.1.0")
   .option("--workspace <path>", "Workspace control root")
   .option("--repo <idOrPath>", "Target repo inside the workspace");
@@ -51,10 +51,11 @@ function withGlobalWorkspaceOptions<T extends { workspace?: string; repo?: strin
 
 program
   .command("init")
-  .description("Initialize ai-kiwi in current directory")
+  .description("Initialize kiwi in current directory")
   .option("-f, --force", "Regenerate initialization files")
+  .option("--no-cursor-mcp", "Skip writing .cursor/mcp.json")
   .option("--workspace <path>", "Workspace control root to initialize")
-  .action((opts: { force?: boolean; workspace?: string }) => {
+  .action((opts: { force?: boolean; cursorMcp?: boolean; workspace?: string }) => {
     runInit(withGlobalWorkspaceOptions(opts)).catch((error: Error) => {
       console.error(`\n✗ ${error.message}`);
       process.exit(1);
@@ -347,7 +348,7 @@ addWorkspaceOptions(
   .command("receive <envelope>")
   .description("Validate and optionally accept an A2A envelope into the local loopback inbox")
   .option("--loopback", "Enable local loopback receive mode")
-  .option("--local-agent <id>", "Local A2A agent identity", "ai-kiwi-local")
+  .option("--local-agent <id>", "Local A2A agent identity", "kiwi-local")
   .option("--trusted-agent <ids>", "Comma-separated trusted sender agent ids"),
 )
   .action(

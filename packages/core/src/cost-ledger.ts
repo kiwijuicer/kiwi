@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
-import { BudgetProfile } from "@ai-kiwi/contracts";
+import { BudgetProfile } from "@kiwi/contracts";
 import { ensureRunLayout, resolveRunArtifactPath } from "./run-store";
 
 export type AuditEventType =

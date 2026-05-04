@@ -16,7 +16,7 @@ function writeFastPolicy(cwd: string): void {
     path.join(cwd, "kiwi-policy.yaml"),
     `version: "1"
 project:
-  name: ai-kiwi
+  name: kiwi
   language: typescript
   packageManager: pnpm
 commands:

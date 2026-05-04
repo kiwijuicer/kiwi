@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { SandboxCommandPolicy } from "@ai-kiwi/sandbox";
+import { SandboxCommandPolicy } from "@kiwi/sandbox";
 import { LocalShellRunnerAdapter } from "../local-shell-runner-adapter";
 import { StubExternalRunnerAdapter } from "../stub-external-runner-adapter";
 

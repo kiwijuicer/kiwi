@@ -64,7 +64,7 @@ export function renderOperatorSnapshotHtml(params: {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ai-kiwi ${escapeHtml(params.runId)}</title>
+  <title>kiwi ${escapeHtml(params.runId)}</title>
   <style>
     :root { color-scheme: light; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     body { margin: 0; color: #172026; background: #f7f4ef; }

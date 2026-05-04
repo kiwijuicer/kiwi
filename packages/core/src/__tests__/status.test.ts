@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { Initiative, TaskGraph } from "@ai-kiwi/contracts";
+import { Initiative, TaskGraph } from "@kiwi/contracts";
 import { getRunStatusSummary } from "../status";
 import { savePlannedRun } from "../run-store";
 

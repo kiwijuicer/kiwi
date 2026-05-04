@@ -12,7 +12,7 @@ import {
   StepAttempt,
   StepAttemptSchema,
   StepAttemptStatus,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 import { appendAuditEvent } from "./cost-ledger";
 import { saveGateResults, summarizeGateResults } from "./quality-gates";
 import {

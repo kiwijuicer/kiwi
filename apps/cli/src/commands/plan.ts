@@ -1,13 +1,13 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
-import { ModelEntry } from "@ai-kiwi/contracts";
+import { ModelEntry } from "@kiwi/contracts";
 import {
   PlannerProviderValidationError,
   PlannerProviderInput,
   StubPlannerProvider,
   runPlannerProviderWithRetries,
-} from "@ai-kiwi/adapters";
+} from "@kiwi/adapters";
 import {
   appendAuditEvent,
   NotInitializedError,
@@ -19,7 +19,7 @@ import {
   loadRegistry,
   savePlannedRun,
   writePlannerCostReport,
-} from "@ai-kiwi/core";
+} from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 export interface PlanOptions extends CliWorkspaceOptions {

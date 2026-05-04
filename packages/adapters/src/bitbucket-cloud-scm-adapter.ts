@@ -9,7 +9,7 @@ import {
   ScmRepositoryRefSchema,
   ScmTicketDraftInput,
   ScmTicketDraftSchema,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 import { ScmAdapter } from "./scm-adapter";
 
 export interface BitbucketCloudRequest {

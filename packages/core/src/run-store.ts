@@ -14,7 +14,7 @@ import {
   RunManifestSchema,
   TaskGraph,
   TaskGraphSchema,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 import { RunNotFoundError } from "./errors";
 
 function runsRoot(cwd: string): string {

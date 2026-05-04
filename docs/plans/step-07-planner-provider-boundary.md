@@ -44,6 +44,6 @@ Introduce the smallest MVP2 provider boundary without real external LLM dependen
 
 ## Validation
 
-- `pnpm --filter @ai-kiwi/adapters test`
-- `pnpm --filter @ai-kiwi/core test`
+- `pnpm --filter @kiwi/adapters test`
+- `pnpm --filter @kiwi/core test`
 - `pnpm typecheck`

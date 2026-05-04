@@ -48,5 +48,5 @@ Implement `kiwi init` and the minimum local config files needed for later planni
 
 ## Validation
 
-- `pnpm --filter @ai-kiwi/cli test`
-- `pnpm --filter @ai-kiwi/cli typecheck`
+- `pnpm --filter @kiwi/cli test`
+- `pnpm --filter @kiwi/cli typecheck`

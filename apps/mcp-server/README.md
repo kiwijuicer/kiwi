@@ -1,4 +1,4 @@
-# ai-kiwi MCP Server
+# kiwi MCP Server
 
 Thin MCP access channel over `packages/core`.
 
@@ -8,11 +8,11 @@ The CLI remains the reference operator surface. MCP clients use the same run sto
 
 ```bash
 pnpm build
-AI_KIWI_WORKSPACE=/Users/norberthanauer/Projects/voice \
-  node /Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js
+KIWI_WORKSPACE=/Users/norberthanauer/Projects/voice \
+  node /Users/norberthanauer/Projects/kiwi-juicer/kiwi/apps/mcp-server/dist/index.js
 ```
 
-For single-repo use, set `AI_KIWI_WORKSPACE` to the repo root or omit it when the client starts the server from the repo root.
+For single-repo use, set `KIWI_WORKSPACE` to the repo root or omit it when the client starts the server from the repo root.
 
 ## Tool API
 
@@ -103,7 +103,7 @@ Resources expose the run store for the server workspace:
 - `kiwi://runs/{runId}/operator-snapshot`
 - `kiwi://runs/{runId}/artifacts/{artifactRef}`
 
-For multi-repo work, start one server per workspace or set `AI_KIWI_WORKSPACE` per client config.
+For multi-repo work, start one server per workspace or set `KIWI_WORKSPACE` per client config.
 
 ## Safety
 

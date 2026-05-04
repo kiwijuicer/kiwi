@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
-import { Artifact, ProtocolEnvelopeKind, ProtocolEnvelopeKindSchema } from "@ai-kiwi/contracts";
+import { Artifact, ProtocolEnvelopeKind, ProtocolEnvelopeKindSchema } from "@kiwi/contracts";
 import {
   acceptA2AHandoff,
   addA2ATrustedPeer,
@@ -13,7 +13,7 @@ import {
   removeA2ATrustedPeer,
   setA2AEnabled,
   syncA2AFilesystem,
-} from "@ai-kiwi/core";
+} from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 export interface A2AReceiveOptions extends CliWorkspaceOptions {
@@ -78,7 +78,7 @@ export async function runA2AReceive(
     now: opts.now,
     policy: {
       mode: opts.loopback ? "loopback" : "disabled",
-      localAgentId: opts.localAgent ?? "ai-kiwi-local",
+      localAgentId: opts.localAgent ?? "kiwi-local",
       trustedAgentIds: trustedAgents(opts.trustedAgent),
     },
   });

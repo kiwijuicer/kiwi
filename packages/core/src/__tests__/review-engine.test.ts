@@ -2,7 +2,7 @@ import { mkdtempSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { ReviewVerdictSchema } from "@ai-kiwi/contracts";
+import { ReviewVerdictSchema } from "@kiwi/contracts";
 import { createGateResult } from "../quality-gates";
 import {
   StubReviewEngine,

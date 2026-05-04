@@ -44,6 +44,6 @@ Add bounded provider retry behavior and basic cost accounting for planning.
 
 ## Validation
 
-- `pnpm --filter @ai-kiwi/adapters test`
-- `pnpm --filter @ai-kiwi/core test`
+- `pnpm --filter @kiwi/adapters test`
+- `pnpm --filter @kiwi/core test`
 - `pnpm typecheck`

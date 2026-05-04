@@ -1,4 +1,4 @@
-# ai-kiwi Vision v2
+# kiwi Vision v2
 
 Local-first AI coding control plane fuer planbare, sichere und kosteneffiziente Umsetzung von Tickets und Features.
 
@@ -10,7 +10,7 @@ Primary stack: TypeScript, pnpm, Zod, CLI-first
 
 ## 1) Kurzfassung
 
-`ai-kiwi` ist eine lokale Orchestrierungs- und Qualitaetsschicht zwischen Mensch, IDE, CLI und mehreren Modellen/Runnern.
+`kiwi` ist eine lokale Orchestrierungs- und Qualitaetsschicht zwischen Mensch, IDE, CLI und mehreren Modellen/Runnern.
 
 Kernidee:
 
@@ -500,7 +500,7 @@ Startreihenfolge:
 ## 15) Ziel-Repo-Struktur
 
 ```text
-ai-kiwi/
+kiwi/
   apps/
     cli/
     mcp-server/
@@ -639,6 +639,6 @@ Die Vision gilt als umsetzbar, wenn:
 
 Erster Proof ist nicht "vollstaendig autonom coden", sondern:
 
-Kann `ai-kiwi` aus einem unklaren Ticket reproduzierbar einen sicheren, kostenbewussten und reviewbaren TaskGraph plus Run-Artefakte erzeugen?
+Kann `kiwi` aus einem unklaren Ticket reproduzierbar einen sicheren, kostenbewussten und reviewbaren TaskGraph plus Run-Artefakte erzeugen?
 
 Wenn ja, ist die Grundlage fuer skalierbare Orchestrierung gelegt.

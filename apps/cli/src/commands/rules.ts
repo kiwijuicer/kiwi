@@ -52,7 +52,7 @@ export async function runRulesSync(
   writeCursorRule({
     sourcePath: agentsPath,
     targetPath: path.join(cursorRulesDir, "agents.mdc"),
-    description: "ai-kiwi canonical agent entrypoint",
+    description: "kiwi canonical agent entrypoint",
   });
 
   const ruleFiles = readdirSync(rulesDir)
@@ -62,7 +62,7 @@ export async function runRulesSync(
     writeCursorRule({
       sourcePath: path.join(rulesDir, fileName),
       targetPath: path.join(cursorRulesDir, targetName(fileName)),
-      description: `ai-kiwi ${fileName.replace(/\.md$/i, "")} rules`,
+      description: `kiwi ${fileName.replace(/\.md$/i, "")} rules`,
     });
   }
 

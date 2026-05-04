@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { recordApprovalDecision, withRunLock } from "@ai-kiwi/core";
+import { recordApprovalDecision, withRunLock } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 export interface ApproveOptions extends CliWorkspaceOptions {

@@ -5,7 +5,7 @@ import {
   ScmPullRequestDraftInput,
   ScmPullRequestReviewDraftInput,
   ScmTicketDraftInput,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 
 export interface ScmAdapter {
   readonly provider: ScmProvider;

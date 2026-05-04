@@ -1,5 +1,5 @@
 {
-  "name": "@ai-kiwi/core",
+  "name": "@kiwi/core",
   "version": "0.1.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,7 +11,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ai-kiwi/contracts": "workspace:*",
+    "@kiwi/contracts": "workspace:*",
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {

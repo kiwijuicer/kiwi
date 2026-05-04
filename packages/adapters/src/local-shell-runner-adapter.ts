@@ -2,7 +2,7 @@ import {
   captureWorktreeDiffArtifact,
   executeSandboxCommand,
   SandboxCommandInput,
-} from "@ai-kiwi/sandbox";
+} from "@kiwi/sandbox";
 import {
   RunnerAdapter,
   RunnerExecutionInput,

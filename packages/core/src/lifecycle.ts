@@ -24,7 +24,7 @@ import {
   RunStatus,
   StepAttempt,
   StepAttemptSchema,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 import { appendAuditEvent } from "./cost-ledger";
 import {
   ensureRunLayout,

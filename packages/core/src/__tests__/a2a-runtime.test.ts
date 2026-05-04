@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { Initiative, ProtocolEnvelope } from "@ai-kiwi/contracts";
+import { Initiative, ProtocolEnvelope } from "@kiwi/contracts";
 import { readAuditEvents } from "../cost-ledger";
 import {
   acceptA2AHandoff,
@@ -26,7 +26,7 @@ function writePolicy(repo: string): void {
     path.join(repo, "kiwi-policy.yaml"),
     `version: "1"
 project:
-  name: ai-kiwi
+  name: kiwi
   language: typescript
   packageManager: pnpm
 commands:
@@ -120,7 +120,7 @@ function taskGraphEnvelope(overrides: Partial<ProtocolEnvelope["a2a"]> = {}): Pr
       correlationId: "corr_demo",
       idempotencyKey: "idempotency-demo",
       senderAgentId: "remote-agent",
-      recipientAgentId: "ai-kiwi-local",
+      recipientAgentId: "kiwi-local",
       ...overrides,
     },
   };
@@ -202,7 +202,7 @@ describe("A2A runtime", () => {
         correlationId: "corr_patch",
         idempotencyKey: "idempotency-patch",
         senderAgentId: "remote-agent",
-        recipientAgentId: "ai-kiwi-local",
+        recipientAgentId: "kiwi-local",
       },
     };
     const patch = handleA2AEnvelope({
@@ -218,7 +218,7 @@ describe("A2A runtime", () => {
     expect(patch.decision.reason).toContain("Remote patch");
   });
 
-  it("delivers filesystem handoffs between trusted ai-kiwi peers and materializes initiatives", () => {
+  it("delivers filesystem handoffs between trusted kiwi peers and materializes initiatives", () => {
     const a = setupRepo("agent-a");
     const b = setupRepo("agent-b");
     setA2AEnabled({ cwd: a, enabled: true });

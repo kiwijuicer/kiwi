@@ -5,7 +5,7 @@ export default defineConfig({
   format: ["cjs"],
   clean: true,
   sourcemap: true,
-  noExternal: ["@ai-kiwi/core", "@ai-kiwi/contracts", "@ai-kiwi/adapters", "@ai-kiwi/sandbox"],
+  noExternal: ["@kiwi/core", "@kiwi/contracts", "@kiwi/adapters", "@kiwi/sandbox"],
   banner: {
     js: "#!/usr/bin/env node",
   },

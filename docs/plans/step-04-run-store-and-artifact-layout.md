@@ -49,5 +49,5 @@ Implement canonical run persistence under `.kiwi/runs/<run-id>/`.
 
 ## Validation
 
-- `pnpm --filter @ai-kiwi/core test`
-- `pnpm --filter @ai-kiwi/core typecheck`
+- `pnpm --filter @kiwi/core test`
+- `pnpm --filter @kiwi/core typecheck`

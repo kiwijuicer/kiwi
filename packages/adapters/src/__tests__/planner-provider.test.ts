@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { KiwiPolicy, TaskGraph } from "@ai-kiwi/contracts";
+import { KiwiPolicy, TaskGraph } from "@kiwi/contracts";
 import {
   PlannerProviderValidationError,
   PlannerProvider,
@@ -12,7 +12,7 @@ import { StubPlannerProvider } from "../stub-planner-provider";
 const policy: KiwiPolicy = {
   version: "1",
   project: {
-    name: "ai-kiwi",
+    name: "kiwi",
     language: "typescript",
     packageManager: "pnpm",
   },

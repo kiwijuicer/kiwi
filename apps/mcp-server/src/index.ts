@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
-import { LocalShellRunnerAdapter, StubPlannerProvider, runPlannerProviderWithRetries } from "@ai-kiwi/adapters";
-import { ProtocolEnvelopeKindSchema } from "@ai-kiwi/contracts";
-import { createWorktreeSandbox, SandboxCommandPolicy } from "@ai-kiwi/sandbox";
+import { LocalShellRunnerAdapter, StubPlannerProvider, runPlannerProviderWithRetries } from "@kiwi/adapters";
+import { ProtocolEnvelopeKindSchema } from "@kiwi/contracts";
+import { createWorktreeSandbox, SandboxCommandPolicy } from "@kiwi/sandbox";
 import {
   acceptA2AHandoff,
   addA2ATrustedPeer,
@@ -44,7 +44,7 @@ import {
   writeEvidenceManifest,
   writeOperatorSnapshot,
   writePlannerCostReport,
-} from "@ai-kiwi/core";
+} from "@kiwi/core";
 
 export interface JsonRpcRequest {
   jsonrpc?: "2.0";
@@ -427,7 +427,7 @@ async function callTool(name: string, args: Record<string, unknown>, cwd: string
         envelope: args.envelope,
         policy: {
           mode: args.loopback === true ? "loopback" : "disabled",
-          localAgentId: typeof args.localAgentId === "string" ? args.localAgentId : "ai-kiwi-local",
+          localAgentId: typeof args.localAgentId === "string" ? args.localAgentId : "kiwi-local",
           trustedAgentIds: Array.isArray(args.trustedAgentIds)
             ? args.trustedAgentIds.filter((entry): entry is string => typeof entry === "string")
             : [],
@@ -509,7 +509,7 @@ const RUN_ID_SCHEMA = {
 const TOOLS = [
   {
     name: "kiwi_plan",
-    description: "Create a planned ai-kiwi run",
+    description: "Create a planned kiwi run",
     inputSchema: {
       type: "object",
       properties: {
@@ -730,7 +730,7 @@ const TOOLS = [
 ] as const;
 
 function defaultServerCwd(): string {
-  return process.env.AI_KIWI_WORKSPACE ?? process.cwd();
+  return process.env.KIWI_WORKSPACE ?? process.cwd();
 }
 
 export async function handleMcpRequest(
@@ -745,7 +745,7 @@ export async function handleMcpRequest(
         id,
         result: {
           protocolVersion: "2024-11-05",
-          serverInfo: { name: "ai-kiwi", version: "0.1.0" },
+          serverInfo: { name: "kiwi", version: "0.1.0" },
           capabilities: { resources: {}, tools: {} },
         },
       };

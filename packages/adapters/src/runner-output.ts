@@ -1,4 +1,4 @@
-import { GateResult, GateResultSchema } from "@ai-kiwi/contracts";
+import { GateResult, GateResultSchema } from "@kiwi/contracts";
 import {
   RunnerExecutionError,
   RunnerExecutionOutput,

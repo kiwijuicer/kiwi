@@ -42,12 +42,12 @@ Implement canonical domain contracts with Zod schemas and strict TypeScript type
 ## Acceptance Criteria
 
 - All domain objects validate through exported Zod schemas.
-- TypeScript consumers can import all domain types from `@ai-kiwi/contracts`.
+- TypeScript consumers can import all domain types from `@kiwi/contracts`.
 - Tests cover valid fixtures and representative invalid fixtures.
 - No `any` is used at package boundaries.
 - When complete, set `Status: DONE` and `Done-Date: YYYY-MM-DD`.
 
 ## Validation
 
-- `pnpm --filter @ai-kiwi/contracts test`
-- `pnpm --filter @ai-kiwi/contracts typecheck`
+- `pnpm --filter @kiwi/contracts test`
+- `pnpm --filter @kiwi/contracts typecheck`

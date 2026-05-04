@@ -46,5 +46,5 @@ Add isolated worktree sandboxing and controlled command execution for step attem
 
 ## Validation
 
-- `pnpm --filter @ai-kiwi/sandbox test`
+- `pnpm --filter @kiwi/sandbox test`
 - `pnpm typecheck`

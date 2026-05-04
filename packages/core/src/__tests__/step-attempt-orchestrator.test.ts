@@ -8,7 +8,7 @@ import {
   Initiative,
   ReviewVerdictSchema,
   Step,
-} from "@ai-kiwi/contracts";
+} from "@kiwi/contracts";
 import { readAuditEvents } from "../cost-ledger";
 import { ReviewEngine } from "../review-engine";
 import { scheduleStepAttempt } from "../scheduler-policy";

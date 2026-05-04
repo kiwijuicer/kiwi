@@ -37,7 +37,7 @@ Implement MVP1 planning: turn a ticket into a reproducible `TaskGraph` and persi
 ## Acceptance Criteria
 
 - `kiwi plan <ticket>` creates a valid run folder.
-- All generated files validate against `@ai-kiwi/contracts`.
+- All generated files validate against `@kiwi/contracts`.
 - Planning is reproducible in tests via injected ID/time providers.
 - Generated steps include success criteria and required gates.
 - Generated TaskGraphs include assumptions, open questions, risk score, and complexity score.
@@ -45,6 +45,6 @@ Implement MVP1 planning: turn a ticket into a reproducible `TaskGraph` and persi
 
 ## Validation
 
-- `pnpm --filter @ai-kiwi/core test`
-- `pnpm --filter @ai-kiwi/cli test`
+- `pnpm --filter @kiwi/core test`
+- `pnpm --filter @kiwi/cli test`
 - `pnpm typecheck`

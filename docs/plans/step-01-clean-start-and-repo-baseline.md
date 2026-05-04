@@ -8,7 +8,7 @@ Vision-Refs: 15, 17.1, 18
 
 ## Goal
 
-Establish the clean monorepo baseline for `ai-kiwi` without implementing product behavior yet.
+Establish the clean monorepo baseline for `kiwi` without implementing product behavior yet.
 
 ## Scope
 

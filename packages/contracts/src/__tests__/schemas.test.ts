@@ -194,8 +194,8 @@ describe("contracts schemas", () => {
     const repository = ScmRepositoryRefSchema.parse({
       provider: "bitbucket-cloud",
       workspace: "kiwi",
-      repoSlug: "ai-kiwi",
-      remoteUrl: "https://bitbucket.org/kiwi/ai-kiwi",
+      repoSlug: "kiwi",
+      remoteUrl: "https://bitbucket.org/kiwi/kiwi",
     });
     const ticket = ScmTicketDraftSchema.parse({
       repository,
@@ -227,7 +227,7 @@ describe("contracts schemas", () => {
       authMode: "external",
       status: "created",
       externalId: "42",
-      externalUrl: "https://bitbucket.org/kiwi/ai-kiwi/pull-requests/42",
+      externalUrl: "https://bitbucket.org/kiwi/kiwi/pull-requests/42",
     });
 
     expect(ticket.repository.provider).toBe("bitbucket-cloud");
@@ -249,7 +249,7 @@ describe("contracts schemas", () => {
     const policy = KiwiPolicySchema.parse({
       version: "1",
       project: {
-        name: "ai-kiwi",
+        name: "kiwi",
         language: "typescript",
         packageManager: "pnpm",
       },

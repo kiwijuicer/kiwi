@@ -1,4 +1,4 @@
-import { TaskGraph } from "@ai-kiwi/contracts";
+import { TaskGraph } from "@kiwi/contracts";
 import {
   PlannerProvider,
   PlannerProviderInput,

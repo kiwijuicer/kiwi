@@ -2,7 +2,7 @@
 
 ## Product Goal
 
-Build `ai-kiwi` as a local-first control plane for AI-assisted coding work:
+Build `kiwi` as a local-first control plane for AI-assisted coding work:
 
 - turn unclear input into a structured TaskGraph
 - orchestrate safe step execution
