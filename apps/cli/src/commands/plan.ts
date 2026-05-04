@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
-import { StubPlannerProvider, runPlannerProviderWithRetries } from "@kiwi/adapters";
+import { AnthropicPlannerProvider, StubPlannerProvider, runPlannerProviderWithRetries } from "@kiwi/adapters";
+import { ModelEntry } from "@kiwi/contracts";
 import {
   NotInitializedError,
   buildDeterministicTaskGraph,
@@ -22,6 +23,24 @@ interface PlanOptions extends CliWorkspaceOptions {
   runIdSuffix?: string;
   initiativeIdSuffix?: string;
   planIdSuffix?: string;
+}
+
+function createPlannerProvider(plannerModel: ModelEntry, now: Date, opts: PlanOptions) {
+  if (plannerModel.provider === "anthropic") {
+    return new AnthropicPlannerProvider({
+      model: plannerModel.id,
+    });
+  }
+
+  if (plannerModel.provider === "stub") {
+    return new StubPlannerProvider({
+      buildTaskGraph: buildDeterministicTaskGraph,
+      now: () => now,
+      ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
+    });
+  }
+
+  throw new Error(`Planner provider '${plannerModel.provider}' is not supported yet.`);
 }
 
 function looksLikeTicketPath(ticketArg: string): boolean {
@@ -67,15 +86,7 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
   const { rawInput, source } = resolveTicketInput(ticketArg, cwd);
   const now = opts.now ?? new Date();
   const plannerModel = selectPlannerModel(registry.models);
-  if (plannerModel.provider !== "stub") {
-    throw new Error(`Planner provider '${plannerModel.provider}' is not supported yet. Use a stub planner model.`);
-  }
-
-  const provider = new StubPlannerProvider({
-    buildTaskGraph: buildDeterministicTaskGraph,
-    now: () => now,
-    ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
-  });
+  const provider = createPlannerProvider(plannerModel, now, opts);
   const planned = await planRun({
     workspacePath,
     repoId: repo.id,

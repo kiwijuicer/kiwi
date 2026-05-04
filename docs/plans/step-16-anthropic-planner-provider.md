@@ -1,6 +1,7 @@
 # Step 16: Anthropic Planner Provider
 
-Status: PROPOSED
+Status: DONE
+Done-Date: 2026-05-04
 Created-Date: 2026-05-04
 Milestone: Production Milestone 1 (Real Loop)
 Depends-On: Step 15

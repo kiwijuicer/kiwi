@@ -17,11 +17,17 @@ export interface CostEstimate {
   currency: "USD";
 }
 
+export interface PlannerProviderArtifacts {
+  plannerInput?: unknown;
+  plannerOutput?: unknown;
+}
+
 export interface PlannerProviderOutput {
   providerName: string;
   taskGraph: unknown;
   modelUsage: ModelUsageEstimate;
   cost: CostEstimate;
+  providerArtifacts?: PlannerProviderArtifacts;
 }
 
 export interface PlannerRetryRecord {
@@ -50,11 +56,20 @@ export interface ValidatedPlannerProviderOutput extends PlannerProviderOutput {
 
 export interface PlannerProvider {
   readonly name: string;
+  readonly maxRepairAttempts?: number;
   plan(input: PlannerProviderInput): Promise<PlannerProviderOutput>;
+  repair?(input: PlannerProviderInput, context: PlannerProviderRepairContext): Promise<PlannerProviderOutput>;
 }
 
 export interface RetryOptions {
   maxAttempts?: number;
+}
+
+export interface PlannerProviderRepairContext {
+  invalidAttempt: number;
+  invalidOutput: unknown;
+  validationError: string;
+  invalidProviderArtifacts?: PlannerProviderArtifacts;
 }
 
 export interface PlannerValidationFailureEvidence {
@@ -65,17 +80,69 @@ export interface PlannerValidationFailureEvidence {
   lastValidationError?: string;
 }
 
-export class PlannerProviderValidationError extends Error {
+export const PlannerProviderSchedulerErrorCodes = {
+  ProviderRateLimited: "SCHEDULER_PROVIDER_RATE_LIMIT",
+  ProviderTimeout: "SCHEDULER_PROVIDER_TIMEOUT",
+  ProviderNetwork: "SCHEDULER_PROVIDER_NETWORK",
+  ProviderSchemaInvalid: "SCHEDULER_PROVIDER_SCHEMA_INVALID",
+  ProviderContentPolicy: "SCHEDULER_PROVIDER_CONTENT_POLICY",
+  ProviderAuth: "SCHEDULER_PROVIDER_AUTH",
+} as const;
+
+export type PlannerProviderErrorCode =
+  | "provider_rate_limited"
+  | "provider_timeout"
+  | "provider_network"
+  | "provider_schema_invalid"
+  | "provider_content_policy"
+  | "provider_auth";
+
+export type PlannerProviderSchedulerErrorCode =
+  (typeof PlannerProviderSchedulerErrorCodes)[keyof typeof PlannerProviderSchedulerErrorCodes];
+
+export class PlannerProviderError extends Error {
+  readonly code: PlannerProviderErrorCode;
+  readonly schedulerErrorCode: PlannerProviderSchedulerErrorCode;
+  readonly retryable: boolean;
+  readonly statusCode?: number;
+
+  constructor(params: {
+    code: PlannerProviderErrorCode;
+    schedulerErrorCode: PlannerProviderSchedulerErrorCode;
+    message: string;
+    retryable: boolean;
+    statusCode?: number;
+    cause?: unknown;
+  }) {
+    super(params.message);
+    this.name = "PlannerProviderError";
+    this.code = params.code;
+    this.schedulerErrorCode = params.schedulerErrorCode;
+    this.retryable = params.retryable;
+    if (params.statusCode !== undefined) this.statusCode = params.statusCode;
+    if (params.cause !== undefined) this.cause = params.cause;
+  }
+}
+
+export class PlannerProviderValidationError extends PlannerProviderError {
   readonly evidence: PlannerValidationFailureEvidence;
 
   constructor(evidence: PlannerValidationFailureEvidence, cause: unknown) {
-    super(
-      `Planner provider ${evidence.providerName} returned invalid TaskGraph after ${evidence.attemptsUsed} attempts`,
-    );
+    super({
+      code: "provider_schema_invalid",
+      schedulerErrorCode: PlannerProviderSchedulerErrorCodes.ProviderSchemaInvalid,
+      message: `Planner provider ${evidence.providerName} returned invalid TaskGraph after ${evidence.attemptsUsed} attempts`,
+      retryable: false,
+      cause,
+    });
     this.name = "PlannerProviderValidationError";
     this.evidence = evidence;
-    this.cause = cause;
   }
+}
+
+function maxAttemptsForProvider(provider: PlannerProvider, requestedMaxAttempts: number): number {
+  if (provider.maxRepairAttempts === undefined) return requestedMaxAttempts;
+  return Math.min(requestedMaxAttempts, provider.maxRepairAttempts + 1);
 }
 
 export async function runPlannerProviderWithRetries(
@@ -83,12 +150,14 @@ export async function runPlannerProviderWithRetries(
   input: PlannerProviderInput,
   options: RetryOptions = {},
 ): Promise<ValidatedPlannerProviderOutput> {
-  const maxAttempts = options.maxAttempts ?? 2;
+  const maxAttempts = maxAttemptsForProvider(provider, options.maxAttempts ?? 2);
   let lastError: unknown;
   const records: PlannerRetryRecord[] = [];
+  let repairContext: PlannerProviderRepairContext | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const output = await provider.plan(input);
+    const output =
+      repairContext && provider.repair ? await provider.repair(input, repairContext) : await provider.plan(input);
     try {
       const taskGraph = TaskGraphSchema.parse(output.taskGraph);
       records.push({
@@ -115,14 +184,21 @@ export async function runPlannerProviderWithRetries(
       };
     } catch (error) {
       lastError = error;
+      const validationError = error instanceof Error ? error.message : String(error);
       records.push({
         attempt,
         providerName: output.providerName,
         status: "invalid",
-        validationError: error instanceof Error ? error.message : String(error),
+        validationError,
         modelUsage: output.modelUsage,
         cost: output.cost,
       });
+      repairContext = {
+        invalidAttempt: attempt,
+        invalidOutput: output.taskGraph,
+        validationError,
+        ...(output.providerArtifacts ? { invalidProviderArtifacts: output.providerArtifacts } : {}),
+      };
     }
   }
 

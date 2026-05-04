@@ -49,6 +49,10 @@ export interface PlannerRunOutput {
   modelUsage: ModelUsage;
   cost: PlannerCostEstimate;
   retry: PlannerRetrySummary;
+  providerArtifacts?: {
+    plannerInput?: unknown;
+    plannerOutput?: unknown;
+  };
 }
 
 export interface PlannerValidationFailureEvidence {
@@ -182,6 +186,151 @@ function appendPlannerRetryEvents(params: {
   }
 }
 
+function handlePlannerExecutionFailure(params: {
+  workspacePath: string;
+  runId: string;
+  plannerModel: ModelEntry;
+  now: Date;
+  error: unknown;
+}): void {
+  const evidence = plannerValidationFailureEvidence(params.error);
+  if (evidence) {
+    appendPlannerRetryEvents({
+      workspacePath: params.workspacePath,
+      runId: params.runId,
+      now: params.now,
+      records: evidence.records,
+    });
+    appendAuditEvent(params.workspacePath, {
+      eventType: "planner_validation_failed",
+      runId: params.runId,
+      timestamp: params.now.toISOString(),
+      payload: {
+        providerName: evidence.providerName,
+        attemptsUsed: evidence.attemptsUsed,
+        maxAttempts: evidence.maxAttempts,
+        lastValidationError: evidence.lastValidationError ?? "unknown",
+      },
+    });
+    appendAuditEvent(params.workspacePath, {
+      eventType: "planner_failed",
+      runId: params.runId,
+      timestamp: params.now.toISOString(),
+      payload: { reason: "planner_validation_failed" },
+    });
+    appendPlannerFailureInvocation({
+      workspacePath: params.workspacePath,
+      runId: params.runId,
+      plannerModel: params.plannerModel,
+      providerName: evidence.providerName,
+      now: params.now,
+    });
+    return;
+  }
+
+  appendAuditEvent(params.workspacePath, {
+    eventType: "planner_failed",
+    runId: params.runId,
+    timestamp: params.now.toISOString(),
+    payload: {
+      reason: params.error instanceof Error ? params.error.message : String(params.error),
+    },
+  });
+  appendPlannerFailureInvocation({
+    workspacePath: params.workspacePath,
+    runId: params.runId,
+    plannerModel: params.plannerModel,
+    providerName: params.plannerModel.provider,
+    now: params.now,
+  });
+}
+
+function appendPlannerSuccessEvent(params: {
+  workspacePath: string;
+  runId: string;
+  now: Date;
+  plannerOutput: PlannerRunOutput;
+  budgetMetadata: PlannerBudgetMetadata;
+}): void {
+  appendAuditEvent(params.workspacePath, {
+    eventType: "planner_succeeded",
+    runId: params.runId,
+    timestamp: params.now.toISOString(),
+    payload: {
+      providerName: params.plannerOutput.providerName,
+      attemptsUsed: params.plannerOutput.retry.attemptsUsed,
+      invalidAttempts: params.plannerOutput.retry.invalidAttempts,
+      modelUsage: params.plannerOutput.modelUsage,
+      cost: params.plannerOutput.cost,
+      budget: params.budgetMetadata,
+    },
+  });
+}
+
+function persistPlannerRunArtifacts(params: {
+  planParams: PlanRunParams;
+  runId: string;
+  initiative: Initiative;
+  plannerInput: PlannerRunInput;
+  plannerOutput: PlannerRunOutput;
+  budgetMetadata: PlannerBudgetMetadata;
+  now: Date;
+}): string {
+  const { providerArtifacts, ...plannerOutputCore } = params.plannerOutput;
+  const plannerInputArtifact = providerArtifacts?.plannerInput ?? params.plannerInput;
+  const modelInvocationRef = appendModelInvocation(params.planParams.workspacePath, {
+    schemaVersion: "1",
+    runId: params.runId,
+    phase: ContractValues.Planner,
+    agentRole: ContractValues.Planner,
+    requestedCapability: params.planParams.plannerModel.capability,
+    selectedCapability: params.planParams.plannerModel.capability,
+    modelId: params.planParams.plannerModel.id,
+    providerName: params.plannerOutput.providerName,
+    runner: null,
+    usage: params.plannerOutput.modelUsage,
+    estimatedCostUsd: params.plannerOutput.cost.estimatedUsd,
+    status: ContractValues.Completed,
+    evidenceRefs: ["plan/planner-input.json", "plan/planner-output.json", "plan/cost-report.json"],
+    startedAt: params.now.toISOString(),
+    completedAt: params.now.toISOString(),
+  });
+
+  savePlannedRun({
+    runId: params.runId,
+    initiative: params.initiative,
+    taskGraph: params.plannerOutput.taskGraph,
+    plannerInput: plannerInputArtifact,
+    plannerOutput: {
+      plannerModelId: params.planParams.plannerModel.id,
+      modelInvocationRef,
+      budget: params.budgetMetadata,
+      ...plannerOutputCore,
+      ...(providerArtifacts?.plannerOutput ? { provider: providerArtifacts.plannerOutput } : {}),
+    },
+    cwd: params.planParams.workspacePath,
+    workspacePath: params.planParams.workspacePath,
+    repoId: params.planParams.repoId,
+    repoPath: params.planParams.repoPath,
+    now: params.now,
+  });
+  writePlannerCostReport(params.planParams.workspacePath, params.runId, {
+    schemaVersion: "1",
+    runId: params.runId,
+    plannerModelId: params.planParams.plannerModel.id,
+    providerName: params.plannerOutput.providerName,
+    budgetProfile: params.initiative.budgetProfile,
+    budgetRemainingUsdEstimate: params.budgetMetadata.remainingUsdEstimate,
+    attemptsUsed: params.plannerOutput.retry.attemptsUsed,
+    invalidAttempts: params.plannerOutput.retry.invalidAttempts,
+    modelUsage: params.plannerOutput.modelUsage,
+    cost: params.plannerOutput.cost,
+    createdAt: params.now.toISOString(),
+  });
+
+  return modelInvocationRef;
+}
+
 export async function planRun(params: PlanRunParams): Promise<PlanRunResult> {
   const now = params.now ?? new Date();
   const runIdOptions = params.runIdSuffix ? { suffix: params.runIdSuffix } : {};
@@ -229,57 +378,13 @@ export async function planRun(params: PlanRunParams): Promise<PlanRunResult> {
   try {
     plannerOutput = await params.executePlanner(plannerInput, { maxAttempts });
   } catch (error) {
-    const evidence = plannerValidationFailureEvidence(error);
-    if (evidence) {
-      appendPlannerRetryEvents({
-        workspacePath: params.workspacePath,
-        runId,
-        now,
-        records: evidence.records,
-      });
-      appendAuditEvent(params.workspacePath, {
-        eventType: "planner_validation_failed",
-        runId,
-        timestamp: now.toISOString(),
-        payload: {
-          providerName: evidence.providerName,
-          attemptsUsed: evidence.attemptsUsed,
-          maxAttempts: evidence.maxAttempts,
-          lastValidationError: evidence.lastValidationError ?? "unknown",
-        },
-      });
-      appendAuditEvent(params.workspacePath, {
-        eventType: "planner_failed",
-        runId,
-        timestamp: now.toISOString(),
-        payload: {
-          reason: "planner_validation_failed",
-        },
-      });
-      appendPlannerFailureInvocation({
-        workspacePath: params.workspacePath,
-        runId,
-        plannerModel: params.plannerModel,
-        providerName: evidence.providerName,
-        now,
-      });
-    } else {
-      appendAuditEvent(params.workspacePath, {
-        eventType: "planner_failed",
-        runId,
-        timestamp: now.toISOString(),
-        payload: {
-          reason: error instanceof Error ? error.message : String(error),
-        },
-      });
-      appendPlannerFailureInvocation({
-        workspacePath: params.workspacePath,
-        runId,
-        plannerModel: params.plannerModel,
-        providerName: params.plannerModel.provider,
-        now,
-      });
-    }
+    handlePlannerExecutionFailure({
+      workspacePath: params.workspacePath,
+      runId,
+      plannerModel: params.plannerModel,
+      now,
+      error,
+    });
     throw error;
   }
 
@@ -293,69 +398,24 @@ export async function planRun(params: PlanRunParams): Promise<PlanRunResult> {
     profile: initiative.budgetProfile,
     remainingUsdEstimate: null,
   };
-  appendAuditEvent(params.workspacePath, {
-    eventType: "planner_succeeded",
+  appendPlannerSuccessEvent({
+    workspacePath: params.workspacePath,
     runId,
-    timestamp: now.toISOString(),
-    payload: {
-      providerName: plannerOutput.providerName,
-      attemptsUsed: plannerOutput.retry.attemptsUsed,
-      invalidAttempts: plannerOutput.retry.invalidAttempts,
-      modelUsage: plannerOutput.modelUsage,
-      cost: plannerOutput.cost,
-      budget: budgetMetadata,
-    },
+    now,
+    plannerOutput,
+    budgetMetadata,
   });
 
   let modelInvocationRef: string | undefined;
   if (params.persistRunArtifacts ?? true) {
-    modelInvocationRef = appendModelInvocation(params.workspacePath, {
-      schemaVersion: "1",
-      runId,
-      phase: ContractValues.Planner,
-      agentRole: ContractValues.Planner,
-      requestedCapability: params.plannerModel.capability,
-      selectedCapability: params.plannerModel.capability,
-      modelId: params.plannerModel.id,
-      providerName: plannerOutput.providerName,
-      runner: null,
-      usage: plannerOutput.modelUsage,
-      estimatedCostUsd: plannerOutput.cost.estimatedUsd,
-      status: ContractValues.Completed,
-      evidenceRefs: ["plan/planner-input.json", "plan/planner-output.json", "plan/cost-report.json"],
-      startedAt: now.toISOString(),
-      completedAt: now.toISOString(),
-    });
-
-    savePlannedRun({
+    modelInvocationRef = persistPlannerRunArtifacts({
+      planParams: params,
       runId,
       initiative,
-      taskGraph: plannerOutput.taskGraph,
       plannerInput,
-      plannerOutput: {
-        plannerModelId: params.plannerModel.id,
-        modelInvocationRef,
-        budget: budgetMetadata,
-        ...plannerOutput,
-      },
-      cwd: params.workspacePath,
-      workspacePath: params.workspacePath,
-      repoId: params.repoId,
-      repoPath: params.repoPath,
+      plannerOutput,
+      budgetMetadata,
       now,
-    });
-    writePlannerCostReport(params.workspacePath, runId, {
-      schemaVersion: "1",
-      runId,
-      plannerModelId: params.plannerModel.id,
-      providerName: plannerOutput.providerName,
-      budgetProfile: initiative.budgetProfile,
-      budgetRemainingUsdEstimate: budgetMetadata.remainingUsdEstimate,
-      attemptsUsed: plannerOutput.retry.attemptsUsed,
-      invalidAttempts: plannerOutput.retry.invalidAttempts,
-      modelUsage: plannerOutput.modelUsage,
-      cost: plannerOutput.cost,
-      createdAt: now.toISOString(),
     });
   }
 

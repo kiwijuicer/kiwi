@@ -176,12 +176,13 @@ export const DEFAULT_MODEL_REGISTRY_YAML = `version: "1"
 # \`cheap\` is documented as an alias of \`mid\` (Haiku) with a smaller context
 # budget; it is not a separate model entry.
 #
-# The real Anthropic entries are disabled by default until Steps 16 and 17
-# (Planner Provider, Reviewer Provider) land. At that point, flip the
+# The Anthropic planner adapter is available after Step 16. The real Anthropic
+# entries stay disabled by default until the full real loop (Steps 17-18) lands.
+# At that point, flip the
 # Anthropic entries to \`enabled: true\` and the matching stubs to
 # \`enabled: false\`. See docs/plans/step-15-scope-freeze-and-tier-collapse.md.
 models:
-  # Real Anthropic providers. Disabled until Step 16/17 implementations land.
+  # Real Anthropic providers. Disabled until the full real loop lands.
   - id: claude-opus-4-6
     provider: anthropic
     capability: frontier
