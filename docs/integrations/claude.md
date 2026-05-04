@@ -4,7 +4,15 @@ Official MCP docs: https://code.claude.com/docs/en/mcp
 
 ## Claude Code
 
-Build `kiwi` first:
+From the Claude Code project terminal:
+
+```bash
+kiwi init
+```
+
+This writes or merges project-scoped `.mcp.json` with a `kiwi` MCP server entry and preserves other configured servers.
+
+Manual setup is still possible. Build `kiwi` first:
 
 ```bash
 cd /Users/norberthanauer/Projects/kiwi-juicer/kiwi

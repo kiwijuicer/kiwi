@@ -4,7 +4,15 @@ Official MCP docs: https://developers.openai.com/codex/mcp
 
 ## Config
 
-Build `kiwi`:
+From the Codex project terminal:
+
+```bash
+kiwi init
+```
+
+This writes or merges project-scoped `.codex/config.toml` with a `kiwi` MCP server table and preserves other tables.
+
+Manual setup is still possible. Build `kiwi`:
 
 ```bash
 cd /Users/norberthanauer/Projects/kiwi-juicer/kiwi

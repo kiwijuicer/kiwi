@@ -11,6 +11,8 @@ export interface InitOptions {
   force?: boolean;
   workspace?: string;
   cursorMcp?: boolean;
+  claudeCodeMcp?: boolean;
+  codexMcp?: boolean;
 }
 
 interface McpServerLaunch {
@@ -18,15 +20,27 @@ interface McpServerLaunch {
   args: string[];
 }
 
-interface CursorMcpConfig {
+interface JsonMcpConfig {
   mcpServers?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
-interface CursorMcpWriteResult {
+interface ConfigWriteResult {
   path: string;
   status: "written" | "updated" | "preserved";
 }
+
+interface GitignoreWriteResult {
+  path: string;
+  status: "updated" | "preserved" | "missing";
+}
+
+const KIWI_GITIGNORE_ENTRIES = [
+  ".kiwi/",
+  ".cursor/mcp.json",
+  ".mcp.json",
+  ".codex/config.toml",
+];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -71,28 +85,28 @@ function resolveMcpServerLaunch(): McpServerLaunch {
   };
 }
 
-function desiredCursorMcpServer(): Record<string, unknown> {
+function desiredJsonMcpServer(workspaceValue: string): Record<string, unknown> {
   const launch = resolveMcpServerLaunch();
   return {
     command: launch.command,
     args: launch.args,
     env: {
-      KIWI_WORKSPACE: "${workspaceFolder}",
+      KIWI_WORKSPACE: workspaceValue,
     },
   };
 }
 
-function readCursorMcpConfig(configPath: string): CursorMcpConfig {
+function readJsonMcpConfig(configPath: string, label: string): JsonMcpConfig {
   if (!existsSync(configPath)) return {};
 
   const parsed: unknown = JSON.parse(readFileSync(configPath, "utf-8"));
   if (!isRecord(parsed)) {
-    throw new Error(`Cursor MCP config must be a JSON object: ${configPath}`);
+    throw new Error(`${label} MCP config must be a JSON object: ${configPath}`);
   }
 
-  const config: CursorMcpConfig = { ...parsed };
+  const config: JsonMcpConfig = { ...parsed };
   if (config.mcpServers !== undefined && !isRecord(config.mcpServers)) {
-    throw new Error(`Cursor MCP config field mcpServers must be an object: ${configPath}`);
+    throw new Error(`${label} MCP config field mcpServers must be an object: ${configPath}`);
   }
 
   return config;
@@ -102,19 +116,24 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
-function writeCursorMcpConfig(targetCwd: string, force: boolean): CursorMcpWriteResult {
-  const cursorDir = path.join(targetCwd, ".cursor");
-  const configPath = path.join(cursorDir, "mcp.json");
+function writeJsonMcpConfig(params: {
+  configPath: string;
+  directoryPath: string;
+  label: string;
+  workspaceValue: string;
+  force: boolean;
+}): ConfigWriteResult {
+  const { configPath, directoryPath, label, workspaceValue, force } = params;
   const existed = existsSync(configPath);
-  const config = readCursorMcpConfig(configPath);
+  const config = readJsonMcpConfig(configPath, label);
   const existingServers = config.mcpServers ?? {};
-  const nextServer = desiredCursorMcpServer();
+  const nextServer = desiredJsonMcpServer(workspaceValue);
 
   if (!force && stableJson(existingServers.kiwi) === stableJson(nextServer)) {
     return { path: configPath, status: "preserved" };
   }
 
-  mkdirSync(cursorDir, { recursive: true });
+  mkdirSync(directoryPath, { recursive: true });
   writeFileSync(
     configPath,
     `${stableJson({
@@ -128,6 +147,121 @@ function writeCursorMcpConfig(targetCwd: string, force: boolean): CursorMcpWrite
   );
 
   return { path: configPath, status: existed ? "updated" : "written" };
+}
+
+function writeCursorMcpConfig(targetCwd: string, force: boolean): ConfigWriteResult {
+  const cursorDir = path.join(targetCwd, ".cursor");
+  return writeJsonMcpConfig({
+    configPath: path.join(cursorDir, "mcp.json"),
+    directoryPath: cursorDir,
+    label: "Cursor",
+    workspaceValue: "${workspaceFolder}",
+    force,
+  });
+}
+
+function writeClaudeCodeMcpConfig(targetCwd: string, force: boolean): ConfigWriteResult {
+  return writeJsonMcpConfig({
+    configPath: path.join(targetCwd, ".mcp.json"),
+    directoryPath: targetCwd,
+    label: "Claude Code",
+    workspaceValue: targetCwd,
+    force,
+  });
+}
+
+function tomlString(value: string): string {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
+}
+
+function tomlArray(values: string[]): string {
+  return `[${values.map((value) => tomlString(value)).join(", ")}]`;
+}
+
+function desiredCodexMcpBlock(targetCwd: string): string {
+  const launch = resolveMcpServerLaunch();
+  return [
+    "[mcp_servers.kiwi]",
+    `command = ${tomlString(launch.command)}`,
+    `args = ${tomlArray(launch.args)}`,
+    `env = { KIWI_WORKSPACE = ${tomlString(targetCwd)} }`,
+  ].join("\n");
+}
+
+function upsertTomlTable(existing: string, tableName: string, block: string): string {
+  const lines = existing.split(/\r?\n/);
+  const tableHeader = `[${tableName}]`;
+  const start = lines.findIndex((line) => line.trim() === tableHeader);
+
+  if (start === -1) {
+    const prefix = existing.trim().length > 0 ? `${existing.replace(/\s*$/, "")}\n\n` : "";
+    return `${prefix}${block}\n`;
+  }
+
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index += 1) {
+    if (/^\s*\[.+\]\s*$/.test(lines[index] ?? "")) {
+      end = index;
+      break;
+    }
+  }
+
+  const next = [
+    ...lines.slice(0, start),
+    ...block.split("\n"),
+    ...lines.slice(end),
+  ].join("\n");
+  return `${next.replace(/\s*$/, "")}\n`;
+}
+
+function writeCodexMcpConfig(targetCwd: string, force: boolean): ConfigWriteResult {
+  const codexDir = path.join(targetCwd, ".codex");
+  const configPath = path.join(codexDir, "config.toml");
+  const existed = existsSync(configPath);
+  const current = existed ? readFileSync(configPath, "utf-8") : "";
+  const next = upsertTomlTable(current, "mcp_servers.kiwi", desiredCodexMcpBlock(targetCwd));
+
+  if (!force && current === next) {
+    return { path: configPath, status: "preserved" };
+  }
+
+  mkdirSync(codexDir, { recursive: true });
+  writeFileSync(configPath, next, "utf-8");
+  return { path: configPath, status: existed ? "updated" : "written" };
+}
+
+function logConfigWrite(result: ConfigWriteResult | null, displayPath: string): void {
+  if (result?.status === "preserved") console.log(chalk.gray("•") + ` ${displayPath} preserved`);
+  if (result?.status === "written") console.log(chalk.green("✓") + ` ${displayPath} written`);
+  if (result?.status === "updated") console.log(chalk.green("✓") + ` ${displayPath} updated`);
+}
+
+function normalizeGitignoreLine(line: string): string {
+  return line.trim().replace(/^\//, "");
+}
+
+function writeGitignoreEntries(targetCwd: string): GitignoreWriteResult {
+  const gitignorePath = path.join(targetCwd, ".gitignore");
+  if (!existsSync(gitignorePath)) {
+    return { path: gitignorePath, status: "missing" };
+  }
+
+  const current = readFileSync(gitignorePath, "utf-8");
+  const existing = new Set(
+    current
+      .split(/\r?\n/)
+      .map(normalizeGitignoreLine)
+      .filter((line) => line.length > 0 && !line.startsWith("#")),
+  );
+  const missing = KIWI_GITIGNORE_ENTRIES.filter((entry) => !existing.has(normalizeGitignoreLine(entry)));
+
+  if (missing.length === 0) {
+    return { path: gitignorePath, status: "preserved" };
+  }
+
+  const separator = current.length === 0 || current.endsWith("\n") ? "" : "\n";
+  writeFileSync(gitignorePath, `${current}${separator}${missing.join("\n")}\n`, "utf-8");
+  return { path: gitignorePath, status: "updated" };
 }
 
 export async function runInit(
@@ -163,16 +297,25 @@ export async function runInit(
   const cursorMcp = opts.cursorMcp === false
     ? null
     : writeCursorMcpConfig(targetCwd, Boolean(opts.force));
+  const claudeCodeMcp = opts.claudeCodeMcp === false
+    ? null
+    : writeClaudeCodeMcpConfig(targetCwd, Boolean(opts.force));
+  const codexMcp = opts.codexMcp === false
+    ? null
+    : writeCodexMcpConfig(targetCwd, Boolean(opts.force));
+  const gitignore = writeGitignoreEntries(targetCwd);
 
   console.log(chalk.green("✓") + " .kiwi initialized");
   console.log(chalk.dim(`workspace: ${targetCwd}`));
   if (!shouldWriteConfig) console.log(chalk.gray("•") + " .kiwi/config.yaml preserved");
   if (!shouldWritePolicy) console.log(chalk.gray("•") + " kiwi-policy.yaml preserved");
   if (!shouldWriteRegistry) console.log(chalk.gray("•") + " model-registry.yaml preserved");
-  if (cursorMcp?.status === "preserved") console.log(chalk.gray("•") + " .cursor/mcp.json preserved");
   if (shouldWriteConfig) console.log(chalk.green("✓") + " .kiwi/config.yaml written");
   if (shouldWritePolicy) console.log(chalk.green("✓") + " kiwi-policy.yaml written");
   if (shouldWriteRegistry) console.log(chalk.green("✓") + " model-registry.yaml written");
-  if (cursorMcp?.status === "written") console.log(chalk.green("✓") + " .cursor/mcp.json written");
-  if (cursorMcp?.status === "updated") console.log(chalk.green("✓") + " .cursor/mcp.json updated");
+  logConfigWrite(cursorMcp, ".cursor/mcp.json");
+  logConfigWrite(claudeCodeMcp, ".mcp.json");
+  logConfigWrite(codexMcp, ".codex/config.toml");
+  if (gitignore.status === "updated") console.log(chalk.green("✓") + " .gitignore updated");
+  if (gitignore.status === "preserved") console.log(chalk.gray("•") + " .gitignore preserved");
 }

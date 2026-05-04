@@ -54,8 +54,16 @@ program
   .description("Initialize kiwi in current directory")
   .option("-f, --force", "Regenerate initialization files")
   .option("--no-cursor-mcp", "Skip writing .cursor/mcp.json")
+  .option("--no-claude-code-mcp", "Skip writing Claude Code .mcp.json")
+  .option("--no-codex-mcp", "Skip writing .codex/config.toml")
   .option("--workspace <path>", "Workspace control root to initialize")
-  .action((opts: { force?: boolean; cursorMcp?: boolean; workspace?: string }) => {
+  .action((opts: {
+    force?: boolean;
+    cursorMcp?: boolean;
+    claudeCodeMcp?: boolean;
+    codexMcp?: boolean;
+    workspace?: string;
+  }) => {
     runInit(withGlobalWorkspaceOptions(opts)).catch((error: Error) => {
       console.error(`\n✗ ${error.message}`);
       process.exit(1);

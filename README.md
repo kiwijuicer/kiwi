@@ -44,7 +44,7 @@ pnpm kiwi operator snapshot <run-id> --workspace /Users/norberthanauer/Projects/
 ```
 
 The workspace root owns `.kiwi/runs`. The selected repo is copied into the per-attempt sandbox, so sibling repos are not pulled into a worktree.
-`kiwi init` also writes or merges `.cursor/mcp.json` so Cursor can start the local Kiwi MCP server from the project. Use `kiwi init --no-cursor-mcp` to skip that file.
+`kiwi init` also writes or merges MCP client config for Cursor, Claude Code, and Codex. Use `--no-cursor-mcp`, `--no-claude-code-mcp`, or `--no-codex-mcp` to skip a client.
 
 ## CLI Surface
 
@@ -66,7 +66,7 @@ Without `--workspace`, `kiwi` keeps the old single-repo behavior. In a known wor
 
 ## MCP / IDE Assistants
 
-For Cursor, `kiwi init` writes the project MCP config automatically. For other clients, build the MCP server and add this stdio server manually:
+For Cursor, Claude Code, and Codex, `kiwi init` writes project MCP config automatically. For other clients, build the MCP server and add this stdio server manually:
 
 ```bash
 pnpm build
