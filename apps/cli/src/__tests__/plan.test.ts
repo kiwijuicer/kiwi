@@ -65,12 +65,14 @@ describe("kiwi plan", () => {
     const plannerOutput = readJson(path.join(runDir, "plan", "planner-output.json")) as {
       providerName: string;
       plannerModelId: string;
+      modelInvocationRef: string;
       validation: { schema: string; valid: boolean };
       retry: { attemptsUsed: number; invalidAttempts: number };
       budget: { profile: string; remainingUsdEstimate: number | null };
     };
     expect(plannerOutput.providerName).toBe("stub-deterministic");
     expect(plannerOutput.plannerModelId).toBe("stub-frontier");
+    expect(plannerOutput.modelInvocationRef).toContain("model-invocations.jsonl#planner");
     expect(plannerOutput.validation.schema).toBe("TaskGraphSchema");
     expect(plannerOutput.validation.valid).toBe(true);
     expect(plannerOutput.retry.attemptsUsed).toBe(1);
@@ -78,6 +80,16 @@ describe("kiwi plan", () => {
     expect(plannerOutput.budget.profile).toBe("normal");
     expect(plannerOutput.budget.remainingUsdEstimate).toBe(null);
     expect(existsSync(path.join(runDir, "plan", "cost-report.json"))).toBe(true);
+    const invocations = readFileSync(path.join(runDir, "model-invocations.jsonl"), "utf-8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as { phase: string; modelId: string; providerName: string });
+    expect(invocations).toHaveLength(1);
+    expect(invocations[0]).toMatchObject({
+      phase: "planner",
+      modelId: "stub-frontier",
+      providerName: "stub-deterministic",
+    });
   });
 
   it("accepts inline ticket text when the argument is not a file path", async () => {

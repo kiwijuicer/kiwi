@@ -23,6 +23,7 @@ export type AuditEventType =
   | "run_lock_acquired"
   | "run_lock_released"
   | "run_lock_busy"
+  | "model_invocation_recorded"
   | "run_audit_snapshot_written"
   | "evidence_manifest_written"
   | "operator_snapshot_written"

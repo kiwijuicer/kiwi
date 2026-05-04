@@ -8,6 +8,11 @@ import { createMcpMessageDrainer, handleMcpRequest, startHttpMcpServer } from ".
 
 function setupRepo(): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-"));
+  writeKiwiConfig(cwd);
+  return cwd;
+}
+
+function writeKiwiConfig(cwd: string): void {
   mkdirSync(path.join(cwd, ".kiwi", "runs"), { recursive: true });
   mkdirSync(path.join(cwd, ".kiwi", "logs"), { recursive: true });
   writeFileSync(path.join(cwd, ".kiwi", "config.yaml"), "version: \"1\"\n", "utf-8");
@@ -57,7 +62,6 @@ models:
 `,
     "utf-8",
   );
-  return cwd;
 }
 
 function setupWorkspace(): { root: string; core: string; agent: string } {
@@ -350,6 +354,121 @@ describe("MCP server", () => {
     );
     expect(a2a.error).toBeUndefined();
     expect(JSON.stringify(a2a.result)).toContain("accepted");
+  });
+
+  it("normalizes kiwi_plan arguments and exposes model evidence resources", async () => {
+    const cwd = setupRepo();
+    const planned = await handleMcpRequest(
+      {
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: JSON.stringify({ rawInput: "# Raw MCP\n\n## Plan", budgetProfile: "tiny" }),
+        },
+      },
+      cwd,
+    );
+    expect(planned.error).toBeUndefined();
+    const parsed = toolJson(planned) as { runId: string; workspacePath: string; repoPath: string };
+    expect(parsed.workspacePath).toBe(cwd);
+    expect(parsed.repoPath).toBe(cwd);
+
+    const invocations = await handleMcpRequest(
+      {
+        id: 2,
+        method: "resources/read",
+        params: { uri: `kiwi://runs/${parsed.runId}/model-invocations` },
+      },
+      cwd,
+    );
+    const summary = await handleMcpRequest(
+      {
+        id: 3,
+        method: "resources/read",
+        params: { uri: `kiwi://runs/${parsed.runId}/model-usage-summary` },
+      },
+      cwd,
+    );
+
+    const invocationsText = (invocations.result as { contents: Array<{ text: string }> }).contents[0]?.text ?? "";
+    const summaryText = (summary.result as { contents: Array<{ text: string }> }).contents[0]?.text ?? "";
+    expect(invocationsText).toContain("stub-frontier");
+    expect(summaryText).toContain("\"invocationCount\": 1");
+  });
+
+  it("accepts tools/call top-level fallback arguments", async () => {
+    const cwd = setupRepo();
+    const planned = await handleMcpRequest(
+      {
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          rawInput: "# Top Level MCP\n\n## Plan",
+          riskProfile: "dev",
+          budgetProfile: "tiny",
+        },
+      },
+      cwd,
+    );
+
+    expect(planned.error).toBeUndefined();
+    expect((toolJson(planned) as { runId: string }).runId).toMatch(/^run_/);
+  });
+
+  it("falls back from uninitialized workspacePath to initialized repoPath and prefers repoPath over repoId", async () => {
+    const workspaceRoot = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-workspace-root-"));
+    const core = path.join(workspaceRoot, "voice-core");
+    mkdirSync(core);
+    writeKiwiConfig(core);
+
+    const calls = [
+      {
+        workspacePath: workspaceRoot,
+        repoId: "voice-core",
+        repoPath: core,
+      },
+      {
+        workspacePath: workspaceRoot,
+        repoPath: core,
+      },
+      {
+        workspacePath: core,
+        repoId: "voice-workspace",
+        repoPath: core,
+      },
+      {
+        workspacePath: core,
+        repoId: "voice-core",
+        repoPath: core,
+      },
+    ];
+
+    for (const [index, args] of calls.entries()) {
+      const planned = await handleMcpRequest(
+        {
+          id: index + 1,
+          method: "tools/call",
+          params: {
+            name: "kiwi_plan",
+            arguments: {
+              ...args,
+              rawInput: `# Workspace fallback ${index}\n\n## Plan`,
+              riskProfile: "dev",
+              budgetProfile: "tiny",
+            },
+          },
+        },
+        os.tmpdir(),
+      );
+
+      expect(planned.error).toBeUndefined();
+      const parsed = toolJson(planned) as { workspacePath: string; repoId: string; repoPath: string };
+      expect(parsed.workspacePath).toBe(core);
+      expect(parsed.repoId).toBe("voice-core");
+      expect(parsed.repoPath).toBe(core);
+    }
   });
 
   it("accepts workspace selection and exposes kiwi_run", async () => {

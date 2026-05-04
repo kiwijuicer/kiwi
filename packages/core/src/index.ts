@@ -6,6 +6,8 @@ export * from "./planner";
 export * from "./run-store";
 export * from "./status";
 export * from "./cost-ledger";
+export * from "./model-invocations";
+export * from "./planner-run";
 export * from "./quality-gates";
 export * from "./review-engine";
 export * from "./scheduler-policy";

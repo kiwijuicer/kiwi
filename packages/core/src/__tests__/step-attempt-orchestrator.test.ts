@@ -10,6 +10,7 @@ import {
   Step,
 } from "@kiwi/contracts";
 import { readAuditEvents } from "../cost-ledger";
+import { readModelInvocations } from "../model-invocations";
 import { ReviewEngine } from "../review-engine";
 import { scheduleStepAttempt } from "../scheduler-policy";
 import {
@@ -191,9 +192,35 @@ describe("step attempt orchestrator", () => {
         path.join(repo, ".kiwi", "runs", "run_demo", "steps", "step_001", "attempt_001", "attempt.json"),
         "utf-8",
       ),
-    ) as { status: string; artifacts: Artifact[] };
+    ) as { status: string; artifacts: Artifact[]; modelInvocationRefs: string[] };
     expect(attempt.status).toBe("completed");
     expect(attempt.artifacts).toHaveLength(4);
+    expect(attempt.modelInvocationRefs).toHaveLength(2);
+    const invocations = readModelInvocations(repo, "run_demo");
+    expect(invocations.map((entry) => entry.phase)).toEqual(["executor", "reviewer"]);
+    expect(invocations[0]?.providerName).toBe("local");
+    expect(invocations[0]?.modelId).toBeNull();
+    expect(invocations[1]?.providerName).toBe("stub");
+    expect(invocations[1]?.modelId).toBe("stub-reviewer");
+    const costReport = JSON.parse(
+      readFileSync(
+        path.join(
+          repo,
+          ".kiwi",
+          "runs",
+          "run_demo",
+          "steps",
+          "step_001",
+          "attempt_001",
+          "artifacts",
+          "cost-report.json",
+        ),
+        "utf-8",
+      ),
+    ) as { providerName: string; modelId: string | null; modelInvocationRefs: string[] };
+    expect(costReport.providerName).toBe("local");
+    expect(costReport.modelId).toBeNull();
+    expect(costReport.modelInvocationRefs).toHaveLength(2);
     expect(
       existsSync(
         path.join(repo, ".kiwi", "runs", "run_demo", "steps", "step_001", "attempt_001", "gate-results.json"),

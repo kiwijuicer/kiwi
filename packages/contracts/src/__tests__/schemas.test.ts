@@ -17,7 +17,9 @@ import {
   InitiativeSchema,
   KiwiConfigSchema,
   KiwiPolicySchema,
+  ModelInvocationRecordSchema,
   ModelRegistrySchema,
+  ModelUsageSummarySchema,
   ProtocolEnvelopeSchema,
   ReviewVerdictSchema,
   RunAuditSnapshotSchema,
@@ -147,6 +149,42 @@ describe("contracts schemas", () => {
     expect(attempt.artifacts).toHaveLength(1);
     expect(gate.status).toBe("pass");
     expect(review.verdict).toBe("pass_with_comments");
+  });
+
+  it("parses model invocation records and usage summaries", () => {
+    const invocation = ModelInvocationRecordSchema.parse({
+      schemaVersion: "1",
+      runId: "run_demo",
+      phase: "planner",
+      agentRole: "planner",
+      requestedCapability: "frontier",
+      selectedCapability: "frontier",
+      modelId: "stub-frontier",
+      providerName: "stub-deterministic",
+      runner: null,
+      usage: { inputTokens: 12, outputTokens: 34 },
+      estimatedCostUsd: 0,
+      status: "completed",
+      evidenceRefs: ["plan/planner-output.json"],
+      startedAt: "2026-05-04T08:00:00.000Z",
+      completedAt: "2026-05-04T08:00:01.000Z",
+    });
+    const summary = ModelUsageSummarySchema.parse({
+      schemaVersion: "1",
+      runId: "run_demo",
+      invocationCount: 1,
+      totals: { inputTokens: 12, outputTokens: 34, estimatedCostUsd: 0 },
+      byPhase: {
+        planner: { inputTokens: 12, outputTokens: 34, estimatedCostUsd: 0 },
+        executor: { inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 },
+        reviewer: { inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 },
+      },
+      invocations: [invocation],
+      generatedAt: "2026-05-04T08:00:02.000Z",
+    });
+
+    expect(summary.invocations[0]?.modelId).toBe("stub-frontier");
+    expect(summary.totals.outputTokens).toBe(34);
   });
 
   it("rejects invalid gate status", () => {

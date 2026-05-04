@@ -160,9 +160,16 @@ describe("run lifecycle", () => {
     });
     expect(finalized.verdict.verdict).toBe("pass");
     expect(finalized.run.status).toBe("completed");
+    expect(finalized.modelUsageSummaryRef).toBe("final/model-usage-summary.json");
     expect(
       readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", "final", "final-summary.md"), "utf-8"),
-    ).toContain("safeToApply: true");
+    ).toContain("modelUsageSummary: final/model-usage-summary.json");
+    const usageSummary = JSON.parse(
+      readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", "final", "model-usage-summary.json"), "utf-8"),
+    ) as { invocationCount: number; byPhase: { executor: { inputTokens: number }; reviewer: { inputTokens: number } } };
+    expect(usageSummary.invocationCount).toBe(2);
+    expect(usageSummary.byPhase.executor.inputTokens).toBe(0);
+    expect(usageSummary.byPhase.reviewer.inputTokens).toBe(0);
   });
 
   it("requires dependency steps to have completed attempts", async () => {

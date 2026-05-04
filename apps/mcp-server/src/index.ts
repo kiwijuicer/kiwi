@@ -1,7 +1,11 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "fs";
 import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 import path from "path";
-import { LocalShellRunnerAdapter, StubPlannerProvider, runPlannerProviderWithRetries } from "@kiwi/adapters";
+import {
+  LocalShellRunnerAdapter,
+  StubPlannerProvider,
+  runPlannerProviderWithRetries,
+} from "@kiwi/adapters";
 import { ProtocolEnvelopeKindSchema } from "@kiwi/contracts";
 import { createWorktreeSandbox, SandboxCommandPolicy } from "@kiwi/sandbox";
 import {
@@ -11,11 +15,10 @@ import {
   buildDeterministicTaskGraph,
   commandProfileForStep,
   commandProfileToExecutionPolicy,
-  createInitiativeFromInput,
   finalizeRun,
-  generateRunId,
   getRunStatusSummary,
   handleA2AEnvelope,
+  isInitialized,
   listA2AInbox,
   listStepAttemptEvidence,
   loadA2AConfig,
@@ -27,24 +30,26 @@ import {
   loadRunManifest,
   loadTaskGraph,
   noopCommand,
+  planRun,
   publishA2AEnvelope,
   readAuditEvents,
+  readModelInvocations,
   recordApprovalDecision,
   refreshRunStatusFromAttempts,
   removeA2ATrustedPeer,
   resolveWorkspace,
   WorkspaceResolution,
   resolveRunArtifactPath,
-  savePlannedRun,
   scheduleStepAttempt,
+  selectPlannerModel,
   setA2AEnabled,
   splitCommandLine,
   StepAttemptOrchestrator,
   syncA2AFilesystem,
+  summarizeModelInvocations,
   withRunLock,
   writeEvidenceManifest,
   writeOperatorSnapshot,
-  writePlannerCostReport,
 } from "@kiwi/core";
 
 export interface JsonRpcRequest {
@@ -68,6 +73,27 @@ function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 }
 
+function toolArguments(params: Record<string, unknown>): Record<string, unknown> {
+  const rawArguments = params.arguments;
+  if (typeof rawArguments === "object" && rawArguments !== null && !Array.isArray(rawArguments)) {
+    return rawArguments as Record<string, unknown>;
+  }
+  if (typeof rawArguments === "string") {
+    const parsed = JSON.parse(rawArguments) as unknown;
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    throw new Error("tools/call arguments JSON string must decode to an object");
+  }
+
+  const fallback: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "name" || key === "arguments") continue;
+    fallback[key] = value;
+  }
+  return fallback;
+}
+
 function textContent(value: unknown): { content: Array<{ type: "text"; text: string }> } {
   return {
     content: [
@@ -79,12 +105,9 @@ function textContent(value: unknown): { content: Array<{ type: "text"; text: str
   };
 }
 
-function selectPlannerModel(cwd: string) {
+function loadPlannerModel(cwd: string) {
   const registry = loadRegistry(path.join(cwd, "model-registry.yaml"));
-  const model = registry.models.find(
-    (entry) => entry.enabled && entry.roles.includes("planner") && entry.capability === "frontier",
-  ) ?? registry.models.find((entry) => entry.enabled && entry.roles.includes("planner"));
-  if (!model) throw new Error("No enabled planner model found");
+  const model = selectPlannerModel(registry.models);
   if (model.provider !== "stub") {
     throw new Error(`Planner provider '${model.provider}' is not supported yet`);
   }
@@ -93,11 +116,24 @@ function selectPlannerModel(cwd: string) {
 
 function workspaceArgs(args: Record<string, unknown>, cwd: string, requireRepo: boolean): WorkspaceResolution {
   const workspacePath = typeof args.workspacePath === "string" ? args.workspacePath : undefined;
-  const repo = typeof args.repoId === "string"
-    ? args.repoId
-    : typeof args.repoPath === "string"
-      ? args.repoPath
+  const repoPath = typeof args.repoPath === "string" ? args.repoPath : undefined;
+  const repo = repoPath
+    ? repoPath
+    : typeof args.repoId === "string"
+      ? args.repoId
       : undefined;
+  if (workspacePath && repoPath) {
+    const resolvedWorkspacePath = path.resolve(cwd, workspacePath);
+    const resolvedRepoPath = path.resolve(cwd, repoPath);
+    if (!isInitialized(resolvedWorkspacePath) && isInitialized(resolvedRepoPath)) {
+      return resolveWorkspace({
+        cwd,
+        workspacePath: resolvedRepoPath,
+        repo: resolvedRepoPath,
+        requireRepo,
+      });
+    }
+  }
   const input: Parameters<typeof resolveWorkspace>[0] = {
     cwd,
     requireRepo,
@@ -109,71 +145,47 @@ function workspaceArgs(args: Record<string, unknown>, cwd: string, requireRepo: 
 
 async function planTool(args: Record<string, unknown>, cwd: string): Promise<unknown> {
   const rawInput = String(args.ticket ?? args.rawInput ?? "");
-  if (!rawInput) throw new Error("kiwi_plan requires ticket or rawInput");
+  if (!rawInput) {
+    throw new Error(
+      `kiwi_plan requires ticket or rawInput; received argument keys: ${Object.keys(args).sort().join(", ") || "(none)"}`,
+    );
+  }
   const workspace = workspaceArgs(args, cwd, true);
   const repo = workspace.repo!;
   const now = new Date();
-  const runId = generateRunId(now);
-  const policy = loadPolicy(path.join(workspace.workspacePath, "kiwi-policy.yaml"));
-  const initiative = createInitiativeFromInput({
-    rawInput,
-    repoPath: repo.path,
-    source: "mcp",
-    riskProfile: args.riskProfile === "production" ? "production" : "dev",
-    budgetProfile: args.budgetProfile === "tiny" ? "tiny" : "normal",
-    now,
-  });
-  const plannerModel = selectPlannerModel(workspace.workspacePath);
+  const policyPath = path.join(workspace.workspacePath, "kiwi-policy.yaml");
+  if (!existsSync(policyPath)) {
+    throw new Error(
+      `Policy file not found: ${policyPath}. Effective workspacePath is ${workspace.workspacePath}; use an initialized workspace or set workspacePath to ${repo.path}.`,
+    );
+  }
+  const policy = loadPolicy(policyPath);
+  const plannerModel = loadPlannerModel(workspace.workspacePath);
   const provider = new StubPlannerProvider({
     buildTaskGraph: buildDeterministicTaskGraph,
     now: () => now,
   });
-  const plannerOutput = await runPlannerProviderWithRetries(
-    provider,
-    {
-      runId,
-      initiative,
-      policy,
-      requestedAt: now.toISOString(),
-    },
-    { maxAttempts: 2 },
-  );
-  savePlannedRun({
-    runId,
-    initiative,
-    taskGraph: plannerOutput.taskGraph,
-    plannerInput: { runId, initiative, policy, requestedAt: now.toISOString() },
-    plannerOutput: {
-      plannerModelId: plannerModel.id,
-      budget: { profile: initiative.budgetProfile, remainingUsdEstimate: null },
-      ...plannerOutput,
-    },
-    cwd: workspace.workspacePath,
+  const planned = await planRun({
     workspacePath: workspace.workspacePath,
     repoId: repo.id,
     repoPath: repo.path,
+    rawInput,
+    source: "mcp",
+    policy,
+    plannerModel,
+    executePlanner: (plannerInput, options) =>
+      runPlannerProviderWithRetries(provider, plannerInput, options),
+    riskProfile: args.riskProfile === "production" ? "production" : "dev",
+    budgetProfile: args.budgetProfile === "tiny" ? "tiny" : "normal",
     now,
   });
-  writePlannerCostReport(workspace.workspacePath, runId, {
-    schemaVersion: "1",
-    runId,
-    plannerModelId: plannerModel.id,
-    providerName: plannerOutput.providerName,
-    budgetProfile: initiative.budgetProfile,
-    budgetRemainingUsdEstimate: null,
-    attemptsUsed: plannerOutput.retry.attemptsUsed,
-    invalidAttempts: plannerOutput.retry.invalidAttempts,
-    modelUsage: plannerOutput.modelUsage,
-    cost: plannerOutput.cost,
-    createdAt: now.toISOString(),
-  });
   return {
-    runId,
-    planId: plannerOutput.taskGraph.planId,
-    steps: plannerOutput.taskGraph.steps.length,
-    workspacePath: workspace.workspacePath,
-    repoId: repo.id,
-    repoPath: repo.path,
+    runId: planned.runId,
+    planId: planned.taskGraph.planId,
+    steps: planned.taskGraph.steps.length,
+    workspacePath: planned.workspacePath,
+    repoId: planned.repoId,
+    repoPath: planned.repoPath,
   };
 }
 
@@ -327,6 +339,8 @@ function readResource(uri: string, cwd: string): McpResourceContent {
   if (tail === "planner-input") return asContent(uri, readJsonRunArtifact(runId, "plan/planner-input.json", cwd), "application/json");
   if (tail === "planner-output") return asContent(uri, readJsonRunArtifact(runId, "plan/planner-output.json", cwd), "application/json");
   if (tail === "planner-cost") return asContent(uri, readJsonRunArtifact(runId, "plan/cost-report.json", cwd), "application/json");
+  if (tail === "model-invocations") return asContent(uri, readModelInvocations(cwd, runId), "application/json");
+  if (tail === "model-usage-summary") return asContent(uri, summarizeModelInvocations({ cwd, runId }), "application/json");
   if (tail === "attempts") return asContent(uri, listStepAttemptEvidence(cwd, runId), "application/json");
   if (tail === "final-verdict") return asContent(uri, readJsonRunArtifact(runId, "final/final-verdict.json", cwd), "application/json");
   if (tail === "final-cost-report") return asContent(uri, readJsonRunArtifact(runId, "final/final-cost-report.json", cwd), "application/json");
@@ -381,10 +395,9 @@ function readResource(uri: string, cwd: string): McpResourceContent {
 }
 
 async function callTool(name: string, args: Record<string, unknown>, cwd: string): Promise<unknown> {
+  if (name === "kiwi_plan") return planTool(args, cwd);
   const workspace = workspaceArgs(args, cwd, false);
   switch (name) {
-    case "kiwi_plan":
-      return planTool(args, cwd);
     case "kiwi_status":
       return getRunStatusSummary(workspace.workspacePath, typeof args.runId === "string" ? args.runId : undefined);
     case "kiwi_run":
@@ -524,6 +537,10 @@ const TOOLS = [
         riskProfile: { type: "string", enum: ["dev", "production"] },
         budgetProfile: { type: "string", enum: ["tiny", "normal"] },
       },
+      anyOf: [
+        { required: ["ticket"] },
+        { required: ["rawInput"] },
+      ],
     },
   },
   {
@@ -771,6 +788,8 @@ export async function handleMcpRequest(
             { uri: "kiwi://runs/{runId}/planner-input", name: "Planner Input" },
             { uri: "kiwi://runs/{runId}/planner-output", name: "Planner Output" },
             { uri: "kiwi://runs/{runId}/planner-cost", name: "Planner Cost" },
+            { uri: "kiwi://runs/{runId}/model-invocations", name: "Model Invocations" },
+            { uri: "kiwi://runs/{runId}/model-usage-summary", name: "Model Usage Summary" },
             { uri: "kiwi://runs/{runId}/attempts", name: "Step Attempts" },
             { uri: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}", name: "StepAttempt" },
             { uri: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/gate-results", name: "Gate Results" },
@@ -803,7 +822,7 @@ export async function handleMcpRequest(
     }
     if (request.method === "tools/call") {
       const params = asRecord(request.params);
-      const result = await callTool(String(params.name), asRecord(params.arguments), cwd);
+      const result = await callTool(String(params.name), toolArguments(params), cwd);
       return { jsonrpc: "2.0", id, result: textContent(result) };
     }
     return { jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${request.method}` } };

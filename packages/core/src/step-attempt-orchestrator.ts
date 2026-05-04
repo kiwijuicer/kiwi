@@ -3,8 +3,10 @@ import path from "path";
 import {
   Artifact,
   ArtifactSchema,
+  AgentRole,
   GateResult,
   GateResultSchema,
+  ModelCapability,
   ReviewVerdict,
   ReviewVerdictSchema,
   RunnerName,
@@ -14,6 +16,7 @@ import {
   StepAttemptStatus,
 } from "@kiwi/contracts";
 import { appendAuditEvent } from "./cost-ledger";
+import { appendModelInvocation } from "./model-invocations";
 import { saveGateResults, summarizeGateResults } from "./quality-gates";
 import {
   classifyReviewAction,
@@ -127,6 +130,12 @@ interface RunnerCostReport {
   stepId: string;
   attemptId: string;
   runner: RunnerName;
+  modelId: string | null;
+  providerName: string;
+  agentRole: AgentRole;
+  modelCapability: ModelCapability;
+  reviewDepth: ModelCapability;
+  modelInvocationRefs: string[];
   modelUsage: StepRunnerModelUsage;
   estimatedCostUsd: number;
   createdAt: string;
@@ -143,6 +152,7 @@ interface AttemptSummary {
   gateResultsRef: string;
   reviewReportRef: string;
   costReportRef: string;
+  modelInvocationRefs: string[];
   artifactRefs: string[];
   completedAt: string;
   error?: StepRunnerExecutionError;
@@ -217,6 +227,12 @@ function saveRunnerCostReport(params: {
   stepId: string;
   attemptId: string;
   runner: RunnerName;
+  modelId: string | null;
+  providerName: string;
+  agentRole: AgentRole;
+  modelCapability: ModelCapability;
+  reviewDepth: ModelCapability;
+  modelInvocationRefs: string[];
   modelUsage: StepRunnerModelUsage;
   createdAt: string;
 }): string {
@@ -228,6 +244,12 @@ function saveRunnerCostReport(params: {
     stepId: params.stepId,
     attemptId: params.attemptId,
     runner: params.runner,
+    modelId: params.modelId,
+    providerName: params.providerName,
+    agentRole: params.agentRole,
+    modelCapability: params.modelCapability,
+    reviewDepth: params.reviewDepth,
+    modelInvocationRefs: params.modelInvocationRefs,
     modelUsage: params.modelUsage,
     estimatedCostUsd: 0,
     createdAt: params.createdAt,
@@ -423,6 +445,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       attempt: StepAttemptSchema.parse({
         ...existingAttempt,
         status: "running",
+        modelInvocationRefs: existingAttempt.modelInvocationRefs,
         completedAt: null,
       }),
     });
@@ -466,6 +489,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
     });
 
     const reviewEngine = input.reviewEngine ?? this.defaults.reviewEngine ?? new StubReviewEngine();
+    const reviewStartedAt = new Date().toISOString();
     const rawReviewVerdict = await reviewEngine.review({
       runId,
       stepId,
@@ -485,6 +509,49 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
     });
 
     const completedAt = new Date().toISOString();
+    const runnerInvocationRef = appendModelInvocation(input.cwd, {
+      schemaVersion: "1",
+      runId,
+      phase: "executor",
+      stepId,
+      attemptId,
+      agentRole: input.schedulerDecision.agentRole,
+      requestedCapability: input.step.recommendedModelCapability,
+      selectedCapability: input.schedulerDecision.modelCapability,
+      modelId: null,
+      providerName: "local",
+      runner: input.runner.name,
+      usage: runnerOutput.modelUsage,
+      estimatedCostUsd: 0,
+      status: runnerOutput.status === "completed"
+        ? "completed"
+        : runnerOutput.status === "blocked" || runnerOutput.status === "approval_required"
+          ? "blocked"
+          : "failed",
+      evidenceRefs: runnerOutput.artifactRefs.map((entry) => entry.ref),
+      startedAt,
+      completedAt,
+    });
+    const reviewerInvocationRef = appendModelInvocation(input.cwd, {
+      schemaVersion: "1",
+      runId,
+      phase: "reviewer",
+      stepId,
+      attemptId,
+      agentRole: "reviewer",
+      requestedCapability: input.schedulerDecision.reviewDepth,
+      selectedCapability: input.schedulerDecision.reviewDepth,
+      modelId: reviewEngine.name === "stub-review" ? "stub-reviewer" : reviewEngine.name,
+      providerName: reviewEngine.name === "stub-review" ? "stub" : reviewEngine.name,
+      runner: null,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      estimatedCostUsd: 0,
+      status: "completed",
+      evidenceRefs: [gateResultsRef, reviewReportRef],
+      startedAt: reviewStartedAt,
+      completedAt,
+    });
+    const modelInvocationRefs = [runnerInvocationRef, reviewerInvocationRef];
     const nextAction = nextActionFromReview(reviewVerdict);
     const status = mapRunnerStatusToAttemptStatus({
       runnerStatus: runnerOutput.status,
@@ -497,6 +564,12 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       stepId,
       attemptId,
       runner: input.runner.name,
+      modelId: null,
+      providerName: "local",
+      agentRole: input.schedulerDecision.agentRole,
+      modelCapability: input.schedulerDecision.modelCapability,
+      reviewDepth: input.schedulerDecision.reviewDepth,
+      modelInvocationRefs,
       modelUsage: runnerOutput.modelUsage,
       createdAt: completedAt,
     });
@@ -523,6 +596,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
         gateResultsRef,
         reviewReportRef,
         costReportRef,
+        modelInvocationRefs,
         artifactRefs: artifactsWithoutSummary.map((entry) => entry.ref),
         completedAt,
         ...(runnerOutput.error ? { error: runnerOutput.error } : {}),
@@ -535,6 +609,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
     const finalAttempt = StepAttemptSchema.parse({
       ...existingAttempt,
       status,
+      modelInvocationRefs,
       artifacts,
       completedAt,
     });

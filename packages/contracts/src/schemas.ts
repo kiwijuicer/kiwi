@@ -94,6 +94,8 @@ export const ApprovalStateSchema = z.enum(["auto", "required", "blocked"]);
 export const NetworkPolicySchema = z.enum(["disabled", "enabled"]);
 export const ContextLevelSchema = z.enum(["L0", "L1", "L2", "L3"]);
 export const SchedulerDecisionStatusSchema = z.enum(["scheduled", "blocked"]);
+export const ModelInvocationPhaseSchema = z.enum(["planner", "executor", "reviewer"]);
+export const ModelInvocationStatusSchema = z.enum(["completed", "failed", "blocked"]);
 export const ReviewVerdictValueSchema = z.enum([
   "pass",
   "pass_with_comments",
@@ -238,6 +240,47 @@ export const ArtifactSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
+export const ModelUsageSchema = z.object({
+  inputTokens: z.number().int().min(0),
+  outputTokens: z.number().int().min(0),
+});
+
+export const ModelInvocationRecordSchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  phase: ModelInvocationPhaseSchema,
+  stepId: z.string().regex(/^step_\d{3}$/).optional(),
+  attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/).optional(),
+  agentRole: AgentRoleSchema,
+  requestedCapability: ModelCapabilitySchema.optional(),
+  selectedCapability: ModelCapabilitySchema,
+  modelId: z.union([z.string().min(1), z.null()]),
+  providerName: z.string().min(1),
+  runner: z.union([RunnerNameSchema, z.null()]),
+  usage: ModelUsageSchema,
+  estimatedCostUsd: z.number().min(0),
+  status: ModelInvocationStatusSchema,
+  evidenceRefs: z.array(z.string().min(1)).default([]),
+  startedAt: IsoDateTimeSchema,
+  completedAt: IsoDateTimeSchema,
+});
+
+export const ModelUsageSummaryTotalsSchema = z.object({
+  inputTokens: z.number().int().min(0),
+  outputTokens: z.number().int().min(0),
+  estimatedCostUsd: z.number().min(0),
+});
+
+export const ModelUsageSummarySchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  invocationCount: z.number().int().min(0),
+  totals: ModelUsageSummaryTotalsSchema,
+  byPhase: z.record(ModelInvocationPhaseSchema, ModelUsageSummaryTotalsSchema),
+  invocations: z.array(ModelInvocationRecordSchema),
+  generatedAt: IsoDateTimeSchema,
+});
+
 export const StepAttemptSchema = z.object({
   attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/),
   stepId: z.string().regex(/^step_\d{3}$/),
@@ -246,6 +289,7 @@ export const StepAttemptSchema = z.object({
   modelCapability: ModelCapabilitySchema,
   status: StepAttemptStatusSchema,
   contextPackageRef: z.string().min(1),
+  modelInvocationRefs: z.array(z.string().min(1)).default([]),
   artifacts: z.array(ArtifactSchema),
   startedAt: IsoDateTimeSchema,
   completedAt: z.union([IsoDateTimeSchema, z.null()]),
@@ -312,10 +356,7 @@ export const SchedulerDecisionSchema = z.object({
   contextPackageRef: z.string().min(1),
 });
 
-export const RunnerModelUsageSchema = z.object({
-  inputTokens: z.number().int().min(0),
-  outputTokens: z.number().int().min(0),
-});
+export const RunnerModelUsageSchema = ModelUsageSchema;
 
 export const RunnerExecutionErrorSchema = z.object({
   code: z.string().min(1),
@@ -362,6 +403,7 @@ export const AttemptSummarySchema = z.object({
   gateResultsRef: z.string().min(1),
   reviewReportRef: z.string().min(1),
   costReportRef: z.string().min(1),
+  modelInvocationRefs: z.array(z.string()).default([]),
   artifactRefs: z.array(z.string()),
   completedAt: IsoDateTimeSchema,
   error: RunnerExecutionErrorSchema.optional(),
@@ -585,6 +627,8 @@ export type ApprovalState = z.infer<typeof ApprovalStateSchema>;
 export type NetworkPolicy = z.infer<typeof NetworkPolicySchema>;
 export type ContextLevel = z.infer<typeof ContextLevelSchema>;
 export type SchedulerDecisionStatus = z.infer<typeof SchedulerDecisionStatusSchema>;
+export type ModelInvocationPhase = z.infer<typeof ModelInvocationPhaseSchema>;
+export type ModelInvocationStatus = z.infer<typeof ModelInvocationStatusSchema>;
 export type ReviewVerdictValue = z.infer<typeof ReviewVerdictValueSchema>;
 export type ReviewIssueSeverity = z.infer<typeof ReviewIssueSeveritySchema>;
 export type ScmProvider = z.infer<typeof ScmProviderSchema>;
@@ -595,6 +639,10 @@ export type TaskGraph = z.infer<typeof TaskGraphSchema>;
 export type Run = z.infer<typeof RunSchema>;
 export type RunManifest = Run;
 export type Artifact = z.infer<typeof ArtifactSchema>;
+export type ModelUsage = z.infer<typeof ModelUsageSchema>;
+export type ModelInvocationRecord = z.infer<typeof ModelInvocationRecordSchema>;
+export type ModelUsageSummaryTotals = z.infer<typeof ModelUsageSummaryTotalsSchema>;
+export type ModelUsageSummary = z.infer<typeof ModelUsageSummarySchema>;
 export type StepAttempt = z.infer<typeof StepAttemptSchema>;
 export type GateResult = z.infer<typeof GateResultSchema>;
 export type ReviewIssue = z.infer<typeof ReviewIssueSchema>;

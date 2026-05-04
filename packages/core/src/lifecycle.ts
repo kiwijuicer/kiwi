@@ -26,6 +26,7 @@ import {
   StepAttemptSchema,
 } from "@kiwi/contracts";
 import { appendAuditEvent } from "./cost-ledger";
+import { writeModelUsageSummary } from "./model-invocations";
 import {
   ensureRunLayout,
   loadRunManifest,
@@ -51,6 +52,7 @@ export interface FinalizeRunResult {
   summaryRef: string;
   verdictRef: string;
   costReportRef: string;
+  modelUsageSummaryRef: string;
   run: RunManifest;
 }
 
@@ -311,6 +313,7 @@ function writeFinalSummary(params: {
   runId: string;
   verdict: FinalVerdict;
   costReportRef: string;
+  modelUsageSummaryRef: string;
 }): string {
   const ref = "final/final-summary.md";
   const lines = [
@@ -324,6 +327,7 @@ function writeFinalSummary(params: {
     `blockedSteps: ${params.verdict.blockedStepIds.length}`,
     `missingSteps: ${params.verdict.missingStepIds.length}`,
     `costReport: ${params.costReportRef}`,
+    `modelUsageSummary: ${params.modelUsageSummaryRef}`,
     "",
   ];
   writeFileSync(resolveRunArtifactPath(params.runId, ref, params.cwd), lines.join("\n"), "utf-8");
@@ -396,6 +400,11 @@ export function finalizeRun(params: {
 
   const verdictRef = "final/final-verdict.json";
   const costReportRef = "final/final-cost-report.json";
+  const modelUsageSummary = writeModelUsageSummary({
+    cwd: params.cwd,
+    runId: params.runId,
+    now,
+  });
   writeJsonSafely(resolveRunArtifactPath(params.runId, verdictRef, params.cwd), verdict);
   writeJsonSafely(resolveRunArtifactPath(params.runId, costReportRef, params.cwd), costReport);
   const summaryRef = writeFinalSummary({
@@ -403,6 +412,7 @@ export function finalizeRun(params: {
     runId: params.runId,
     verdict,
     costReportRef,
+    modelUsageSummaryRef: modelUsageSummary.ref,
   });
   const run = updateRunStatus({
     cwd: params.cwd,
@@ -421,6 +431,7 @@ export function finalizeRun(params: {
       summaryRef,
       verdictRef,
       costReportRef,
+      modelUsageSummaryRef: modelUsageSummary.ref,
     },
   });
 
@@ -430,6 +441,7 @@ export function finalizeRun(params: {
     summaryRef,
     verdictRef,
     costReportRef,
+    modelUsageSummaryRef: modelUsageSummary.ref,
     run,
   };
 }

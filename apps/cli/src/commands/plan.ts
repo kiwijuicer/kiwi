@@ -1,24 +1,18 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
-import { ModelEntry } from "@kiwi/contracts";
 import {
-  PlannerProviderValidationError,
-  PlannerProviderInput,
   StubPlannerProvider,
   runPlannerProviderWithRetries,
 } from "@kiwi/adapters";
 import {
-  appendAuditEvent,
   NotInitializedError,
   buildDeterministicTaskGraph,
-  createInitiativeFromInput,
-  generateRunId,
   isInitialized,
   loadPolicy,
   loadRegistry,
-  savePlannedRun,
-  writePlannerCostReport,
+  planRun,
+  selectPlannerModel,
 } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
@@ -31,18 +25,6 @@ export interface PlanOptions extends CliWorkspaceOptions {
   runIdSuffix?: string;
   initiativeIdSuffix?: string;
   planIdSuffix?: string;
-}
-
-function selectPlannerModel(models: ModelEntry[]): ModelEntry {
-  const candidate = models.find(
-    (model) => model.enabled && model.roles.includes("planner") && model.capability === "frontier",
-  ) ?? models.find((model) => model.enabled && model.roles.includes("planner"));
-
-  if (!candidate) {
-    throw new Error("No enabled planner model found in model-registry.yaml");
-  }
-
-  return candidate;
 }
 
 function looksLikeTicketPath(ticketArg: string): boolean {
@@ -94,27 +76,6 @@ export async function runPlan(
 
   const { rawInput, source } = resolveTicketInput(ticketArg, cwd);
   const now = opts.now ?? new Date();
-  const runIdOptions = opts.runIdSuffix ? { suffix: opts.runIdSuffix } : {};
-  const runId = opts.runId ?? generateRunId(now, runIdOptions);
-  const initiativeParams = opts.initiativeIdSuffix
-      ? {
-        rawInput,
-        repoPath: repo.path,
-        source,
-        riskProfile: opts.riskProfile ?? "dev",
-        budgetProfile: opts.budgetProfile ?? "normal",
-        now,
-        idSuffix: opts.initiativeIdSuffix,
-      }
-    : {
-        rawInput,
-        repoPath: repo.path,
-        source,
-        riskProfile: opts.riskProfile ?? "dev",
-        budgetProfile: opts.budgetProfile ?? "normal",
-        now,
-      };
-  const initiative = createInitiativeFromInput(initiativeParams);
   const plannerModel = selectPlannerModel(registry.models);
   if (plannerModel.provider !== "stub") {
     throw new Error(
@@ -122,128 +83,40 @@ export async function runPlan(
     );
   }
 
-  const plannerInput: PlannerProviderInput = {
-    runId,
-    initiative,
-    policy,
-    requestedAt: now.toISOString(),
-  };
-  const maxAttempts = 2;
-  appendAuditEvent(workspacePath, {
-    eventType: "planner_provider_selected",
-    runId,
-    timestamp: now.toISOString(),
-    payload: {
-      plannerModelId: plannerModel.id,
-      provider: plannerModel.provider,
-      maxAttempts,
-      budgetProfile: initiative.budgetProfile,
-    },
-  });
-
   const provider = new StubPlannerProvider({
     buildTaskGraph: buildDeterministicTaskGraph,
     now: () => now,
     ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
   });
-  let plannerOutput;
-  try {
-    plannerOutput = await runPlannerProviderWithRetries(provider, plannerInput, {
-      maxAttempts,
-    });
-  } catch (error) {
-    if (error instanceof PlannerProviderValidationError) {
-      for (const record of error.evidence.records) {
-        if (record.status === "invalid") {
-          appendAuditEvent(workspacePath, {
-            eventType: "planner_retry",
-            runId,
-            timestamp: now.toISOString(),
-            payload: {
-              attempt: record.attempt,
-              providerName: record.providerName,
-              validationError: record.validationError ?? "unknown validation error",
-            },
-          });
-        }
-      }
-      appendAuditEvent(workspacePath, {
-        eventType: "planner_validation_failed",
-        runId,
-        timestamp: now.toISOString(),
-        payload: {
-          providerName: error.evidence.providerName,
-          attemptsUsed: error.evidence.attemptsUsed,
-          maxAttempts: error.evidence.maxAttempts,
-          lastValidationError: error.evidence.lastValidationError ?? "unknown",
-        },
-      });
-      appendAuditEvent(workspacePath, {
-        eventType: "planner_failed",
-        runId,
-        timestamp: now.toISOString(),
-        payload: {
-          reason: "planner_validation_failed",
-        },
-      });
-    } else {
-      appendAuditEvent(workspacePath, {
-        eventType: "planner_failed",
-        runId,
-        timestamp: now.toISOString(),
-        payload: {
-          reason: error instanceof Error ? error.message : String(error),
-        },
-      });
-    }
-    throw error;
-  }
-  const taskGraph = plannerOutput.taskGraph;
-  const budgetMetadata = {
-    profile: initiative.budgetProfile,
-    remainingUsdEstimate: null as number | null,
-  };
-  for (const record of plannerOutput.retry.records) {
-    if (record.status === "invalid") {
-      appendAuditEvent(cwd, {
-        eventType: "planner_retry",
-        runId,
-        timestamp: now.toISOString(),
-        payload: {
-          attempt: record.attempt,
-          providerName: record.providerName,
-          validationError: record.validationError ?? "unknown validation error",
-        },
-      });
-    }
-  }
-  appendAuditEvent(workspacePath, {
-    eventType: "planner_succeeded",
-    runId,
-    timestamp: now.toISOString(),
-    payload: {
-      providerName: plannerOutput.providerName,
-      attemptsUsed: plannerOutput.retry.attemptsUsed,
-      invalidAttempts: plannerOutput.retry.invalidAttempts,
-      modelUsage: plannerOutput.modelUsage,
-      cost: plannerOutput.cost,
-      budget: budgetMetadata,
-    },
+  const planned = await planRun({
+    workspacePath,
+    repoId: repo.id,
+    repoPath: repo.path,
+    rawInput,
+    source,
+    policy,
+    plannerModel,
+    executePlanner: (plannerInput, options) =>
+      runPlannerProviderWithRetries(provider, plannerInput, options),
+    riskProfile: opts.riskProfile ?? "dev",
+    budgetProfile: opts.budgetProfile ?? "normal",
+    now,
+    ...(opts.runId ? { runId: opts.runId } : {}),
+    ...(opts.runIdSuffix ? { runIdSuffix: opts.runIdSuffix } : {}),
+    ...(opts.initiativeIdSuffix ? { initiativeIdSuffix: opts.initiativeIdSuffix } : {}),
+    persistRunArtifacts: !opts.dryRun,
   });
 
   if (opts.dryRun) {
     console.log(
       JSON.stringify(
         {
-          runId,
-          initiative,
-          plannerModelId: plannerModel.id,
-          taskGraph,
-          plannerInput,
-          plannerOutput: {
-            ...plannerOutput,
-            budget: budgetMetadata,
-          },
+          runId: planned.runId,
+          initiative: planned.initiative,
+          plannerModelId: planned.plannerModelId,
+          taskGraph: planned.taskGraph,
+          plannerInput: planned.plannerInput,
+          plannerOutput: planned.plannerOutput,
         },
         null,
         2,
@@ -252,40 +125,10 @@ export async function runPlan(
     return;
   }
 
-  savePlannedRun({
-    runId,
-    initiative,
-    taskGraph,
-    plannerInput,
-    plannerOutput: {
-      plannerModelId: plannerModel.id,
-      budget: budgetMetadata,
-      ...plannerOutput,
-    },
-    cwd: workspacePath,
-    workspacePath,
-    repoId: repo.id,
-    repoPath: repo.path,
-    now,
-  });
-  writePlannerCostReport(workspacePath, runId, {
-    schemaVersion: "1",
-    runId,
-    plannerModelId: plannerModel.id,
-    providerName: plannerOutput.providerName,
-    budgetProfile: initiative.budgetProfile,
-    budgetRemainingUsdEstimate: budgetMetadata.remainingUsdEstimate,
-    attemptsUsed: plannerOutput.retry.attemptsUsed,
-    invalidAttempts: plannerOutput.retry.invalidAttempts,
-    modelUsage: plannerOutput.modelUsage,
-    cost: plannerOutput.cost,
-    createdAt: now.toISOString(),
-  });
-
   console.log(chalk.green("✓") + " Run planned");
-  console.log(chalk.dim(`runId: ${runId}`));
+  console.log(chalk.dim(`runId: ${planned.runId}`));
   console.log(chalk.dim(`workspace: ${workspacePath}`));
   console.log(chalk.dim(`repo: ${repo.id} (${repo.path})`));
-  console.log(chalk.dim(`steps: ${taskGraph.steps.length}`));
-  console.log(chalk.dim(`saved: .kiwi/runs/${runId}/`));
+  console.log(chalk.dim(`steps: ${planned.taskGraph.steps.length}`));
+  console.log(chalk.dim(`saved: .kiwi/runs/${planned.runId}/`));
 }
