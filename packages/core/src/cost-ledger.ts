@@ -11,7 +11,12 @@ export type AuditEventType =
   | "planner_failed"
   | "scheduler_routing_decided"
   | "scheduler_blocked"
-  | "context_package_created";
+  | "context_package_created"
+  | "step_attempt_started"
+  | "runner_attempt_completed"
+  | "runner_attempt_failed"
+  | "step_attempt_reviewed"
+  | "step_attempt_next_action";
 
 export interface AuditEvent {
   eventType: AuditEventType;

@@ -63,6 +63,9 @@ importers:
       '@ai-kiwi/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@ai-kiwi/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
     devDependencies:
       '@types/node':
         specifier: ^20.12.7
@@ -130,6 +133,9 @@ importers:
       '@types/node':
         specifier: ^20.12.7
         version: 20.19.39
+      tsup:
+        specifier: ^8.0.2
+        version: 8.5.1(postcss@8.5.13)(tsx@4.21.0)(typescript@5.9.3)
       typescript:
         specifier: ^5.4.5
         version: 5.9.3

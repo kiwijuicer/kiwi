@@ -11,7 +11,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ai-kiwi/contracts": "workspace:*"
+    "@ai-kiwi/contracts": "workspace:*",
+    "@ai-kiwi/sandbox": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",

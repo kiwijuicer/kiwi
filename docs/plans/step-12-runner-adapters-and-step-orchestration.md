@@ -1,7 +1,7 @@
 # Step 12: Runner Adapters and Step Orchestration
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-04
 Milestone: MVP 4
 Depends-On: Step 11
 Vision-Refs: 7.1, 7.2, 8, 11.3, 17.4
