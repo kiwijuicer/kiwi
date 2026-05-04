@@ -1,6 +1,11 @@
 export function defaultKiwiConfigYaml(nowIso: string): string {
   return `version: "1"
 initializedAt: "${nowIso}"
+a2a:
+  enabled: false
+  localAgentId: ai-kiwi-local
+  acceptedKinds: [initiative, task_graph, step_attempt, gate_result, review_verdict, artifact]
+  peers: []
 `;
 }
 

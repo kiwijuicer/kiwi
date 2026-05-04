@@ -30,6 +30,9 @@ Additional tools:
 
 - `kiwi_request_approval`: record an approval decision.
 - `kiwi_a2a_receive`: validate and optionally accept a gated loopback A2A envelope.
+- `kiwi_a2a_config`: read or update local A2A identity/enabled state.
+- `kiwi_a2a_trust_add`, `kiwi_a2a_trust_list`, `kiwi_a2a_trust_remove`: manage trusted filesystem peers.
+- `kiwi_a2a_publish`, `kiwi_a2a_sync`, `kiwi_a2a_inbox`, `kiwi_a2a_accept`: exchange and materialize trusted A2A handoffs.
 
 Workspace-aware tools accept:
 
@@ -105,6 +108,6 @@ For multi-repo work, start one server per workspace or set `AI_KIWI_WORKSPACE` p
 ## Safety
 
 - A run lock protects mutating operations.
-- A2A is disabled unless `loopback: true` and trusted sender IDs are provided.
-- Remote patch artifacts are rejected by the A2A runtime.
+- A2A is disabled by default and only exchanges filesystem envelopes with explicitly trusted peers.
+- Remote patch artifacts are quarantined by the A2A runtime.
 - Step worktrees copy only the selected repo, not the whole workspace.

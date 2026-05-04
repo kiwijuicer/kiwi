@@ -3,7 +3,9 @@ import { readFileSync } from "fs";
 import path from "path";
 import {
   ApprovalDecisionSchema,
+  A2AConfigSchema,
   A2ARuntimeDecisionSchema,
+  A2ARuntimeModeSchema,
   ArtifactSchema,
   AttemptSummarySchema,
   ContextPackageSchema,
@@ -13,6 +15,7 @@ import {
   FinalVerdictSchema,
   GateResultSchema,
   InitiativeSchema,
+  KiwiConfigSchema,
   KiwiPolicySchema,
   ModelRegistrySchema,
   ProtocolEnvelopeSchema,
@@ -39,7 +42,7 @@ describe("contracts schemas", () => {
       id: "init_demo",
       title: "Demo",
       rawInput: "demo input",
-      source: "cli",
+      source: "a2a",
       repoPath: "/tmp/repo",
       riskProfile: "dev",
       budgetProfile: "normal",
@@ -47,6 +50,7 @@ describe("contracts schemas", () => {
     });
 
     expect(parsed.id).toBe("init_demo");
+    expect(parsed.source).toBe("a2a");
   });
 
   it("parses a run manifest with canonical run schema", () => {
@@ -350,6 +354,40 @@ describe("contracts schemas", () => {
       readFileSync(path.join(__dirname, "..", "__fixtures__", "a2a-envelope.json"), "utf-8"),
     ) as unknown;
     const envelope = ProtocolEnvelopeSchema.parse(fixture);
+    const envelopeWithAttachment = ProtocolEnvelopeSchema.parse({
+      schemaVersion: "1",
+      protocol: "a2a-prep",
+      kind: "artifact",
+      payload: {
+        type: "diff",
+        ref: "steps/step_001/attempt_001/artifacts/diff.patch",
+        createdAt: "2026-05-04T08:00:00.000Z",
+      },
+      createdAt: "2026-05-04T08:00:00.000Z",
+      a2a: {
+        messageId: "msg_attachment",
+        correlationId: "corr_attachment",
+        idempotencyKey: "attachment-key",
+        senderAgentId: "agent-a",
+        recipientAgentId: "agent-b",
+        attachments: [
+          {
+            ref: "attachments/msg_attachment/diff.patch",
+            sha256: "a".repeat(64),
+            bytes: 12,
+            mediaType: "text/x-patch",
+          },
+        ],
+      },
+    });
+    const a2aConfig = A2AConfigSchema.parse({
+      enabled: true,
+      localAgentId: "agent-a",
+      acceptedKinds: ["initiative", "task_graph"],
+      peers: [{ agentId: "agent-b", inboxPath: "/tmp/b/.kiwi/a2a/transport/incoming" }],
+    });
+    const kiwiConfig = KiwiConfigSchema.parse({ version: "1" });
+    const mode = A2ARuntimeModeSchema.parse("filesystem");
     const a2aDecision = A2ARuntimeDecisionSchema.parse({
       schemaVersion: "1",
       status: "accepted",
@@ -371,6 +409,10 @@ describe("contracts schemas", () => {
     expect(auditSnapshot.eventCount).toBe(1);
     expect(evidence.files[0]?.ref).toBe("run.json");
     expect(envelope.protocol).toBe("a2a-prep");
+    expect(envelopeWithAttachment.a2a?.attachments?.[0]?.mediaType).toBe("text/x-patch");
+    expect(a2aConfig.peers[0]?.allowRemotePatches).toBe(false);
+    expect(kiwiConfig.a2a.enabled).toBe(false);
+    expect(mode).toBe("filesystem");
     expect(a2aDecision.status).toBe("accepted");
   });
 });

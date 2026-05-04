@@ -29,6 +29,7 @@ This currently runs:
 - `kiwi evidence manifest`
 - `kiwi operator snapshot`
 - gated A2A loopback receive with an explicit trusted sender
+- trusted filesystem A2A publish/sync/import and ReviewVerdict reply correlation between two local peers
 
 ## Packaging Notes
 

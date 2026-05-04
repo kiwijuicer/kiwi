@@ -1,8 +1,11 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { LocalShellRunnerAdapter, StubPlannerProvider, runPlannerProviderWithRetries } from "@ai-kiwi/adapters";
+import { ProtocolEnvelopeKindSchema } from "@ai-kiwi/contracts";
 import { createWorktreeSandbox, SandboxCommandPolicy } from "@ai-kiwi/sandbox";
 import {
+  acceptA2AHandoff,
+  addA2ATrustedPeer,
   assertStepDependenciesCompleted,
   buildDeterministicTaskGraph,
   commandProfileForStep,
@@ -12,7 +15,9 @@ import {
   generateRunId,
   getRunStatusSummary,
   handleA2AEnvelope,
+  listA2AInbox,
   listStepAttemptEvidence,
+  loadA2AConfig,
   loadEvidenceManifest,
   loadApprovalDecision,
   loadInitiative,
@@ -21,16 +26,20 @@ import {
   loadRunManifest,
   loadTaskGraph,
   noopCommand,
+  publishA2AEnvelope,
   readAuditEvents,
   recordApprovalDecision,
   refreshRunStatusFromAttempts,
+  removeA2ATrustedPeer,
   resolveWorkspace,
   WorkspaceResolution,
   resolveRunArtifactPath,
   savePlannedRun,
   scheduleStepAttempt,
+  setA2AEnabled,
   splitCommandLine,
   StepAttemptOrchestrator,
+  syncA2AFilesystem,
   withRunLock,
   writeEvidenceManifest,
   writeOperatorSnapshot,
@@ -424,6 +433,63 @@ async function callTool(name: string, args: Record<string, unknown>, cwd: string
             : [],
         },
       }).decision;
+    case "kiwi_a2a_config": {
+      if (typeof args.enabled === "boolean" || typeof args.localAgentId === "string") {
+        const configParams: Parameters<typeof setA2AEnabled>[0] = {
+          cwd: workspace.workspacePath,
+          enabled: typeof args.enabled === "boolean" ? args.enabled : loadA2AConfig(workspace.workspacePath).enabled,
+        };
+        if (typeof args.localAgentId === "string") configParams.localAgentId = args.localAgentId;
+        return setA2AEnabled(configParams);
+      }
+      return loadA2AConfig(workspace.workspacePath);
+    }
+    case "kiwi_a2a_trust_add":
+      return addA2ATrustedPeer({
+        cwd: workspace.workspacePath,
+        agentId: String(args.agentId ?? ""),
+        inboxPath: String(args.inboxPath ?? ""),
+        allowRemotePatches: args.allowRemotePatches === true,
+      });
+    case "kiwi_a2a_trust_list":
+      return loadA2AConfig(workspace.workspacePath).peers;
+    case "kiwi_a2a_trust_remove":
+      return removeA2ATrustedPeer({
+        cwd: workspace.workspacePath,
+        agentId: String(args.agentId ?? ""),
+      });
+    case "kiwi_a2a_publish":
+    {
+      const publishParams: Parameters<typeof publishA2AEnvelope>[0] = {
+        cwd: workspace.workspacePath,
+        peerAgentId: String(args.peerAgentId ?? args.peer ?? ""),
+        kind: ProtocolEnvelopeKindSchema.parse(args.kind),
+      };
+      if (typeof args.runId === "string") publishParams.runId = args.runId;
+      if (typeof args.stepId === "string") publishParams.stepId = args.stepId;
+      if (typeof args.attemptId === "string") publishParams.attemptId = args.attemptId;
+      if (typeof args.gateId === "string") publishParams.gateId = args.gateId;
+      if (typeof args.artifactRef === "string") publishParams.artifactRef = args.artifactRef;
+      if (typeof args.correlationId === "string") publishParams.correlationId = args.correlationId;
+      if (typeof args.idempotencyKey === "string") publishParams.idempotencyKey = args.idempotencyKey;
+      if (args.payload !== undefined) publishParams.payload = args.payload;
+      return publishA2AEnvelope(publishParams);
+    }
+    case "kiwi_a2a_sync":
+      return syncA2AFilesystem({ cwd: workspace.workspacePath });
+    case "kiwi_a2a_inbox":
+      return listA2AInbox({ cwd: workspace.workspacePath, includeQuarantine: true });
+    case "kiwi_a2a_accept": {
+      const acceptWorkspace = workspaceArgs(args, cwd, true);
+      const repo = acceptWorkspace.repo!;
+      return acceptA2AHandoff({
+        cwd: acceptWorkspace.workspacePath,
+        messageId: String(args.messageId ?? ""),
+        workspacePath: acceptWorkspace.workspacePath,
+        repoId: repo.id,
+        repoPath: repo.path,
+      });
+    }
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -539,6 +605,126 @@ const TOOLS = [
         repoPath: { type: "string" },
       },
       required: ["envelope"],
+    },
+  },
+  {
+    name: "kiwi_a2a_config",
+    description: "Read or update filesystem A2A config",
+    inputSchema: {
+      type: "object",
+      properties: {
+        enabled: { type: "boolean" },
+        localAgentId: { type: "string" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "kiwi_a2a_trust_add",
+    description: "Trust an A2A filesystem peer",
+    inputSchema: {
+      type: "object",
+      properties: {
+        agentId: { type: "string" },
+        inboxPath: { type: "string" },
+        allowRemotePatches: { type: "boolean" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+      required: ["agentId", "inboxPath"],
+    },
+  },
+  {
+    name: "kiwi_a2a_trust_list",
+    description: "List trusted A2A filesystem peers",
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "kiwi_a2a_trust_remove",
+    description: "Remove a trusted A2A filesystem peer",
+    inputSchema: {
+      type: "object",
+      properties: {
+        agentId: { type: "string" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+      required: ["agentId"],
+    },
+  },
+  {
+    name: "kiwi_a2a_publish",
+    description: "Queue a canonical A2A envelope for a trusted peer",
+    inputSchema: {
+      type: "object",
+      properties: {
+        peerAgentId: { type: "string" },
+        kind: {
+          type: "string",
+          enum: ["initiative", "task_graph", "step_attempt", "gate_result", "review_verdict", "artifact"],
+        },
+        runId: { type: "string" },
+        stepId: { type: "string" },
+        attemptId: { type: "string" },
+        gateId: { type: "string" },
+        artifactRef: { type: "string" },
+        correlationId: { type: "string" },
+        idempotencyKey: { type: "string" },
+        payload: { type: "object" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+      required: ["peerAgentId", "kind"],
+    },
+  },
+  {
+    name: "kiwi_a2a_sync",
+    description: "Deliver queued A2A envelopes and import incoming filesystem envelopes",
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "kiwi_a2a_inbox",
+    description: "List accepted and quarantined A2A inbox items",
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "kiwi_a2a_accept",
+    description: "Materialize an incoming A2A initiative handoff as a local run",
+    inputSchema: {
+      type: "object",
+      properties: {
+        messageId: { type: "string" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+      required: ["messageId"],
     },
   },
 ] as const;

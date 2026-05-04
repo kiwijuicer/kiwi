@@ -72,16 +72,29 @@ Plan this ticket, run the planned steps, then finalize and show me the evidence 
 
 ## A2A
 
-A2A is intentionally not a normal user path yet. Use it only for loopback validation:
+A2A is disabled by default. For trusted local filesystem exchange between two `ai-kiwi` workspaces:
 
 ```bash
-kiwi a2a receive ./a2a-envelope.json --loopback --trusted-agent remote-agent --workspace /Users/norberthanauer/Projects/voice
+kiwi a2a enable --local-agent agent-a --workspace /path/to/workspace-a
+kiwi a2a enable --local-agent agent-b --workspace /path/to/workspace-b
+kiwi a2a trust add agent-b --inbox-path /path/to/workspace-b/.kiwi/a2a/transport/incoming --workspace /path/to/workspace-a
+kiwi a2a trust add agent-a --inbox-path /path/to/workspace-a/.kiwi/a2a/transport/incoming --workspace /path/to/workspace-b
+kiwi a2a publish task_graph --peer agent-b --run-id <run-id> --workspace /path/to/workspace-a
+kiwi a2a sync --workspace /path/to/workspace-a
+kiwi a2a sync --workspace /path/to/workspace-b
+kiwi a2a inbox --workspace /path/to/workspace-b
 ```
 
-Expected results:
+Loopback validation is still available:
+
+```bash
+kiwi a2a receive ./a2a-envelope.json --loopback --trusted-agent remote-agent --workspace /path/to/workspace
+```
+
+Expected receive results:
 
 - trusted envelope: `accepted`
 - repeated idempotency key: `duplicate`
 - missing trust or disabled runtime: `blocked`
 
-Remote patch application remains blocked until local apply gates exist.
+Remote patch application remains blocked; patch and diff artifacts are quarantined until local apply gates exist.

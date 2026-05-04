@@ -28,6 +28,14 @@ function idSuffix(options: IdGenerationOptions): string {
   return options.suffix ?? suffix(2);
 }
 
+function safeIdToken(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .replace(/^_+|_+$/g, "")
+    || suffix(2);
+}
+
 export function generateInitiativeId(
   now: Date = new Date(),
   options: IdGenerationOptions = {},
@@ -47,6 +55,17 @@ export function generatePlanId(
   options: IdGenerationOptions = {},
 ): string {
   return `plan_${dateToken(now)}_${idSuffix(options)}`;
+}
+
+export function generateA2AMessageId(
+  now: Date = new Date(),
+  options: IdGenerationOptions = {},
+): string {
+  return `msg_${dateToken(now)}_${idSuffix(options)}`;
+}
+
+export function generateA2ACorrelationId(value: string): string {
+  return `corr_${safeIdToken(value)}`;
 }
 
 export function generateStepId(index: number): string {

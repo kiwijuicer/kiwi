@@ -79,6 +79,11 @@ function setupWorkspace(): { root: string; core: string; agent: string } {
   return { root, core, agent };
 }
 
+function toolJson(response: Awaited<ReturnType<typeof handleMcpRequest>>): unknown {
+  const text = (response.result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
+  return JSON.parse(text) as unknown;
+}
+
 describe("MCP server", () => {
   it("initializes and lists tools", async () => {
     const response = await handleMcpRequest({ id: 1, method: "initialize" }, setupRepo());
@@ -297,5 +302,145 @@ describe("MCP server", () => {
     const worktree = path.join(worktrees, attemptDirs[0]!);
     expect(existsSync(path.join(worktree, "core.txt"))).toBe(true);
     expect(existsSync(path.join(worktree, "voice-livekit-agent"))).toBe(false);
+  });
+
+  it("exposes filesystem A2A trust, publish, sync, inbox, and accept tools", async () => {
+    const a = setupRepo();
+    const b = setupRepo();
+    const enableA = await handleMcpRequest(
+      {
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "kiwi_a2a_config",
+          arguments: { workspacePath: a, enabled: true, localAgentId: "agent-a" },
+        },
+      },
+      os.tmpdir(),
+    );
+    const enableB = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "kiwi_a2a_config",
+          arguments: { workspacePath: b, enabled: true, localAgentId: "agent-b" },
+        },
+      },
+      os.tmpdir(),
+    );
+    expect(enableA.error).toBeUndefined();
+    expect(enableB.error).toBeUndefined();
+
+    await handleMcpRequest(
+      {
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "kiwi_a2a_trust_add",
+          arguments: {
+            workspacePath: a,
+            agentId: "agent-b",
+            inboxPath: path.join(b, ".kiwi", "a2a", "transport", "incoming"),
+          },
+        },
+      },
+      os.tmpdir(),
+    );
+    await handleMcpRequest(
+      {
+        id: 4,
+        method: "tools/call",
+        params: {
+          name: "kiwi_a2a_trust_add",
+          arguments: {
+            workspacePath: b,
+            agentId: "agent-a",
+            inboxPath: path.join(a, ".kiwi", "a2a", "transport", "incoming"),
+          },
+        },
+      },
+      os.tmpdir(),
+    );
+    const peers = await handleMcpRequest(
+      {
+        id: 5,
+        method: "tools/call",
+        params: { name: "kiwi_a2a_trust_list", arguments: { workspacePath: a } },
+      },
+      os.tmpdir(),
+    );
+    expect(JSON.stringify(peers.result)).toContain("agent-b");
+
+    const planned = await handleMcpRequest(
+      {
+        id: 6,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: { workspacePath: a, ticket: "# MCP A2A\n\n## Implement" },
+        },
+      },
+      os.tmpdir(),
+    );
+    const plannedJson = toolJson(planned) as { runId: string };
+    const published = await handleMcpRequest(
+      {
+        id: 7,
+        method: "tools/call",
+        params: {
+          name: "kiwi_a2a_publish",
+          arguments: {
+            workspacePath: a,
+            peerAgentId: "agent-b",
+            kind: "initiative",
+            runId: plannedJson.runId,
+          },
+        },
+      },
+      os.tmpdir(),
+    );
+    expect(published.error).toBeUndefined();
+
+    await handleMcpRequest(
+      {
+        id: 8,
+        method: "tools/call",
+        params: { name: "kiwi_a2a_sync", arguments: { workspacePath: a } },
+      },
+      os.tmpdir(),
+    );
+    await handleMcpRequest(
+      {
+        id: 9,
+        method: "tools/call",
+        params: { name: "kiwi_a2a_sync", arguments: { workspacePath: b } },
+      },
+      os.tmpdir(),
+    );
+    const inbox = await handleMcpRequest(
+      {
+        id: 10,
+        method: "tools/call",
+        params: { name: "kiwi_a2a_inbox", arguments: { workspacePath: b } },
+      },
+      os.tmpdir(),
+    );
+    const inboxItems = toolJson(inbox) as Array<{ messageId: string; kind: string }>;
+    expect(inboxItems[0]?.kind).toBe("initiative");
+
+    const accepted = await handleMcpRequest(
+      {
+        id: 11,
+        method: "tools/call",
+        params: {
+          name: "kiwi_a2a_accept",
+          arguments: { workspacePath: b, messageId: inboxItems[0]?.messageId },
+        },
+      },
+      os.tmpdir(),
+    );
+    expect(accepted.error).toBeUndefined();
+    expect(JSON.stringify(accepted.result)).toContain("run_");
   });
 });

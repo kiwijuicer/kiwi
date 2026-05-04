@@ -1,9 +1,9 @@
 # A2A Readiness
 
-Status: gated loopback only
+Status: trusted filesystem beta
 
-`ai-kiwi` now has a disabled-by-default local loopback runtime for validating and recording A2A envelopes.
-It is not a remote execution runtime and does not apply remote patches.
+`ai-kiwi` now has a disabled-by-default A2A runtime for validating, recording, and exchanging canonical envelopes between explicitly trusted local peers.
+The beta transport is filesystem outbox/inbox. It is not remote discovery, auth negotiation, SaaS behavior, or automatic patch application.
 
 ## Stable Envelope
 
@@ -14,6 +14,7 @@ Future A2A-facing messages must use `ProtocolEnvelopeSchema` from `packages/cont
 - `kind`: `initiative | task_graph | step_attempt | gate_result | review_verdict | artifact`
 - `payload`: one canonical domain object
 - `createdAt`: ISO timestamp
+- `a2a.attachments[]`: optional descriptors with `ref`, `sha256`, `bytes`, and `mediaType`
 
 ## Externalization Candidates
 
@@ -27,7 +28,6 @@ Future A2A-facing messages must use `ProtocolEnvelopeSchema` from `packages/cont
 
 - remote agent discovery
 - remote auth or trust negotiation
-- cross-process agent runtime
 - automatic patch application from external agents
 - multi-tenant service behavior
 
@@ -35,21 +35,32 @@ Future A2A-facing messages must use `ProtocolEnvelopeSchema` from `packages/cont
 
 The runtime only accepts envelopes when:
 
-- loopback mode is explicitly enabled
+- A2A is explicitly enabled in `.kiwi/config.yaml` or loopback mode is passed for diagnostics
 - `a2a` metadata is present
 - `recipientAgentId` matches the local agent
 - `senderAgentId` is explicitly trusted
 - the envelope kind is allowed by policy
 - the idempotency key has not already been handled
 - payload validates against the canonical schema for its kind
+- attachment hashes and sizes match, when attachments are present
 
-Patch and diff artifacts are blocked until local apply gates exist.
+Patch and diff artifacts are quarantined by default until local apply gates exist.
+
+## Filesystem Beta
+
+Each workspace stores A2A state under `.kiwi/a2a/`:
+
+- `transport/incoming`: peer delivery target
+- `outbox/<peer>`: queued outbound envelopes
+- `inbox`: accepted non-patch envelopes
+- `quarantine`: corrupt envelopes and remote patch/diff artifacts
+- `idempotency` and `ledger`: replay and correlation evidence
 
 ## Readiness Criteria
 
-A future A2A runtime may be planned only after:
+Moving beyond trusted filesystem beta requires:
 
-- CLI run/attempt/finalize flows are stable
-- MCP has parity for read/status/finalize operations
-- protocol fixtures validate against contracts
+- CLI and MCP parity for trust, publish, sync, inbox, and accept
+- protocol fixtures and smoke tests validate peer exchange
+- local gate/review promotion exists for quarantined patch artifacts
 - schema evolution policy moves beyond `breaking_allowed`
