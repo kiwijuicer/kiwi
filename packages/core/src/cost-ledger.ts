@@ -1,0 +1,80 @@
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
+import path from "path";
+import { BudgetProfile } from "@ai-kiwi/contracts";
+import { ensureRunLayout, resolveRunArtifactPath } from "./run-store";
+
+export type AuditEventType =
+  | "planner_provider_selected"
+  | "planner_retry"
+  | "planner_validation_failed"
+  | "planner_succeeded"
+  | "planner_failed";
+
+export interface AuditEvent {
+  eventType: AuditEventType;
+  runId: string;
+  timestamp: string;
+  payload: Record<string, unknown>;
+}
+
+export interface PlannerCostReport {
+  schemaVersion: "1";
+  runId: string;
+  plannerModelId: string;
+  providerName: string;
+  budgetProfile: BudgetProfile;
+  budgetRemainingUsdEstimate: number | null;
+  attemptsUsed: number;
+  invalidAttempts: number;
+  modelUsage: {
+    inputTokens: number;
+    outputTokens: number;
+  };
+  cost: {
+    estimatedUsd: number;
+    currency: "USD";
+  };
+  createdAt: string;
+}
+
+function auditLogPath(cwd: string): string {
+  return path.join(cwd, ".kiwi", "logs", "audit.log");
+}
+
+function writeJsonSafely(target: string, value: unknown): void {
+  mkdirSync(path.dirname(target), { recursive: true });
+  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
+  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
+  renameSync(tempPath, target);
+}
+
+export function appendAuditEvent(cwd: string, event: AuditEvent): void {
+  const target = auditLogPath(cwd);
+  mkdirSync(path.dirname(target), { recursive: true });
+  appendFileSync(target, `${JSON.stringify(event)}\n`, "utf-8");
+}
+
+export function readAuditEvents(cwd: string, runId?: string): AuditEvent[] {
+  const target = auditLogPath(cwd);
+  if (!existsSync(target)) return [];
+
+  const lines = readFileSync(target, "utf-8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  const events = lines.map((line) => JSON.parse(line) as AuditEvent);
+  if (!runId) return events;
+  return events.filter((event) => event.runId === runId);
+}
+
+export function writePlannerCostReport(cwd: string, runId: string, report: PlannerCostReport): void {
+  ensureRunLayout(runId, cwd);
+  const target = resolveRunArtifactPath(runId, "plan/cost-report.json", cwd);
+  writeJsonSafely(target, report);
+}
+
+export function loadPlannerCostReport(cwd: string, runId: string): PlannerCostReport {
+  const target = resolveRunArtifactPath(runId, "plan/cost-report.json", cwd);
+  return JSON.parse(readFileSync(target, "utf-8")) as PlannerCostReport;
+}

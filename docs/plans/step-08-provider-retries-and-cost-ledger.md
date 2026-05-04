@@ -1,7 +1,7 @@
 # Step 08: Provider Retries and Cost Ledger
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-04
 Milestone: MVP 2
 Depends-On: Step 07
 Vision-Refs: 8, 13, 17.2

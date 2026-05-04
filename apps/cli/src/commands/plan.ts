@@ -3,11 +3,13 @@ import path from "path";
 import chalk from "chalk";
 import { ModelEntry } from "@ai-kiwi/contracts";
 import {
+  PlannerProviderValidationError,
   PlannerProviderInput,
   StubPlannerProvider,
   runPlannerProviderWithRetries,
 } from "@ai-kiwi/adapters";
 import {
+  appendAuditEvent,
   NotInitializedError,
   buildDeterministicTaskGraph,
   createInitiativeFromInput,
@@ -16,6 +18,7 @@ import {
   loadPolicy,
   loadRegistry,
   savePlannedRun,
+  writePlannerCostReport,
 } from "@ai-kiwi/core";
 
 export interface PlanOptions {
@@ -120,15 +123,108 @@ export async function runPlan(
     policy,
     requestedAt: now.toISOString(),
   };
+  const maxAttempts = 2;
+  appendAuditEvent(cwd, {
+    eventType: "planner_provider_selected",
+    runId,
+    timestamp: now.toISOString(),
+    payload: {
+      plannerModelId: plannerModel.id,
+      provider: plannerModel.provider,
+      maxAttempts,
+      budgetProfile: initiative.budgetProfile,
+    },
+  });
+
   const provider = new StubPlannerProvider({
     buildTaskGraph: buildDeterministicTaskGraph,
     now: () => now,
     ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
   });
-  const plannerOutput = await runPlannerProviderWithRetries(provider, plannerInput, {
-    maxAttempts: 2,
-  });
+  let plannerOutput;
+  try {
+    plannerOutput = await runPlannerProviderWithRetries(provider, plannerInput, {
+      maxAttempts,
+    });
+  } catch (error) {
+    if (error instanceof PlannerProviderValidationError) {
+      for (const record of error.evidence.records) {
+        if (record.status === "invalid") {
+          appendAuditEvent(cwd, {
+            eventType: "planner_retry",
+            runId,
+            timestamp: now.toISOString(),
+            payload: {
+              attempt: record.attempt,
+              providerName: record.providerName,
+              validationError: record.validationError ?? "unknown validation error",
+            },
+          });
+        }
+      }
+      appendAuditEvent(cwd, {
+        eventType: "planner_validation_failed",
+        runId,
+        timestamp: now.toISOString(),
+        payload: {
+          providerName: error.evidence.providerName,
+          attemptsUsed: error.evidence.attemptsUsed,
+          maxAttempts: error.evidence.maxAttempts,
+          lastValidationError: error.evidence.lastValidationError ?? "unknown",
+        },
+      });
+      appendAuditEvent(cwd, {
+        eventType: "planner_failed",
+        runId,
+        timestamp: now.toISOString(),
+        payload: {
+          reason: "planner_validation_failed",
+        },
+      });
+    } else {
+      appendAuditEvent(cwd, {
+        eventType: "planner_failed",
+        runId,
+        timestamp: now.toISOString(),
+        payload: {
+          reason: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+    throw error;
+  }
   const taskGraph = plannerOutput.taskGraph;
+  const budgetMetadata = {
+    profile: initiative.budgetProfile,
+    remainingUsdEstimate: null as number | null,
+  };
+  for (const record of plannerOutput.retry.records) {
+    if (record.status === "invalid") {
+      appendAuditEvent(cwd, {
+        eventType: "planner_retry",
+        runId,
+        timestamp: now.toISOString(),
+        payload: {
+          attempt: record.attempt,
+          providerName: record.providerName,
+          validationError: record.validationError ?? "unknown validation error",
+        },
+      });
+    }
+  }
+  appendAuditEvent(cwd, {
+    eventType: "planner_succeeded",
+    runId,
+    timestamp: now.toISOString(),
+    payload: {
+      providerName: plannerOutput.providerName,
+      attemptsUsed: plannerOutput.retry.attemptsUsed,
+      invalidAttempts: plannerOutput.retry.invalidAttempts,
+      modelUsage: plannerOutput.modelUsage,
+      cost: plannerOutput.cost,
+      budget: budgetMetadata,
+    },
+  });
 
   if (opts.dryRun) {
     console.log(
@@ -139,7 +235,10 @@ export async function runPlan(
           plannerModelId: plannerModel.id,
           taskGraph,
           plannerInput,
-          plannerOutput,
+          plannerOutput: {
+            ...plannerOutput,
+            budget: budgetMetadata,
+          },
         },
         null,
         2,
@@ -155,10 +254,24 @@ export async function runPlan(
     plannerInput,
     plannerOutput: {
       plannerModelId: plannerModel.id,
+      budget: budgetMetadata,
       ...plannerOutput,
     },
     cwd,
     now,
+  });
+  writePlannerCostReport(cwd, runId, {
+    schemaVersion: "1",
+    runId,
+    plannerModelId: plannerModel.id,
+    providerName: plannerOutput.providerName,
+    budgetProfile: initiative.budgetProfile,
+    budgetRemainingUsdEstimate: budgetMetadata.remainingUsdEstimate,
+    attemptsUsed: plannerOutput.retry.attemptsUsed,
+    invalidAttempts: plannerOutput.retry.invalidAttempts,
+    modelUsage: plannerOutput.modelUsage,
+    cost: plannerOutput.cost,
+    createdAt: now.toISOString(),
   });
 
   console.log(chalk.green("✓") + " Run planned");

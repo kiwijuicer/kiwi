@@ -66,11 +66,18 @@ describe("kiwi plan", () => {
       providerName: string;
       plannerModelId: string;
       validation: { schema: string; valid: boolean };
+      retry: { attemptsUsed: number; invalidAttempts: number };
+      budget: { profile: string; remainingUsdEstimate: number | null };
     };
     expect(plannerOutput.providerName).toBe("stub-deterministic");
     expect(plannerOutput.plannerModelId).toBe("stub-frontier");
     expect(plannerOutput.validation.schema).toBe("TaskGraphSchema");
     expect(plannerOutput.validation.valid).toBe(true);
+    expect(plannerOutput.retry.attemptsUsed).toBe(1);
+    expect(plannerOutput.retry.invalidAttempts).toBe(0);
+    expect(plannerOutput.budget.profile).toBe("normal");
+    expect(plannerOutput.budget.remainingUsdEstimate).toBe(null);
+    expect(existsSync(path.join(runDir, "plan", "cost-report.json"))).toBe(true);
   });
 
   it("accepts inline ticket text when the argument is not a file path", async () => {

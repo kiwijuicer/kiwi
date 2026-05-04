@@ -86,6 +86,10 @@ describe("planner provider", () => {
     expect(output.taskGraph.planId).toBe("plan_20260503_190000_abcd");
     expect(output.validation.valid).toBe(true);
     expect(output.cost.estimatedUsd).toBe(0);
+    expect(output.retry.attemptsUsed).toBe(1);
+    expect(output.retry.invalidAttempts).toBe(0);
+    expect(output.retry.records).toHaveLength(1);
+    expect(output.retry.records[0]?.status).toBe("valid");
   });
 
   it("retries invalid output before accepting valid output", async () => {
@@ -107,6 +111,10 @@ describe("planner provider", () => {
 
     expect(output.attempts).toBe(2);
     expect(output.taskGraph.planId).toBe("plan_20260503_190000_abcd");
+    expect(output.retry.attemptsUsed).toBe(2);
+    expect(output.retry.invalidAttempts).toBe(1);
+    expect(output.retry.records[0]?.status).toBe("invalid");
+    expect(output.retry.records[1]?.status).toBe("valid");
   });
 
   it("fails when provider output stays invalid", async () => {
@@ -122,8 +130,15 @@ describe("planner provider", () => {
       },
     };
 
-    await expect(
-      runPlannerProviderWithRetries(provider, input, { maxAttempts: 2 }),
-    ).rejects.toBeInstanceOf(PlannerProviderValidationError);
+    await expect(runPlannerProviderWithRetries(provider, input, { maxAttempts: 2 })).rejects.toMatchObject(
+      {
+        name: "PlannerProviderValidationError",
+        evidence: {
+          providerName: "always-invalid",
+          maxAttempts: 2,
+          attemptsUsed: 2,
+        },
+      },
+    );
   });
 });
