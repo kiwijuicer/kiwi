@@ -8,10 +8,7 @@ import {
   RiskProfile,
   TaskGraph,
 } from "@kiwi/contracts";
-import {
-  appendAuditEvent,
-  writePlannerCostReport,
-} from "./cost-ledger";
+import { appendAuditEvent, writePlannerCostReport } from "./cost-ledger";
 import { generateRunId } from "./ids";
 import { appendModelInvocation } from "./model-invocations";
 import { createInitiativeFromInput } from "./planner";
@@ -93,10 +90,7 @@ export interface PlanRunParams {
   source: InitiativeSource;
   policy: KiwiPolicy;
   plannerModel: ModelEntry;
-  executePlanner: (
-    input: PlannerRunInput,
-    options: { maxAttempts: number },
-  ) => Promise<PlannerRunOutput>;
+  executePlanner: (input: PlannerRunInput, options: { maxAttempts: number }) => Promise<PlannerRunOutput>;
   riskProfile?: RiskProfile;
   budgetProfile?: BudgetProfile;
   now?: Date;
@@ -108,9 +102,9 @@ export interface PlanRunParams {
 }
 
 export function selectPlannerModel(models: ModelEntry[]): ModelEntry {
-  const candidate = models.find(
-    (model) => model.enabled && model.roles.includes("planner") && model.capability === "frontier",
-  ) ?? models.find((model) => model.enabled && model.roles.includes("planner"));
+  const candidate =
+    models.find((model) => model.enabled && model.roles.includes("planner") && model.capability === "frontier") ??
+    models.find((model) => model.enabled && model.roles.includes("planner"));
 
   if (!candidate) {
     throw new Error("No enabled planner model found in model-registry.yaml");

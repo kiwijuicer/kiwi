@@ -11,11 +11,7 @@ import {
   TaskGraphSchema,
   KiwiPolicy,
 } from "@kiwi/contracts";
-import {
-  generateInitiativeId,
-  generatePlanId,
-  generateStepId,
-} from "./ids";
+import { generateInitiativeId, generatePlanId, generateStepId } from "./ids";
 
 interface RoutingChoice {
   agentRole: AgentRole;
@@ -170,40 +166,22 @@ function routedByPolicy(stepType: StepType, policy: KiwiPolicy): RoutingChoice {
 function stepSuccessCriteria(stepType: StepType): string[] {
   switch (stepType) {
     case "context_discovery":
-      return [
-        "Relevant files and constraints are identified",
-        "Open questions are captured",
-      ];
+      return ["Relevant files and constraints are identified", "Open questions are captured"];
     case "planning":
-      return [
-        "Plan is split into executable steps",
-        "Risk and rollback considerations are explicit",
-      ];
+      return ["Plan is split into executable steps", "Risk and rollback considerations are explicit"];
     case "test_creation":
-      return [
-        "Tests encode expected behavior",
-        "Behavior changes are detectable by test suite",
-      ];
+      return ["Tests encode expected behavior", "Behavior changes are detectable by test suite"];
     case "code_creation":
-      return [
-        "New code is scoped to the requested feature",
-        "No unrelated modifications are introduced",
-      ];
+      return ["New code is scoped to the requested feature", "No unrelated modifications are introduced"];
     case "code_modification":
       return [
         "Change is scoped to required behavior",
         "Existing behavior stays compatible unless intentionally changed",
       ];
     case "refactoring":
-      return [
-        "External behavior stays unchanged",
-        "Refactor reduces complexity or improves local structure",
-      ];
+      return ["External behavior stays unchanged", "Refactor reduces complexity or improves local structure"];
     case "coding":
-      return [
-        "Change is scoped to required behavior",
-        "No unrelated modifications are introduced",
-      ];
+      return ["Change is scoped to required behavior", "No unrelated modifications are introduced"];
     case "validation":
       return ["Typecheck, lint, and relevant tests are green"];
     case "review":

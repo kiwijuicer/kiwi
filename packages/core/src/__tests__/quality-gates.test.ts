@@ -2,12 +2,7 @@ import { mkdtempSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import {
-  createGateResult,
-  loadGateResults,
-  saveGateResults,
-  summarizeGateResults,
-} from "../quality-gates";
+import { createGateResult, loadGateResults, saveGateResults, summarizeGateResults } from "../quality-gates";
 
 describe("quality gates", () => {
   it("summarizes pass/fail/blocked results and blocks continuation on fail/blocked", () => {

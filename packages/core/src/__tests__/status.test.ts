@@ -54,11 +54,7 @@ describe("run status summary", () => {
     savePlannedRun({
       runId: "run_20260504_040000_a001",
       initiative: fixtureInitiative("init_20260504_040000_a001", "Feature A"),
-      taskGraph: fixtureTaskGraph(
-        "run_20260504_040000_a001",
-        "init_20260504_040000_a001",
-        "plan_20260504_040000_a001",
-      ),
+      taskGraph: fixtureTaskGraph("run_20260504_040000_a001", "init_20260504_040000_a001", "plan_20260504_040000_a001"),
       cwd,
       now: new Date("2026-05-04T04:00:00.000Z"),
     });
@@ -67,9 +63,7 @@ describe("run status summary", () => {
     expect(summary.total).toBe(1);
     expect(summary.latest[0]?.initiativeTitle).toBe("Feature A");
     expect(summary.latest[0]?.stepCount).toBe(1);
-    expect(summary.latest[0]?.artifactPaths.taskGraph).toBe(
-      ".kiwi/runs/run_20260504_040000_a001/plan/task-graph.json",
-    );
+    expect(summary.latest[0]?.artifactPaths.taskGraph).toBe(".kiwi/runs/run_20260504_040000_a001/plan/task-graph.json");
   });
 
   it("supports selected run status", () => {
@@ -78,22 +72,14 @@ describe("run status summary", () => {
     savePlannedRun({
       runId: "run_20260504_040000_a001",
       initiative: fixtureInitiative("init_20260504_040000_a001", "Feature A"),
-      taskGraph: fixtureTaskGraph(
-        "run_20260504_040000_a001",
-        "init_20260504_040000_a001",
-        "plan_20260504_040000_a001",
-      ),
+      taskGraph: fixtureTaskGraph("run_20260504_040000_a001", "init_20260504_040000_a001", "plan_20260504_040000_a001"),
       cwd,
       now: new Date("2026-05-04T04:00:00.000Z"),
     });
     savePlannedRun({
       runId: "run_20260504_040000_b002",
       initiative: fixtureInitiative("init_20260504_040000_b002", "Feature B"),
-      taskGraph: fixtureTaskGraph(
-        "run_20260504_040000_b002",
-        "init_20260504_040000_b002",
-        "plan_20260504_040000_b002",
-      ),
+      taskGraph: fixtureTaskGraph("run_20260504_040000_b002", "init_20260504_040000_b002", "plan_20260504_040000_b002"),
       cwd,
       now: new Date("2026-05-04T04:00:01.000Z"),
     });

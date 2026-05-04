@@ -84,25 +84,24 @@ kiwi(["init"], peerA);
 kiwi(["init"], peerB);
 kiwi(["a2a", "enable", "--local-agent", "agent-a"], peerA);
 kiwi(["a2a", "enable", "--local-agent", "agent-b"], peerB);
-kiwi(["a2a", "trust", "add", "agent-b", "--inbox-path", path.join(peerB, ".kiwi", "a2a", "transport", "incoming")], peerA);
-kiwi(["a2a", "trust", "add", "agent-a", "--inbox-path", path.join(peerA, ".kiwi", "a2a", "transport", "incoming")], peerB);
+kiwi(
+  ["a2a", "trust", "add", "agent-b", "--inbox-path", path.join(peerB, ".kiwi", "a2a", "transport", "incoming")],
+  peerA,
+);
+kiwi(
+  ["a2a", "trust", "add", "agent-a", "--inbox-path", path.join(peerA, ".kiwi", "a2a", "transport", "incoming")],
+  peerB,
+);
 
 const peerPlanOutput = kiwi(["plan", "# Peer A2A\n\n## Implement"], peerA);
 const peerRunId = peerPlanOutput.match(/runId:\s+(run_[a-z0-9_]+)/)?.[1];
 if (!peerRunId) {
   throw new Error(`smoke failed to parse peer runId:\n${peerPlanOutput}`);
 }
-kiwi([
-  "a2a",
-  "publish",
-  "task_graph",
-  "--peer",
-  "agent-b",
-  "--run-id",
-  peerRunId,
-  "--correlation-id",
-  "corr_peer_smoke",
-], peerA);
+kiwi(
+  ["a2a", "publish", "task_graph", "--peer", "agent-b", "--run-id", peerRunId, "--correlation-id", "corr_peer_smoke"],
+  peerA,
+);
 kiwi(["a2a", "sync"], peerA);
 const peerBImport = kiwi(["a2a", "sync"], peerB);
 if (!peerBImport.includes("imported: 1")) {
@@ -119,21 +118,24 @@ const reviewAttemptId = reviewAttemptOutput.match(/attemptId:\s+(attempt_[a-z0-9
 if (!reviewAttemptId) {
   throw new Error(`smoke failed to parse review attemptId:\n${reviewAttemptOutput}`);
 }
-kiwi([
-  "a2a",
-  "publish",
-  "review_verdict",
-  "--peer",
-  "agent-a",
-  "--run-id",
-  reviewRunId,
-  "--step-id",
-  "step_001",
-  "--attempt-id",
-  reviewAttemptId,
-  "--correlation-id",
-  "corr_peer_smoke",
-], peerB);
+kiwi(
+  [
+    "a2a",
+    "publish",
+    "review_verdict",
+    "--peer",
+    "agent-a",
+    "--run-id",
+    reviewRunId,
+    "--step-id",
+    "step_001",
+    "--attempt-id",
+    reviewAttemptId,
+    "--correlation-id",
+    "corr_peer_smoke",
+  ],
+  peerB,
+);
 kiwi(["a2a", "sync"], peerB);
 const peerAReply = kiwi(["a2a", "sync"], peerA);
 if (!peerAReply.includes("imported: 1")) {
@@ -143,14 +145,8 @@ if (!existsSync(path.join(peerA, ".kiwi", "a2a", "ledger", "correlations", "corr
   throw new Error("smoke A2A correlation ledger was not written");
 }
 
-const manifest = readFileSync(
-  path.join(cwd, ".kiwi", "runs", runId, "final", "evidence-manifest.json"),
-  "utf-8",
-);
-const operator = readFileSync(
-  path.join(cwd, ".kiwi", "runs", runId, "operator", "index.html"),
-  "utf-8",
-);
+const manifest = readFileSync(path.join(cwd, ".kiwi", "runs", runId, "final", "evidence-manifest.json"), "utf-8");
+const operator = readFileSync(path.join(cwd, ".kiwi", "runs", runId, "operator", "index.html"), "utf-8");
 if (!manifest.includes("sha256") || !operator.includes("<!doctype html>")) {
   throw new Error("smoke artifacts are incomplete");
 }
@@ -191,10 +187,7 @@ if (!workspaceRunId) {
   throw new Error(`workspace smoke failed to parse runId:\n${workspacePlanOutput}`);
 }
 kiwi(["run", workspaceRunId, "--workspace", workspace, "--command", "node -e 0"]);
-const workspaceRun = readFileSync(
-  path.join(workspace, ".kiwi", "runs", workspaceRunId, "run.json"),
-  "utf-8",
-);
+const workspaceRun = readFileSync(path.join(workspace, ".kiwi", "runs", workspaceRunId, "run.json"), "utf-8");
 if (!workspaceRun.includes(`"repoPath": "${voiceCore}"`)) {
   throw new Error("workspace smoke run did not store target repo metadata");
 }

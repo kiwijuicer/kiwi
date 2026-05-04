@@ -1,10 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
-import {
-  StubPlannerProvider,
-  runPlannerProviderWithRetries,
-} from "@kiwi/adapters";
+import { StubPlannerProvider, runPlannerProviderWithRetries } from "@kiwi/adapters";
 import {
   NotInitializedError,
   buildDeterministicTaskGraph,
@@ -36,10 +33,7 @@ function looksLikeTicketPath(ticketArg: string): boolean {
   );
 }
 
-function resolveTicketInput(
-  ticketArg: string,
-  cwd: string,
-): { rawInput: string; source: "file" | "cli" } {
+function resolveTicketInput(ticketArg: string, cwd: string): { rawInput: string; source: "file" | "cli" } {
   const ticketPath = path.isAbsolute(ticketArg) ? ticketArg : path.join(cwd, ticketArg);
   if (existsSync(ticketPath)) {
     return {
@@ -58,11 +52,7 @@ function resolveTicketInput(
   };
 }
 
-export async function runPlan(
-  ticketArg: string,
-  opts: PlanOptions = {},
-  cwd: string = process.cwd(),
-): Promise<void> {
+export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, true);
   const workspacePath = workspace.workspacePath;
   const repo = workspace.repo!;
@@ -78,9 +68,7 @@ export async function runPlan(
   const now = opts.now ?? new Date();
   const plannerModel = selectPlannerModel(registry.models);
   if (plannerModel.provider !== "stub") {
-    throw new Error(
-      `Planner provider '${plannerModel.provider}' is not supported yet. Use a stub planner model.`,
-    );
+    throw new Error(`Planner provider '${plannerModel.provider}' is not supported yet. Use a stub planner model.`);
   }
 
   const provider = new StubPlannerProvider({
@@ -96,8 +84,7 @@ export async function runPlan(
     source,
     policy,
     plannerModel,
-    executePlanner: (plannerInput, options) =>
-      runPlannerProviderWithRetries(provider, plannerInput, options),
+    executePlanner: (plannerInput, options) => runPlannerProviderWithRetries(provider, plannerInput, options),
     riskProfile: opts.riskProfile ?? "dev",
     budgetProfile: opts.budgetProfile ?? "normal",
     now,

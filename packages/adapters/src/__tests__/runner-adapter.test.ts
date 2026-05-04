@@ -43,11 +43,7 @@ describe("runner adapters", () => {
       contextPackage: {},
       allowedTools: ["shell"],
       timeouts: { commandTimeoutMs: 1000 },
-      command: [
-        nodeBin,
-        "-e",
-        "require('fs').writeFileSync('sample.txt', 'ok'); console.log('done')",
-      ],
+      command: [nodeBin, "-e", "require('fs').writeFileSync('sample.txt', 'ok'); console.log('done')"],
       commandPolicy: policy(),
       env: { PATH: process.env.PATH ?? "" },
     });

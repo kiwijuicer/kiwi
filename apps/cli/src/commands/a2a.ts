@@ -94,10 +94,7 @@ export async function runA2AReceive(
   }
 }
 
-export async function runA2AEnable(
-  opts: A2AEnableOptions = {},
-  cwd: string = process.cwd(),
-): Promise<void> {
+export async function runA2AEnable(opts: A2AEnableOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   const enableParams: Parameters<typeof setA2AEnabled>[0] = {
     cwd: workspace.workspacePath,
@@ -110,19 +107,13 @@ export async function runA2AEnable(
   console.log(chalk.dim(`incoming: ${a2aIncomingPath(workspace.workspacePath)}`));
 }
 
-export async function runA2ADisable(
-  opts: CliWorkspaceOptions = {},
-  cwd: string = process.cwd(),
-): Promise<void> {
+export async function runA2ADisable(opts: CliWorkspaceOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   setA2AEnabled({ cwd: workspace.workspacePath, enabled: false });
   console.log(chalk.green("✓") + " A2A disabled");
 }
 
-export async function runA2AIdentity(
-  opts: CliWorkspaceOptions = {},
-  cwd: string = process.cwd(),
-): Promise<void> {
+export async function runA2AIdentity(opts: CliWorkspaceOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   ensureA2AStorage(workspace.workspacePath);
   const config = loadA2AConfig(workspace.workspacePath);
@@ -151,10 +142,7 @@ export async function runA2ATrustAdd(
   if (peer) console.log(chalk.dim(`inboxPath: ${peer.inboxPath}`));
 }
 
-export async function runA2ATrustList(
-  opts: CliWorkspaceOptions = {},
-  cwd: string = process.cwd(),
-): Promise<void> {
+export async function runA2ATrustList(opts: CliWorkspaceOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   const config = loadA2AConfig(workspace.workspacePath);
   if (config.peers.length === 0) {
@@ -201,10 +189,7 @@ export async function runA2APublish(
   console.log(chalk.dim(`outbox: .kiwi/a2a/${result.outboxRef}`));
 }
 
-export async function runA2ASync(
-  opts: CliWorkspaceOptions = {},
-  cwd: string = process.cwd(),
-): Promise<void> {
+export async function runA2ASync(opts: CliWorkspaceOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   const result = syncA2AFilesystem({ cwd: workspace.workspacePath });
   console.log(chalk.green("✓") + " A2A sync complete");
@@ -215,10 +200,7 @@ export async function runA2ASync(
   console.log(chalk.dim(`quarantined: ${result.quarantined.length}`));
 }
 
-export async function runA2AInbox(
-  opts: CliWorkspaceOptions = {},
-  cwd: string = process.cwd(),
-): Promise<void> {
+export async function runA2AInbox(opts: CliWorkspaceOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   const items = listA2AInbox({ cwd: workspace.workspacePath, includeQuarantine: true });
   if (items.length === 0) {

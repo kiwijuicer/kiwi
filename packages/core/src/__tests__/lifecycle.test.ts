@@ -111,9 +111,7 @@ describe("run lifecycle", () => {
     });
 
     expect(decision.state).toBe("auto");
-    expect(
-      existsSync(path.join(repo, ".kiwi", "runs", "run_demo", "approvals", "attempt_001.json")),
-    ).toBe(true);
+    expect(existsSync(path.join(repo, ".kiwi", "runs", "run_demo", "approvals", "attempt_001.json"))).toBe(true);
   });
 
   it("scans attempts, refreshes status, and finalizes run artifacts", async () => {
@@ -161,9 +159,9 @@ describe("run lifecycle", () => {
     expect(finalized.verdict.verdict).toBe("pass");
     expect(finalized.run.status).toBe("completed");
     expect(finalized.modelUsageSummaryRef).toBe("final/model-usage-summary.json");
-    expect(
-      readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", "final", "final-summary.md"), "utf-8"),
-    ).toContain("modelUsageSummary: final/model-usage-summary.json");
+    expect(readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", "final", "final-summary.md"), "utf-8")).toContain(
+      "modelUsageSummary: final/model-usage-summary.json",
+    );
     const usageSummary = JSON.parse(
       readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", "final", "model-usage-summary.json"), "utf-8"),
     ) as { invocationCount: number; byPhase: { executor: { inputTokens: number }; reviewer: { inputTokens: number } } };

@@ -3,21 +3,42 @@
   "private": true,
   "version": "0.1.0",
   "packageManager": "pnpm@10.23.0",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "pnpm -r --filter '@kiwi/*' build",
     "dev": "pnpm --filter '@kiwi/cli' dev",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "lint": "echo 'lint not configured yet'",
+    "format": "biome format . --write",
+    "format:check": "biome format . || true",
+    "lint": "pnpm lint:eslint && pnpm lint:baseline",
+    "lint:eslint": "eslint apps packages --ext .ts,.tsx -f json -o .tmp/eslint-report.json || true",
+    "lint:baseline:init": "node scripts/init-eslint-baseline.mjs",
+    "lint:baseline": "node scripts/check-eslint-baseline.mjs",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "lint:arch": "depcruise --config dependency-cruiser.config.cjs apps packages",
+    "lint:deadcode": "knip --config knip.json --no-exit-code",
+    "lint:duplicates": "jscpd --config jscpd.json || true",
+    "lint:file-size": "node scripts/check-file-size.mjs",
+    "code-health": "pnpm lint:file-size && pnpm lint:deadcode && pnpm lint:duplicates",
     "smoke": "node scripts/smoke.mjs",
-    "release:check": "pnpm typecheck && pnpm test && pnpm build && pnpm smoke",
+    "release:check": "pnpm format:check && pnpm lint && pnpm lint:arch && pnpm code-health && pnpm typecheck && pnpm test && pnpm build && pnpm smoke",
     "clean": "pnpm -r clean",
     "kiwi": "tsx apps/cli/src/index.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.2.6",
     "@types/node": "^20.12.7",
+    "@eslint/js": "^9.39.1",
+    "dependency-cruiser": "^17.3.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-sonarjs": "^3.0.5",
+    "jscpd": "^4.0.5",
+    "knip": "^5.67.0",
     "tsx": "^4.7.3",
+    "typescript-eslint": "^8.46.4",
     "typescript": "^5.4.5"
   }
 }

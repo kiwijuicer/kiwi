@@ -1,10 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
 
@@ -16,27 +10,13 @@ function targetName(fileName: string): string {
   return fileName.replace(/\.md$/i, ".mdc");
 }
 
-function writeCursorRule(params: {
-  sourcePath: string;
-  targetPath: string;
-  description: string;
-}): void {
+function writeCursorRule(params: { sourcePath: string; targetPath: string; description: string }): void {
   const body = readFileSync(params.sourcePath, "utf-8");
-  const content = [
-    "---",
-    `description: ${params.description}`,
-    "alwaysApply: true",
-    "---",
-    "",
-    body,
-  ].join("\n");
+  const content = ["---", `description: ${params.description}`, "alwaysApply: true", "---", "", body].join("\n");
   writeFileSync(params.targetPath, content, "utf-8");
 }
 
-export async function runRulesSync(
-  opts: RulesSyncOptions = {},
-  cwd: string = process.cwd(),
-): Promise<void> {
+export async function runRulesSync(opts: RulesSyncOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const target = opts.target ?? "cursor";
   if (target !== "cursor") {
     throw new Error(`Unsupported rules sync target: ${target}`);

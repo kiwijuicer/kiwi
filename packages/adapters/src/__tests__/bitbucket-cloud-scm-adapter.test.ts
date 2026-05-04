@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  BitbucketCloudRequest,
-  BitbucketCloudScmAdapter,
-} from "../bitbucket-cloud-scm-adapter";
+import { BitbucketCloudRequest, BitbucketCloudScmAdapter } from "../bitbucket-cloud-scm-adapter";
 
 const repository = {
   provider: "bitbucket-cloud" as const,
@@ -151,13 +148,15 @@ describe("BitbucketCloudScmAdapter", () => {
   it("rejects non-Bitbucket repositories", async () => {
     const adapter = adapterWithCapturedRequests([]);
 
-    await expect(adapter.createTicket({
-      repository: {
-        provider: "github",
-        remoteUrl: "https://github.com/kiwi/kiwi",
-      },
-      title: "Wrong provider",
-      body: "",
-    })).rejects.toThrow("cannot publish to provider 'github'");
+    await expect(
+      adapter.createTicket({
+        repository: {
+          provider: "github",
+          remoteUrl: "https://github.com/kiwi/kiwi",
+        },
+        title: "Wrong provider",
+        body: "",
+      }),
+    ).rejects.toThrow("cannot publish to provider 'github'");
   });
 });

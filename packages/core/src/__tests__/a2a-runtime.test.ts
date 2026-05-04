@@ -259,13 +259,19 @@ describe("A2A runtime", () => {
   it("blocks disabled filesystem imports, corrupted envelopes, and bad attachment hashes", () => {
     const b = setupRepo("agent-b");
     mkdirSync(incoming(b), { recursive: true });
-    writeFileSync(path.join(incoming(b), "msg_disabled.json"), JSON.stringify(taskGraphEnvelope({
-      messageId: "msg_disabled",
-      correlationId: "corr_disabled",
-      idempotencyKey: "idempotency-disabled",
-      senderAgentId: "agent-a",
-      recipientAgentId: "agent-b",
-    })), "utf-8");
+    writeFileSync(
+      path.join(incoming(b), "msg_disabled.json"),
+      JSON.stringify(
+        taskGraphEnvelope({
+          messageId: "msg_disabled",
+          correlationId: "corr_disabled",
+          idempotencyKey: "idempotency-disabled",
+          senderAgentId: "agent-a",
+          recipientAgentId: "agent-b",
+        }),
+      ),
+      "utf-8",
+    );
 
     const disabled = importA2AIncoming({ cwd: b, now: new Date("2026-05-04T12:10:00.000Z") });
     expect(disabled.blocked[0]?.decision.reason).toContain("disabled");

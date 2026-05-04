@@ -1,18 +1,8 @@
 import path from "path";
 import chalk from "chalk";
-import {
-  Artifact,
-  GateResult,
-  GateResultSchema,
-  GateType,
-  GateTypeSchema,
-} from "@kiwi/contracts";
+import { Artifact, GateResult, GateResultSchema, GateType, GateTypeSchema } from "@kiwi/contracts";
 import { LocalShellRunnerAdapter } from "@kiwi/adapters";
-import {
-  createWorktreeSandbox,
-  executeSandboxCommand,
-  SandboxCommandPolicy,
-} from "@kiwi/sandbox";
+import { createWorktreeSandbox, executeSandboxCommand, SandboxCommandPolicy } from "@kiwi/sandbox";
 import {
   assertStepDependenciesCompleted,
   commandForGate,

@@ -51,18 +51,26 @@ describe("kiwi status", () => {
   it("supports selected run view", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-status-select-"));
     await runInit({}, cwd);
-    await runPlan("Ticket A", {
-      now: new Date("2026-05-04T04:00:00.000Z"),
-      runIdSuffix: "a001",
-      initiativeIdSuffix: "a001",
-      planIdSuffix: "a001",
-    }, cwd);
-    await runPlan("Ticket B", {
-      now: new Date("2026-05-04T04:00:01.000Z"),
-      runIdSuffix: "b002",
-      initiativeIdSuffix: "b002",
-      planIdSuffix: "b002",
-    }, cwd);
+    await runPlan(
+      "Ticket A",
+      {
+        now: new Date("2026-05-04T04:00:00.000Z"),
+        runIdSuffix: "a001",
+        initiativeIdSuffix: "a001",
+        planIdSuffix: "a001",
+      },
+      cwd,
+    );
+    await runPlan(
+      "Ticket B",
+      {
+        now: new Date("2026-05-04T04:00:01.000Z"),
+        runIdSuffix: "b002",
+        initiativeIdSuffix: "b002",
+        planIdSuffix: "b002",
+      },
+      cwd,
+    );
 
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
     await runStatus(cwd, "run_20260504_040001_b002");

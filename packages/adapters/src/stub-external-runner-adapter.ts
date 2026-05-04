@@ -1,9 +1,5 @@
 import { RunnerName } from "@kiwi/contracts";
-import {
-  RunnerAdapter,
-  RunnerExecutionInput,
-  RunnerExecutionOutput,
-} from "./runner-adapter";
+import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "./runner-adapter";
 import { createFailedRunnerOutput } from "./runner-output";
 
 export type ExternalRunnerName = Exclude<RunnerName, "local-shell">;

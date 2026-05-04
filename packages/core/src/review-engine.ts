@@ -32,7 +32,8 @@ export class StubReviewEngine implements ReviewEngine {
             code: "GATE_FAILURE",
             title: "Required quality gates are not passing",
             severity: gateSummary.overallStatus === "blocked" ? "high" : "medium",
-            detail: `Failing gates: ${gateSummary.failingGateIds.join(", ")} Blocked gates: ${gateSummary.blockedGateIds.join(", ")}`.trim(),
+            detail:
+              `Failing gates: ${gateSummary.failingGateIds.join(", ")} Blocked gates: ${gateSummary.blockedGateIds.join(", ")}`.trim(),
           },
         ],
         recommendedNextSteps: [

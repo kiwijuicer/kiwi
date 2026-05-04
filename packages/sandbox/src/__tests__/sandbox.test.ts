@@ -46,11 +46,7 @@ describe("worktree sandbox command execution", () => {
       stepId: "step_001",
       attemptId: "attempt_001",
       worktreePath: sandbox.worktreePath,
-      command: [
-        nodeBin,
-        "-e",
-        "require('fs').writeFileSync('out.txt', 'ok'); console.log(process.env.KIWI_SECRET)",
-      ],
+      command: [nodeBin, "-e", "require('fs').writeFileSync('out.txt', 'ok'); console.log(process.env.KIWI_SECRET)"],
       env: {
         PATH: process.env.PATH ?? "",
         KIWI_SECRET: "s3cr3t",
@@ -63,9 +59,7 @@ describe("worktree sandbox command execution", () => {
     expect(result.stdout).not.toContain("s3cr3t");
     expect(existsSync(path.join(sandbox.worktreePath, "out.txt"))).toBe(true);
     expect(existsSync(path.join(repo, "out.txt"))).toBe(false);
-    expect(result.artifactRefs[0]?.ref).toBe(
-      "steps/step_001/attempt_001/artifacts/command-output.json",
-    );
+    expect(result.artifactRefs[0]?.ref).toBe("steps/step_001/attempt_001/artifacts/command-output.json");
 
     const artifact = readCommandOutputArtifact({
       cwd: repo,
@@ -166,9 +160,7 @@ describe("worktree sandbox command execution", () => {
 
     expect(result.status).toBe("timeout");
     expect(result.gateResult.status).toBe("fail");
-    expect(result.gateResult.evidenceRefs).toContain(
-      "steps/step_001/attempt_004/artifacts/command-output.json",
-    );
+    expect(result.gateResult.evidenceRefs).toContain("steps/step_001/attempt_004/artifacts/command-output.json");
   });
 
   it("blocks network commands when network policy is disabled", async () => {
@@ -246,7 +238,9 @@ describe("worktree sandbox command execution", () => {
     expect(artifact?.type).toBe("diff");
     expect(existsSync(path.join(repo, "feature.txt"))).toBe(false);
     expect(
-      existsSync(path.join(repo, ".kiwi", "runs", "run_demo", "steps", "step_001", "attempt_007", "artifacts", "diff.patch")),
+      existsSync(
+        path.join(repo, ".kiwi", "runs", "run_demo", "steps", "step_001", "attempt_007", "artifacts", "diff.patch"),
+      ),
     ).toBe(true);
   });
 });

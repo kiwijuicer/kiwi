@@ -1,11 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
-import {
-  DEFAULT_MODEL_REGISTRY_YAML,
-  DEFAULT_POLICY_YAML,
-  defaultKiwiConfigYaml,
-} from "../default-config";
+import { DEFAULT_MODEL_REGISTRY_YAML, DEFAULT_POLICY_YAML, defaultKiwiConfigYaml } from "../default-config";
 
 export interface InitOptions {
   force?: boolean;
@@ -36,22 +32,14 @@ interface GitignoreWriteResult {
   status: "updated" | "preserved" | "missing";
 }
 
-const KIWI_GITIGNORE_ENTRIES = [
-  ".kiwi/",
-  ".cursor/mcp.json",
-  ".mcp.json",
-  ".codex/config.toml",
-];
+const KIWI_GITIGNORE_ENTRIES = [".kiwi/", ".cursor/mcp.json", ".mcp.json", ".codex/config.toml"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function kiwiRootCandidates(): string[] {
-  return [
-    path.resolve(__dirname, "../../.."),
-    path.resolve(__dirname, "../../../.."),
-  ];
+  return [path.resolve(__dirname, "../../.."), path.resolve(__dirname, "../../../..")];
 }
 
 function resolveKiwiRoot(): string {
@@ -181,7 +169,7 @@ function writeClaudeCodeMcpConfig(targetCwd: string, force: boolean): ConfigWrit
 }
 
 function tomlString(value: string): string {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
 function tomlArray(values: string[]): string {
@@ -189,16 +177,14 @@ function tomlArray(values: string[]): string {
 }
 
 function tomlInlineTable(values: Record<string, string>): string {
-  return `{ ${Object.entries(values).map(([key, value]) => `${key} = ${tomlString(value)}`).join(", ")} }`;
+  return `{ ${Object.entries(values)
+    .map(([key, value]) => `${key} = ${tomlString(value)}`)
+    .join(", ")} }`;
 }
 
 function desiredCodexMcpBlock(targetCwd: string): string {
   const launch = resolveMcpServerLaunch(targetCwd);
-  const lines = [
-    "[mcp_servers.kiwi]",
-    `command = ${tomlString(launch.command)}`,
-    `args = ${tomlArray(launch.args)}`,
-  ];
+  const lines = ["[mcp_servers.kiwi]", `command = ${tomlString(launch.command)}`, `args = ${tomlArray(launch.args)}`];
   if (launch.env) lines.push(`env = ${tomlInlineTable(launch.env)}`);
   return lines.join("\n");
 }
@@ -221,11 +207,7 @@ function upsertTomlTable(existing: string, tableName: string, block: string): st
     }
   }
 
-  const next = [
-    ...lines.slice(0, start),
-    ...block.split("\n"),
-    ...lines.slice(end),
-  ].join("\n");
+  const next = [...lines.slice(0, start), ...block.split("\n"), ...lines.slice(end)].join("\n");
   return `${next.replace(/\s*$/, "")}\n`;
 }
 
@@ -279,10 +261,7 @@ function writeGitignoreEntries(targetCwd: string): GitignoreWriteResult {
   return { path: gitignorePath, status: "updated" };
 }
 
-export async function runInit(
-  opts: InitOptions = {},
-  cwd: string = process.cwd(),
-): Promise<void> {
+export async function runInit(opts: InitOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const targetCwd = opts.workspace ? path.resolve(cwd, opts.workspace) : cwd;
   if (!existsSync(targetCwd)) {
     throw new Error(`Workspace path not found: ${targetCwd}`);
@@ -309,15 +288,9 @@ export async function runInit(
   if (shouldWriteRegistry) {
     writeFileSync(registryPath, DEFAULT_MODEL_REGISTRY_YAML, "utf-8");
   }
-  const cursorMcp = opts.cursorMcp === false
-    ? null
-    : writeCursorMcpConfig(targetCwd, Boolean(opts.force));
-  const claudeCodeMcp = opts.claudeCodeMcp === false
-    ? null
-    : writeClaudeCodeMcpConfig(targetCwd, Boolean(opts.force));
-  const codexMcp = opts.codexMcp === false
-    ? null
-    : writeCodexMcpConfig(targetCwd, Boolean(opts.force));
+  const cursorMcp = opts.cursorMcp === false ? null : writeCursorMcpConfig(targetCwd, Boolean(opts.force));
+  const claudeCodeMcp = opts.claudeCodeMcp === false ? null : writeClaudeCodeMcpConfig(targetCwd, Boolean(opts.force));
+  const codexMcp = opts.codexMcp === false ? null : writeCodexMcpConfig(targetCwd, Boolean(opts.force));
   const gitignore = writeGitignoreEntries(targetCwd);
 
   console.log(chalk.green("✓") + " .kiwi initialized");

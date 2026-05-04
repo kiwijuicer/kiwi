@@ -37,11 +37,12 @@ function isDirectory(candidate: string): boolean {
 }
 
 function normalizeRepoId(value: string): string {
-  return value
-    .trim()
-    .replace(/[^a-zA-Z0-9_.-]/g, "-")
-    .replace(/^-+|-+$/g, "")
-    || "repo";
+  return (
+    value
+      .trim()
+      .replace(/[^a-zA-Z0-9_.-]/g, "-")
+      .replace(/^-+|-+$/g, "") || "repo"
+  );
 }
 
 function codeWorkspaceFiles(root: string): string[] {
@@ -63,9 +64,7 @@ function parseCodeWorkspace(target: string): WorkspaceRepo[] {
       const repoPath = path.resolve(workspaceDir, folder.path);
       if (!isDirectory(repoPath)) return null;
       const idSource =
-        typeof folder.name === "string" && folder.name.trim().length > 0
-          ? folder.name
-          : path.basename(repoPath);
+        typeof folder.name === "string" && folder.name.trim().length > 0 ? folder.name : path.basename(repoPath);
       return {
         id: normalizeRepoId(idSource),
         path: repoPath,
@@ -127,9 +126,7 @@ function repoCandidatesMessage(repos: WorkspaceRepo[]): string {
 }
 
 function resolveRepoSelector(selector: string, workspacePath: string, repos: WorkspaceRepo[]): WorkspaceRepo | null {
-  const selectorPath = path.isAbsolute(selector)
-    ? path.resolve(selector)
-    : path.resolve(workspacePath, selector);
+  const selectorPath = path.isAbsolute(selector) ? path.resolve(selector) : path.resolve(workspacePath, selector);
   const byId = repos.find((repo) => repo.id === selector);
   if (byId) return byId;
   const byPath = repos.find((repo) => path.resolve(repo.path) === selectorPath);
@@ -144,9 +141,7 @@ function resolveRepoSelector(selector: string, workspacePath: string, repos: Wor
 }
 
 function resolveCurrentRepo(cwd: string, repos: WorkspaceRepo[]): WorkspaceRepo | null {
-  const matches = repos
-    .filter((repo) => containsPath(repo.path, cwd))
-    .sort((a, b) => b.path.length - a.path.length);
+  const matches = repos.filter((repo) => containsPath(repo.path, cwd)).sort((a, b) => b.path.length - a.path.length);
   return matches[0] ?? null;
 }
 
@@ -163,7 +158,7 @@ export function resolveWorkspace(input: WorkspaceResolveInput = {}): WorkspaceRe
   const repos = discoverWorkspaceRepos(workspacePath);
   const repo = input.repo
     ? resolveRepoSelector(input.repo, workspacePath, repos)
-    : resolveCurrentRepo(cwd, repos) ?? (repos.length === 1 ? repos[0] : null);
+    : (resolveCurrentRepo(cwd, repos) ?? (repos.length === 1 ? repos[0] : null));
 
   if (input.repo && !repo) {
     throw new Error(`Repo not found: ${input.repo}. Candidates: ${repoCandidatesMessage(repos)}`);

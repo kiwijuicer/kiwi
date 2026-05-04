@@ -4,12 +4,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { ReviewVerdictSchema } from "@kiwi/contracts";
 import { createGateResult } from "../quality-gates";
-import {
-  StubReviewEngine,
-  classifyReviewAction,
-  loadReviewVerdict,
-  saveReviewVerdict,
-} from "../review-engine";
+import { StubReviewEngine, classifyReviewAction, loadReviewVerdict, saveReviewVerdict } from "../review-engine";
 
 describe("review engine", () => {
   it("returns pass verdict when all required gates pass", async () => {

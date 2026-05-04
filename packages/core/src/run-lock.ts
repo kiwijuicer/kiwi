@@ -1,11 +1,4 @@
-import {
-  closeSync,
-  existsSync,
-  openSync,
-  readFileSync,
-  unlinkSync,
-  writeFileSync,
-} from "fs";
+import { closeSync, existsSync, openSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { appendAuditEvent } from "./cost-ledger";
 import { ensureRunLayout, resolveRunArtifactPath } from "./run-store";
 
@@ -75,9 +68,7 @@ export function acquireRunLock(params: {
   try {
     descriptor = openSync(target, "wx");
   } catch (error) {
-    const code = typeof error === "object" && error !== null
-      ? (error as { code?: unknown }).code
-      : undefined;
+    const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
     if (code === "EEXIST") {
       const existing = readExistingLock(target);
       appendAuditEvent(params.cwd, {

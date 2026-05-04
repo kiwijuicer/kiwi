@@ -1,9 +1,5 @@
 import { GateResult, GateResultSchema } from "@kiwi/contracts";
-import {
-  RunnerExecutionError,
-  RunnerExecutionOutput,
-  RunnerExecutionStatus,
-} from "./runner-adapter";
+import { RunnerExecutionError, RunnerExecutionOutput, RunnerExecutionStatus } from "./runner-adapter";
 
 export function zeroModelUsage(): { inputTokens: number; outputTokens: number } {
   return {

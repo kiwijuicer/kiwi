@@ -24,9 +24,7 @@ export interface BitbucketCloudResponse {
   body?: unknown;
 }
 
-export type BitbucketCloudRequestExecutor = (
-  request: BitbucketCloudRequest,
-) => Promise<BitbucketCloudResponse>;
+export type BitbucketCloudRequestExecutor = (request: BitbucketCloudRequest) => Promise<BitbucketCloudResponse>;
 
 export interface BitbucketCloudScmAdapterOptions {
   request: BitbucketCloudRequestExecutor;
@@ -68,11 +66,11 @@ export class BitbucketCloudScmAdapter implements ScmAdapter {
         title: draft.title,
         ...(draft.body
           ? {
-            content: {
-              raw: draft.body,
-              markup: "markdown",
-            },
-          }
+              content: {
+                raw: draft.body,
+                markup: "markdown",
+              },
+            }
           : {}),
       },
     });
@@ -157,11 +155,13 @@ export class BitbucketCloudScmAdapter implements ScmAdapter {
     }
 
     if (draft.requestChanges) {
-      responses.push(await this.request({
-        method: "POST",
-        url: this.url(draft.repository, `${basePath}/request-changes`),
-        headers: jsonHeaders(),
-      }));
+      responses.push(
+        await this.request({
+          method: "POST",
+          url: this.url(draft.repository, `${basePath}/request-changes`),
+          headers: jsonHeaders(),
+        }),
+      );
     }
 
     if (responses.length === 0) {

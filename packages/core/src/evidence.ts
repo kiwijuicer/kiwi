@@ -1,20 +1,7 @@
 import { createHash } from "crypto";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  renameSync,
-  statSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "fs";
 import path from "path";
-import {
-  EvidenceManifest,
-  EvidenceManifestSchema,
-  RunAuditSnapshot,
-  RunAuditSnapshotSchema,
-} from "@kiwi/contracts";
+import { EvidenceManifest, EvidenceManifestSchema, RunAuditSnapshot, RunAuditSnapshotSchema } from "@kiwi/contracts";
 import { appendAuditEvent, readAuditEvents } from "./cost-ledger";
 import { ensureRunLayout, resolveRunArtifactPath } from "./run-store";
 
@@ -41,11 +28,7 @@ function normalizeRef(root: string, target: string): string {
 }
 
 function shouldSkip(ref: string): boolean {
-  return (
-    ref === "run.lock" ||
-    ref === "final/evidence-manifest.json" ||
-    ref.startsWith("worktrees/")
-  );
+  return ref === "run.lock" || ref === "final/evidence-manifest.json" || ref.startsWith("worktrees/");
 }
 
 function listRunFiles(root: string, current: string = root): string[] {
@@ -73,11 +56,10 @@ function fileHash(root: string, target: string): EvidenceManifest["files"][numbe
   };
 }
 
-export function writeRunAuditSnapshot(params: {
-  cwd: string;
-  runId: string;
-  now?: Date | undefined;
-}): { snapshot: RunAuditSnapshot; ref: string } {
+export function writeRunAuditSnapshot(params: { cwd: string; runId: string; now?: Date | undefined }): {
+  snapshot: RunAuditSnapshot;
+  ref: string;
+} {
   ensureRunLayout(params.runId, params.cwd);
   const createdAt = (params.now ?? new Date()).toISOString();
   const events = readAuditEvents(params.cwd, params.runId);
@@ -143,10 +125,7 @@ export function writeEvidenceManifest(params: {
   };
 }
 
-export function loadEvidenceManifest(params: {
-  cwd: string;
-  runId: string;
-}): EvidenceManifest {
+export function loadEvidenceManifest(params: { cwd: string; runId: string }): EvidenceManifest {
   const target = resolveRunArtifactPath(params.runId, "final/evidence-manifest.json", params.cwd);
   return EvidenceManifestSchema.parse(JSON.parse(readFileSync(target, "utf-8")) as unknown);
 }

@@ -2,11 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFil
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import {
-  InitiativeSchema,
-  RunManifestSchema,
-  TaskGraphSchema,
-} from "@kiwi/contracts";
+import { InitiativeSchema, RunManifestSchema, TaskGraphSchema } from "@kiwi/contracts";
 import { runInit } from "../commands/init";
 import { runPlan } from "../commands/plan";
 
@@ -52,9 +48,7 @@ describe("kiwi plan", () => {
     const runDir = path.join(runsRoot, runId!);
     const run = RunManifestSchema.parse(readJson(path.join(runDir, "run.json")));
     const initiative = InitiativeSchema.parse(readJson(path.join(runDir, "initiative.json")));
-    const taskGraph = TaskGraphSchema.parse(
-      readJson(path.join(runDir, "plan", "task-graph.json")),
-    );
+    const taskGraph = TaskGraphSchema.parse(readJson(path.join(runDir, "plan", "task-graph.json")));
 
     expect(run.runId).toBe("run_20260503_190000_abcd");
     expect(initiative.id).toBe("init_20260503_190000_abcd");
@@ -101,9 +95,7 @@ describe("kiwi plan", () => {
     const runsRoot = path.join(cwd, ".kiwi", "runs");
     const runs = readdirSync(runsRoot);
     expect(runs).toHaveLength(1);
-    const initiative = InitiativeSchema.parse(
-      readJson(path.join(runsRoot, runs[0]!, "initiative.json")),
-    );
+    const initiative = InitiativeSchema.parse(readJson(path.join(runsRoot, runs[0]!, "initiative.json")));
 
     expect(initiative.source).toBe("cli");
     expect(initiative.rawInput).toBe("Implement inline ticket planning");

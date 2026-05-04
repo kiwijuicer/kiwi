@@ -1,12 +1,7 @@
 import { Artifact, GateResult, RunnerName } from "@kiwi/contracts";
 import { SandboxCommandPolicy } from "@kiwi/sandbox";
 
-export type RunnerExecutionStatus =
-  | "completed"
-  | "failed"
-  | "blocked"
-  | "approval_required"
-  | "timeout";
+export type RunnerExecutionStatus = "completed" | "failed" | "blocked" | "approval_required" | "timeout";
 
 export interface RunnerExecutionTimeouts {
   commandTimeoutMs: number;

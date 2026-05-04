@@ -2,13 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import {
-  Artifact,
-  GateResultSchema,
-  Initiative,
-  ReviewVerdictSchema,
-  Step,
-} from "@kiwi/contracts";
+import { Artifact, GateResultSchema, Initiative, ReviewVerdictSchema, Step } from "@kiwi/contracts";
 import { readAuditEvents } from "../cost-ledger";
 import { readModelInvocations } from "../model-invocations";
 import { ReviewEngine } from "../review-engine";
@@ -222,9 +216,7 @@ describe("step attempt orchestrator", () => {
     expect(costReport.modelId).toBeNull();
     expect(costReport.modelInvocationRefs).toHaveLength(2);
     expect(
-      existsSync(
-        path.join(repo, ".kiwi", "runs", "run_demo", "steps", "step_001", "attempt_001", "gate-results.json"),
-      ),
+      existsSync(path.join(repo, ".kiwi", "runs", "run_demo", "steps", "step_001", "attempt_001", "gate-results.json")),
     ).toBe(true);
     expect(
       existsSync(

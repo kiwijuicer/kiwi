@@ -16,12 +16,7 @@ import { Artifact, GateResult, GateResultSchema, GateType } from "@kiwi/contract
 
 export type ApprovalState = "auto" | "required" | "blocked";
 export type NetworkPolicy = "disabled" | "enabled";
-export type SandboxExecutionStatus =
-  | "completed"
-  | "failed"
-  | "blocked"
-  | "approval_required"
-  | "timeout";
+export type SandboxExecutionStatus = "completed" | "failed" | "blocked" | "approval_required" | "timeout";
 
 export interface SandboxCommandPolicy {
   allowedCommands: string[];
@@ -104,14 +99,7 @@ const GIT_OPTIONS_WITH_VALUE = new Set([
   "--namespace",
   "--work-tree",
 ]);
-const WORKSPACE_COPY_EXCLUDES = new Set([
-  ".git",
-  ".kiwi",
-  "node_modules",
-  "dist",
-  ".turbo",
-  ".cache",
-]);
+const WORKSPACE_COPY_EXCLUDES = new Set([".git", ".kiwi", "node_modules", "dist", ".turbo", ".cache"]);
 
 function runsRoot(cwd: string): string {
   return path.join(cwd, ".kiwi", "runs");
@@ -252,11 +240,7 @@ function evaluatePolicy(input: SandboxCommandInput): PolicyDecision {
   if (commandTouchesPath(input.command, input.worktreePath, input.policy.deniedPaths)) {
     return { status: "blocked", reason: "command touches a denied path" };
   }
-  const needsPathApproval = commandTouchesPath(
-    input.command,
-    input.worktreePath,
-    input.policy.approvalRequiredPaths,
-  );
+  const needsPathApproval = commandTouchesPath(input.command, input.worktreePath, input.policy.approvalRequiredPaths);
   if ((input.policy.approvalState === "required" || needsPathApproval) && !input.approved) {
     return { status: "approval_required", reason: "explicit approval is required" };
   }
@@ -317,9 +301,7 @@ function persistOutput(params: {
   payload: unknown;
   artifactLabel?: string;
 }): string {
-  const suffix = params.artifactLabel
-    ? `-${params.artifactLabel.replace(/[^a-z0-9_-]/gi, "_")}`
-    : "";
+  const suffix = params.artifactLabel ? `-${params.artifactLabel.replace(/[^a-z0-9_-]/gi, "_")}` : "";
   const relativePath = `steps/${params.stepId}/${params.attemptId}/artifacts/command-output${suffix}.json`;
   const target = resolveRunArtifactPath(params.cwd, params.runId, relativePath);
   writeJsonSafely(target, params.payload);
@@ -367,11 +349,7 @@ export function createWorktreeSandbox(params: {
   sourcePath?: string;
   copyWorkspace?: boolean;
 }): WorktreeSandbox {
-  const worktreePath = resolveRunArtifactPath(
-    params.cwd,
-    params.runId,
-    `worktrees/${params.attemptId}`,
-  );
+  const worktreePath = resolveRunArtifactPath(params.cwd, params.runId, `worktrees/${params.attemptId}`);
   mkdirSync(worktreePath, { recursive: true });
   if (params.copyWorkspace ?? true) {
     const sourcePath = params.sourcePath ?? params.cwd;
@@ -453,8 +431,7 @@ export async function executeSandboxCommand(input: SandboxCommandInput): Promise
       const completedAt = new Date().toISOString();
       const redactedStdout = redact(stdout, input.policy.secretValues);
       const redactedStderr = redact(stderr, input.policy.secretValues);
-      const status: SandboxExecutionStatus =
-        timedOut ? "timeout" : exitCode === 0 ? "completed" : "failed";
+      const status: SandboxExecutionStatus = timedOut ? "timeout" : exitCode === 0 ? "completed" : "failed";
       const outputParams: Parameters<typeof persistOutput>[0] = {
         cwd: input.cwd,
         runId: input.runId,
@@ -539,11 +516,7 @@ function readTextIfReasonable(target: string): string {
   return raw.toString("utf-8");
 }
 
-function simplePatchForFile(params: {
-  relativePath: string;
-  before: string;
-  after: string;
-}): string {
+function simplePatchForFile(params: { relativePath: string; before: string; after: string }): string {
   if (params.before === params.after) return "";
   const beforeLines = params.before
     .split("\n")

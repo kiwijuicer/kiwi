@@ -1,0 +1,8 @@
+{
+  "threshold": 2,
+  "reporters": ["console"],
+  "format": ["typescript", "javascript"],
+  "ignore": ["**/dist/**", "**/node_modules/**", "**/__tests__/**", "**/*.test.ts", "**/*.config.ts", "pnpm-lock.yaml"],
+  "path": ["apps", "packages", "scripts"],
+  "minTokens": 80
+}

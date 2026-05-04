@@ -131,15 +131,13 @@ describe("planner provider", () => {
       },
     };
 
-    await expect(runPlannerProviderWithRetries(provider, input, { maxAttempts: 2 })).rejects.toMatchObject(
-      {
-        name: "PlannerProviderValidationError",
-        evidence: {
-          providerName: "always-invalid",
-          maxAttempts: 2,
-          attemptsUsed: 2,
-        },
+    await expect(runPlannerProviderWithRetries(provider, input, { maxAttempts: 2 })).rejects.toMatchObject({
+      name: "PlannerProviderValidationError",
+      evidence: {
+        providerName: "always-invalid",
+        maxAttempts: 2,
+        attemptsUsed: 2,
       },
-    );
+    });
   });
 });

@@ -3,29 +3,15 @@ import { z } from "zod";
 export const IsoDateTimeSchema = z.string().datetime();
 export const ContractsSchemaVersionSchema = z.literal("1");
 export const ContractsSchemaEvolutionModeSchema = z.literal("breaking_allowed");
+const enumFrom = <T extends readonly [string, ...string[]]>(values: T) => z.enum(values);
 
-export const ContractsMetadataSchema = z.object({
-  schemaVersion: ContractsSchemaVersionSchema,
-  evolutionMode: ContractsSchemaEvolutionModeSchema,
-});
-
-export const InitiativeSourceSchema = z.enum(["cli", "file", "mcp", "api", "a2a"]);
-export const RiskProfileSchema = z.enum(["local", "dev", "staging", "production"]);
-export const BudgetProfileSchema = z.enum(["tiny", "small", "normal", "large", "critical"]);
-
-export const AgentRoleSchema = z.enum([
-  "planner",
-  "researcher",
-  "executor",
-  "reviewer",
-  "security",
-  "rules",
-]);
-
-export const ModelCapabilitySchema = z.enum(["cheap", "mid", "strong", "frontier"]);
-export const RunnerNameSchema = z.enum(["codex", "claude-code", "local-shell", "api"]);
-
-export const StepTypeSchema = z.enum([
+export const INITIATIVE_SOURCE_VALUES = ["cli", "file", "mcp", "api", "a2a"] as const;
+export const RISK_PROFILE_VALUES = ["local", "dev", "staging", "production"] as const;
+export const BUDGET_PROFILE_VALUES = ["tiny", "small", "normal", "large", "critical"] as const;
+export const AGENT_ROLE_VALUES = ["planner", "researcher", "executor", "reviewer", "security", "rules"] as const;
+export const MODEL_CAPABILITY_VALUES = ["cheap", "mid", "strong", "frontier"] as const;
+export const RUNNER_NAME_VALUES = ["codex", "claude-code", "local-shell", "api"] as const;
+export const STEP_TYPE_VALUES = [
   "context_discovery",
   "planning",
   "test_creation",
@@ -40,35 +26,18 @@ export const StepTypeSchema = z.enum([
   "scm_review",
   "rules_update",
   "documentation",
-]);
-
-export const StepStatusSchema = z.enum([
-  "pending",
-  "running",
-  "completed",
-  "failed",
-  "skipped",
-]);
-
-export const RunStatusSchema = z.enum([
-  "planned",
-  "running",
-  "needs_approval",
-  "completed",
-  "failed",
-  "cancelled",
-]);
-
-export const StepAttemptStatusSchema = z.enum([
+] as const;
+export const STEP_STATUS_VALUES = ["pending", "running", "completed", "failed", "skipped"] as const;
+export const RUN_STATUS_VALUES = ["planned", "running", "needs_approval", "completed", "failed", "cancelled"] as const;
+export const STEP_ATTEMPT_STATUS_VALUES = [
   "pending",
   "running",
   "completed",
   "failed",
   "blocked",
   "cancelled",
-]);
-
-export const ArtifactTypeSchema = z.enum([
+] as const;
+export const ARTIFACT_TYPE_VALUES = [
   "diff",
   "patch",
   "command_output",
@@ -78,63 +47,100 @@ export const ArtifactTypeSchema = z.enum([
   "review_report",
   "cost_report",
   "summary",
-]);
-
-export const GateTypeSchema = z.enum([
+] as const;
+export const GATE_TYPE_VALUES = [
   "typecheck",
   "lint",
   "tests",
   "forbidden_file_checks",
   "secrets_check",
   "structured_review_json",
-]);
+] as const;
+export const GATE_STATUS_VALUES = ["pass", "fail", "blocked"] as const;
+export const APPROVAL_STATE_VALUES = ["auto", "required", "blocked"] as const;
+export const NETWORK_POLICY_VALUES = ["disabled", "enabled"] as const;
+export const CONTEXT_LEVEL_VALUES = ["L0", "L1", "L2", "L3"] as const;
+export const SCHEDULER_DECISION_STATUS_VALUES = ["scheduled", "blocked"] as const;
+export const MODEL_INVOCATION_PHASE_VALUES = ["planner", "executor", "reviewer"] as const;
+export const MODEL_INVOCATION_STATUS_VALUES = ["completed", "failed", "blocked"] as const;
+export const REVIEW_VERDICT_VALUE_VALUES = ["pass", "pass_with_comments", "needs_changes", "reject"] as const;
+export const REVIEW_ISSUE_SEVERITY_VALUES = ["low", "medium", "high", "critical"] as const;
+export const SCM_PROVIDER_VALUES = ["bitbucket-cloud", "github", "local"] as const;
+export const SCM_MUTATION_STATUS_VALUES = ["draft", "created", "failed", "blocked"] as const;
+export const RUNNER_EXECUTION_STATUS_VALUES = [
+  "completed",
+  "failed",
+  "blocked",
+  "approval_required",
+  "timeout",
+] as const;
+export const NEXT_ACTION_TYPE_VALUES = ["continue", "fix_step", "replan"] as const;
+export const PROTOCOL_ENVELOPE_KIND_VALUES = [
+  "initiative",
+  "task_graph",
+  "step_attempt",
+  "gate_result",
+  "review_verdict",
+  "artifact",
+] as const;
+export const A2A_RUNTIME_MODE_VALUES = ["disabled", "loopback", "filesystem"] as const;
+export const A2A_RUNTIME_DECISION_STATUS_VALUES = ["accepted", "blocked", "duplicate"] as const;
+export const MODEL_PROVIDER_VALUES = ["stub", "openai", "anthropic", "local"] as const;
 
-export const GateStatusSchema = z.enum(["pass", "fail", "blocked"]);
-export const ApprovalStateSchema = z.enum(["auto", "required", "blocked"]);
-export const NetworkPolicySchema = z.enum(["disabled", "enabled"]);
-export const ContextLevelSchema = z.enum(["L0", "L1", "L2", "L3"]);
-export const SchedulerDecisionStatusSchema = z.enum(["scheduled", "blocked"]);
-export const ModelInvocationPhaseSchema = z.enum(["planner", "executor", "reviewer"]);
-export const ModelInvocationStatusSchema = z.enum(["completed", "failed", "blocked"]);
-export const ReviewVerdictValueSchema = z.enum([
-  "pass",
-  "pass_with_comments",
-  "needs_changes",
-  "reject",
-]);
-export const ReviewIssueSeveritySchema = z.enum([
-  "low",
-  "medium",
-  "high",
-  "critical",
-]);
-
-export const ScmProviderSchema = z.enum(["bitbucket-cloud", "github", "local"]);
-export const ScmAuthModeSchema = z.literal("external");
-export const ScmMutationStatusSchema = z.enum(["draft", "created", "failed", "blocked"]);
-
-export const ScmRepositoryRefSchema = z.object({
-  provider: ScmProviderSchema,
-  workspace: z.string().min(1).optional(),
-  repoSlug: z.string().min(1).optional(),
-  remoteUrl: z.string().min(1).optional(),
-}).superRefine((value, ctx) => {
-  if (value.provider !== "bitbucket-cloud") return;
-  if (!value.workspace) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["workspace"],
-      message: "bitbucket-cloud repository refs require workspace",
-    });
-  }
-  if (!value.repoSlug) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["repoSlug"],
-      message: "bitbucket-cloud repository refs require repoSlug",
-    });
-  }
+export const ContractsMetadataSchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  evolutionMode: ContractsSchemaEvolutionModeSchema,
 });
+
+export const InitiativeSourceSchema = enumFrom(INITIATIVE_SOURCE_VALUES);
+export const RiskProfileSchema = enumFrom(RISK_PROFILE_VALUES);
+export const BudgetProfileSchema = enumFrom(BUDGET_PROFILE_VALUES);
+export const AgentRoleSchema = enumFrom(AGENT_ROLE_VALUES);
+export const ModelCapabilitySchema = enumFrom(MODEL_CAPABILITY_VALUES);
+export const RunnerNameSchema = enumFrom(RUNNER_NAME_VALUES);
+export const StepTypeSchema = enumFrom(STEP_TYPE_VALUES);
+export const StepStatusSchema = enumFrom(STEP_STATUS_VALUES);
+export const RunStatusSchema = enumFrom(RUN_STATUS_VALUES);
+export const StepAttemptStatusSchema = enumFrom(STEP_ATTEMPT_STATUS_VALUES);
+export const ArtifactTypeSchema = enumFrom(ARTIFACT_TYPE_VALUES);
+export const GateTypeSchema = enumFrom(GATE_TYPE_VALUES);
+export const GateStatusSchema = enumFrom(GATE_STATUS_VALUES);
+export const ApprovalStateSchema = enumFrom(APPROVAL_STATE_VALUES);
+export const NetworkPolicySchema = enumFrom(NETWORK_POLICY_VALUES);
+export const ContextLevelSchema = enumFrom(CONTEXT_LEVEL_VALUES);
+export const SchedulerDecisionStatusSchema = enumFrom(SCHEDULER_DECISION_STATUS_VALUES);
+export const ModelInvocationPhaseSchema = enumFrom(MODEL_INVOCATION_PHASE_VALUES);
+export const ModelInvocationStatusSchema = enumFrom(MODEL_INVOCATION_STATUS_VALUES);
+export const ReviewVerdictValueSchema = enumFrom(REVIEW_VERDICT_VALUE_VALUES);
+export const ReviewIssueSeveritySchema = enumFrom(REVIEW_ISSUE_SEVERITY_VALUES);
+export const ScmProviderSchema = enumFrom(SCM_PROVIDER_VALUES);
+export const ScmAuthModeSchema = z.literal("external");
+export const ScmMutationStatusSchema = enumFrom(SCM_MUTATION_STATUS_VALUES);
+
+export const ScmRepositoryRefSchema = z
+  .object({
+    provider: ScmProviderSchema,
+    workspace: z.string().min(1).optional(),
+    repoSlug: z.string().min(1).optional(),
+    remoteUrl: z.string().min(1).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.provider !== "bitbucket-cloud") return;
+    if (!value.workspace) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["workspace"],
+        message: "bitbucket-cloud repository refs require workspace",
+      });
+    }
+    if (!value.repoSlug) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["repoSlug"],
+        message: "bitbucket-cloud repository refs require repoSlug",
+      });
+    }
+  });
 
 export const ScmTicketDraftSchema = z.object({
   repository: ScmRepositoryRefSchema,
@@ -191,9 +197,7 @@ export const InitiativeSchema = z.object({
 });
 
 export const StepSchema = z.object({
-  stepId: z
-    .string()
-    .regex(/^step_\d{3}$/, "stepId must look like step_001"),
+  stepId: z.string().regex(/^step_\d{3}$/, "stepId must look like step_001"),
   type: StepTypeSchema,
   title: z.string().min(1),
   dependsOn: z.array(z.string()).default([]),
@@ -249,8 +253,14 @@ export const ModelInvocationRecordSchema = z.object({
   schemaVersion: ContractsSchemaVersionSchema,
   runId: z.string().regex(/^run_[a-z0-9_]+$/),
   phase: ModelInvocationPhaseSchema,
-  stepId: z.string().regex(/^step_\d{3}$/).optional(),
-  attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/).optional(),
+  stepId: z
+    .string()
+    .regex(/^step_\d{3}$/)
+    .optional(),
+  attemptId: z
+    .string()
+    .regex(/^attempt_[a-z0-9_]+$/)
+    .optional(),
   agentRole: AgentRoleSchema,
   requestedCapability: ModelCapabilitySchema.optional(),
   selectedCapability: ModelCapabilitySchema,
@@ -379,7 +389,7 @@ export const RunnerExecutionInputSchema = z.object({
 });
 
 export const RunnerExecutionOutputSchema = z.object({
-  status: z.enum(["completed", "failed", "blocked", "approval_required", "timeout"]),
+  status: enumFrom(RUNNER_EXECUTION_STATUS_VALUES),
   artifactRefs: z.array(ArtifactSchema),
   rawLogsRef: z.union([z.string().min(1), z.null()]),
   modelUsage: RunnerModelUsageSchema,
@@ -393,9 +403,9 @@ export const AttemptSummarySchema = z.object({
   stepId: z.string().regex(/^step_\d{3}$/),
   attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/),
   status: StepAttemptStatusSchema,
-  runnerStatus: z.enum(["completed", "failed", "blocked", "approval_required", "timeout"]),
+  runnerStatus: enumFrom(RUNNER_EXECUTION_STATUS_VALUES),
   nextAction: z.object({
-    type: z.enum(["continue", "fix_step", "replan"]),
+    type: enumFrom(NEXT_ACTION_TYPE_VALUES),
     reason: z.string().min(1),
     recommendedNextSteps: z.array(z.string()),
     issueCodes: z.array(z.string()),
@@ -473,14 +483,7 @@ export const ApprovalDecisionSchema = z.object({
   createdAt: IsoDateTimeSchema,
 });
 
-export const ProtocolEnvelopeKindSchema = z.enum([
-  "initiative",
-  "task_graph",
-  "step_attempt",
-  "gate_result",
-  "review_verdict",
-  "artifact",
-]);
+export const ProtocolEnvelopeKindSchema = enumFrom(PROTOCOL_ENVELOPE_KIND_VALUES);
 
 export const A2AAttachmentDescriptorSchema = z.object({
   ref: z.string().min(1),
@@ -507,8 +510,8 @@ export const ProtocolEnvelopeSchema = z.object({
   a2a: A2AMessageMetadataSchema.optional(),
 });
 
-export const A2ARuntimeModeSchema = z.enum(["disabled", "loopback", "filesystem"]);
-export const A2ARuntimeDecisionStatusSchema = z.enum(["accepted", "blocked", "duplicate"]);
+export const A2ARuntimeModeSchema = enumFrom(A2A_RUNTIME_MODE_VALUES);
+export const A2ARuntimeDecisionStatusSchema = enumFrom(A2A_RUNTIME_DECISION_STATUS_VALUES);
 
 export const A2ARuntimeDecisionSchema = z.object({
   schemaVersion: ContractsSchemaVersionSchema,
@@ -516,7 +519,10 @@ export const A2ARuntimeDecisionSchema = z.object({
   reason: z.string().min(1),
   messageId: z.string().min(1).optional(),
   correlationId: z.string().min(1).optional(),
-  runId: z.string().regex(/^run_[a-z0-9_]+$/).optional(),
+  runId: z
+    .string()
+    .regex(/^run_[a-z0-9_]+$/)
+    .optional(),
   inboxRef: z.string().min(1).optional(),
   quarantineRef: z.string().min(1).optional(),
   duplicateOfRef: z.string().min(1).optional(),
@@ -532,14 +538,9 @@ export const A2ATrustedPeerSchema = z.object({
 export const A2AConfigSchema = z.object({
   enabled: z.boolean().default(false),
   localAgentId: z.string().min(1).default("kiwi-local"),
-  acceptedKinds: z.array(ProtocolEnvelopeKindSchema).default([
-    "initiative",
-    "task_graph",
-    "step_attempt",
-    "gate_result",
-    "review_verdict",
-    "artifact",
-  ]),
+  acceptedKinds: z
+    .array(ProtocolEnvelopeKindSchema)
+    .default(["initiative", "task_graph", "step_attempt", "gate_result", "review_verdict", "artifact"]),
   peers: z.array(A2ATrustedPeerSchema).default([]),
 });
 
@@ -593,7 +594,7 @@ export const KiwiPolicySchema = z.object({
   commandProfiles: z.record(z.string(), CommandProfileSchema).default({}),
 });
 
-export const ModelProviderSchema = z.enum(["stub", "openai", "anthropic", "local"]);
+export const ModelProviderSchema = enumFrom(MODEL_PROVIDER_VALUES);
 
 export const ModelEntrySchema = z.object({
   id: z.string().min(1),

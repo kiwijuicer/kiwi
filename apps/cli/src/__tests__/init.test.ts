@@ -6,12 +6,15 @@ import { loadPolicy, loadRegistry } from "@kiwi/core";
 import { runInit } from "../commands/init";
 
 interface CursorMcpConfig {
-  mcpServers?: Record<string, {
-    type?: string;
-    command?: string;
-    args?: string[];
-    env?: Record<string, string>;
-  }>;
+  mcpServers?: Record<
+    string,
+    {
+      type?: string;
+      command?: string;
+      args?: string[];
+      env?: Record<string, string>;
+    }
+  >;
 }
 
 interface CodexConfig {
@@ -117,8 +120,8 @@ models:
     const policyPath = path.join(cwd, "kiwi-policy.yaml");
     const registryPath = path.join(cwd, "model-registry.yaml");
 
-    writeFileSync(policyPath, "version: \"1\"\nproject: {}\n", "utf-8");
-    writeFileSync(registryPath, "version: \"1\"\nmodels: []\n", "utf-8");
+    writeFileSync(policyPath, 'version: "1"\nproject: {}\n', "utf-8");
+    writeFileSync(registryPath, 'version: "1"\nmodels: []\n', "utf-8");
 
     await runInit({ force: true }, cwd);
 
@@ -187,14 +190,18 @@ models:
     mkdirSync(cursorDir);
     writeFileSync(
       path.join(cursorDir, "mcp.json"),
-      JSON.stringify({
-        mcpServers: {
-          existing: {
-            command: "node",
-            args: ["existing.js"],
+      JSON.stringify(
+        {
+          mcpServers: {
+            existing: {
+              command: "node",
+              args: ["existing.js"],
+            },
           },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
       "utf-8",
     );
 
@@ -209,14 +216,18 @@ models:
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-claude-merge-"));
     writeFileSync(
       path.join(cwd, ".mcp.json"),
-      JSON.stringify({
-        mcpServers: {
-          existing: {
-            command: "node",
-            args: ["existing.js"],
+      JSON.stringify(
+        {
+          mcpServers: {
+            existing: {
+              command: "node",
+              args: ["existing.js"],
+            },
           },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
       "utf-8",
     );
 
@@ -231,17 +242,13 @@ models:
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-codex-merge-"));
     const codexDir = path.join(cwd, ".codex");
     mkdirSync(codexDir);
-    writeFileSync(
-      path.join(codexDir, "config.toml"),
-      "[profiles.default]\nmodel = \"gpt-5.4\"\n",
-      "utf-8",
-    );
+    writeFileSync(path.join(codexDir, "config.toml"), '[profiles.default]\nmodel = "gpt-5.4"\n', "utf-8");
 
     await runInit({}, cwd);
 
     const config = readCodexConfig(cwd).content;
     expect(config).toContain("[profiles.default]");
-    expect(config).toContain("model = \"gpt-5.4\"");
+    expect(config).toContain('model = "gpt-5.4"');
     expect(config).toContain("[mcp_servers.kiwi]");
   });
 
@@ -262,14 +269,9 @@ models:
 
     await runInit({}, cwd);
 
-    expect(readFileSync(gitignorePath, "utf-8")).toBe([
-      "node_modules/",
-      ".kiwi/",
-      ".cursor/mcp.json",
-      ".mcp.json",
-      ".codex/config.toml",
-      "",
-    ].join("\n"));
+    expect(readFileSync(gitignorePath, "utf-8")).toBe(
+      ["node_modules/", ".kiwi/", ".cursor/mcp.json", ".mcp.json", ".codex/config.toml", ""].join("\n"),
+    );
   });
 
   it("does not create gitignore when none exists", async () => {

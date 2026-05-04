@@ -10,10 +10,7 @@ export class KiwiError extends Error {
 
 export class NotInitializedError extends KiwiError {
   public constructor(repoPath: string) {
-    super(
-      "NOT_INITIALIZED",
-      `Project is not initialized at ${repoPath}. Run 'kiwi init' first.`,
-    );
+    super("NOT_INITIALIZED", `Project is not initialized at ${repoPath}. Run 'kiwi init' first.`);
   }
 }
 

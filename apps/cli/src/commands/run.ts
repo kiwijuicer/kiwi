@@ -7,11 +7,7 @@ export interface RunOptions extends AttemptOptions {
   fromStep?: string;
 }
 
-export async function runRun(
-  runId: string,
-  opts: RunOptions = {},
-  cwd: string = process.cwd(),
-): Promise<void> {
+export async function runRun(runId: string, opts: RunOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   await withRunLock(
     {
@@ -22,9 +18,7 @@ export async function runRun(
     },
     async () => {
       const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
-      const startIndex = opts.fromStep
-        ? taskGraph.steps.findIndex((step) => step.stepId === opts.fromStep)
-        : 0;
+      const startIndex = opts.fromStep ? taskGraph.steps.findIndex((step) => step.stepId === opts.fromStep) : 0;
       if (startIndex < 0) throw new Error(`Step not found: ${opts.fromStep}`);
 
       for (const step of taskGraph.steps.slice(startIndex)) {

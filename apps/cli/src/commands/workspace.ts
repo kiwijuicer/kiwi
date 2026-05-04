@@ -1,10 +1,7 @@
 import chalk from "chalk";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export async function runWorkspaceList(
-  opts: CliWorkspaceOptions = {},
-  cwd: string = process.cwd(),
-): Promise<void> {
+export async function runWorkspaceList(opts: CliWorkspaceOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   console.log(chalk.bold("kiwi workspace"));
   console.log(`workspace: ${workspace.workspacePath}`);

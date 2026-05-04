@@ -1,13 +1,5 @@
-import {
-  captureWorktreeDiffArtifact,
-  executeSandboxCommand,
-  SandboxCommandInput,
-} from "@kiwi/sandbox";
-import {
-  RunnerAdapter,
-  RunnerExecutionInput,
-  RunnerExecutionOutput,
-} from "./runner-adapter";
+import { captureWorktreeDiffArtifact, executeSandboxCommand, SandboxCommandInput } from "@kiwi/sandbox";
+import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "./runner-adapter";
 import { createFailedRunnerOutput, zeroModelUsage } from "./runner-output";
 
 export class LocalShellRunnerAdapter implements RunnerAdapter {
@@ -59,9 +51,7 @@ export class LocalShellRunnerAdapter implements RunnerAdapter {
     };
     if (input.repoPath) diffInput.sourcePath = input.repoPath;
     const diffArtifact = captureWorktreeDiffArtifact(diffInput);
-    const artifactRefs = diffArtifact
-      ? [...output.artifactRefs, diffArtifact]
-      : output.artifactRefs;
+    const artifactRefs = diffArtifact ? [...output.artifactRefs, diffArtifact] : output.artifactRefs;
     const rawLogsRef = output.artifactRefs[0]?.ref ?? null;
     const result: RunnerExecutionOutput = {
       status: output.status,

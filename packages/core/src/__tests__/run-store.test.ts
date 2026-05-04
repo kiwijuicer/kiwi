@@ -58,7 +58,7 @@ describe("run store", () => {
   it("persists planned runs under .kiwi/runs/<run-id>/ with reserved layout", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-run-store-"));
     mkdirSync(path.join(cwd, ".kiwi"), { recursive: true });
-    writeFileSync(path.join(cwd, ".kiwi", "config.yaml"), "version: \"1\"\n");
+    writeFileSync(path.join(cwd, ".kiwi", "config.yaml"), 'version: "1"\n');
 
     expect(isInitialized(cwd)).toBe(true);
 
@@ -111,12 +111,8 @@ describe("run store", () => {
       now: new Date("2026-05-04T00:00:00.000Z"),
     });
 
-    expect(
-      existsSync(path.join(cwd, ".kiwi", "runs", "run_demo", "plan", "planner-input.json")),
-    ).toBe(true);
-    expect(
-      existsSync(path.join(cwd, ".kiwi", "runs", "run_demo", "plan", "planner-output.json")),
-    ).toBe(true);
+    expect(existsSync(path.join(cwd, ".kiwi", "runs", "run_demo", "plan", "planner-input.json"))).toBe(true);
+    expect(existsSync(path.join(cwd, ".kiwi", "runs", "run_demo", "plan", "planner-output.json"))).toBe(true);
   });
 
   it("loads initiative and rejects invalid artifacts on read", () => {

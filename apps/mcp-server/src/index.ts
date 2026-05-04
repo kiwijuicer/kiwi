@@ -1,11 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "fs";
 import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 import path from "path";
-import {
-  LocalShellRunnerAdapter,
-  StubPlannerProvider,
-  runPlannerProviderWithRetries,
-} from "@kiwi/adapters";
+import { LocalShellRunnerAdapter, StubPlannerProvider, runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { ProtocolEnvelopeKindSchema } from "@kiwi/contracts";
 import { createWorktreeSandbox, SandboxCommandPolicy } from "@kiwi/sandbox";
 import {
@@ -51,6 +47,7 @@ import {
   writeEvidenceManifest,
   writeOperatorSnapshot,
 } from "@kiwi/core";
+import { TOOLS } from "./tool-definitions";
 
 export interface JsonRpcRequest {
   jsonrpc?: "2.0";
@@ -117,11 +114,7 @@ function loadPlannerModel(cwd: string) {
 function workspaceArgs(args: Record<string, unknown>, cwd: string, requireRepo: boolean): WorkspaceResolution {
   const workspacePath = typeof args.workspacePath === "string" ? args.workspacePath : undefined;
   const repoPath = typeof args.repoPath === "string" ? args.repoPath : undefined;
-  const repo = repoPath
-    ? repoPath
-    : typeof args.repoId === "string"
-      ? args.repoId
-      : undefined;
+  const repo = repoPath ? repoPath : typeof args.repoId === "string" ? args.repoId : undefined;
   if (workspacePath && repoPath) {
     const resolvedWorkspacePath = path.resolve(cwd, workspacePath);
     const resolvedRepoPath = path.resolve(cwd, repoPath);
@@ -173,8 +166,7 @@ async function planTool(args: Record<string, unknown>, cwd: string): Promise<unk
     source: "mcp",
     policy,
     plannerModel,
-    executePlanner: (plannerInput, options) =>
-      runPlannerProviderWithRetries(provider, plannerInput, options),
+    executePlanner: (plannerInput, options) => runPlannerProviderWithRetries(provider, plannerInput, options),
     riskProfile: args.riskProfile === "production" ? "production" : "dev",
     budgetProfile: args.budgetProfile === "tiny" ? "tiny" : "normal",
     now,
@@ -269,9 +261,7 @@ async function runTool(args: Record<string, unknown>, cwd: string): Promise<unkn
   const workspace = workspaceArgs(args, cwd, false);
   const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
   const fromStep = typeof args.fromStep === "string" ? args.fromStep : undefined;
-  const startIndex = fromStep
-    ? taskGraph.steps.findIndex((step) => step.stepId === fromStep)
-    : 0;
+  const startIndex = fromStep ? taskGraph.steps.findIndex((step) => step.stepId === fromStep) : 0;
   if (startIndex < 0) throw new Error(`Step not found: ${fromStep}`);
 
   const steps: unknown[] = [];
@@ -336,19 +326,28 @@ function readResource(uri: string, cwd: string): McpResourceContent {
   if (tail === "manifest") return asContent(uri, loadRunManifest(runId, cwd), "application/json");
   if (tail === "initiative") return asContent(uri, loadInitiative(runId, cwd), "application/json");
   if (tail === "task-graph") return asContent(uri, loadTaskGraph(runId, cwd), "application/json");
-  if (tail === "planner-input") return asContent(uri, readJsonRunArtifact(runId, "plan/planner-input.json", cwd), "application/json");
-  if (tail === "planner-output") return asContent(uri, readJsonRunArtifact(runId, "plan/planner-output.json", cwd), "application/json");
-  if (tail === "planner-cost") return asContent(uri, readJsonRunArtifact(runId, "plan/cost-report.json", cwd), "application/json");
+  if (tail === "planner-input")
+    return asContent(uri, readJsonRunArtifact(runId, "plan/planner-input.json", cwd), "application/json");
+  if (tail === "planner-output")
+    return asContent(uri, readJsonRunArtifact(runId, "plan/planner-output.json", cwd), "application/json");
+  if (tail === "planner-cost")
+    return asContent(uri, readJsonRunArtifact(runId, "plan/cost-report.json", cwd), "application/json");
   if (tail === "model-invocations") return asContent(uri, readModelInvocations(cwd, runId), "application/json");
-  if (tail === "model-usage-summary") return asContent(uri, summarizeModelInvocations({ cwd, runId }), "application/json");
+  if (tail === "model-usage-summary")
+    return asContent(uri, summarizeModelInvocations({ cwd, runId }), "application/json");
   if (tail === "attempts") return asContent(uri, listStepAttemptEvidence(cwd, runId), "application/json");
-  if (tail === "final-verdict") return asContent(uri, readJsonRunArtifact(runId, "final/final-verdict.json", cwd), "application/json");
-  if (tail === "final-cost-report") return asContent(uri, readJsonRunArtifact(runId, "final/final-cost-report.json", cwd), "application/json");
-  if (tail === "final-summary") return asContent(uri, readTextRunArtifact(runId, "final/final-summary.md", cwd), "text/markdown");
+  if (tail === "final-verdict")
+    return asContent(uri, readJsonRunArtifact(runId, "final/final-verdict.json", cwd), "application/json");
+  if (tail === "final-cost-report")
+    return asContent(uri, readJsonRunArtifact(runId, "final/final-cost-report.json", cwd), "application/json");
+  if (tail === "final-summary")
+    return asContent(uri, readTextRunArtifact(runId, "final/final-summary.md", cwd), "text/markdown");
   if (tail === "audit") return asContent(uri, readAuditEvents(cwd, runId), "application/json");
-  if (tail === "audit-snapshot") return asContent(uri, readJsonRunArtifact(runId, "final/audit-events.json", cwd), "application/json");
+  if (tail === "audit-snapshot")
+    return asContent(uri, readJsonRunArtifact(runId, "final/audit-events.json", cwd), "application/json");
   if (tail === "evidence-manifest") return asContent(uri, loadEvidenceManifest({ cwd, runId }), "application/json");
-  if (tail === "operator-snapshot") return asContent(uri, readTextRunArtifact(runId, "operator/index.html", cwd), "text/html");
+  if (tail === "operator-snapshot")
+    return asContent(uri, readTextRunArtifact(runId, "operator/index.html", cwd), "text/html");
 
   const attemptMatch = tail.match(/^attempts\/([^/]+)\/([^/]+)(?:\/(.+))?$/);
   if (attemptMatch?.[1] && attemptMatch[2]) {
@@ -472,8 +471,7 @@ async function callTool(name: string, args: Record<string, unknown>, cwd: string
         cwd: workspace.workspacePath,
         agentId: String(args.agentId ?? ""),
       });
-    case "kiwi_a2a_publish":
-    {
+    case "kiwi_a2a_publish": {
       const publishParams: Parameters<typeof publishA2AEnvelope>[0] = {
         cwd: workspace.workspacePath,
         peerAgentId: String(args.peerAgentId ?? args.peer ?? ""),
@@ -509,246 +507,6 @@ async function callTool(name: string, args: Record<string, unknown>, cwd: string
   }
 }
 
-const RUN_ID_SCHEMA = {
-  type: "object",
-  properties: {
-    runId: { type: "string" },
-    workspacePath: { type: "string" },
-    repoId: { type: "string" },
-    repoPath: { type: "string" },
-  },
-  required: ["runId"],
-} as const;
-
-const NO_AUTO_COMMIT_NOTE = "Do not stage, commit, tag, or push unless the user explicitly requested that git operation.";
-
-const TOOLS = [
-  {
-    name: "kiwi_plan",
-    description: `Create a planned kiwi run. ${NO_AUTO_COMMIT_NOTE}`,
-    inputSchema: {
-      type: "object",
-      properties: {
-        ticket: { type: "string" },
-        rawInput: { type: "string" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-        riskProfile: { type: "string", enum: ["dev", "production"] },
-        budgetProfile: { type: "string", enum: ["tiny", "normal"] },
-      },
-      anyOf: [
-        { required: ["ticket"] },
-        { required: ["rawInput"] },
-      ],
-    },
-  },
-  {
-    name: "kiwi_status",
-    description: "Read run status",
-    inputSchema: {
-      type: "object",
-      properties: {
-        runId: { type: "string" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-    },
-  },
-  {
-    name: "kiwi_run",
-    description: `Execute planned steps in order. ${NO_AUTO_COMMIT_NOTE}`,
-    inputSchema: {
-      type: "object",
-      properties: {
-        runId: { type: "string" },
-        fromStep: { type: "string" },
-        command: { type: "string" },
-        approved: { type: "boolean" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["runId"],
-    },
-  },
-  {
-    name: "kiwi_run_step",
-    description: `Execute a planned step through policy gates. ${NO_AUTO_COMMIT_NOTE}`,
-    inputSchema: {
-      type: "object",
-      properties: {
-        runId: { type: "string" },
-        stepId: { type: "string" },
-        command: { type: "string" },
-        approved: { type: "boolean" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["runId", "stepId"],
-    },
-  },
-  { name: "kiwi_finalize", description: `Finalize a run. ${NO_AUTO_COMMIT_NOTE}`, inputSchema: RUN_ID_SCHEMA },
-  {
-    name: "kiwi_request_approval",
-    description: "Record an approval decision",
-    inputSchema: {
-      type: "object",
-      properties: {
-        runId: { type: "string" },
-        attemptId: { type: "string" },
-        reason: { type: "string" },
-        approvedBy: { type: "string" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["runId", "attemptId"],
-    },
-  },
-  { name: "kiwi_evidence_manifest", description: "Write evidence manifest and audit snapshot", inputSchema: RUN_ID_SCHEMA },
-  { name: "kiwi_operator_snapshot", description: "Write local operator HTML snapshot", inputSchema: RUN_ID_SCHEMA },
-  {
-    name: "kiwi_a2a_receive",
-    description: "Validate and optionally accept an A2A envelope into the local loopback inbox",
-    inputSchema: {
-      type: "object",
-      properties: {
-        envelope: { type: "object" },
-        loopback: { type: "boolean" },
-        localAgentId: { type: "string" },
-        trustedAgentIds: { type: "array", items: { type: "string" } },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["envelope"],
-    },
-  },
-  {
-    name: "kiwi_a2a_config",
-    description: "Read or update filesystem A2A config",
-    inputSchema: {
-      type: "object",
-      properties: {
-        enabled: { type: "boolean" },
-        localAgentId: { type: "string" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-    },
-  },
-  {
-    name: "kiwi_a2a_trust_add",
-    description: "Trust an A2A filesystem peer",
-    inputSchema: {
-      type: "object",
-      properties: {
-        agentId: { type: "string" },
-        inboxPath: { type: "string" },
-        allowRemotePatches: { type: "boolean" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["agentId", "inboxPath"],
-    },
-  },
-  {
-    name: "kiwi_a2a_trust_list",
-    description: "List trusted A2A filesystem peers",
-    inputSchema: {
-      type: "object",
-      properties: {
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-    },
-  },
-  {
-    name: "kiwi_a2a_trust_remove",
-    description: "Remove a trusted A2A filesystem peer",
-    inputSchema: {
-      type: "object",
-      properties: {
-        agentId: { type: "string" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["agentId"],
-    },
-  },
-  {
-    name: "kiwi_a2a_publish",
-    description: "Queue a canonical A2A envelope for a trusted peer",
-    inputSchema: {
-      type: "object",
-      properties: {
-        peerAgentId: { type: "string" },
-        kind: {
-          type: "string",
-          enum: ["initiative", "task_graph", "step_attempt", "gate_result", "review_verdict", "artifact"],
-        },
-        runId: { type: "string" },
-        stepId: { type: "string" },
-        attemptId: { type: "string" },
-        gateId: { type: "string" },
-        artifactRef: { type: "string" },
-        correlationId: { type: "string" },
-        idempotencyKey: { type: "string" },
-        payload: { type: "object" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["peerAgentId", "kind"],
-    },
-  },
-  {
-    name: "kiwi_a2a_sync",
-    description: "Deliver queued A2A envelopes and import incoming filesystem envelopes",
-    inputSchema: {
-      type: "object",
-      properties: {
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-    },
-  },
-  {
-    name: "kiwi_a2a_inbox",
-    description: "List accepted and quarantined A2A inbox items",
-    inputSchema: {
-      type: "object",
-      properties: {
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-    },
-  },
-  {
-    name: "kiwi_a2a_accept",
-    description: "Materialize an incoming A2A initiative handoff as a local run",
-    inputSchema: {
-      type: "object",
-      properties: {
-        messageId: { type: "string" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["messageId"],
-    },
-  },
-] as const;
-
 function defaultServerCwd(): string {
   return process.env.KIWI_WORKSPACE ?? process.cwd();
 }
@@ -761,9 +519,7 @@ export async function handleMcpRequest(
   try {
     if (request.method === "initialize") {
       const params = asRecord(request.params);
-      const protocolVersion = typeof params.protocolVersion === "string"
-        ? params.protocolVersion
-        : "2024-11-05";
+      const protocolVersion = typeof params.protocolVersion === "string" ? params.protocolVersion : "2024-11-05";
       return {
         jsonrpc: "2.0",
         id,
@@ -846,11 +602,15 @@ function debugLog(message: string, details: Record<string, unknown> = {}): void 
   const target = process.env.KIWI_MCP_DEBUG_LOG;
   if (!target) return;
   mkdirSync(path.dirname(target), { recursive: true });
-  appendFileSync(target, `${JSON.stringify({
-    ts: new Date().toISOString(),
-    message,
-    ...details,
-  })}\n`, "utf-8");
+  appendFileSync(
+    target,
+    `${JSON.stringify({
+      ts: new Date().toISOString(),
+      message,
+      ...details,
+    })}\n`,
+    "utf-8",
+  );
 }
 
 function findHeaderSeparator(buffer: Buffer): { index: number; length: number } | null {
@@ -866,9 +626,7 @@ function startsWithContentLength(buffer: Buffer): boolean {
 }
 
 function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
-  return typeof value === "object"
-    && value !== null
-    && typeof (value as { method?: unknown }).method === "string";
+  return typeof value === "object" && value !== null && typeof (value as { method?: unknown }).method === "string";
 }
 
 async function handleMcpMessage(value: unknown, cwd: string): Promise<unknown | undefined> {
@@ -995,11 +753,7 @@ function isAllowedOrigin(origin: string | undefined, allowedOrigins: string[]): 
   }
 }
 
-function applyCorsHeaders(
-  request: IncomingMessage,
-  response: ServerResponse,
-  allowedOrigins: string[],
-): void {
+function applyCorsHeaders(request: IncomingMessage, response: ServerResponse, allowedOrigins: string[]): void {
   const origin = request.headers.origin;
   if (typeof origin !== "string" || !isAllowedOrigin(origin, allowedOrigins)) return;
 
@@ -1050,7 +804,9 @@ async function handleHttpMcpRequest(
   const { cwd, endpointPath, allowedOrigins } = params;
   applyCorsHeaders(request, response, allowedOrigins);
 
-  if (!isAllowedOrigin(typeof request.headers.origin === "string" ? request.headers.origin : undefined, allowedOrigins)) {
+  if (
+    !isAllowedOrigin(typeof request.headers.origin === "string" ? request.headers.origin : undefined, allowedOrigins)
+  ) {
     response.writeHead(403);
     response.end();
     return;
@@ -1085,7 +841,8 @@ async function handleHttpMcpRequest(
   try {
     message = JSON.parse((await readRequestBody(request)).toString("utf-8")) as unknown;
   } catch (error) {
-    const parseMessage = error instanceof SyntaxError ? "Parse error" : error instanceof Error ? error.message : "Parse error";
+    const parseMessage =
+      error instanceof SyntaxError ? "Parse error" : error instanceof Error ? error.message : "Parse error";
     sendJson(response, 400, {
       jsonrpc: "2.0",
       id: null,
@@ -1141,7 +898,10 @@ export function startMcpServer(cwd: string = defaultServerCwd()): void {
 
   process.stdin.on("data", (chunk) => {
     const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), "utf-8");
-    drain = drain.then(() => drainMessages(data), () => drainMessages(data));
+    drain = drain.then(
+      () => drainMessages(data),
+      () => drainMessages(data),
+    );
   });
 }
 

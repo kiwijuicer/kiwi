@@ -15,7 +15,7 @@ function setupRepo(): string {
 function writeKiwiConfig(cwd: string): void {
   mkdirSync(path.join(cwd, ".kiwi", "runs"), { recursive: true });
   mkdirSync(path.join(cwd, ".kiwi", "logs"), { recursive: true });
-  writeFileSync(path.join(cwd, ".kiwi", "config.yaml"), "version: \"1\"\n", "utf-8");
+  writeFileSync(path.join(cwd, ".kiwi", "config.yaml"), 'version: "1"\n', "utf-8");
   writeFileSync(
     path.join(cwd, "kiwi-policy.yaml"),
     `version: "1"
@@ -115,11 +115,13 @@ describe("MCP server", () => {
     const responses: unknown[] = [];
     const drain = createMcpMessageDrainer(setupRepo(), (response) => responses.push(response));
 
-    await drain(Buffer.concat([
-      lineMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
-      lineMessage({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }),
-      lineMessage({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
-    ]));
+    await drain(
+      Buffer.concat([
+        lineMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+        lineMessage({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }),
+        lineMessage({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }),
+      ]),
+    );
 
     expect(responses).toHaveLength(2);
     expect(responses.map((response) => (response as { id: number }).id)).toEqual([1, 2]);
@@ -130,11 +132,13 @@ describe("MCP server", () => {
     const responses: unknown[] = [];
     const drain = createMcpMessageDrainer(setupRepo(), (response) => responses.push(response));
 
-    await drain(lineMessage([
-      { jsonrpc: "2.0", id: 1, method: "initialize", params: {} },
-      { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
-      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
-    ]));
+    await drain(
+      lineMessage([
+        { jsonrpc: "2.0", id: 1, method: "initialize", params: {} },
+        { jsonrpc: "2.0", method: "notifications/initialized", params: {} },
+        { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+      ]),
+    );
 
     expect(responses).toHaveLength(1);
     expect((responses[0] as Array<{ id: number }>).map((response) => response.id)).toEqual([1, 2]);
@@ -162,17 +166,22 @@ describe("MCP server", () => {
           accept: "application/json, text/event-stream",
           "content-type": "application/json",
         },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-03-26" } }),
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: { protocolVersion: "2025-03-26" },
+        }),
       });
 
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toContain("application/json");
-      const payload = await response.json() as { result: { protocolVersion: string; serverInfo: { name: string } } };
+      const payload = (await response.json()) as { result: { protocolVersion: string; serverInfo: { name: string } } };
       expect(payload.result.protocolVersion).toBe("2025-03-26");
       expect(payload.result.serverInfo.name).toBe("kiwi");
     } finally {
       await new Promise<void>((resolve, reject) => {
-        server.close((error) => error ? reject(error) : resolve());
+        server.close((error) => (error ? reject(error) : resolve()));
       });
     }
   });
@@ -196,7 +205,7 @@ describe("MCP server", () => {
       expect(await response.text()).toBe("");
     } finally {
       await new Promise<void>((resolve, reject) => {
-        server.close((error) => error ? reject(error) : resolve());
+        server.close((error) => (error ? reject(error) : resolve()));
       });
     }
   });
@@ -394,7 +403,7 @@ describe("MCP server", () => {
     const invocationsText = (invocations.result as { contents: Array<{ text: string }> }).contents[0]?.text ?? "";
     const summaryText = (summary.result as { contents: Array<{ text: string }> }).contents[0]?.text ?? "";
     expect(invocationsText).toContain("stub-frontier");
-    expect(summaryText).toContain("\"invocationCount\": 1");
+    expect(summaryText).toContain('"invocationCount": 1');
   });
 
   it("accepts tools/call top-level fallback arguments", async () => {
@@ -511,13 +520,7 @@ describe("MCP server", () => {
     expect(run.error).toBeUndefined();
     expect(JSON.stringify(run.result)).toContain("completed");
 
-    const worktrees = path.join(
-      workspace.root,
-      ".kiwi",
-      "runs",
-      parsed.runId,
-      "worktrees",
-    );
+    const worktrees = path.join(workspace.root, ".kiwi", "runs", parsed.runId, "worktrees");
     const attemptDirs = readdirSync(worktrees);
     const worktree = path.join(worktrees, attemptDirs[0]!);
     expect(existsSync(path.join(worktree, "core.txt"))).toBe(true);

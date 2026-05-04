@@ -1,11 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
 import {
   ApprovalDecision,
@@ -27,12 +20,7 @@ import {
 } from "@kiwi/contracts";
 import { appendAuditEvent } from "./cost-ledger";
 import { writeModelUsageSummary } from "./model-invocations";
-import {
-  ensureRunLayout,
-  loadRunManifest,
-  loadTaskGraph,
-  resolveRunArtifactPath,
-} from "./run-store";
+import { ensureRunLayout, loadRunManifest, loadTaskGraph, resolveRunArtifactPath } from "./run-store";
 
 export interface StepAttemptEvidence {
   stepId: string;
@@ -71,7 +59,12 @@ function attemptRoot(cwd: string, runId: string, stepId: string, attemptId: stri
   return resolveRunArtifactPath(runId, `steps/${stepId}/${attemptId}`, cwd);
 }
 
-function tryReadGateResults(cwd: string, runId: string, stepId: string, attemptId: string): {
+function tryReadGateResults(
+  cwd: string,
+  runId: string,
+  stepId: string,
+  attemptId: string,
+): {
   ref?: string;
   gateResults: GateResult[];
 } {
@@ -84,7 +77,12 @@ function tryReadGateResults(cwd: string, runId: string, stepId: string, attemptI
   };
 }
 
-function tryReadReview(cwd: string, runId: string, stepId: string, attemptId: string): {
+function tryReadReview(
+  cwd: string,
+  runId: string,
+  stepId: string,
+  attemptId: string,
+): {
   ref?: string;
   reviewVerdict?: ReviewVerdict;
 } {
@@ -97,7 +95,12 @@ function tryReadReview(cwd: string, runId: string, stepId: string, attemptId: st
   };
 }
 
-function tryReadAttemptSummary(cwd: string, runId: string, stepId: string, attemptId: string): {
+function tryReadAttemptSummary(
+  cwd: string,
+  runId: string,
+  stepId: string,
+  attemptId: string,
+): {
   ref?: string;
   summary?: AttemptSummary;
 } {
@@ -191,21 +194,12 @@ export function loadApprovalDecision(params: {
   runId: string;
   attemptId: string;
 }): ApprovalDecision | null {
-  const target = resolveRunArtifactPath(
-    params.runId,
-    `approvals/${params.attemptId}.json`,
-    params.cwd,
-  );
+  const target = resolveRunArtifactPath(params.runId, `approvals/${params.attemptId}.json`, params.cwd);
   if (!existsSync(target)) return null;
   return ApprovalDecisionSchema.parse(readJson(target));
 }
 
-export function updateRunStatus(params: {
-  cwd: string;
-  runId: string;
-  status: RunStatus;
-  now?: Date;
-}): RunManifest {
+export function updateRunStatus(params: { cwd: string; runId: string; status: RunStatus; now?: Date }): RunManifest {
   const current = loadRunManifest(params.runId, params.cwd);
   const updated = RunManifestSchema.parse({
     ...current,
@@ -222,11 +216,7 @@ export function updateRunStatus(params: {
   return updated;
 }
 
-export function refreshRunStatusFromAttempts(params: {
-  cwd: string;
-  runId: string;
-  now?: Date;
-}): RunManifest {
+export function refreshRunStatusFromAttempts(params: { cwd: string; runId: string; now?: Date }): RunManifest {
   const taskGraph = loadTaskGraph(params.runId, params.cwd);
   const attempts = listStepAttemptEvidence(params.cwd, params.runId);
   if (attempts.length === 0) {
@@ -244,9 +234,7 @@ export function refreshRunStatusFromAttempts(params: {
   }
 
   const completedStepIds = new Set(
-    attempts
-      .filter((entry) => entry.attempt.status === "completed")
-      .map((entry) => entry.stepId),
+    attempts.filter((entry) => entry.attempt.status === "completed").map((entry) => entry.stepId),
   );
   const allStepsCompleted = taskGraph.steps.every((step) => completedStepIds.has(step.stepId));
   return updateRunStatus({
@@ -281,9 +269,7 @@ export function assertStepDependenciesCompleted(params: {
   });
 
   if (incomplete.length > 0) {
-    throw new Error(
-      `Cannot execute ${params.stepId} before dependencies complete: ${incomplete.join(", ")}`,
-    );
+    throw new Error(`Cannot execute ${params.stepId} before dependencies complete: ${incomplete.join(", ")}`);
   }
 }
 
@@ -334,11 +320,7 @@ function writeFinalSummary(params: {
   return ref;
 }
 
-export function finalizeRun(params: {
-  cwd: string;
-  runId: string;
-  now?: Date;
-}): FinalizeRunResult {
+export function finalizeRun(params: { cwd: string; runId: string; now?: Date }): FinalizeRunResult {
   ensureRunLayout(params.runId, params.cwd);
   const now = params.now ?? new Date();
   const taskGraph = loadTaskGraph(params.runId, params.cwd);
@@ -365,10 +347,7 @@ export function finalizeRun(params: {
     if (attempt.attempt.status === "blocked") blockedStepIds.push(step.stepId);
   }
 
-  const safeToApply =
-    failedStepIds.length === 0 &&
-    blockedStepIds.length === 0 &&
-    missingStepIds.length === 0;
+  const safeToApply = failedStepIds.length === 0 && blockedStepIds.length === 0 && missingStepIds.length === 0;
   const verdict = FinalVerdictSchema.parse({
     schemaVersion: "1",
     runId: params.runId,

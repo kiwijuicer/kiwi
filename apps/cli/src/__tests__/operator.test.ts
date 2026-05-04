@@ -86,21 +86,9 @@ describe("kiwi operator flow", () => {
       },
       cwd,
     );
-    await runFinalize(
-      "run_20260504_090000_op01",
-      { now: new Date("2026-05-04T09:02:00.000Z") },
-      cwd,
-    );
-    await runEvidenceManifest(
-      "run_20260504_090000_op01",
-      { now: new Date("2026-05-04T09:03:00.000Z") },
-      cwd,
-    );
-    await runOperatorSnapshot(
-      "run_20260504_090000_op01",
-      { now: new Date("2026-05-04T09:04:00.000Z") },
-      cwd,
-    );
+    await runFinalize("run_20260504_090000_op01", { now: new Date("2026-05-04T09:02:00.000Z") }, cwd);
+    await runEvidenceManifest("run_20260504_090000_op01", { now: new Date("2026-05-04T09:03:00.000Z") }, cwd);
+    await runOperatorSnapshot("run_20260504_090000_op01", { now: new Date("2026-05-04T09:04:00.000Z") }, cwd);
 
     expect(
       existsSync(
@@ -117,10 +105,7 @@ describe("kiwi operator flow", () => {
       ),
     ).toBe(true);
     expect(
-      readFileSync(
-        path.join(cwd, ".kiwi", "runs", "run_20260504_090000_op01", "final", "final-summary.md"),
-        "utf-8",
-      ),
+      readFileSync(path.join(cwd, ".kiwi", "runs", "run_20260504_090000_op01", "final", "final-summary.md"), "utf-8"),
     ).toContain("safeToApply: true");
 
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
@@ -163,9 +148,7 @@ describe("kiwi operator flow", () => {
       ),
     ).rejects.toThrow("Cannot execute step_002 before dependencies complete: step_001");
 
-    expect(
-      existsSync(path.join(cwd, ".kiwi", "runs", "run_20260504_091000_deps", "run.lock")),
-    ).toBe(false);
+    expect(existsSync(path.join(cwd, ".kiwi", "runs", "run_20260504_091000_deps", "run.lock"))).toBe(false);
 
     await runAttempt(
       "run_20260504_091000_deps",
@@ -223,14 +206,7 @@ describe("kiwi operator flow", () => {
       workspace,
     );
 
-    const worktree = path.join(
-      workspace,
-      ".kiwi",
-      "runs",
-      "run_20260504_100000_ws01",
-      "worktrees",
-      "attempt_ws",
-    );
+    const worktree = path.join(workspace, ".kiwi", "runs", "run_20260504_100000_ws01", "worktrees", "attempt_ws");
     expect(existsSync(path.join(worktree, "core.txt"))).toBe(true);
     expect(existsSync(path.join(worktree, "changed.txt"))).toBe(true);
     expect(existsSync(path.join(worktree, "voice-livekit-agent"))).toBe(false);

@@ -3,12 +3,7 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { BudgetProfile } from "@kiwi/contracts";
-import {
-  appendAuditEvent,
-  loadPlannerCostReport,
-  readAuditEvents,
-  writePlannerCostReport,
-} from "../cost-ledger";
+import { appendAuditEvent, loadPlannerCostReport, readAuditEvents, writePlannerCostReport } from "../cost-ledger";
 
 describe("cost ledger", () => {
   it("appends and reads audit events", () => {

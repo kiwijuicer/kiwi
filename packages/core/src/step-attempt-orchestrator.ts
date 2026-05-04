@@ -18,22 +18,11 @@ import {
 import { appendAuditEvent } from "./cost-ledger";
 import { appendModelInvocation } from "./model-invocations";
 import { saveGateResults, summarizeGateResults } from "./quality-gates";
-import {
-  classifyReviewAction,
-  ReviewAction,
-  ReviewEngine,
-  saveReviewVerdict,
-  StubReviewEngine,
-} from "./review-engine";
+import { classifyReviewAction, ReviewAction, ReviewEngine, saveReviewVerdict, StubReviewEngine } from "./review-engine";
 import { loadContextPackage, SchedulerDecision } from "./scheduler-policy";
 import { ensureRunLayout, resolveRunArtifactPath } from "./run-store";
 
-export type StepRunnerExecutionStatus =
-  | "completed"
-  | "failed"
-  | "blocked"
-  | "approval_required"
-  | "timeout";
+export type StepRunnerExecutionStatus = "completed" | "failed" | "blocked" | "approval_required" | "timeout";
 
 export interface StepRunnerExecutionTimeouts {
   commandTimeoutMs: number;
@@ -169,12 +158,7 @@ function attemptRef(stepId: string, attemptId: string): string {
   return `steps/${stepId}/${attemptId}/attempt.json`;
 }
 
-function loadStepAttempt(params: {
-  cwd: string;
-  runId: string;
-  stepId: string;
-  attemptId: string;
-}): StepAttempt {
+function loadStepAttempt(params: { cwd: string; runId: string; stepId: string; attemptId: string }): StepAttempt {
   const relativePath = attemptRef(params.stepId, params.attemptId);
   const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
   if (!existsSync(target)) {
@@ -183,11 +167,7 @@ function loadStepAttempt(params: {
   return StepAttemptSchema.parse(JSON.parse(readFileSync(target, "utf-8")));
 }
 
-function saveStepAttempt(params: {
-  cwd: string;
-  runId: string;
-  attempt: StepAttempt;
-}): string {
+function saveStepAttempt(params: { cwd: string; runId: string; attempt: StepAttempt }): string {
   const relativePath = attemptRef(params.attempt.stepId, params.attempt.attemptId);
   const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
   writeJsonSafely(target, StepAttemptSchema.parse(params.attempt));
@@ -276,9 +256,7 @@ function ensureRunnerMatchesDecision(input: ExecuteStepAttemptInput): void {
     throw new Error(`cannot execute blocked scheduler decision: ${input.schedulerDecision.blockedReason}`);
   }
   if (input.schedulerDecision.runner !== input.runner.name) {
-    throw new Error(
-      `runner mismatch: scheduler selected ${input.schedulerDecision.runner}, got ${input.runner.name}`,
-    );
+    throw new Error(`runner mismatch: scheduler selected ${input.schedulerDecision.runner}, got ${input.runner.name}`);
   }
 }
 
@@ -333,7 +311,8 @@ function enforceGateResultsBeforePositiveReview(params: {
         code: "GATE_REVIEW_CONFLICT",
         title: "Positive review cannot override failing gates",
         severity: gateSummary.overallStatus === "blocked" ? "high" : "medium",
-        detail: `Failing gates: ${gateSummary.failingGateIds.join(", ")} Blocked gates: ${gateSummary.blockedGateIds.join(", ")}`.trim(),
+        detail:
+          `Failing gates: ${gateSummary.failingGateIds.join(", ")} Blocked gates: ${gateSummary.blockedGateIds.join(", ")}`.trim(),
       },
     ],
     recommendedNextSteps: [
@@ -463,9 +442,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
 
     let runnerOutput: StepRunnerExecutionOutput;
     try {
-      runnerOutput = await input.runner.execute(
-        buildRunnerInput(input, contextPackage, startedAt),
-      );
+      runnerOutput = await input.runner.execute(buildRunnerInput(input, contextPackage, startedAt));
     } catch (error) {
       runnerOutput = normalizeRunnerException(error).output;
     }
@@ -523,11 +500,12 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       runner: input.runner.name,
       usage: runnerOutput.modelUsage,
       estimatedCostUsd: 0,
-      status: runnerOutput.status === "completed"
-        ? "completed"
-        : runnerOutput.status === "blocked" || runnerOutput.status === "approval_required"
-          ? "blocked"
-          : "failed",
+      status:
+        runnerOutput.status === "completed"
+          ? "completed"
+          : runnerOutput.status === "blocked" || runnerOutput.status === "approval_required"
+            ? "blocked"
+            : "failed",
       evidenceRefs: runnerOutput.artifactRefs.map((entry) => entry.ref),
       startedAt,
       completedAt,

@@ -12,6 +12,10 @@
 - Keep one clear responsibility per module.
 - Avoid duplicated branching logic; centralize shared decisions.
 - Use descriptive names over short abbreviations.
+- Do not use TypeScript `enum` for domain contracts; use `as const` values + union types + Zod schemas.
+- Keep canonical domain string values in `@kiwi/contracts`; avoid hardcoded literals in runtime modules.
+- Source file soft target: <= 600 lines. Functions soft target: <= 120 lines.
+- Source files over 1000 lines require explicit refactor before adding more responsibilities.
 
 ## Error Handling
 

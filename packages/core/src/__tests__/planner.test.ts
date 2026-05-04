@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { KiwiPolicy } from "@kiwi/contracts";
-import {
-  buildDeterministicTaskGraph,
-  createInitiativeFromInput,
-} from "../planner";
+import { buildDeterministicTaskGraph, createInitiativeFromInput } from "../planner";
 
 const policy: KiwiPolicy = {
   version: "1",
@@ -118,10 +115,7 @@ Constraints:
       now: new Date("2026-05-03T19:00:00.000Z"),
     });
 
-    expect(graph.acceptanceCriteria).toEqual([
-      "Keep CLI output readable",
-      "No network calls in planning",
-    ]);
+    expect(graph.acceptanceCriteria).toEqual(["Keep CLI output readable", "No network calls in planning"]);
   });
 
   it("routes code orchestration and SCM publication steps explicitly", () => {

@@ -12,11 +12,7 @@ export interface OperatorSnapshotResult {
 }
 
 function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
 
 function writeTextSafely(target: string, value: string): void {
@@ -31,11 +27,7 @@ function renderList(items: string[]): string {
   return items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
-export function renderOperatorSnapshotHtml(params: {
-  cwd: string;
-  runId: string;
-  generatedAt: string;
-}): string {
+export function renderOperatorSnapshotHtml(params: { cwd: string; runId: string; generatedAt: string }): string {
   const run = loadRunManifest(params.runId, params.cwd);
   const initiative = loadInitiative(params.runId, params.cwd);
   const taskGraph = loadTaskGraph(params.runId, params.cwd);
@@ -44,9 +36,7 @@ export function renderOperatorSnapshotHtml(params: {
 
   const stepRows = taskGraph.steps
     .map((step) => {
-      const latestAttempt = attempts
-        .filter((attempt) => attempt.stepId === step.stepId)
-        .at(-1);
+      const latestAttempt = attempts.filter((attempt) => attempt.stepId === step.stepId).at(-1);
       const attemptStatus = latestAttempt?.attempt.status ?? "missing";
       const review = latestAttempt?.reviewVerdict?.verdict ?? "missing";
       return `<tr><td>${escapeHtml(step.stepId)}</td><td>${escapeHtml(step.type)}</td><td>${escapeHtml(step.title)}</td><td>${escapeHtml(step.dependsOn.join(", ") || "none")}</td><td>${escapeHtml(attemptStatus)}</td><td>${escapeHtml(review)}</td></tr>`;

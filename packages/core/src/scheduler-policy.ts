@@ -107,7 +107,10 @@ function writeJsonSafely(target: string, value: unknown): void {
 }
 
 function defaultAttemptId(now: Date): string {
-  const stamp = now.toISOString().replace(/[^0-9]/g, "").slice(0, 17);
+  const stamp = now
+    .toISOString()
+    .replace(/[^0-9]/g, "")
+    .slice(0, 17);
   return `attempt_${stamp}`;
 }
 
@@ -151,8 +154,7 @@ function determineContextLevel(params: {
   blastRadius: BlastRadius;
   securitySensitivity: SecuritySensitivity;
 }): ContextLevel {
-  const base: ContextLevel =
-    params.contextSize === "small" ? "L0" : params.contextSize === "medium" ? "L1" : "L2";
+  const base: ContextLevel = params.contextSize === "small" ? "L0" : params.contextSize === "medium" ? "L1" : "L2";
   if (!params.riskHigh) return base;
   if (params.blastRadius === "high" && params.securitySensitivity === "high") return "L3";
   return base === "L0" ? "L2" : base;

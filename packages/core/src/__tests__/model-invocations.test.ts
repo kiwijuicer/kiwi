@@ -2,11 +2,7 @@ import { existsSync, mkdtempSync, readFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import {
-  appendModelInvocation,
-  readModelInvocations,
-  writeModelUsageSummary,
-} from "../model-invocations";
+import { appendModelInvocation, readModelInvocations, writeModelUsageSummary } from "../model-invocations";
 
 function cwd(): string {
   return mkdtempSync(path.join(os.tmpdir(), "kiwi-model-invocations-"));

@@ -90,9 +90,7 @@ describe("evidence and operator surfaces", () => {
     expect(result.manifest.files.some((file) => file.ref === "final/audit-events.json")).toBe(true);
     expect(result.manifest.files.some((file) => file.ref.startsWith("worktrees/"))).toBe(false);
     expect(result.auditSnapshot.eventCount).toBe(1);
-    expect(
-      existsSync(path.join(repo, ".kiwi", "runs", "run_demo", "final", "evidence-manifest.json")),
-    ).toBe(true);
+    expect(existsSync(path.join(repo, ".kiwi", "runs", "run_demo", "final", "evidence-manifest.json"))).toBe(true);
   });
 
   it("writes a local operator HTML snapshot", () => {

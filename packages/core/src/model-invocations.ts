@@ -35,10 +35,7 @@ function addTotals(target: ModelUsageSummaryTotals, record: ModelInvocationRecor
   target.estimatedCostUsd += record.estimatedCostUsd;
 }
 
-export function appendModelInvocation(
-  cwd: string,
-  record: ModelInvocationRecord,
-): string {
+export function appendModelInvocation(cwd: string, record: ModelInvocationRecord): string {
   const parsed = ModelInvocationRecordSchema.parse(record);
   ensureRunLayout(parsed.runId, cwd);
   const target = resolveRunArtifactPath(parsed.runId, MODEL_INVOCATIONS_REF, cwd);
@@ -64,12 +61,9 @@ export function appendModelInvocation(
   });
   return [
     MODEL_INVOCATIONS_REF,
-    [
-      parsed.phase,
-      parsed.stepId,
-      parsed.attemptId,
-      parsed.completedAt.replace(/[^0-9TZ]/g, ""),
-    ].filter((entry): entry is string => typeof entry === "string" && entry.length > 0).join(":"),
+    [parsed.phase, parsed.stepId, parsed.attemptId, parsed.completedAt.replace(/[^0-9TZ]/g, "")]
+      .filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
+      .join(":"),
   ].join("#");
 }
 
@@ -84,11 +78,7 @@ export function readModelInvocations(cwd: string, runId: string): ModelInvocatio
     .map((line) => ModelInvocationRecordSchema.parse(JSON.parse(line) as unknown));
 }
 
-export function summarizeModelInvocations(params: {
-  cwd: string;
-  runId: string;
-  now?: Date;
-}): ModelUsageSummary {
+export function summarizeModelInvocations(params: { cwd: string; runId: string; now?: Date }): ModelUsageSummary {
   const invocations = readModelInvocations(params.cwd, params.runId);
   const totals = emptyTotals();
   const byPhase: Record<ModelInvocationPhase, ModelUsageSummaryTotals> = {
@@ -113,17 +103,13 @@ export function summarizeModelInvocations(params: {
   });
 }
 
-export function writeModelUsageSummary(params: {
-  cwd: string;
-  runId: string;
-  now?: Date;
-}): { summary: ModelUsageSummary; ref: string } {
+export function writeModelUsageSummary(params: { cwd: string; runId: string; now?: Date }): {
+  summary: ModelUsageSummary;
+  ref: string;
+} {
   ensureRunLayout(params.runId, params.cwd);
   const summary = summarizeModelInvocations(params);
-  writeJsonSafely(
-    resolveRunArtifactPath(params.runId, MODEL_USAGE_SUMMARY_REF, params.cwd),
-    summary,
-  );
+  writeJsonSafely(resolveRunArtifactPath(params.runId, MODEL_USAGE_SUMMARY_REF, params.cwd), summary);
   return {
     summary,
     ref: MODEL_USAGE_SUMMARY_REF,

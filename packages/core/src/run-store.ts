@@ -1,11 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
 import {
   Initiative,
@@ -31,11 +24,7 @@ function assertSafeArtifactRelativePath(artifactRelativePath: string): void {
   }
 }
 
-export function resolveRunArtifactPath(
-  runId: string,
-  artifactRelativePath: string,
-  cwd: string,
-): string {
+export function resolveRunArtifactPath(runId: string, artifactRelativePath: string, cwd: string): string {
   assertSafeArtifactRelativePath(artifactRelativePath);
 
   const base = path.resolve(runDir(runId, cwd));

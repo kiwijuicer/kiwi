@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .kiwi/
+.tmp/
 *.log
 .env
 .DS_Store

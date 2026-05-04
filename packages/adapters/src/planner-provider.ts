@@ -1,9 +1,4 @@
-import {
-  Initiative,
-  KiwiPolicy,
-  TaskGraph,
-  TaskGraphSchema,
-} from "@kiwi/contracts";
+import { Initiative, KiwiPolicy, TaskGraph, TaskGraphSchema } from "@kiwi/contracts";
 
 export interface PlannerProviderInput {
   runId: string;
@@ -73,10 +68,7 @@ export interface PlannerValidationFailureEvidence {
 export class PlannerProviderValidationError extends Error {
   readonly evidence: PlannerValidationFailureEvidence;
 
-  constructor(
-    evidence: PlannerValidationFailureEvidence,
-    cause: unknown,
-  ) {
+  constructor(evidence: PlannerValidationFailureEvidence, cause: unknown) {
     super(
       `Planner provider ${evidence.providerName} returned invalid TaskGraph after ${evidence.attemptsUsed} attempts`,
     );
