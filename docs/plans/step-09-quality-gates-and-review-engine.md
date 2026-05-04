@@ -1,7 +1,7 @@
 # Step 09: Quality Gates and Review Engine
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-04
 Milestone: MVP 3
 Depends-On: Step 08
 Vision-Refs: 4.7, 4.8, 11, 17.3
