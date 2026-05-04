@@ -59,8 +59,8 @@ describe("kiwi plan", () => {
     expect(run.runId).toBe("run_20260503_190000_abcd");
     expect(initiative.id).toBe("init_20260503_190000_abcd");
     expect(taskGraph.planId).toBe("plan_20260503_190000_abcd");
-    expect(existsSync(path.join(runDir, "plan", "planner-input.json"))).toBe(true);
-    expect(existsSync(path.join(runDir, "plan", "planner-output.json"))).toBe(true);
+    expect(existsSync(path.join(runDir, "plan", "planner-input.json"))).toBe(false);
+    expect(existsSync(path.join(runDir, "plan", "planner-output.json"))).toBe(false);
   });
 
   it("accepts inline ticket text when the argument is not a file path", async () => {

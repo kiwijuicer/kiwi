@@ -2,11 +2,6 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
 import {
-  PlannerProviderInput,
-  StubPlannerProvider,
-  runPlannerProviderWithRetries,
-} from "@ai-kiwi/adapters";
-import {
   NotInitializedError,
   buildDeterministicTaskGraph,
   createInitiativeFromInput,
@@ -94,24 +89,16 @@ export async function runPlan(
         now,
       };
   const initiative = createInitiativeFromInput(initiativeParams);
-  const plannerInput: PlannerProviderInput = {
+  const taskGraph = buildDeterministicTaskGraph({
     runId,
     initiative,
     policy,
-    requestedAt: now.toISOString(),
-  };
-  const provider = new StubPlannerProvider({
-    buildTaskGraph: buildDeterministicTaskGraph,
-    now: () => now,
+    now,
     ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
   });
-  const plannerOutput = await runPlannerProviderWithRetries(provider, plannerInput, {
-    maxAttempts: 2,
-  });
-  const taskGraph = plannerOutput.taskGraph;
 
   if (opts.dryRun) {
-    console.log(JSON.stringify({ runId, initiative, taskGraph, plannerInput, plannerOutput }, null, 2));
+    console.log(JSON.stringify({ runId, initiative, taskGraph }, null, 2));
     return;
   }
 
@@ -119,8 +106,6 @@ export async function runPlan(
     runId,
     initiative,
     taskGraph,
-    plannerInput,
-    plannerOutput,
     cwd,
     now,
   });

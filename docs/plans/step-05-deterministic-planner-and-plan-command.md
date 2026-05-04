@@ -1,7 +1,7 @@
 # Step 05: Deterministic Planner and Plan Command
 
-Status: TODO
-Done-Date: -
+Status: DONE
+Done-Date: 2026-05-04
 Milestone: MVP 1
 Depends-On: Step 04
 Vision-Refs: 4.1, 4.3, 4.4, 17.1
