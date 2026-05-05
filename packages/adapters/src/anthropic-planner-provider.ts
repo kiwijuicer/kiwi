@@ -1,6 +1,20 @@
 import { existsSync, readdirSync, statSync } from "fs";
 import path from "path";
 import {
+  ANTHROPIC_MESSAGES_ENDPOINT,
+  ANTHROPIC_VERSION,
+  AnthropicHttpRequest,
+  AnthropicHttpResponse,
+  AnthropicMessageRequest as AnthropicMessageRequestBase,
+  apiKeyFromAnthropicEnv,
+  assertAnthropicOk,
+  createAnthropicTransport,
+  estimateAnthropicCostUsd,
+  extractAnthropicUsage,
+  extractTextJson,
+  isRecord,
+} from "./anthropic-common";
+import {
   PlannerProvider,
   PlannerProviderArtifacts,
   PlannerProviderInput,
@@ -20,53 +34,14 @@ import {
   PLANNER_TOOL_NAME,
 } from "./prompts/planner/v1";
 
-const ANTHROPIC_MESSAGES_ENDPOINT = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_VERSION = "2023-06-01";
 const DEFAULT_MODEL = "claude-opus-4-6";
 const DEFAULT_MAX_TOKENS = 8192;
 const DEFAULT_TIMEOUT_MS = 120_000;
 
-type AnthropicRole = "user";
+type AnthropicMessageRequest = AnthropicMessageRequestBase<ReturnType<typeof plannerToolDefinition>>;
 
-interface AnthropicTextBlock {
-  type: "text";
-  text: string;
-  cache_control?: {
-    type: "ephemeral";
-  };
-}
-
-interface AnthropicMessage {
-  role: AnthropicRole;
-  content: AnthropicTextBlock[];
-}
-
-interface AnthropicMessageRequest {
-  model: string;
-  max_tokens: number;
-  system: AnthropicTextBlock[];
-  tools: ReturnType<typeof plannerToolDefinition>[];
-  tool_choice: {
-    type: "tool";
-    name: string;
-  };
-  messages: AnthropicMessage[];
-}
-
-export interface AnthropicPlannerHttpRequest {
-  endpoint: string;
-  headers: Record<string, string>;
-  body: AnthropicMessageRequest;
-  timeoutMs: number;
-}
-
-export interface AnthropicPlannerHttpResponse {
-  ok: boolean;
-  status: number;
-  body: unknown;
-  requestId?: string;
-}
-
+export type AnthropicPlannerHttpRequest = AnthropicHttpRequest<AnthropicMessageRequest>;
+export type AnthropicPlannerHttpResponse = AnthropicHttpResponse;
 export type AnthropicPlannerTransport = (request: AnthropicPlannerHttpRequest) => Promise<AnthropicPlannerHttpResponse>;
 
 export interface AnthropicPlannerProviderOptions {
@@ -78,32 +53,6 @@ export interface AnthropicPlannerProviderOptions {
   maxRepairAttempts?: number;
   transport?: AnthropicPlannerTransport;
   env?: Record<string, string | undefined>;
-}
-
-interface AnthropicUsage {
-  input_tokens?: number;
-  output_tokens?: number;
-  cache_creation_input_tokens?: number;
-  cache_read_input_tokens?: number;
-  cache_creation?: {
-    ephemeral_5m_input_tokens?: number;
-    ephemeral_1h_input_tokens?: number;
-  };
-}
-
-interface NormalizedUsage {
-  inputTokens: number;
-  outputTokens: number;
-  baseInputTokens: number;
-  cacheWriteTokens: number;
-  cacheReadTokens: number;
-}
-
-interface PricePerMillionTokens {
-  input: number;
-  output: number;
-  cacheWrite: number;
-  cacheRead: number;
 }
 
 interface PromptBuildResult {
@@ -118,18 +67,6 @@ interface AnthropicPlannerAttemptArtifact {
   model: string;
   request: AnthropicMessageRequest;
   redaction: RedactionSummary;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function numeric(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.trunc(value) : 0;
-}
-
-function apiKeyFromEnv(env: Record<string, string | undefined>): string | undefined {
-  return env.ANTHROPIC_API_KEY;
 }
 
 function providerError(params: {
@@ -284,150 +221,10 @@ function buildPrompt(params: {
   };
 }
 
-async function defaultTransport(request: AnthropicPlannerHttpRequest): Promise<AnthropicPlannerHttpResponse> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), request.timeoutMs);
-  try {
-    const response = await fetch(request.endpoint, {
-      method: "POST",
-      headers: request.headers,
-      body: JSON.stringify(request.body),
-      signal: controller.signal,
-    });
-    const body = (await response.json().catch(() => null)) as unknown;
-    const requestId = response.headers.get("request-id") ?? undefined;
-    return {
-      ok: response.ok,
-      status: response.status,
-      body,
-      ...(requestId ? { requestId } : {}),
-    };
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw providerError({
-        code: "provider_timeout",
-        message: `Anthropic planner request timed out after ${request.timeoutMs}ms`,
-        retryable: true,
-        cause: error,
-      });
-    }
-    throw providerError({
-      code: "provider_network",
-      message: `Anthropic planner network request failed: ${error instanceof Error ? error.message : String(error)}`,
-      retryable: true,
-      cause: error,
-    });
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function responseErrorMessage(body: unknown): string {
-  if (!isRecord(body)) return "Anthropic API request failed";
-  const error = isRecord(body.error) ? body.error : body;
-  const type = typeof error.type === "string" ? error.type : "unknown";
-  const message = typeof error.message === "string" ? error.message : "Anthropic API request failed";
-  return `${type}: ${message}`;
-}
-
-function responseErrorType(body: unknown): string {
-  if (!isRecord(body)) return "";
-  const error = isRecord(body.error) ? body.error : body;
-  return typeof error.type === "string" ? error.type.toLowerCase() : "";
-}
-
-function assertAnthropicOk(response: AnthropicPlannerHttpResponse): void {
-  if (response.ok) return;
-
-  const message = responseErrorMessage(response.body);
-  const errorType = responseErrorType(response.body);
-  if (response.status === 401 || response.status === 403) {
-    throw providerError({ code: "provider_auth", message, retryable: false, statusCode: response.status });
-  }
-  if (response.status === 429) {
-    throw providerError({ code: "provider_rate_limited", message, retryable: true, statusCode: response.status });
-  }
-  if (response.status === 408 || response.status === 504) {
-    throw providerError({ code: "provider_timeout", message, retryable: true, statusCode: response.status });
-  }
-  if (
-    errorType.includes("content_policy") ||
-    errorType.includes("safety") ||
-    message.toLowerCase().includes("content policy")
-  ) {
-    throw providerError({ code: "provider_content_policy", message, retryable: false, statusCode: response.status });
-  }
-
-  throw providerError({
-    code: "provider_network",
-    message,
-    retryable: response.status >= 500,
-    statusCode: response.status,
-  });
-}
-
-function extractUsage(responseBody: unknown): NormalizedUsage {
-  const usage = isRecord(responseBody) && isRecord(responseBody.usage) ? (responseBody.usage as AnthropicUsage) : {};
-  const cacheCreation = isRecord(usage.cache_creation) ? usage.cache_creation : {};
-  const cacheWriteTokens =
-    numeric(usage.cache_creation_input_tokens) +
-    numeric(cacheCreation.ephemeral_5m_input_tokens) +
-    numeric(cacheCreation.ephemeral_1h_input_tokens);
-  const cacheReadTokens = numeric(usage.cache_read_input_tokens);
-  const baseInputTokens = numeric(usage.input_tokens);
-  const outputTokens = numeric(usage.output_tokens);
-
-  return {
-    inputTokens: baseInputTokens + cacheWriteTokens + cacheReadTokens,
-    outputTokens,
-    baseInputTokens,
-    cacheWriteTokens,
-    cacheReadTokens,
-  };
-}
-
-function priceForModel(model: string): PricePerMillionTokens {
-  if (model.includes("opus-4-6") || model.includes("opus-4-7") || model.includes("opus-4-5")) {
-    return { input: 5, output: 25, cacheWrite: 6.25, cacheRead: 0.5 };
-  }
-  if (model.includes("sonnet")) {
-    return { input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.3 };
-  }
-  if (model.includes("haiku-4-5")) {
-    return { input: 1, output: 5, cacheWrite: 1.25, cacheRead: 0.1 };
-  }
-  if (model.includes("haiku")) {
-    return { input: 0.25, output: 1.25, cacheWrite: 0.3, cacheRead: 0.03 };
-  }
-  return { input: 5, output: 25, cacheWrite: 6.25, cacheRead: 0.5 };
-}
-
-function estimateCostUsd(model: string, usage: NormalizedUsage): number {
-  const price = priceForModel(model);
-  const cost =
-    (usage.baseInputTokens * price.input +
-      usage.cacheWriteTokens * price.cacheWrite +
-      usage.cacheReadTokens * price.cacheRead +
-      usage.outputTokens * price.output) /
-    1_000_000;
-  return Number(cost.toFixed(8));
-}
-
-function extractTextJson(text: string): unknown | null {
-  const trimmed = text.trim();
-  if (!trimmed) return null;
-  try {
-    return JSON.parse(trimmed) as unknown;
-  } catch {
-    const match = trimmed.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]) as unknown;
-    } catch {
-      return null;
-    }
-  }
-}
+const defaultTransport = createAnthropicTransport<AnthropicMessageRequest, PlannerProviderError>(
+  "planning",
+  providerError,
+);
 
 function extractTaskGraph(responseBody: unknown): unknown {
   if (!isRecord(responseBody) || !Array.isArray(responseBody.content)) {
@@ -515,7 +312,7 @@ export class AnthropicPlannerProvider implements PlannerProvider {
 
   constructor(options: AnthropicPlannerProviderOptions = {}) {
     this.env = options.env ?? process.env;
-    this.apiKey = options.apiKey ?? apiKeyFromEnv(this.env);
+    this.apiKey = options.apiKey ?? apiKeyFromAnthropicEnv(this.env);
     this.model = options.model ?? DEFAULT_MODEL;
     this.name = `anthropic:${this.model}`;
     this.endpoint = options.endpoint ?? ANTHROPIC_MESSAGES_ENDPOINT;
@@ -578,9 +375,9 @@ export class AnthropicPlannerProvider implements PlannerProvider {
       },
       body: prompt.request,
     });
-    assertAnthropicOk(response);
+    assertAnthropicOk(response, providerError);
 
-    const usage = extractUsage(response.body);
+    const usage = extractAnthropicUsage(response.body);
     const taskGraph = extractTaskGraph(response.body);
     return {
       providerName: this.name,
@@ -590,7 +387,7 @@ export class AnthropicPlannerProvider implements PlannerProvider {
         outputTokens: usage.outputTokens,
       },
       cost: {
-        estimatedUsd: estimateCostUsd(this.model, usage),
+        estimatedUsd: estimateAnthropicCostUsd(this.model, usage),
         currency: "USD",
       },
       providerArtifacts: buildProviderArtifacts({

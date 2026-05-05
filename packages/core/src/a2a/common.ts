@@ -25,7 +25,7 @@ import {
   StepAttemptSchema,
   TaskGraphSchema,
 } from "@kiwi/contracts";
-import { appendAuditEvent } from "./cost-ledger";
+import { appendAuditEvent } from "../cost-ledger";
 
 export interface A2ARuntimePolicy {
   mode: A2ARuntimeMode;

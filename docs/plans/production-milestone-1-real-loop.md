@@ -1,7 +1,7 @@
 # Production Milestone 1: Real Loop
 
-Status: DONE
-Done-Date: 2026-05-04
+Status: PARTIAL
+Blocked-Reason: Step 22 live Bitbucket PR evidence still requires operator credentials and a target repo.
 Created-Date: 2026-05-04
 Targets: Steps 15-22
 Depends-On: Steps 01-14 DONE
@@ -67,7 +67,7 @@ A single real ticket against a real Bitbucket repo runs end-to-end with no human
 - No raw secrets in prompts, logs, persisted artifacts, or audit events.
 - No write to `main` under any flag.
 - No bypass of `requiredGates` from `safeToApply`.
-- No A2A code path is exercised by this milestone.
+- A2A remains experimental/frozen until Step 22 is `DONE`; no new A2A behavior is in scope for this milestone.
 - No regression in CLI/MCP parity established by Step 13.
 
 ## Risks
@@ -79,4 +79,4 @@ A single real ticket against a real Bitbucket repo runs end-to-end with no human
 
 ## Exit
 
-This milestone is complete when Step 22 is `DONE` and the demo run is reproducible by a second operator on a clean machine.
+This milestone is complete only when Step 22 is `DONE` and the demo run is reproducible by a second operator on a clean machine.

@@ -1,14 +1,13 @@
-import { AccessModes, ContractValues, Artifact, GateResultSchema, RunnerName, RunnerNames } from "@kiwi/contracts";
-import { captureDiffArtifact } from "@kiwi/sandbox";
+import { AccessModes, RunnerName, RunnerNames } from "@kiwi/contracts";
 import {
   ClaudeCodeCliInvocation,
   ClaudeCodeCliRunner,
   DefaultClaudeCodeCliRunner,
   normalizeUsageFromCli,
 } from "./client";
+import { cliRunnerOutput, runnerTimeoutMs } from "../cli-runner-output";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../runner-adapter";
 import { buildRunnerEnv } from "../runner-env";
-import { persistRunnerLogs } from "../runner-logs";
 
 const DEFAULT_TIMEOUT_MS = 600_000;
 const CLAUDE_CODE_ACCESS_MODE = AccessModes.ClaudeCodeCli;
@@ -72,108 +71,20 @@ export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
       prompt,
       outputFormat: "json",
       allowedTools: this.allowedTools,
-      timeoutMs: Math.min(this.timeoutMs, Math.max(input.timeouts.commandTimeoutMs, 60_000) * 5),
+      timeoutMs: runnerTimeoutMs(input, this.timeoutMs),
       env,
     };
     const result = await this.cliRunner.run(invocation);
     const usage = normalizeUsageFromCli(result.parsed);
-    const logsArtifact = persistRunnerLogs({
-      workspacePath: input.workspacePath,
-      runId: input.runId,
-      stepId: input.stepId,
-      attemptId: input.attemptId,
-      runner: this.name,
-      payload: {
-        binary: result.binary,
-        args: result.args,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.exitCode,
-        timedOut: result.timedOut,
-        durationMs: result.durationMs,
-        startedAt: result.startedAt,
-        completedAt: result.completedAt,
-      },
-      secretValues: input.commandPolicy?.secretValues,
-    });
-    const diffInput: Parameters<typeof captureDiffArtifact>[0] = {
-      cwd: input.workspacePath,
-      runId: input.runId,
-      stepId: input.stepId,
-      attemptId: input.attemptId,
-      worktreePath: input.worktreePath,
-    };
-    if (input.repoPath) diffInput.sourcePath = input.repoPath;
-    const diffArtifact = captureDiffArtifact(diffInput);
-    const artifactRefs: Artifact[] = diffArtifact ? [logsArtifact, diffArtifact] : [logsArtifact];
-
-    if (result.timedOut) {
-      return {
-        status: ContractValues.Failed,
-        artifactRefs,
-        rawLogsRef: logsArtifact.ref,
-        modelUsage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
-        modelId: this.model,
-        providerName: CLAUDE_CODE_ACCESS_MODE,
-        accessMode: CLAUDE_CODE_ACCESS_MODE,
-        usagePrecision: usage.precision,
-        estimatedCostUsd: usage.estimatedCostUsd,
-        gateResult: GateResultSchema.parse({
-          gateId: "gate_runner_execution",
-          gateType: "forbidden_file_checks",
-          status: ContractValues.Fail,
-          evidenceRefs: [],
-          reason: `claude-code runner timed out after ${invocation.timeoutMs}ms`,
-        }),
-        error: {
-          code: "RUNNER_TIMEOUT",
-          message: `claude-code runner timed out after ${invocation.timeoutMs}ms`,
-        },
-      };
-    }
-
-    if (!result.ok) {
-      return {
-        status: ContractValues.Failed,
-        artifactRefs,
-        rawLogsRef: logsArtifact.ref,
-        modelUsage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
-        modelId: this.model,
-        providerName: CLAUDE_CODE_ACCESS_MODE,
-        accessMode: CLAUDE_CODE_ACCESS_MODE,
-        usagePrecision: usage.precision,
-        estimatedCostUsd: usage.estimatedCostUsd,
-        gateResult: GateResultSchema.parse({
-          gateId: "gate_runner_execution",
-          gateType: "forbidden_file_checks",
-          status: ContractValues.Fail,
-          evidenceRefs: [],
-          reason: `claude-code runner exited ${result.exitCode}: ${result.stderr.slice(0, 200)}`,
-        }),
-        error: {
-          code: `RUNNER_EXIT_${result.exitCode ?? "UNKNOWN"}`,
-          message: result.stderr.slice(0, 500) || "claude-code runner failed",
-        },
-      };
-    }
-
-    return {
-      status: ContractValues.Completed,
-      artifactRefs,
-      rawLogsRef: logsArtifact.ref,
-      modelUsage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
+    return cliRunnerOutput({
+      input,
+      runnerName: this.name,
+      result,
+      usage,
       modelId: this.model,
       providerName: CLAUDE_CODE_ACCESS_MODE,
-      accessMode: CLAUDE_CODE_ACCESS_MODE,
-      usagePrecision: usage.precision,
-      estimatedCostUsd: usage.estimatedCostUsd,
-      gateResult: GateResultSchema.parse({
-        gateId: "gate_runner_execution",
-        gateType: "forbidden_file_checks",
-        status: ContractValues.Pass,
-        evidenceRefs: [],
-        reason: diffArtifact ? "claude-code runner produced diff" : "claude-code runner completed without changes",
-      }),
-    };
+      timeoutMs: invocation.timeoutMs,
+      label: "claude-code",
+    });
   }
 }

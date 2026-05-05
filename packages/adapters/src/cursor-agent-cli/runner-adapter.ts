@@ -1,14 +1,13 @@
-import { AccessModes, Artifact, ContractValues, GateResultSchema, RunnerName, RunnerNames } from "@kiwi/contracts";
-import { captureDiffArtifact } from "@kiwi/sandbox";
+import { AccessModes, RunnerName, RunnerNames } from "@kiwi/contracts";
 import {
   CursorAgentCliInvocation,
   CursorAgentCliRunner,
   DefaultCursorAgentCliRunner,
   normalizeUsageFromCursorAgent,
 } from "./client";
+import { cliRunnerOutput, runnerTimeoutMs } from "../cli-runner-output";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../runner-adapter";
 import { buildRunnerEnv } from "../runner-env";
-import { persistRunnerLogs } from "../runner-logs";
 
 const DEFAULT_TIMEOUT_MS = 600_000;
 const CURSOR_AGENT_ACCESS_MODE = AccessModes.CursorAgentCli;
@@ -74,99 +73,22 @@ export class CursorAgentRunnerAdapter implements RunnerAdapter {
       cwd: input.worktreePath,
       prompt: buildPrompt(input),
       outputFormat: "json",
-      timeoutMs: Math.min(this.timeoutMs, Math.max(input.timeouts.commandTimeoutMs, 60_000) * 5),
+      timeoutMs: runnerTimeoutMs(input, this.timeoutMs),
       env,
     };
     if (this.model) invocation.model = this.model;
 
     const result = await this.cliRunner.run(invocation);
     const usage = normalizeUsageFromCursorAgent(result.parsed);
-    const logsArtifact = persistRunnerLogs({
-      workspacePath: input.workspacePath,
-      runId: input.runId,
-      stepId: input.stepId,
-      attemptId: input.attemptId,
-      runner: this.name,
-      payload: {
-        binary: result.binary,
-        args: result.args,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.exitCode,
-        timedOut: result.timedOut,
-        durationMs: result.durationMs,
-        startedAt: result.startedAt,
-        completedAt: result.completedAt,
-      },
-      secretValues: input.commandPolicy?.secretValues,
-    });
-    const diffInput: Parameters<typeof captureDiffArtifact>[0] = {
-      cwd: input.workspacePath,
-      runId: input.runId,
-      stepId: input.stepId,
-      attemptId: input.attemptId,
-      worktreePath: input.worktreePath,
-    };
-    if (input.repoPath) diffInput.sourcePath = input.repoPath;
-    const diffArtifact = captureDiffArtifact(diffInput);
-    const artifactRefs: Artifact[] = diffArtifact ? [logsArtifact, diffArtifact] : [logsArtifact];
-    const baseOutput = {
-      artifactRefs,
-      rawLogsRef: logsArtifact.ref,
-      modelUsage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
+    return cliRunnerOutput({
+      input,
+      runnerName: this.name,
+      result,
+      usage,
       modelId: this.model ?? null,
       providerName: CURSOR_AGENT_ACCESS_MODE,
-      accessMode: CURSOR_AGENT_ACCESS_MODE,
-      usagePrecision: usage.precision,
-      estimatedCostUsd: usage.estimatedCostUsd,
-    };
-
-    if (result.timedOut) {
-      return {
-        ...baseOutput,
-        status: "timeout",
-        gateResult: GateResultSchema.parse({
-          gateId: "gate_runner_execution",
-          gateType: "forbidden_file_checks",
-          status: ContractValues.Fail,
-          evidenceRefs: [logsArtifact.ref],
-          reason: `cursor-agent runner timed out after ${invocation.timeoutMs}ms`,
-        }),
-        error: {
-          code: "RUNNER_TIMEOUT",
-          message: `cursor-agent runner timed out after ${invocation.timeoutMs}ms`,
-        },
-      };
-    }
-
-    if (!result.ok) {
-      return {
-        ...baseOutput,
-        status: ContractValues.Failed,
-        gateResult: GateResultSchema.parse({
-          gateId: "gate_runner_execution",
-          gateType: "forbidden_file_checks",
-          status: ContractValues.Fail,
-          evidenceRefs: [logsArtifact.ref],
-          reason: `cursor-agent runner exited ${result.exitCode}: ${result.stderr.slice(0, 200)}`,
-        }),
-        error: {
-          code: `RUNNER_EXIT_${result.exitCode ?? "UNKNOWN"}`,
-          message: result.stderr.slice(0, 500) || "cursor-agent runner failed",
-        },
-      };
-    }
-
-    return {
-      ...baseOutput,
-      status: ContractValues.Completed,
-      gateResult: GateResultSchema.parse({
-        gateId: "gate_runner_execution",
-        gateType: "forbidden_file_checks",
-        status: ContractValues.Pass,
-        evidenceRefs: [logsArtifact.ref],
-        reason: diffArtifact ? "cursor-agent runner produced diff" : "cursor-agent runner completed without changes",
-      }),
-    };
+      timeoutMs: invocation.timeoutMs,
+      label: "cursor-agent",
+    });
   }
 }

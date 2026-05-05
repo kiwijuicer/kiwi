@@ -1,0 +1,82 @@
+import { callTool, toolArguments } from "./tools";
+import { TOOLS } from "./tool-definitions";
+import { MCP_RESOURCES, readResource } from "./resources";
+import { asRecord, JsonRpcRequest, JsonRpcResponse, textContent } from "./json-rpc";
+
+export function defaultServerCwd(): string {
+  return process.env.KIWI_WORKSPACE ?? process.cwd();
+}
+
+export async function handleMcpRequest(
+  request: JsonRpcRequest,
+  cwd: string = defaultServerCwd(),
+): Promise<JsonRpcResponse> {
+  const id = request.id ?? null;
+  try {
+    if (request.method === "initialize") {
+      const params = asRecord(request.params);
+      const protocolVersion = typeof params.protocolVersion === "string" ? params.protocolVersion : "2024-11-05";
+      return {
+        jsonrpc: "2.0",
+        id,
+        result: {
+          protocolVersion,
+          serverInfo: { name: "kiwi", version: "0.1.0" },
+          capabilities: { resources: {}, tools: {} },
+        },
+      };
+    }
+    if (request.method === "resources/list") {
+      return { jsonrpc: "2.0", id, result: { resources: MCP_RESOURCES } };
+    }
+    if (request.method === "resources/read") {
+      const params = asRecord(request.params);
+      return { jsonrpc: "2.0", id, result: { contents: [readResource(String(params.uri), cwd)] } };
+    }
+    if (request.method === "tools/list") {
+      return { jsonrpc: "2.0", id, result: { tools: TOOLS } };
+    }
+    if (request.method === "tools/call") {
+      const params = asRecord(request.params);
+      const result = await callTool(String(params.name), toolArguments(params), cwd);
+      return { jsonrpc: "2.0", id, result: textContent(result) };
+    }
+    return { jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${request.method}` } };
+  } catch (error) {
+    return {
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: -32000,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+}
+
+function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
+  return typeof value === "object" && value !== null && typeof (value as { method?: unknown }).method === "string";
+}
+
+export async function handleMcpMessage(value: unknown, cwd: string): Promise<unknown | undefined> {
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return {
+        jsonrpc: "2.0",
+        id: null,
+        error: { code: -32600, message: "Invalid request" },
+      };
+    }
+
+    const responses: JsonRpcResponse[] = [];
+    for (const entry of value) {
+      if (!isJsonRpcRequest(entry) || entry.id === undefined) continue;
+      responses.push(await handleMcpRequest(entry, cwd));
+    }
+    return responses.length > 0 ? responses : undefined;
+  }
+
+  if (!isJsonRpcRequest(value)) return undefined;
+  if (value.id === undefined) return undefined;
+  return handleMcpRequest(value, cwd);
+}

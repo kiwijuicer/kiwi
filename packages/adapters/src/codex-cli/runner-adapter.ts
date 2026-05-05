@@ -1,9 +1,8 @@
-import { AccessModes, Artifact, ContractValues, GateResultSchema, RunnerName, RunnerNames } from "@kiwi/contracts";
-import { captureDiffArtifact } from "@kiwi/sandbox";
+import { AccessModes, RunnerName, RunnerNames } from "@kiwi/contracts";
 import { CodexCliRunner, DefaultCodexCliRunner, normalizeUsageFromCodex } from "./client";
+import { cliRunnerOutput, runnerTimeoutMs } from "../cli-runner-output";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../runner-adapter";
 import { buildRunnerEnv } from "../runner-env";
-import { persistRunnerLogs } from "../runner-logs";
 
 const DEFAULT_TIMEOUT_MS = 600_000;
 const CODEX_ACCESS_MODE = AccessModes.CodexCli;
@@ -64,98 +63,21 @@ export class CodexCliRunnerAdapter implements RunnerAdapter {
       binary: this.binary,
       cwd: input.worktreePath,
       prompt: buildPrompt(input),
-      timeoutMs: Math.min(this.timeoutMs, Math.max(input.timeouts.commandTimeoutMs, 60_000) * 5),
+      timeoutMs: runnerTimeoutMs(input, this.timeoutMs),
       env,
       ...(this.model ? { model: this.model } : {}),
     };
     const result = await this.cliRunner.run(invocation);
     const usage = normalizeUsageFromCodex(result.parsed);
-    const logsArtifact = persistRunnerLogs({
-      workspacePath: input.workspacePath,
-      runId: input.runId,
-      stepId: input.stepId,
-      attemptId: input.attemptId,
-      runner: this.name,
-      payload: {
-        binary: result.binary,
-        args: result.args,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.exitCode,
-        timedOut: result.timedOut,
-        durationMs: result.durationMs,
-        startedAt: result.startedAt,
-        completedAt: result.completedAt,
-      },
-      secretValues: input.commandPolicy?.secretValues,
-    });
-    const diffInput: Parameters<typeof captureDiffArtifact>[0] = {
-      cwd: input.workspacePath,
-      runId: input.runId,
-      stepId: input.stepId,
-      attemptId: input.attemptId,
-      worktreePath: input.worktreePath,
-    };
-    if (input.repoPath) diffInput.sourcePath = input.repoPath;
-    const diffArtifact = captureDiffArtifact(diffInput);
-    const artifactRefs: Artifact[] = diffArtifact ? [logsArtifact, diffArtifact] : [logsArtifact];
-    const baseOutput = {
-      artifactRefs,
-      rawLogsRef: logsArtifact.ref,
-      modelUsage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
+    return cliRunnerOutput({
+      input,
+      runnerName: this.name,
+      result,
+      usage,
       modelId: this.model ?? null,
       providerName: CODEX_ACCESS_MODE,
-      accessMode: CODEX_ACCESS_MODE,
-      usagePrecision: usage.precision,
-      estimatedCostUsd: usage.estimatedCostUsd,
-    };
-
-    if (result.timedOut) {
-      return {
-        ...baseOutput,
-        status: "timeout",
-        gateResult: GateResultSchema.parse({
-          gateId: "gate_runner_execution",
-          gateType: "forbidden_file_checks",
-          status: ContractValues.Fail,
-          evidenceRefs: [logsArtifact.ref],
-          reason: `codex runner timed out after ${invocation.timeoutMs}ms`,
-        }),
-        error: {
-          code: "RUNNER_TIMEOUT",
-          message: `codex runner timed out after ${invocation.timeoutMs}ms`,
-        },
-      };
-    }
-
-    if (!result.ok) {
-      return {
-        ...baseOutput,
-        status: ContractValues.Failed,
-        gateResult: GateResultSchema.parse({
-          gateId: "gate_runner_execution",
-          gateType: "forbidden_file_checks",
-          status: ContractValues.Fail,
-          evidenceRefs: [logsArtifact.ref],
-          reason: `codex runner exited ${result.exitCode}: ${result.stderr.slice(0, 200)}`,
-        }),
-        error: {
-          code: `RUNNER_EXIT_${result.exitCode ?? "UNKNOWN"}`,
-          message: result.stderr.slice(0, 500) || "codex runner failed",
-        },
-      };
-    }
-
-    return {
-      ...baseOutput,
-      status: ContractValues.Completed,
-      gateResult: GateResultSchema.parse({
-        gateId: "gate_runner_execution",
-        gateType: "forbidden_file_checks",
-        status: ContractValues.Pass,
-        evidenceRefs: [logsArtifact.ref],
-        reason: diffArtifact ? "codex runner produced diff" : "codex runner completed without changes",
-      }),
-    };
+      timeoutMs: invocation.timeoutMs,
+      label: "codex",
+    });
   }
 }
