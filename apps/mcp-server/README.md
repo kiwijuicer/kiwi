@@ -51,6 +51,7 @@ Core tools:
 - `kiwi_finalize`: write final verdict, summary, and cost report.
 - `kiwi_evidence_manifest`: write hashed evidence manifest and audit snapshot.
 - `kiwi_operator_snapshot`: write local operator HTML snapshot.
+- `kiwi_publish_pr_draft`: push a Bitbucket branch using local git auth and write `final/pr-draft.json`.
 
 Additional tools:
 
@@ -134,6 +135,8 @@ For multi-repo work, start one server per workspace or set `KIWI_WORKSPACE` per 
 ## Safety
 
 - A run lock protects mutating operations.
+- Direct Anthropic/OpenAI API keys are not required for daily use; local CLI auth is used for Claude, Codex, and Cursor Agent.
+- Bitbucket PR draft publishing uses local git auth only and does not store Bitbucket credentials.
 - A2A is disabled by default and only exchanges filesystem envelopes with explicitly trusted peers.
 - Remote patch artifacts are quarantined by the A2A runtime.
 - Step worktrees copy only the selected repo, not the whole workspace.

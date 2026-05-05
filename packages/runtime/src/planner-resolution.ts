@@ -1,8 +1,4 @@
-import {
-  PlannerProviderRegistry,
-  PlannerResolution,
-  ResolvePlannerProviderOptions,
-} from "./planner-provider-registry";
+import { PlannerProviderRegistry, PlannerResolution, ResolvePlannerProviderOptions } from "./planner-provider-registry";
 
 export type { PlannerResolution, ResolvePlannerProviderOptions } from "./planner-provider-registry";
 

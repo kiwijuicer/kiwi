@@ -1,7 +1,4 @@
-import {
-  ReviewerProviderInput,
-  runReviewerProviderWithRetries,
-} from "@kiwi/adapters";
+import { ReviewerProviderInput, runReviewerProviderWithRetries } from "@kiwi/adapters";
 import { KiwiPolicy, ModelEntry, ReviewVerdict } from "@kiwi/contracts";
 import {
   appendAuditEvent,

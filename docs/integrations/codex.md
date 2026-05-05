@@ -15,7 +15,7 @@ This writes or merges project-scoped `.codex/config.toml` with a `kiwi` MCP serv
 Manual setup is still possible. Build `kiwi`:
 
 ```bash
-cd /Users/norberthanauer/Projects/kiwi-juicer/kiwi
+cd /Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi
 pnpm build
 ```
 
@@ -24,7 +24,7 @@ Add to `~/.codex/config.toml` or a trusted project-scoped `.codex/config.toml`:
 ```toml
 [mcp_servers.kiwi]
 command = "node"
-args = ["/Users/norberthanauer/Projects/kiwi-juicer/kiwi/apps/mcp-server/dist/index.js"]
+args = ["/Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js"]
 env = { KIWI_WORKSPACE = "/Users/norberthanauer/Projects/voice" }
 ```
 
@@ -48,5 +48,7 @@ Plan this ticket, run validation, finalize, and report the operator snapshot pat
 ```bash
 codex mcp add kiwi \
   --env KIWI_WORKSPACE=/Users/norberthanauer/Projects/voice \
-  -- node /Users/norberthanauer/Projects/kiwi-juicer/kiwi/apps/mcp-server/dist/index.js
+  -- node /Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js
 ```
+
+Codex execution uses the local `codex` CLI login through `codex exec`. Kiwi does not require `OPENAI_API_KEY` for the standard flow.

@@ -179,8 +179,8 @@ export const DEFAULT_MODEL_REGISTRY_YAML = `version: "1"
 # Each entry declares an \`accessMode\`. Resolution priority at invocation:
 #   1. \`KIWI_FORCE_ACCESS_MODE\` env override
 #   2. claude-code-cli (uses local \`claude\` authentication)
-#   3. anthropic-api / openai-api (when API key is set)
-#   4. codex-cli, cursor-agent-cli, cursor, jetbrains, local
+#   3. codex-cli / cursor-agent-cli (uses local CLI auth)
+#   4. cursor / jetbrains as IDE surfaces, plus local
 #   5. stub (tests only)
 models:
   # Claude Code CLI — preferred default, reuses local claude auth
@@ -211,25 +211,13 @@ models:
     accessMode: cursor-agent-cli
     enabled: true
 
-  # Direct Anthropic API — opt-in, requires ANTHROPIC_API_KEY
-  - id: claude-opus-4-6
-    provider: anthropic
-    capability: frontier
-    roles: [planner, reviewer, security]
-    accessMode: anthropic-api
-    enabled: false
-  - id: claude-sonnet-4-6
-    provider: anthropic
+  # Codex CLI — uses local codex auth, no direct OpenAI API key
+  - id: codex-cli-auto
+    provider: local
     capability: strong
-    roles: [executor, reviewer, security]
-    accessMode: anthropic-api
-    enabled: false
-  - id: claude-haiku-4-5-20251001
-    provider: anthropic
-    capability: mid
-    roles: [researcher, executor, rules]
-    accessMode: anthropic-api
-    enabled: false
+    roles: [executor]
+    accessMode: codex-cli
+    enabled: true
 
   # Stub providers — tests/dev fixtures only
   - id: stub-cheap

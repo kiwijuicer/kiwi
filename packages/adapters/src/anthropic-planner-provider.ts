@@ -67,9 +67,7 @@ export interface AnthropicPlannerHttpResponse {
   requestId?: string;
 }
 
-export type AnthropicPlannerTransport = (
-  request: AnthropicPlannerHttpRequest,
-) => Promise<AnthropicPlannerHttpResponse>;
+export type AnthropicPlannerTransport = (request: AnthropicPlannerHttpRequest) => Promise<AnthropicPlannerHttpResponse>;
 
 export interface AnthropicPlannerProviderOptions {
   apiKey?: string;

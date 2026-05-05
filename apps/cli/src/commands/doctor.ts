@@ -1,11 +1,11 @@
 import path from "path";
 import chalk from "chalk";
 import { ACCESS_MODE_VALUES, AccessMode, ContractValues, Step } from "@kiwi/contracts";
-import { isInitialized, loadPolicy, loadRegistry, NotInitializedError } from "@kiwi/core";
+import { isInitialized, loadPolicy, loadRegistry } from "@kiwi/core";
 import { evaluateAccessModeAvailability, preferredAccessModes, RunnerRegistry } from "@kiwi/runtime";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export type DoctorOptions = CliWorkspaceOptions;
+type DoctorOptions = CliWorkspaceOptions;
 
 const DOCTOR_RUNNER_STEP: Step = {
   stepId: "doctor_runner_probe",
@@ -75,13 +75,13 @@ export async function runDoctor(opts: DoctorOptions = {}, cwd: string = process.
   }
 
   const probes: Array<{ mode: AccessMode; label: string; role: string }> = [
-    { mode: "claude-code-cli", label: "claude", role: "runner/planner/reviewer" },
-    { mode: "codex-cli", label: "codex", role: "runner candidate" },
-    { mode: "cursor-agent-cli", label: "cursor-agent", role: "runner" },
+    { mode: "claude-code-cli", label: "claude", role: "local CLI auth: runner/planner/reviewer" },
+    { mode: "codex-cli", label: "codex", role: "local CLI auth: runner" },
+    { mode: "cursor-agent-cli", label: "cursor-agent", role: "local CLI auth: runner" },
     { mode: "cursor", label: "cursor", role: "IDE surface" },
     { mode: "jetbrains", label: "phpstorm", role: "IDE surface" },
-    { mode: "anthropic-api", label: "ANTHROPIC_API_KEY", role: "optional API" },
-    { mode: "openai-api", label: "OPENAI_API_KEY", role: "optional API" },
+    { mode: "anthropic-api", label: "ANTHROPIC_API_KEY", role: "not required for daily use" },
+    { mode: "openai-api", label: "OPENAI_API_KEY", role: "not required for daily use" },
     { mode: "stub", label: "stub", role: "tests/dev" },
   ];
   console.log(chalk.bold("\naccess modes:"));
@@ -92,9 +92,5 @@ export async function runDoctor(opts: DoctorOptions = {}, cwd: string = process.
     const reason = availability.reason ? ` ${chalk.dim(availability.reason)}` : "";
     console.log(`  ${probe.label.padEnd(20)} ${status} ${chalk.dim(probe.role)}${reason}`);
   }
-  console.log(chalk.dim("  cursor-sdk           optional later; requires CURSOR_API_KEY"));
-}
-
-export function _unusedNotInitializedRef(): unknown {
-  return NotInitializedError;
+  console.log(chalk.dim("  direct API keys      optional only; default daily use relies on local CLI logins"));
 }

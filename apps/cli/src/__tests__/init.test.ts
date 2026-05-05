@@ -138,6 +138,8 @@ models:
 
     expect(policy.version).toBe("1");
     expect(registry.models.length).toBeGreaterThan(0);
+    expect(registry.models.some((model) => model.accessMode === "anthropic-api")).toBe(false);
+    expect(registry.models.some((model) => model.accessMode === "codex-cli")).toBe(true);
   });
 
   it("initializes an explicit workspace root", async () => {

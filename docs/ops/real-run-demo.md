@@ -6,9 +6,9 @@ Last-Updated: 2026-05-04
 ## Goal
 
 Take a real ticket through the full kiwi loop — plan, run, gates, review,
-finalize, evidence — using the best available local provider stack
-(Claude Code CLI first, Cursor Agent CLI when available, direct APIs only
-when explicitly configured), with auditable evidence trail.
+finalize, evidence — using the best available local CLI provider stack
+(Claude Code CLI first, then Codex CLI or Cursor Agent CLI when available),
+with auditable evidence trail.
 
 ## Provider Resolution
 
@@ -17,9 +17,8 @@ kiwi resolves providers at invocation time in this order:
 1. `KIWI_FORCE_ACCESS_MODE` environment override
 2. `claude-code-cli` (uses local `claude` CLI auth)
 3. `codex-cli` / `cursor-agent-cli` for runner access when locally available
-4. `anthropic-api` / `openai-api` when explicitly enabled and keyed
-5. `cursor` / `jetbrains` as IDE surfaces, plus `local`
-6. `stub` (tests only)
+4. `cursor` / `jetbrains` as IDE surfaces, plus `local`
+5. `stub` (tests only)
 
 Run `kiwi doctor` from your workspace to see which access modes are
 currently available.
@@ -124,8 +123,7 @@ logs/
 Cost and usage are recorded per-invocation in `audit.log` and per-step in
 `cost-report.json`. The level of precision is captured explicitly:
 
-- **exact** — direct API responses with `usage` block (anthropic-api,
-  openai-api). Token counts and USD reflect real billing.
+- **exact** — CLI/provider output exposed enough usage and cost detail.
 - **estimated** — usage was reported but cost was approximated locally
   (e.g. CLI envelope without `total_cost_usd`).
 - **unknown** — CLI/IDE adapter that did not expose usage. The raw
@@ -163,8 +161,7 @@ The demo run is reproducible on a second machine when:
   state of the worktree. Post-runner re-execution against the modified
   worktree is a follow-up (Step 19 hardening backlog).
 - Bitbucket PR draft creation is implemented as a contract; the live
-  PR-publish flow requires the operator's Bitbucket credentials and is
-  not exercised automatically by the demo command sequence.
-- Codex CLI, Cursor, and JetBrains adapters are advertised in the
-  `accessMode` enum but only `claude-code-cli`, `anthropic-api`, and
-  `stub` have provider implementations in this milestone.
+  PR-publish flow uses the operator's local git auth to push a branch and
+  writes a create-PR URL instead of storing Bitbucket API credentials.
+- JetBrains is an MCP surface, not a runner. Codex CLI and Cursor Agent CLI
+  are runner paths when their local CLIs are authenticated.

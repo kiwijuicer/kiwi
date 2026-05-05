@@ -35,7 +35,9 @@ function which(binary: string, env: Record<string, string | undefined>): boolean
 function selectedProbeEnv(env: Record<string, string | undefined>): NodeJS.ProcessEnv {
   return {
     ...process.env,
-    ...Object.fromEntries(Object.entries(env).filter((entry): entry is [string, string] => typeof entry[1] === "string")),
+    ...Object.fromEntries(
+      Object.entries(env).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    ),
   };
 }
 
@@ -53,7 +55,11 @@ function cursorAgentAuthAvailable(env: Record<string, string | undefined>): Acce
     if (/not authenticated|unauthenticated|login required|please log in/i.test(output)) {
       return { accessMode: AccessModes.CursorAgentCli, available: false, reason: "cursor-agent is not authenticated" };
     }
-    return { accessMode: AccessModes.CursorAgentCli, available: true, reason: "cursor-agent status probe inconclusive" };
+    return {
+      accessMode: AccessModes.CursorAgentCli,
+      available: true,
+      reason: "cursor-agent status probe inconclusive",
+    };
   }
 }
 

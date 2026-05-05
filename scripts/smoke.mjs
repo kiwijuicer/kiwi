@@ -192,9 +192,13 @@ if (!workspaceRun.includes(`"repoPath": "${voiceCore}"`)) {
   throw new Error("workspace smoke run did not store target repo metadata");
 }
 const worktrees = path.join(workspace, ".kiwi", "runs", workspaceRunId, "worktrees");
-const firstWorktree = path.join(worktrees, readdirSync(worktrees)[0]);
-if (!existsSync(path.join(firstWorktree, "core.txt")) || existsSync(path.join(firstWorktree, "voice-livekit-agent"))) {
-  throw new Error("workspace smoke sandbox did not isolate the selected repo");
+const remainingWorktrees = existsSync(worktrees) ? readdirSync(worktrees) : [];
+if (remainingWorktrees.length !== 0) {
+  throw new Error("workspace smoke left attempt worktrees behind");
+}
+const audit = readFileSync(path.join(workspace, ".kiwi", "logs", "audit.log"), "utf-8");
+if (!audit.includes(`"sourcePath":"${voiceCore}"`)) {
+  throw new Error("workspace smoke did not record selected repo sandbox source");
 }
 
 console.log(`smoke ok: ${runId}, ${workspaceRunId}`);

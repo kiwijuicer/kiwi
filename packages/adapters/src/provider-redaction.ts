@@ -79,12 +79,7 @@ function redactText(text: string, secrets: string[]): { text: string; envCount: 
   };
 }
 
-function redactUnknownValue(
-  value: unknown,
-  secrets: string[],
-  summary: RedactionSummary,
-  keyName?: string,
-): unknown {
+function redactUnknownValue(value: unknown, secrets: string[], summary: RedactionSummary, keyName?: string): unknown {
   if (typeof value === "string") {
     if (keyName === "secretEnvNames") return REDACTED;
     const redacted = redactText(value, secrets);
@@ -106,7 +101,11 @@ function redactUnknownValue(
   return output;
 }
 
-export function redactForProvider<T>(value: T, policy: KiwiPolicy, env: Record<string, string | undefined>): {
+export function redactForProvider<T>(
+  value: T,
+  policy: KiwiPolicy,
+  env: Record<string, string | undefined>,
+): {
   redacted: T;
   summary: RedactionSummary;
 } {

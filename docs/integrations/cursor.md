@@ -15,7 +15,7 @@ This writes or merges `.cursor/mcp.json` with a `kiwi` MCP server entry and pres
 Manual setup is still possible. Build `kiwi`:
 
 ```bash
-cd /Users/norberthanauer/Projects/kiwi-juicer/kiwi
+cd /Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi
 pnpm build
 ```
 
@@ -27,7 +27,7 @@ Create `/Users/norberthanauer/Projects/voice/.cursor/mcp.json`:
     "kiwi": {
       "type": "stdio",
       "command": "node",
-      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/kiwi/apps/mcp-server/dist/index.js"],
+      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js"],
       "env": {
         "KIWI_WORKSPACE": "/Users/norberthanauer/Projects/voice"
       }
@@ -58,3 +58,6 @@ Cursor should expose:
 - `kiwi_finalize`
 - `kiwi_evidence_manifest`
 - `kiwi_operator_snapshot`
+- `kiwi_publish_pr_draft`
+
+Cursor Agent execution uses the local `cursor-agent` login. No Anthropic/OpenAI API key is required by Kiwi.

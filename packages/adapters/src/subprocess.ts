@@ -1,6 +1,6 @@
 import { spawn } from "child_process";
 
-export interface SubprocessInvocation {
+interface SubprocessInvocation {
   binary: string;
   args: string[];
   cwd?: string | undefined;
@@ -9,7 +9,7 @@ export interface SubprocessInvocation {
   maxOutputBytes?: number | undefined;
 }
 
-export interface SubprocessResult {
+interface SubprocessResult {
   ok: boolean;
   exitCode: number | null;
   stdout: string;

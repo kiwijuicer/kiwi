@@ -23,6 +23,7 @@ kiwi plan ./ticket.md --workspace /Users/norberthanauer/Projects/voice --repo co
 kiwi status <run-id> --workspace /Users/norberthanauer/Projects/voice
 kiwi run <run-id> --workspace /Users/norberthanauer/Projects/voice
 kiwi finalize <run-id> --workspace /Users/norberthanauer/Projects/voice
+kiwi publish pr <run-id> --workspace /Users/norberthanauer/Projects/voice --remote origin --target-branch main
 kiwi evidence manifest <run-id> --workspace /Users/norberthanauer/Projects/voice
 kiwi operator snapshot <run-id> --workspace /Users/norberthanauer/Projects/voice
 ```
@@ -60,6 +61,7 @@ All assistants use the same MCP server. The assistant can call:
 - `kiwi_run` to execute all planned steps.
 - `kiwi_run_step` for advanced single-step execution.
 - `kiwi_finalize` to write final verdict and summary.
+- `kiwi_publish_pr_draft` to push a local Bitbucket branch and write a PR draft artifact.
 - `kiwi_evidence_manifest` to hash evidence and write an audit snapshot.
 - `kiwi_operator_snapshot` to create a local HTML operator view.
 
@@ -69,6 +71,8 @@ Good assistant prompt:
 Use kiwi. Workspace: /Users/norberthanauer/Projects/voice. Repo: core.
 Plan this ticket, run the planned steps, then finalize and show me the evidence manifest path.
 ```
+
+No direct Anthropic/OpenAI API key is required for the standard flow. Kiwi uses local CLI logins for Claude, Codex, and Cursor Agent. Bitbucket PR publishing uses your existing git remote/auth to push a branch, then writes `final/pr-draft.json` and a Bitbucket create-PR URL.
 
 ## A2A
 

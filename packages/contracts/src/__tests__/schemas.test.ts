@@ -20,6 +20,7 @@ import {
   ModelInvocationRecordSchema,
   ModelRegistrySchema,
   ModelUsageSummarySchema,
+  PrDraftArtifactSchema,
   ProtocolEnvelopeSchema,
   ReviewVerdictSchema,
   RunAuditSnapshotSchema,
@@ -130,6 +131,10 @@ describe("contracts schemas", () => {
       status: "pass",
       evidenceRefs: ["steps/step_001/attempt_001/artifacts/typecheck-report.json"],
       reason: "No type errors",
+      subject: {
+        type: "diff",
+        hash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
     });
 
     const review = ReviewVerdictSchema.parse({
@@ -144,11 +149,41 @@ describe("contracts schemas", () => {
       ],
       recommendedNextSteps: ["Proceed to next step"],
       confidence: 0.86,
+      subject: {
+        type: "diff",
+        hash: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
     });
 
     expect(attempt.artifacts).toHaveLength(1);
     expect(gate.status).toBe("pass");
     expect(review.verdict).toBe("pass_with_comments");
+    expect(review.subject?.hash).toBe("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  });
+
+  it("parses PR draft artifacts without credentials", () => {
+    const draft = PrDraftArtifactSchema.parse({
+      schemaVersion: "1",
+      runId: "run_demo",
+      repository: {
+        provider: "bitbucket-cloud",
+        workspace: "kiwi",
+        repoSlug: "core",
+        remoteUrl: "git@bitbucket.org:kiwi/core.git",
+      },
+      remote: "origin",
+      sourceBranch: "kiwi/run_demo",
+      targetBranch: "main",
+      title: "Demo PR",
+      description: "Evidence only, no credentials",
+      createUrl: "https://bitbucket.org/kiwi/core/pull-requests/new?source=kiwi%2Frun_demo&dest=main",
+      evidenceRefs: ["final/evidence-manifest.json"],
+      diffHash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      createdAt: "2026-05-05T08:00:00.000Z",
+    });
+
+    expect(draft.repository.provider).toBe("bitbucket-cloud");
+    expect(JSON.stringify(draft)).not.toContain("token");
   });
 
   it("parses model invocation records and usage summaries", () => {

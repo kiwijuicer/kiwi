@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync } from "fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
@@ -216,5 +216,48 @@ describe("run lifecycle", () => {
         dependsOn: dependentStep.dependsOn,
       }),
     ).not.toThrow();
+  });
+
+  it("blocks safeToApply when diff evidence is not bound to gate and review hashes", async () => {
+    const repo = cwd();
+    createRun(repo);
+    const decision = scheduleStepAttempt({
+      cwd: repo,
+      runId: "run_demo",
+      step,
+      initiative,
+      budgetProfile: "normal",
+      budgetRemainingUsdEstimate: null,
+      blastRadius: "low",
+      securitySensitivity: "low",
+      contextSize: "small",
+      runnerAvailability: ["local-shell"],
+      attemptId: "attempt_001",
+      now: new Date("2026-05-04T08:10:00.000Z"),
+    });
+
+    await new StepAttemptOrchestrator().execute({
+      cwd: repo,
+      step,
+      schedulerDecision: decision,
+      runner: new PassRunner(),
+      worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_001"),
+      stepPrompt: "ok",
+      now: new Date("2026-05-04T08:11:00.000Z"),
+    });
+    writeFileSync(
+      path.join(repo, ".kiwi", "runs", "run_demo", "steps", "step_001", "attempt_001", "artifacts", "diff.patch"),
+      "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n@@ -0,0 +1 @@\n+ok\n",
+      "utf-8",
+    );
+
+    const finalized = finalizeRun({
+      cwd: repo,
+      runId: "run_demo",
+      now: new Date("2026-05-04T08:12:00.000Z"),
+    });
+
+    expect(finalized.verdict.safeToApply).toBe(false);
+    expect(finalized.verdict.reason).toContain("not bound to current diff hash");
   });
 });

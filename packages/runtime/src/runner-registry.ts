@@ -1,5 +1,6 @@
 import {
   ClaudeCodeRunnerAdapter,
+  CodexCliRunnerAdapter,
   CursorAgentRunnerAdapter,
   LocalShellRunnerAdapter,
   RunnerAdapter,
@@ -56,11 +57,25 @@ const CODING_RUNNER_PRIORITY: RunnerName[] = [
   RunnerNames.CursorAgent,
   RunnerNames.LocalShell,
 ];
-const DEFAULT_RUNNER_PRIORITY: RunnerName[] = [
-  RunnerNames.LocalShell,
-  RunnerNames.CursorAgent,
-  RunnerNames.ClaudeCode,
-];
+const DEFAULT_RUNNER_PRIORITY: RunnerName[] = [RunnerNames.LocalShell, RunnerNames.CursorAgent, RunnerNames.ClaudeCode];
+
+function forcedRunnerForAccessMode(accessMode: string | undefined): RunnerName | null {
+  switch (accessMode) {
+    case undefined:
+      return null;
+    case AccessModes.ClaudeCodeCli:
+      return RunnerNames.ClaudeCode;
+    case AccessModes.CodexCli:
+      return RunnerNames.Codex;
+    case AccessModes.CursorAgentCli:
+      return RunnerNames.CursorAgent;
+    case AccessModes.Local:
+    case AccessModes.Stub:
+      return RunnerNames.LocalShell;
+    default:
+      return null;
+  }
+}
 
 function detailFromAccessMode(runner: RunnerName, availability: AccessModeAvailability): RunnerAvailabilityDetail {
   return {
@@ -91,13 +106,26 @@ function defaultRunnerDefinitions(): RunnerDefinition[] {
         }),
     },
     {
+      runner: RunnerNames.Codex,
+      accessMode: AccessModes.CodexCli,
+      availability: ({ env }) =>
+        detailFromAccessMode(RunnerNames.Codex, evaluateAccessModeAvailability(AccessModes.CodexCli, env)),
+      buildAdapter: ({ env, selectedExecutorModel }) =>
+        new CodexCliRunnerAdapter({
+          ...(selectedExecutorModel?.accessMode === AccessModes.CodexCli ? { model: selectedExecutorModel.id } : {}),
+          env,
+        }),
+    },
+    {
       runner: RunnerNames.CursorAgent,
       accessMode: AccessModes.CursorAgentCli,
       availability: ({ env }) =>
         detailFromAccessMode(RunnerNames.CursorAgent, evaluateAccessModeAvailability(AccessModes.CursorAgentCli, env)),
       buildAdapter: ({ env, selectedExecutorModel }) =>
         new CursorAgentRunnerAdapter({
-          ...(selectedExecutorModel?.accessMode === AccessModes.CursorAgentCli ? { model: selectedExecutorModel.id } : {}),
+          ...(selectedExecutorModel?.accessMode === AccessModes.CursorAgentCli
+            ? { model: selectedExecutorModel.id }
+            : {}),
           env,
         }),
     },
@@ -132,7 +160,16 @@ export class RunnerRegistry {
 
   resolve(options: RunnerResolutionOptions): RunnerResolution {
     const env = options.env ?? process.env;
-    const details = this.definitions.map((definition) => definition.availability({ env }));
+    const forcedRunner = forcedRunnerForAccessMode(env.KIWI_FORCE_ACCESS_MODE);
+    const details = this.definitions.map((definition) => {
+      if (!forcedRunner || definition.runner === forcedRunner) return definition.availability({ env });
+      return {
+        runner: definition.runner,
+        accessMode: definition.accessMode,
+        available: false,
+        reason: `KIWI_FORCE_ACCESS_MODE=${env.KIWI_FORCE_ACCESS_MODE}`,
+      };
+    });
     const priority = priorityForStep(options.step);
     const runnerAvailability = details
       .filter((entry) => entry.available)

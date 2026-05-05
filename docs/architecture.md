@@ -62,16 +62,16 @@ flowchart TD
 
 ## Model Tier Mapping
 
-Capability tiers in `model-registry.yaml` map to real Anthropic models.
-`cheap` is an alias of `mid` with a reduced context budget; there is no
-separate `cheap` provider entry once stubs are retired.
+Capability tiers in `model-registry.yaml` map to local CLI access modes by
+default. Direct provider API keys are not required for daily use.
+`cheap` is an alias of `mid` with a reduced context budget.
 
-| Capability | Real Provider                | Notes                          |
-| ---------- | ---------------------------- | ------------------------------ |
-| frontier   | claude-opus-4-6              | planner, high-risk reviewer    |
-| strong     | claude-sonnet-4-6            | default coding, default reviewer |
-| mid        | claude-haiku-4-5-20251001    | tests, docs, rules, research   |
-| cheap      | claude-haiku-4-5-20251001    | alias of mid, smaller context  |
+| Capability | Default Local Access         | Notes                            |
+| ---------- | ---------------------------- | -------------------------------- |
+| frontier   | claude-code-cli opus         | planner, high-risk reviewer      |
+| strong     | claude-code-cli/codex/cursor | default coding, default reviewer |
+| mid        | claude-code-cli haiku        | tests, docs, rules, research     |
+| cheap      | mid with smaller context     | alias behavior, not API key path |
 
 ## Tier-to-Step-Type Defaults
 

@@ -102,6 +102,24 @@ export const TOOLS = [
   },
   { name: "kiwi_operator_snapshot", description: "Write local operator HTML snapshot", inputSchema: RUN_ID_SCHEMA },
   {
+    name: "kiwi_publish_pr_draft",
+    description:
+      "Push a local Bitbucket branch using existing git auth and write a PR draft artifact. Does not store API credentials.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        runId: { type: "string" },
+        remote: { type: "string" },
+        targetBranch: { type: "string" },
+        branchName: { type: "string" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+      required: ["runId"],
+    },
+  },
+  {
     name: "kiwi_a2a_receive",
     description: "Validate and optionally accept an A2A envelope into the local loopback inbox",
     inputSchema: {

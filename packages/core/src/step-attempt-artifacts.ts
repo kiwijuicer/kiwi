@@ -17,7 +17,7 @@ import type {
   StepRunnerExecutionError,
   StepRunnerExecutionStatus,
   StepRunnerModelUsage,
-} from "./step-attempt-orchestrator";
+} from "./step-runner-types";
 
 interface RunnerCostReport {
   schemaVersion: "1";
@@ -65,7 +65,12 @@ function attemptRef(stepId: string, attemptId: string): string {
   return `steps/${stepId}/${attemptId}/attempt.json`;
 }
 
-export function loadStepAttempt(params: { cwd: string; runId: string; stepId: string; attemptId: string }): StepAttempt {
+export function loadStepAttempt(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+}): StepAttempt {
   const relativePath = attemptRef(params.stepId, params.attemptId);
   const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
   if (!existsSync(target)) {

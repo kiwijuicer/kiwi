@@ -2,18 +2,14 @@ import path from "path";
 import {
   Artifact,
   ArtifactSchema,
-  AccessMode,
   ContractValues,
+  EvidenceSubject,
   GateResult,
   GateResultSchema,
-  KiwiPolicy,
   ReviewVerdict,
   ReviewVerdictSchema,
-  RunnerName,
-  Step,
   StepAttemptSchema,
   StepAttemptStatus,
-  UsagePrecision,
 } from "@kiwi/contracts";
 import { appendAuditEvent } from "./cost-ledger";
 import { appendModelInvocation } from "./model-invocations";
@@ -21,13 +17,12 @@ import { runForbiddenFileGate, runSecretsScanGate, saveGateResults, summarizeGat
 import {
   classifyReviewAction,
   loadAttemptDiff,
-  ReviewAction,
   ReviewEngine,
   ReviewExecutionMetadata,
   saveReviewVerdict,
   StubReviewEngine,
 } from "./review-engine";
-import { loadContextPackage, SchedulerDecision } from "./scheduler-policy";
+import { loadContextPackage } from "./scheduler-policy";
 import { ensureRunLayout } from "./run-store";
 import {
   artifact,
@@ -37,66 +32,26 @@ import {
   saveRunnerCostReport,
   saveStepAttempt,
 } from "./step-attempt-artifacts";
+import type {
+  ExecuteStepAttemptInput,
+  StepAttemptNextAction,
+  StepRunnerExecutionError,
+  StepRunnerExecutionInput,
+  StepRunnerExecutionOutput,
+  StepRunnerExecutionStatus,
+} from "./step-runner-types";
 
-export type StepRunnerExecutionStatus = "completed" | "failed" | "blocked" | "approval_required" | "timeout";
-
-export interface StepRunnerExecutionTimeouts {
-  commandTimeoutMs: number;
-}
-
-export interface StepRunnerModelUsage {
-  inputTokens: number;
-  outputTokens: number;
-}
-
-export interface StepRunnerExecutionError {
-  code: string;
-  message: string;
-}
-
-export interface StepRunnerExecutionInput<TCommandPolicy = unknown> {
-  runId: string;
-  stepId: string;
-  attemptId: string;
-  workspacePath: string;
-  repoPath?: string;
-  worktreePath: string;
-  stepPrompt: string;
-  contextPackage: unknown;
-  allowedTools: string[];
-  timeouts: StepRunnerExecutionTimeouts;
-  command?: string[];
-  commandPolicy?: TCommandPolicy;
-  env?: Record<string, string>;
-  approved?: boolean;
-  requestedAt?: string;
-}
-
-export interface StepRunnerExecutionOutput {
-  status: StepRunnerExecutionStatus;
-  artifactRefs: Artifact[];
-  rawLogsRef: string | null;
-  modelUsage: StepRunnerModelUsage;
-  modelId?: string | null;
-  providerName?: string;
-  accessMode?: AccessMode;
-  usagePrecision?: UsagePrecision;
-  estimatedCostUsd?: number | null;
-  gateResult: GateResult;
-  error?: StepRunnerExecutionError;
-}
-
-export interface StepAttemptRunner<TCommandPolicy = unknown> {
-  readonly name: RunnerName;
-  execute(input: StepRunnerExecutionInput<TCommandPolicy>): Promise<StepRunnerExecutionOutput>;
-}
-
-export interface StepAttemptNextAction {
-  type: ReviewAction;
-  reason: string;
-  recommendedNextSteps: string[];
-  issueCodes: string[];
-}
+export type {
+  ExecuteStepAttemptInput,
+  StepAttemptNextAction,
+  StepAttemptRunner,
+  StepRunnerExecutionError,
+  StepRunnerExecutionInput,
+  StepRunnerExecutionOutput,
+  StepRunnerExecutionStatus,
+  StepRunnerExecutionTimeouts,
+  StepRunnerModelUsage,
+} from "./step-runner-types";
 
 export interface StepAttemptOrchestrationResult {
   runId: string;
@@ -112,32 +67,6 @@ export interface StepAttemptOrchestrationResult {
   attemptRef: string;
   nextAction: StepAttemptNextAction;
   error?: StepRunnerExecutionError;
-}
-
-export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
-  cwd: string;
-  repoPath?: string;
-  step: Step;
-  schedulerDecision: SchedulerDecision;
-  runner: StepAttemptRunner<TCommandPolicy>;
-  worktreePath: string;
-  stepPrompt: string;
-  allowedTools?: string[];
-  timeouts?: StepRunnerExecutionTimeouts;
-  command?: string[];
-  commandPolicy?: TCommandPolicy;
-  env?: Record<string, string>;
-  approved?: boolean;
-  additionalGateResults?: GateResult[];
-  additionalArtifacts?: Artifact[];
-  postRunnerGateExecutor?: (params: {
-    diff: string | null;
-    diffHash: string | null;
-    startedAt: string;
-  }) => Promise<{ gateResults: GateResult[]; artifacts: Artifact[] }>;
-  reviewEngine?: ReviewEngine;
-  policy?: KiwiPolicy;
-  now?: Date;
 }
 
 function ensureRunnerMatchesDecision(input: ExecuteStepAttemptInput): void {
@@ -188,10 +117,15 @@ function nextActionFromReview(verdict: ReviewVerdict): StepAttemptNextAction {
 function enforceGateResultsBeforePositiveReview(params: {
   gateResults: GateResult[];
   reviewVerdict: ReviewVerdict;
+  subject?: EvidenceSubject;
 }): ReviewVerdict {
   const gateSummary = summarizeGateResults(params.gateResults);
   if (gateSummary.safeToContinue || !params.reviewVerdict.safeToContinue) {
-    return ReviewVerdictSchema.parse(params.reviewVerdict);
+    return ReviewVerdictSchema.parse(
+      params.subject && !params.reviewVerdict.subject
+        ? { ...params.reviewVerdict, subject: params.subject }
+        : params.reviewVerdict,
+    );
   }
 
   return ReviewVerdictSchema.parse({
@@ -212,7 +146,13 @@ function enforceGateResultsBeforePositiveReview(params: {
         : "Create a fix step and re-run gates",
     ],
     confidence: 1,
+    ...(params.subject ? { subject: params.subject } : {}),
   });
+}
+
+function bindGateSubject(gate: GateResult, subject: EvidenceSubject | null): GateResult {
+  if (!subject || gate.subject) return GateResultSchema.parse(gate);
+  return GateResultSchema.parse({ ...gate, subject });
 }
 
 function gateResultFromRunnerException(error: StepRunnerExecutionError, evidenceRefs: string[]): GateResult {
@@ -348,6 +288,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
     const reviewEngine = input.reviewEngine ?? this.defaults.reviewEngine ?? new StubReviewEngine();
     const reviewStartedAt = new Date().toISOString();
     const attemptDiff = loadAttemptDiff({ cwd: input.cwd, runId, stepId, attemptId });
+    const diffSubject: EvidenceSubject | null = attemptDiff ? { type: "diff", hash: attemptDiff.diffHash } : null;
 
     const postRunnerGateEvidence = input.postRunnerGateExecutor
       ? await input.postRunnerGateExecutor({
@@ -358,7 +299,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       : { gateResults: [], artifacts: [] };
 
     const baseGateResults = [
-      runnerOutput.gateResult,
+      bindGateSubject(runnerOutput.gateResult, diffSubject),
       ...(input.additionalGateResults ?? []).map((entry) => GateResultSchema.parse(entry)),
       ...postRunnerGateEvidence.gateResults.map((entry) => GateResultSchema.parse(entry)),
     ];
@@ -423,9 +364,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       diffHash: attemptDiff?.diffHash ?? null,
       riskHigh,
     };
-    const richExecution = reviewEngine.reviewWithExecution
-      ? await reviewEngine.reviewWithExecution(reviewInput)
-      : null;
+    const richExecution = reviewEngine.reviewWithExecution ? await reviewEngine.reviewWithExecution(reviewInput) : null;
     const rawReviewVerdict = richExecution ? richExecution.verdict : await reviewEngine.review(reviewInput);
     const reviewMetadata: ReviewExecutionMetadata = richExecution?.metadata ?? {
       modelId: reviewEngine.name === "stub-review" ? "stub-reviewer" : reviewEngine.name,
@@ -437,6 +376,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
     const reviewVerdict = enforceGateResultsBeforePositiveReview({
       gateResults,
       reviewVerdict: rawReviewVerdict,
+      ...(diffSubject ? { subject: diffSubject } : {}),
     });
     const reviewReportRef = saveReviewVerdict({
       cwd: input.cwd,

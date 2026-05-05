@@ -58,6 +58,7 @@ kiwi status [run-id] [--workspace <path>]
 kiwi run <run-id> [--workspace <path>]
 kiwi attempt <run-id> <step-id> [--workspace <path>]
 kiwi finalize <run-id> [--workspace <path>]
+kiwi publish pr <run-id> [--workspace <path>] [--remote origin] [--target-branch main]
 kiwi evidence manifest <run-id> [--workspace <path>]
 kiwi operator snapshot <run-id> [--workspace <path>]
 ```
@@ -79,7 +80,7 @@ Use this local stdio server in Claude, Cursor, Codex, or PhpStorm AI Assistant:
   "mcpServers": {
     "kiwi": {
       "command": "node",
-      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/kiwi/apps/mcp-server/dist/index.js"],
+      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js"],
       "env": {
         "KIWI_WORKSPACE": "/Users/norberthanauer/Projects/voice"
       }
@@ -89,6 +90,8 @@ Use this local stdio server in Claude, Cursor, Codex, or PhpStorm AI Assistant:
 ```
 
 Ask the assistant to use `kiwi` to plan, run, finalize, and inspect evidence. For workspace tasks, include the target repo, for example: `Plan this for repo core in workspace /Users/norberthanauer/Projects/voice`.
+
+Daily use does not require direct Anthropic/OpenAI API keys. Real model execution uses local CLI logins (`claude`, `codex`, `cursor-agent`). Bitbucket publishing uses your local git auth to push a branch and writes `final/pr-draft.json` plus a Bitbucket create-PR URL; Kiwi does not store Bitbucket tokens.
 
 More detail:
 

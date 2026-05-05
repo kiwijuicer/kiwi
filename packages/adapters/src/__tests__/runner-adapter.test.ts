@@ -3,6 +3,8 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { SandboxCommandPolicy } from "@kiwi/sandbox";
+import { CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../codex-cli/client";
+import { CodexCliRunnerAdapter } from "../codex-cli/runner-adapter";
 import { CursorAgentRunnerAdapter } from "../cursor-agent-cli/runner-adapter";
 import { CursorAgentCliInvocation, CursorAgentCliResult, CursorAgentCliRunner } from "../cursor-agent-cli/client";
 import { buildRunnerEnv } from "../runner-env";
@@ -37,6 +39,30 @@ class FakeCursorRunner implements CursorAgentCliRunner {
       completedAt: "2026-05-04T12:00:00.010Z",
       binary: invocation.binary,
       args: ["-p", invocation.prompt, "--output-format", "json"],
+      timedOut: false,
+    };
+  }
+}
+
+class FakeCodexRunner implements CodexCliRunner {
+  readonly invocations: CodexCliInvocation[] = [];
+
+  async run(invocation: CodexCliInvocation): Promise<CodexCliResult> {
+    this.invocations.push(invocation);
+    mkdirSync(invocation.cwd, { recursive: true });
+    writeFileSync(path.join(invocation.cwd, "generated-codex.txt"), "from codex\n", "utf-8");
+    const parsed = [{ type: "turn.completed", usage: { inputTokens: 13, outputTokens: 5 } }];
+    return {
+      ok: true,
+      exitCode: 0,
+      stdout: parsed.map((entry) => JSON.stringify(entry)).join("\n"),
+      stderr: "",
+      parsed,
+      durationMs: 10,
+      startedAt: "2026-05-04T12:00:00.000Z",
+      completedAt: "2026-05-04T12:00:00.010Z",
+      binary: invocation.binary,
+      args: ["exec", "--json", invocation.prompt],
       timedOut: false,
     };
   }
@@ -181,5 +207,44 @@ describe("runner adapters", () => {
     expect(runner.invocations[0]?.env?.SECRET_TOKEN).toBeUndefined();
     const logs = readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", output.rawLogsRef!), "utf-8");
     expect(logs).toContain("total_cost_usd");
+  });
+
+  it("executes codex through a filtered env, captures logs, estimated usage, and diff", async () => {
+    const repo = cwd();
+    writeFileSync(path.join(repo, "source.txt"), "source\n", "utf-8");
+    const worktreePath = path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_codex");
+    const runner = new FakeCodexRunner();
+    const adapter = new CodexCliRunnerAdapter({
+      binary: "codex",
+      model: "codex-cli-auto",
+      cliRunner: runner,
+      env: {
+        PATH: "/bin",
+        HOME: "/home/test",
+        SECRET_TOKEN: "do-not-leak",
+      },
+    });
+
+    const output = await adapter.execute({
+      runId: "run_demo",
+      stepId: "step_001",
+      attemptId: "attempt_codex",
+      workspacePath: repo,
+      repoPath: repo,
+      worktreePath,
+      stepPrompt: "Generate a file",
+      contextPackage: {},
+      allowedTools: ["shell"],
+      timeouts: { commandTimeoutMs: 1000 },
+      commandPolicy: policy({ envAllowlist: ["PATH"] }),
+    });
+
+    expect(output.status).toBe("completed");
+    expect(output.providerName).toBe("codex-cli");
+    expect(output.usagePrecision).toBe("estimated");
+    expect(output.estimatedCostUsd).toBeNull();
+    expect(output.artifactRefs.some((artifact) => artifact.type === "diff")).toBe(true);
+    expect(runner.invocations[0]?.env?.SECRET_TOKEN).toBeUndefined();
+    expect(runner.invocations[0]?.prompt).toContain("doNotPush");
   });
 });

@@ -26,6 +26,14 @@ const codingStep: Step = {
 
 const models: ModelEntry[] = [
   {
+    id: "codex-cli-auto",
+    provider: "local",
+    capability: "strong",
+    roles: ["executor"],
+    enabled: true,
+    accessMode: "codex-cli",
+  },
+  {
     id: "cursor-agent-auto",
     provider: "local",
     capability: "strong",
@@ -52,6 +60,23 @@ describe("runner resolution", () => {
     expect(resolution.buildAdapter("cursor-agent").name).toBe("cursor-agent");
   });
 
+  it("reports codex availability and builds its adapter when the local CLI is available", () => {
+    const resolution = resolveRunner({
+      registryModels: models,
+      step: codingStep,
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
+    });
+
+    expect(resolution.runnerAvailability).toContain("codex");
+    expect(resolution.runnerAvailabilityDetails).toContainEqual({
+      runner: "codex",
+      accessMode: "codex-cli",
+      available: true,
+    });
+    expect(resolution.buildAdapter("codex").name).toBe("codex");
+    expect(resolution.selectedExecutorModel?.accessMode).toBe("codex-cli");
+  });
+
   it("does not advertise unimplemented api runner adapters", () => {
     const resolution = resolveRunner({
       registryModels: [],
@@ -61,6 +86,26 @@ describe("runner resolution", () => {
 
     expect(resolution.runnerAvailability).toEqual(["local-shell"]);
     expect(() => resolution.buildAdapter("api")).toThrow("has no adapter wiring yet");
+  });
+
+  it("forces hermetic local-shell execution when stub access mode is selected", () => {
+    const resolution = resolveRunner({
+      registryModels: models,
+      step: codingStep,
+      env: {
+        KIWI_FAKE_BINARY_AVAILABLE: "1",
+        KIWI_FORCE_ACCESS_MODE: "stub",
+      },
+    });
+
+    expect(resolution.runnerAvailability).toEqual(["local-shell"]);
+    expect(resolution.runnerAvailabilityDetails).toContainEqual({
+      runner: "claude-code",
+      accessMode: "claude-code-cli",
+      available: false,
+      reason: "KIWI_FORCE_ACCESS_MODE=stub",
+    });
+    expect(resolution.buildAdapter("local-shell").name).toBe("local-shell");
   });
 
   it("allows fake adapter registration without probing a real CLI", () => {

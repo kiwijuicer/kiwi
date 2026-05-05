@@ -1,82 +1,75 @@
-import { AccessModes, ContractValues, Artifact, GateResultSchema, RunnerName, RunnerNames } from "@kiwi/contracts";
+import { AccessModes, Artifact, ContractValues, GateResultSchema, RunnerName, RunnerNames } from "@kiwi/contracts";
 import { captureDiffArtifact } from "@kiwi/sandbox";
-import {
-  ClaudeCodeCliInvocation,
-  ClaudeCodeCliRunner,
-  DefaultClaudeCodeCliRunner,
-  normalizeUsageFromCli,
-} from "./client";
+import { CodexCliRunner, DefaultCodexCliRunner, normalizeUsageFromCodex } from "./client";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../runner-adapter";
 import { buildRunnerEnv } from "../runner-env";
 import { persistRunnerLogs } from "../runner-logs";
 
 const DEFAULT_TIMEOUT_MS = 600_000;
-const CLAUDE_CODE_ACCESS_MODE = AccessModes.ClaudeCodeCli;
+const CODEX_ACCESS_MODE = AccessModes.CodexCli;
 
-export interface ClaudeCodeRunnerAdapterOptions {
+export interface CodexCliRunnerAdapterOptions {
   binary?: string;
   model?: string;
   timeoutMs?: number;
-  cliRunner?: ClaudeCodeCliRunner;
+  cliRunner?: CodexCliRunner;
   env?: Record<string, string | undefined>;
-  allowedTools?: string[];
 }
 
 function buildPrompt(input: RunnerExecutionInput): string {
   return JSON.stringify(
     {
       request:
-        "Implement the focal step in the current working directory. Make only the minimal code changes required by the success criteria. Use only allowed tools.",
+        "Implement the focal step in this working directory. Keep the change minimal, satisfy success criteria, and stop with an inspectable working-tree diff.",
       runId: input.runId,
       stepId: input.stepId,
       attemptId: input.attemptId,
       stepPrompt: input.stepPrompt,
       contextPackage: input.contextPackage,
-      worktreePath: input.worktreePath,
       allowedTools: input.allowedTools,
+      safety: {
+        doNotCommit: true,
+        doNotPush: true,
+        doNotModifyMainWorkspace: true,
+      },
     },
     null,
     2,
   );
 }
 
-export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
-  readonly name: RunnerName = RunnerNames.ClaudeCode;
+export class CodexCliRunnerAdapter implements RunnerAdapter {
+  readonly name: RunnerName = RunnerNames.Codex;
   private readonly binary: string;
-  private readonly model: string;
+  private readonly model: string | undefined;
   private readonly timeoutMs: number;
-  private readonly cliRunner: ClaudeCodeCliRunner;
+  private readonly cliRunner: CodexCliRunner;
   private readonly env: Record<string, string | undefined>;
-  private readonly allowedTools: string[];
 
-  constructor(options: ClaudeCodeRunnerAdapterOptions = {}) {
-    this.binary = options.binary ?? process.env.KIWI_CLAUDE_CODE_BINARY ?? "claude";
-    this.model = options.model ?? "claude-sonnet-4-6";
+  constructor(options: CodexCliRunnerAdapterOptions = {}) {
+    this.binary = options.binary ?? process.env.KIWI_CODEX_BINARY ?? "codex";
+    this.model = options.model;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    this.cliRunner = options.cliRunner ?? new DefaultClaudeCodeCliRunner();
+    this.cliRunner = options.cliRunner ?? new DefaultCodexCliRunner();
     this.env = options.env ?? process.env;
-    this.allowedTools = options.allowedTools ?? ["Read", "Write", "Edit", "Bash"];
   }
 
   async execute(input: RunnerExecutionInput): Promise<RunnerExecutionOutput> {
-    const prompt = buildPrompt(input);
     const env = buildRunnerEnv({
       sourceEnv: this.env,
       inputEnv: input.env,
       policy: input.commandPolicy,
     });
-    const invocation: ClaudeCodeCliInvocation = {
+    const invocation = {
       binary: this.binary,
       cwd: input.worktreePath,
-      model: this.model,
-      prompt,
-      outputFormat: "json",
-      allowedTools: this.allowedTools,
+      prompt: buildPrompt(input),
       timeoutMs: Math.min(this.timeoutMs, Math.max(input.timeouts.commandTimeoutMs, 60_000) * 5),
       env,
+      ...(this.model ? { model: this.model } : {}),
     };
     const result = await this.cliRunner.run(invocation);
-    const usage = normalizeUsageFromCli(result.parsed);
+    const usage = normalizeUsageFromCodex(result.parsed);
     const logsArtifact = persistRunnerLogs({
       workspacePath: input.workspacePath,
       runId: input.runId,
@@ -106,73 +99,62 @@ export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
     if (input.repoPath) diffInput.sourcePath = input.repoPath;
     const diffArtifact = captureDiffArtifact(diffInput);
     const artifactRefs: Artifact[] = diffArtifact ? [logsArtifact, diffArtifact] : [logsArtifact];
+    const baseOutput = {
+      artifactRefs,
+      rawLogsRef: logsArtifact.ref,
+      modelUsage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
+      modelId: this.model ?? null,
+      providerName: CODEX_ACCESS_MODE,
+      accessMode: CODEX_ACCESS_MODE,
+      usagePrecision: usage.precision,
+      estimatedCostUsd: usage.estimatedCostUsd,
+    };
 
     if (result.timedOut) {
       return {
-        status: ContractValues.Failed,
-        artifactRefs,
-        rawLogsRef: logsArtifact.ref,
-        modelUsage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
-        modelId: this.model,
-        providerName: CLAUDE_CODE_ACCESS_MODE,
-        accessMode: CLAUDE_CODE_ACCESS_MODE,
-        usagePrecision: usage.precision,
-        estimatedCostUsd: usage.estimatedCostUsd,
+        ...baseOutput,
+        status: "timeout",
         gateResult: GateResultSchema.parse({
           gateId: "gate_runner_execution",
           gateType: "forbidden_file_checks",
           status: ContractValues.Fail,
-          evidenceRefs: [],
-          reason: `claude-code runner timed out after ${invocation.timeoutMs}ms`,
+          evidenceRefs: [logsArtifact.ref],
+          reason: `codex runner timed out after ${invocation.timeoutMs}ms`,
         }),
         error: {
           code: "RUNNER_TIMEOUT",
-          message: `claude-code runner timed out after ${invocation.timeoutMs}ms`,
+          message: `codex runner timed out after ${invocation.timeoutMs}ms`,
         },
       };
     }
 
     if (!result.ok) {
       return {
+        ...baseOutput,
         status: ContractValues.Failed,
-        artifactRefs,
-        rawLogsRef: logsArtifact.ref,
-        modelUsage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
-        modelId: this.model,
-        providerName: CLAUDE_CODE_ACCESS_MODE,
-        accessMode: CLAUDE_CODE_ACCESS_MODE,
-        usagePrecision: usage.precision,
-        estimatedCostUsd: usage.estimatedCostUsd,
         gateResult: GateResultSchema.parse({
           gateId: "gate_runner_execution",
           gateType: "forbidden_file_checks",
           status: ContractValues.Fail,
-          evidenceRefs: [],
-          reason: `claude-code runner exited ${result.exitCode}: ${result.stderr.slice(0, 200)}`,
+          evidenceRefs: [logsArtifact.ref],
+          reason: `codex runner exited ${result.exitCode}: ${result.stderr.slice(0, 200)}`,
         }),
         error: {
           code: `RUNNER_EXIT_${result.exitCode ?? "UNKNOWN"}`,
-          message: result.stderr.slice(0, 500) || "claude-code runner failed",
+          message: result.stderr.slice(0, 500) || "codex runner failed",
         },
       };
     }
 
     return {
+      ...baseOutput,
       status: ContractValues.Completed,
-      artifactRefs,
-      rawLogsRef: logsArtifact.ref,
-      modelUsage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
-      modelId: this.model,
-      providerName: CLAUDE_CODE_ACCESS_MODE,
-      accessMode: CLAUDE_CODE_ACCESS_MODE,
-      usagePrecision: usage.precision,
-      estimatedCostUsd: usage.estimatedCostUsd,
       gateResult: GateResultSchema.parse({
         gateId: "gate_runner_execution",
         gateType: "forbidden_file_checks",
         status: ContractValues.Pass,
-        evidenceRefs: [],
-        reason: diffArtifact ? "claude-code runner produced diff" : "claude-code runner completed without changes",
+        evidenceRefs: [logsArtifact.ref],
+        reason: diffArtifact ? "codex runner produced diff" : "codex runner completed without changes",
       }),
     };
   }

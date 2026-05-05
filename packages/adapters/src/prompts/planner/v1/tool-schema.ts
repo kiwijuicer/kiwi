@@ -8,7 +8,7 @@ import {
 
 export const PLANNER_TOOL_NAME = "emit_task_graph";
 
-export interface AnthropicToolDefinition {
+interface AnthropicToolDefinition {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;

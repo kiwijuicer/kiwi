@@ -1,7 +1,12 @@
 import path from "path";
 import chalk from "chalk";
 import { Artifact, GateResult, GateResultSchema, GateType, GateTypeSchema } from "@kiwi/contracts";
-import { createWorktreeSandbox, executeSandboxCommand, SandboxCommandPolicy, teardownWorktreeSandbox } from "@kiwi/sandbox";
+import {
+  createWorktreeSandbox,
+  executeSandboxCommand,
+  SandboxCommandPolicy,
+  teardownWorktreeSandbox,
+} from "@kiwi/sandbox";
 import {
   assertStepDependenciesCompleted,
   commandForGate,
@@ -79,6 +84,7 @@ async function runRequiredGates(params: {
         ? GateResultSchema.parse({
             ...output.gateResult,
             reason: `${output.gateResult.reason} (diffHash: ${params.diffHash})`,
+            subject: { type: "diff", hash: params.diffHash },
           })
         : output.gateResult,
     );

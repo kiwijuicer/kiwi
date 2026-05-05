@@ -130,10 +130,7 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
     return this.invoke({ input, attemptType: "initial", envelope: buildReviewerUserEnvelope(input) });
   }
 
-  async repair(
-    input: ReviewerProviderInput,
-    context: ReviewerProviderRepairContext,
-  ): Promise<ReviewerProviderOutput> {
+  async repair(input: ReviewerProviderInput, context: ReviewerProviderRepairContext): Promise<ReviewerProviderOutput> {
     return this.invoke({
       input,
       attemptType: "repair",

@@ -174,11 +174,7 @@ function emptyPolicy(): KiwiPolicy {
   };
 }
 
-function buildRequest(params: {
-  model: string;
-  maxTokens: number;
-  userEnvelope: string;
-}): AnthropicMessageRequest {
+function buildRequest(params: { model: string; maxTokens: number; userEnvelope: string }): AnthropicMessageRequest {
   return {
     model: params.model,
     max_tokens: params.maxTokens,
@@ -468,10 +464,7 @@ export class AnthropicReviewerProvider implements ReviewerProvider {
     });
   }
 
-  async repair(
-    input: ReviewerProviderInput,
-    context: ReviewerProviderRepairContext,
-  ): Promise<ReviewerProviderOutput> {
+  async repair(input: ReviewerProviderInput, context: ReviewerProviderRepairContext): Promise<ReviewerProviderOutput> {
     return this.invoke({
       input,
       attemptType: "repair",

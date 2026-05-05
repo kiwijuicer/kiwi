@@ -190,9 +190,6 @@ importers:
       '@kiwi/core':
         specifier: workspace:*
         version: link:../core
-      '@kiwi/sandbox':
-        specifier: workspace:*
-        version: link:../sandbox
     devDependencies:
       '@types/node':
         specifier: ^20.12.7

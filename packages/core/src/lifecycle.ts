@@ -10,6 +10,8 @@ import {
   FinalCostReportSchema,
   FinalVerdict,
   FinalVerdictSchema,
+  GateTypes,
+  GateType,
   GateResult,
   ReviewVerdict,
   ReviewVerdictSchema,
@@ -21,6 +23,7 @@ import {
 } from "@kiwi/contracts";
 import { appendAuditEvent } from "./cost-ledger";
 import { writeModelUsageSummary } from "./model-invocations";
+import { loadAttemptDiff } from "./review-engine";
 import { ensureRunLayout, loadRunManifest, loadTaskGraph, resolveRunArtifactPath } from "./run-store";
 
 export interface StepAttemptEvidence {
@@ -251,6 +254,65 @@ function latestAttemptByStep(attempts: StepAttemptEvidence[]): Map<string, StepA
   return latest;
 }
 
+const REQUIRED_GATE_TYPES = new Set<GateType>([
+  ContractValues.Typecheck,
+  ContractValues.Lint,
+  ContractValues.Tests,
+  GateTypes.ForbiddenFileChecks,
+  GateTypes.SecretsCheck,
+]);
+
+function requiredGateTypes(requiredGates: string[]): GateType[] {
+  return requiredGates.filter((entry): entry is GateType => REQUIRED_GATE_TYPES.has(entry as GateType));
+}
+
+function evidenceFailureReasons(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attempt: StepAttemptEvidence;
+  requiredGates: string[];
+}): string[] {
+  const failures: string[] = [];
+  const required = requiredGateTypes(params.requiredGates);
+  for (const gateType of required) {
+    const gate = params.attempt.gateResults.find((entry) => entry.gateType === gateType);
+    if (!gate) {
+      failures.push(`missing gate ${gateType}`);
+      continue;
+    }
+    if (gate.status !== ContractValues.Pass) {
+      failures.push(`gate ${gate.gateId} is ${gate.status}`);
+    }
+  }
+
+  if (!params.attempt.reviewVerdict) {
+    failures.push("missing review verdict");
+  } else if (!params.attempt.reviewVerdict.safeToContinue) {
+    failures.push(`review verdict is ${params.attempt.reviewVerdict.verdict}`);
+  }
+
+  const diff = loadAttemptDiff({
+    cwd: params.cwd,
+    runId: params.runId,
+    stepId: params.stepId,
+    attemptId: params.attempt.attemptId,
+  });
+  if (!diff) return failures;
+
+  if (params.attempt.reviewVerdict?.subject?.hash !== diff.diffHash) {
+    failures.push("review verdict is not bound to current diff hash");
+  }
+  for (const gateType of required) {
+    const gate = params.attempt.gateResults.find((entry) => entry.gateType === gateType);
+    if (gate?.subject?.hash !== diff.diffHash) {
+      failures.push(`gate ${gateType} is not bound to current diff hash`);
+    }
+  }
+
+  return failures;
+}
+
 export function assertStepDependenciesCompleted(params: {
   cwd: string;
   runId: string;
@@ -317,48 +379,91 @@ function writeFinalSummary(params: {
   return ref;
 }
 
+interface FinalEvidenceSummary {
+  completedStepIds: string[];
+  failedStepIds: string[];
+  blockedStepIds: string[];
+  missingStepIds: string[];
+  gateResultRefs: string[];
+  reviewReportRefs: string[];
+  evidenceFailures: string[];
+}
+
+function collectFinalEvidence(params: {
+  cwd: string;
+  runId: string;
+  steps: ReturnType<typeof loadTaskGraph>["steps"];
+  latest: Map<string, StepAttemptEvidence>;
+}): FinalEvidenceSummary {
+  const summary: FinalEvidenceSummary = {
+    completedStepIds: [],
+    failedStepIds: [],
+    blockedStepIds: [],
+    missingStepIds: [],
+    gateResultRefs: [],
+    reviewReportRefs: [],
+    evidenceFailures: [],
+  };
+
+  for (const step of params.steps) {
+    const attempt = params.latest.get(step.stepId);
+    if (!attempt) {
+      summary.missingStepIds.push(step.stepId);
+      continue;
+    }
+    if (attempt.gateResultsRef) summary.gateResultRefs.push(attempt.gateResultsRef);
+    if (attempt.reviewReportRef) summary.reviewReportRefs.push(attempt.reviewReportRef);
+    if (attempt.attempt.status === ContractValues.Completed) summary.completedStepIds.push(step.stepId);
+    if (attempt.attempt.status === ContractValues.Failed) summary.failedStepIds.push(step.stepId);
+    if (attempt.attempt.status === ContractValues.Blocked) summary.blockedStepIds.push(step.stepId);
+
+    const failures = evidenceFailureReasons({
+      cwd: params.cwd,
+      runId: params.runId,
+      stepId: step.stepId,
+      attempt,
+      requiredGates: step.requiredGates,
+    });
+    if (failures.length > 0) {
+      if (!summary.failedStepIds.includes(step.stepId)) summary.failedStepIds.push(step.stepId);
+      summary.evidenceFailures.push(`${step.stepId}: ${failures.join("; ")}`);
+    }
+  }
+
+  return summary;
+}
+
 export function finalizeRun(params: { cwd: string; runId: string; now?: Date }): FinalizeRunResult {
   ensureRunLayout(params.runId, params.cwd);
   const now = params.now ?? new Date();
   const taskGraph = loadTaskGraph(params.runId, params.cwd);
   const attempts = listStepAttemptEvidence(params.cwd, params.runId);
   const latest = latestAttemptByStep(attempts);
+  const evidence = collectFinalEvidence({
+    cwd: params.cwd,
+    runId: params.runId,
+    steps: taskGraph.steps,
+    latest,
+  });
 
-  const completedStepIds: string[] = [];
-  const failedStepIds: string[] = [];
-  const blockedStepIds: string[] = [];
-  const missingStepIds: string[] = [];
-  const gateResultRefs: string[] = [];
-  const reviewReportRefs: string[] = [];
-
-  for (const step of taskGraph.steps) {
-    const attempt = latest.get(step.stepId);
-    if (!attempt) {
-      missingStepIds.push(step.stepId);
-      continue;
-    }
-    if (attempt.gateResultsRef) gateResultRefs.push(attempt.gateResultsRef);
-    if (attempt.reviewReportRef) reviewReportRefs.push(attempt.reviewReportRef);
-    if (attempt.attempt.status === ContractValues.Completed) completedStepIds.push(step.stepId);
-    if (attempt.attempt.status === ContractValues.Failed) failedStepIds.push(step.stepId);
-    if (attempt.attempt.status === ContractValues.Blocked) blockedStepIds.push(step.stepId);
-  }
-
-  const safeToApply = failedStepIds.length === 0 && blockedStepIds.length === 0 && missingStepIds.length === 0;
+  const safeToApply =
+    evidence.failedStepIds.length === 0 && evidence.blockedStepIds.length === 0 && evidence.missingStepIds.length === 0;
   const verdict = FinalVerdictSchema.parse({
     schemaVersion: "1",
     runId: params.runId,
     verdict: safeToApply ? ContractValues.Pass : ContractValues.NeedsChanges,
     safeToApply,
-    completedStepIds,
-    failedStepIds,
-    blockedStepIds,
-    missingStepIds,
-    gateResultRefs,
-    reviewReportRefs,
+    completedStepIds: evidence.completedStepIds,
+    failedStepIds: evidence.failedStepIds,
+    blockedStepIds: evidence.blockedStepIds,
+    missingStepIds: evidence.missingStepIds,
+    gateResultRefs: evidence.gateResultRefs,
+    reviewReportRefs: evidence.reviewReportRefs,
     reason: safeToApply
-      ? "All planned steps have completed attempts"
-      : "Run has failed, blocked, or missing step attempts",
+      ? "All planned steps have completed attempts with current gate and review evidence"
+      : `Run has failed, blocked, missing, or stale evidence${
+          evidence.evidenceFailures.length > 0 ? `: ${evidence.evidenceFailures.join(" | ")}` : ""
+        }`,
     createdAt: now.toISOString(),
   });
 

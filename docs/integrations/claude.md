@@ -15,7 +15,7 @@ This writes or merges project-scoped `.mcp.json` with a `kiwi` MCP server entry 
 Manual setup is still possible. Build `kiwi` first:
 
 ```bash
-cd /Users/norberthanauer/Projects/kiwi-juicer/kiwi
+cd /Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi
 pnpm build
 ```
 
@@ -26,7 +26,7 @@ cd /Users/norberthanauer/Projects/voice
 claude mcp add --transport stdio \
   --env KIWI_WORKSPACE=/Users/norberthanauer/Projects/voice \
   kiwi \
-  -- node /Users/norberthanauer/Projects/kiwi-juicer/kiwi/apps/mcp-server/dist/index.js
+  -- node /Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js
 ```
 
 Check it:
@@ -51,7 +51,7 @@ If you keep a project-scoped `.mcp.json`, use:
   "mcpServers": {
     "kiwi": {
       "command": "node",
-      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/kiwi/apps/mcp-server/dist/index.js"],
+      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js"],
       "env": {
         "KIWI_WORKSPACE": "/Users/norberthanauer/Projects/voice"
       }
@@ -61,3 +61,5 @@ If you keep a project-scoped `.mcp.json`, use:
 ```
 
 Claude may ask for approval before using a project-scoped MCP server. That is expected.
+
+Claude execution uses the local `claude` CLI login. Kiwi does not require `ANTHROPIC_API_KEY` for the standard flow.

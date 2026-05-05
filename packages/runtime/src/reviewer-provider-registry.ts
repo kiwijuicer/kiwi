@@ -28,16 +28,11 @@ export class ReviewerProviderRegistry {
 
   hasAvailableReviewer(options: Omit<ReviewerProviderRegistrySelectOptions, "riskHigh">): boolean {
     return (
-      this.select({ ...options, riskHigh: true }) !== null ||
-      this.select({ ...options, riskHigh: false }) !== null
+      this.select({ ...options, riskHigh: true }) !== null || this.select({ ...options, riskHigh: false }) !== null
     );
   }
 
-  buildProvider(
-    model: ModelEntry,
-    env: Record<string, string | undefined>,
-    policy: KiwiPolicy,
-  ): ReviewerProvider {
+  buildProvider(model: ModelEntry, env: Record<string, string | undefined>, policy: KiwiPolicy): ReviewerProvider {
     if (model.accessMode === AccessModes.AnthropicApi) {
       return new AnthropicReviewerProvider({ model: model.id, env, policy });
     }

@@ -2,7 +2,7 @@ import { REVIEW_ISSUE_SEVERITY_VALUES, REVIEW_VERDICT_VALUE_VALUES } from "@kiwi
 
 export const REVIEWER_TOOL_NAME = "emit_review_verdict";
 
-export interface AnthropicReviewerToolDefinition {
+interface AnthropicReviewerToolDefinition {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;

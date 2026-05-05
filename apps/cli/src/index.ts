@@ -20,6 +20,7 @@ import { runFinalize } from "./commands/finalize";
 import { runInit } from "./commands/init";
 import { runOperatorSnapshot } from "./commands/operator";
 import { runPlan } from "./commands/plan";
+import { runPublishPr } from "./commands/publish";
 import { runRun } from "./commands/run";
 import { runRulesSync } from "./commands/rules";
 import { runStatus } from "./commands/status";
@@ -130,9 +131,7 @@ addWorkspaceOptions(program.command("status [runId]").description("Show summary 
 );
 
 addWorkspaceOptions(
-  program
-    .command("doctor")
-    .description("Probe configured policies, registry entries, and available access modes"),
+  program.command("doctor").description("Probe configured policies, registry entries, and available access modes"),
 ).action((opts: { workspace?: string; repo?: string }) => {
   runDoctor(withGlobalWorkspaceOptions(opts)).catch((error: Error) => {
     console.error(`\n✗ ${error.message}`);
@@ -225,6 +224,26 @@ addWorkspaceOptions(
     process.exit(1);
   });
 });
+
+const publishCommand = program.command("publish").description("Publish local draft artifacts");
+addWorkspaceOptions(
+  publishCommand
+    .command("pr <runId>")
+    .description("Push a local Bitbucket branch and write a PR draft artifact")
+    .option("--remote <remote>", "Git remote to push", "origin")
+    .option("--target-branch <branch>", "Pull request target branch", "main")
+    .option("--branch-name <branch>", "Override source branch name"),
+).action(
+  (
+    runId: string,
+    opts: { remote?: string; targetBranch?: string; branchName?: string; workspace?: string; repo?: string },
+  ) => {
+    runPublishPr(runId, withGlobalWorkspaceOptions(opts)).catch((error: Error) => {
+      console.error(`\n✗ ${error.message}`);
+      process.exit(1);
+    });
+  },
+);
 
 const a2aCommand = program.command("a2a").description("A2A protocol commands");
 addWorkspaceOptions(

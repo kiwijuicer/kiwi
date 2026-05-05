@@ -46,6 +46,7 @@ export async function runRequiredGates(params: {
         ? GateResultSchema.parse({
             ...output.gateResult,
             reason: `${output.gateResult.reason} (diffHash: ${params.diffHash})`,
+            subject: { type: "diff", hash: params.diffHash },
           })
         : output.gateResult,
     );

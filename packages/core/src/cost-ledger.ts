@@ -32,6 +32,7 @@ export type AuditEventType =
   | "run_audit_snapshot_written"
   | "evidence_manifest_written"
   | "operator_snapshot_written"
+  | "pr_draft_published"
   | "a2a_runtime_event"
   | "gate_command_executed"
   | "gate_command_blocked"

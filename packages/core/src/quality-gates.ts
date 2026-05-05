@@ -1,6 +1,14 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
-import { ContractValues, GateResult, GateResultSchema, GateStatus, GateType, KiwiPolicy } from "@kiwi/contracts";
+import {
+  ContractValues,
+  EvidenceSubject,
+  GateResult,
+  GateResultSchema,
+  GateStatus,
+  GateType,
+  KiwiPolicy,
+} from "@kiwi/contracts";
 import { resolveRunArtifactPath } from "./run-store";
 
 export interface CreateGateResultParams {
@@ -9,6 +17,7 @@ export interface CreateGateResultParams {
   evidenceRefs: string[];
   reason: string;
   gateId?: string;
+  subject?: EvidenceSubject;
 }
 
 export interface QualityGateSummary {
@@ -28,13 +37,15 @@ function writeJsonSafely(target: string, value: unknown): void {
 
 export function createGateResult(params: CreateGateResultParams): GateResult {
   const gateId = params.gateId ?? `gate_${params.gateType}`;
-  return GateResultSchema.parse({
+  const result = {
     gateId,
     gateType: params.gateType,
     status: params.status,
     evidenceRefs: params.evidenceRefs,
     reason: params.reason,
-  });
+    ...(params.subject ? { subject: params.subject } : {}),
+  };
+  return GateResultSchema.parse(result);
 }
 
 export function summarizeGateResults(results: GateResult[]): QualityGateSummary {
@@ -290,6 +301,7 @@ export function runForbiddenFileGate(input: DiffGateInput): GateResult {
     status: result.status,
     evidenceRefs: [reportPath],
     reason: result.reason,
+    subject: { type: "diff", hash: input.diffHash },
   });
 }
 
@@ -309,5 +321,6 @@ export function runSecretsScanGate(input: DiffGateInput): GateResult {
     status: result.status,
     evidenceRefs: [reportPath],
     reason: result.reason,
+    subject: { type: "diff", hash: input.diffHash },
   });
 }

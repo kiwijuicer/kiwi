@@ -74,6 +74,7 @@ export class StubReviewEngine implements ReviewEngine {
             : "Create a fix step and re-run gates",
         ],
         confidence: 0.9,
+        ...(input.diffHash ? { subject: { type: "diff", hash: input.diffHash } } : {}),
       });
     }
 
@@ -83,6 +84,7 @@ export class StubReviewEngine implements ReviewEngine {
       issues: [],
       recommendedNextSteps: ["Continue to next step"],
       confidence: 0.95,
+      ...(input.diffHash ? { subject: { type: "diff", hash: input.diffHash } } : {}),
     });
   }
 

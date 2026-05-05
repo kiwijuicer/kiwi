@@ -15,8 +15,7 @@
   "dependencies": {
     "@kiwi/adapters": "workspace:*",
     "@kiwi/contracts": "workspace:*",
-    "@kiwi/core": "workspace:*",
-    "@kiwi/sandbox": "workspace:*"
+    "@kiwi/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
