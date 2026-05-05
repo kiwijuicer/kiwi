@@ -161,7 +161,16 @@ export default [
     },
   },
   {
-    files: ["packages/contracts/src/schemas.ts"],
+    files: [
+      "packages/contracts/src/schemas.ts",
+      "packages/contracts/src/common.ts",
+      "packages/contracts/src/domain.ts",
+      "packages/contracts/src/execution.ts",
+      "packages/contracts/src/policy.ts",
+      "packages/contracts/src/scm.ts",
+      "packages/contracts/src/a2a.ts",
+      "packages/contracts/src/evidence.ts",
+    ],
     rules: {
       "max-lines": "off",
       "no-restricted-syntax": "off",

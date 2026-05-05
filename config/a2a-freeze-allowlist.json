@@ -1,0 +1,4 @@
+{
+  "allowedMechanicalPaths": ["packages/contracts/src/a2a.ts", "apps/cli/src/commands/register-a2a.ts"],
+  "reason": "Step 22 is still PARTIAL; only the contracts split may touch the A2A contract module."
+}

@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import { terminateProcessTree, truncateOutput } from "@kiwi/sandbox";
 
 interface SubprocessInvocation {
   binary: string;
@@ -30,36 +31,6 @@ function selectedEnv(env: Record<string, string | undefined> | undefined): Recor
   return out;
 }
 
-function truncate(value: string, maxBytes: number | undefined): string {
-  if (!maxBytes) return value;
-  const buffer = Buffer.from(value);
-  if (buffer.byteLength <= maxBytes) return value;
-  return `${buffer.subarray(0, maxBytes).toString("utf-8")}\n[truncated]`;
-}
-
-function terminateProcessTree(childPid: number | undefined, childKill: () => void): NodeJS.Timeout | null {
-  if (!childPid) {
-    childKill();
-    return null;
-  }
-  if (process.platform !== "win32") {
-    try {
-      process.kill(-childPid, "SIGTERM");
-    } catch {
-      childKill();
-    }
-    return setTimeout(() => {
-      try {
-        process.kill(-childPid, "SIGKILL");
-      } catch {
-        // Process already exited.
-      }
-    }, 2_000);
-  }
-  childKill();
-  return null;
-}
-
 export async function runSubprocess(invocation: SubprocessInvocation): Promise<SubprocessResult> {
   const startedAt = new Date();
   return await new Promise<SubprocessResult>((resolve) => {
@@ -79,10 +50,10 @@ export async function runSubprocess(invocation: SubprocessInvocation): Promise<S
     }, invocation.timeoutMs);
 
     child.stdout.on("data", (chunk: Buffer) => {
-      stdout = truncate(stdout + chunk.toString("utf-8"), invocation.maxOutputBytes);
+      stdout = truncateOutput(stdout + chunk.toString("utf-8"), invocation.maxOutputBytes);
     });
     child.stderr.on("data", (chunk: Buffer) => {
-      stderr = truncate(stderr + chunk.toString("utf-8"), invocation.maxOutputBytes);
+      stderr = truncateOutput(stderr + chunk.toString("utf-8"), invocation.maxOutputBytes);
     });
 
     child.on("error", (error) => {

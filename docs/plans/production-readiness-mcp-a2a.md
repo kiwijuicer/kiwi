@@ -21,7 +21,8 @@ Turn the current MVP-grade local control plane into a production-usable app with
 ### P0: Required Before Any Production Use
 
 1. Operator-complete core workflow
-   - Add restartable/idempotent flows for retry, cancel, replan, resume, apply, decline, export, and cleanup.
+   - Add restartable/idempotent CLI-first flows for retry, cancel, replan, resume, apply, decline, export, and cleanup.
+   - Keep MCP mutation parity behind the same Core/Runtime entrypoints; do not create a second orchestration path.
    - Enforce step dependencies before execution. `DONE 2026-05-04`
    - Add run-level locks so two operators or MCP clients cannot mutate one run at the same time. `DONE 2026-05-04`
    - Add a safe final apply flow from sandbox diff to workspace with main-branch guard, backup, and rollback evidence.

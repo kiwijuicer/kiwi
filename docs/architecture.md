@@ -10,8 +10,13 @@ MVP 1 fokussiert auf Planning Foundation: Intake, deterministic TaskGraph, Run S
 ```mermaid
 flowchart TD
   input[TicketInput] --> cli[apps/cli]
-  cli --> core[packages/core]
+  cli --> runtime[packages/runtime]
+  runtime --> core[packages/core]
+  runtime --> adapters[packages/adapters]
+  runtime --> sandbox[packages/sandbox]
   core --> contracts[packages/contracts]
+  adapters --> contracts
+  sandbox --> contracts
   core --> runstore[.kiwi/runs/<run-id>/]
   cli --> policy[kiwi-policy.yaml]
   cli --> registry[model-registry.yaml]
@@ -31,6 +36,14 @@ flowchart TD
 - `packages/contracts`
   - kanonische Zod-Schemas und Domain Types
   - zentrale Begriffe fuer Initiative/Run/TaskGraph
+- `packages/runtime`
+  - Composition Layer fuer CLI/MCP executable flows
+  - loest Provider, Access Modes und Runner auf
+  - verbindet Core, Adapters und Sandbox ohne eigene Persistenzhoheit
+- `packages/adapters`
+  - Provider-, Runner- und SCM-Adapter hinter stabilen Interfaces
+- `packages/sandbox`
+  - Worktree Lifecycle, Command Policy, Prozessausfuehrung und Diff-Capture
 
 ## Persistenzlayout
 
@@ -49,8 +62,18 @@ flowchart TD
 
 - `apps/*` duerfen von `packages/*` abhaengen.
 - `packages/core` darf nur gegen `packages/contracts` sprechen.
+- `packages/runtime` darf `core`, `contracts`, `adapters` und `sandbox`
+  komponieren, besitzt aber keine kanonischen Contracts und keine
+  Provider-spezifische Logik.
 - Contracts enthalten keine runtime side effects.
-- Provider-/Runner-Integrationen gehoeren spaeter in `packages/adapters`.
+- Provider-/Runner-Integrationen gehoeren in `packages/adapters`.
+
+## A2A Freeze
+
+Bis `docs/plans/step-22-end-to-end-real-run-demo.md` `Status: DONE` ist,
+bleibt A2A eingefroren. Erlaubt sind nur mechanische Move-/Import-Updates, die
+vom A2A-Freeze-Gate akzeptiert werden. Neue A2A-Kommandos, Runtime-Semantik,
+Payload-Arten oder Trust-Regeln sind nicht in Scope.
 
 ## Nicht in MVP 1
 

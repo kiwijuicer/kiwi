@@ -14,6 +14,10 @@ Vision-Refs: 4.9, 11, 12, 14.4, 17.5, 20
 > `docs/ops/real-run-demo.md`. `kiwi doctor` introspects the workspace and
 > reports which access modes are usable.
 
+> A2A freeze: until this file is marked `Status: DONE`, A2A behavior is frozen.
+> Only mechanical import/move updates required by non-A2A refactors are allowed,
+> and `pnpm lint:a2a-freeze` enforces the current allowlist.
+
 ## Goal
 
 Prove the milestone end-to-end with a single real run: from a Bitbucket ticket to a Bitbucket pull request draft, no human intervention between phases, with real model providers, real worktree, real gates, and a verifiable evidence manifest.
@@ -21,6 +25,8 @@ Prove the milestone end-to-end with a single real run: from a Bitbucket ticket t
 ## Scope
 
 - Pick a representative low-risk ticket inside a real Bitbucket Cloud repo (a small bug fix or doc update is sufficient).
+- Default demo target: a separate Bitbucket Cloud repo named `kiwi-step22-demo`
+  with a docs-only ticket such as `docs/kiwi-demo-proof.md`.
 - Drive the full flow via CLI only:
   1. `kiwi init --workspace <ws>`
   2. `kiwi plan ./ticket.md --workspace <ws> --repo <id>` using `AnthropicPlannerProvider`
