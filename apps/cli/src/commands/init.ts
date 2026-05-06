@@ -52,7 +52,23 @@ function resolveKiwiRoot(): string {
   return path.resolve(__dirname, "../../..");
 }
 
+function resolveInstalledMcpBin(): string | null {
+  const configured = process.env.KIWI_MCP_BIN;
+  if (!configured) return null;
+
+  const resolved = path.resolve(configured);
+  return existsSync(resolved) ? resolved : null;
+}
+
 function resolveMcpServerLaunch(workspaceValue: string): McpServerLaunch {
+  const installedMcpBin = resolveInstalledMcpBin();
+  if (installedMcpBin) {
+    return {
+      command: installedMcpBin,
+      args: ["--workspace", workspaceValue],
+    };
+  }
+
   const distCandidates = [
     path.resolve(__dirname, "../../mcp-server/dist/index.js"),
     path.resolve(__dirname, "../../../mcp-server/dist/index.js"),

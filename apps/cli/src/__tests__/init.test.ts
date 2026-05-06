@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
@@ -40,6 +40,11 @@ function expectMcpLaunchForWorkspace(
   cwd: string,
 ): void {
   expect(server?.type).toBe("stdio");
+  if (server?.command?.endsWith("kiwi-mcp")) {
+    expect(server.args).toEqual(["--workspace", cwd]);
+    expect(server.env).toBeUndefined();
+    return;
+  }
   expect(server?.args?.join(" ")).toContain("mcp-server");
   if (server?.args?.some((arg) => arg.endsWith("stdio-launcher.cjs"))) {
     expect(server.command).toBe(process.execPath);
@@ -49,6 +54,25 @@ function expectMcpLaunchForWorkspace(
     return;
   }
   expect(server?.env).toEqual({ KIWI_WORKSPACE: cwd });
+}
+
+async function withKiwiMcpBin(value: string | undefined, fn: () => Promise<void>): Promise<void> {
+  const previous = process.env.KIWI_MCP_BIN;
+  if (value === undefined) {
+    delete process.env.KIWI_MCP_BIN;
+  } else {
+    process.env.KIWI_MCP_BIN = value;
+  }
+
+  try {
+    await fn();
+  } finally {
+    if (previous === undefined) {
+      delete process.env.KIWI_MCP_BIN;
+    } else {
+      process.env.KIWI_MCP_BIN = previous;
+    }
+  }
 }
 
 describe("kiwi init", () => {
@@ -161,6 +185,47 @@ models:
 
     const config = readCursorMcpConfig(cwd);
     const server = config.mcpServers?.kiwi;
+    expectMcpLaunchForWorkspace(server, cwd);
+  });
+
+  it("uses installed kiwi-mcp wrapper when configured", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-installed-mcp-"));
+    const binDir = path.join(cwd, "bin");
+    const kiwiMcpBin = path.join(binDir, "kiwi-mcp");
+    mkdirSync(binDir);
+    writeFileSync(kiwiMcpBin, "#!/usr/bin/env sh\n", "utf-8");
+    chmodSync(kiwiMcpBin, 0o755);
+
+    await withKiwiMcpBin(kiwiMcpBin, async () => {
+      await runInit({}, cwd);
+    });
+
+    const config = readCursorMcpConfig(cwd);
+    const server = config.mcpServers?.kiwi;
+    expect(server?.type).toBe("stdio");
+    expect(server?.command).toBe(kiwiMcpBin);
+    expect(server?.args).toEqual(["--workspace", cwd]);
+    expect(server?.env).toBeUndefined();
+
+    const claudeConfig = readClaudeCodeMcpConfig(cwd);
+    expect(claudeConfig.mcpServers?.kiwi?.command).toBe(kiwiMcpBin);
+    expect(claudeConfig.mcpServers?.kiwi?.args).toEqual(["--workspace", cwd]);
+
+    const codexConfig = readCodexConfig(cwd).content;
+    expect(codexConfig).toContain(`command = "${kiwiMcpBin}"`);
+    expect(codexConfig).toContain(`args = ["--workspace", "${cwd}"]`);
+  });
+
+  it("falls back to source MCP launch when no installed wrapper is configured", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-source-mcp-"));
+
+    await withKiwiMcpBin(undefined, async () => {
+      await runInit({}, cwd);
+    });
+
+    const config = readCursorMcpConfig(cwd);
+    const server = config.mcpServers?.kiwi;
+    expect(server?.command).not.toContain("kiwi-mcp");
     expectMcpLaunchForWorkspace(server, cwd);
   });
 

@@ -3,10 +3,20 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: ["src/index.ts"],
   format: ["cjs"],
+  target: "node20",
   clean: true,
   sourcemap: true,
-  // Bundle the workspace package so the CLI is a single self-contained file
-  noExternal: ["@kiwi/core", "@kiwi/contracts", "@kiwi/adapters", "@kiwi/sandbox"],
+  noExternal: [
+    "@kiwi/core",
+    "@kiwi/contracts",
+    "@kiwi/adapters",
+    "@kiwi/sandbox",
+    "@kiwi/runtime",
+    "chalk",
+    "commander",
+    "js-yaml",
+    "zod",
+  ],
   banner: {
     js: "#!/usr/bin/env node",
   },
