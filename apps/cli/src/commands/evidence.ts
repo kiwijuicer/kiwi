@@ -1,5 +1,6 @@
 import chalk from "chalk";
-import { withRunLock, writeEvidenceManifest } from "@kiwi/core";
+import { withRunLock } from "@kiwi/core";
+import { writeEvidenceManifest } from "@kiwi/ops";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 interface EvidenceManifestOptions extends CliWorkspaceOptions {

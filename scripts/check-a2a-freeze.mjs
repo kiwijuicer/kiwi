@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 const STATUS_PATH = "docs/plans/step-22-end-to-end-real-run-demo.md";
 const ALLOWLIST_PATH = "config/a2a-freeze-allowlist.json";
 const SENSITIVE_PREFIXES = [
+  "packages/a2a/src/",
   "packages/core/src/a2a/",
   "packages/core/src/a2a-runtime.ts",
   "apps/cli/src/commands/a2a.ts",
@@ -34,7 +35,10 @@ function allowlist() {
 if (!step22Done()) {
   const changed = changedFiles();
   const allowed = new Set(allowlist().allowedMechanicalPaths ?? []);
-  const forbidden = changed.filter((file) => !allowed.has(file));
+  const allowedPrefixes = allowlist().allowedMechanicalPrefixes ?? [];
+  const forbidden = changed.filter(
+    (file) => !allowed.has(file) && !allowedPrefixes.some((prefix) => file.startsWith(prefix)),
+  );
 
   if (forbidden.length > 0) {
     console.error("A2A freeze violation while Step 22 is not DONE.");

@@ -13,7 +13,7 @@ import {
   removeA2ATrustedPeer,
   setA2AEnabled,
   syncA2AFilesystem,
-} from "@kiwi/core";
+} from "@kiwi/a2a";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 interface A2AReceiveOptions extends CliWorkspaceOptions {

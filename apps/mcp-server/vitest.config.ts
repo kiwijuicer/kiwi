@@ -4,9 +4,11 @@ import path from "path";
 export default defineConfig({
   resolve: {
     alias: {
+      "@kiwi/a2a": path.resolve(__dirname, "../../packages/a2a/src/index.ts"),
       "@kiwi/adapters": path.resolve(__dirname, "../../packages/adapters/src/index.ts"),
       "@kiwi/contracts": path.resolve(__dirname, "../../packages/contracts/src/index.ts"),
       "@kiwi/core": path.resolve(__dirname, "../../packages/core/src/index.ts"),
+      "@kiwi/ops": path.resolve(__dirname, "../../packages/ops/src/index.ts"),
       "@kiwi/runtime": path.resolve(__dirname, "../../packages/runtime/src/index.ts"),
       "@kiwi/sandbox": path.resolve(__dirname, "../../packages/sandbox/src/index.ts"),
     },

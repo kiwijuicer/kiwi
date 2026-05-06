@@ -1,4 +1,4 @@
-import { buildRunCompletionSummary } from "@kiwi/core";
+import { buildRunCompletionSummary } from "@kiwi/ops";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 import { printCostSummary } from "./run-summary";
 

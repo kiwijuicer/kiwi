@@ -2,7 +2,6 @@ import { existsSync, readFileSync } from "fs";
 import {
   getRunStatusSummary,
   listStepAttemptEvidence,
-  loadEvidenceManifest,
   loadInitiative,
   loadRunManifest,
   loadTaskGraph,
@@ -11,6 +10,7 @@ import {
   resolveRunArtifactPath,
   summarizeModelInvocations,
 } from "@kiwi/core";
+import { loadEvidenceManifest } from "@kiwi/ops";
 
 interface McpResourceContent {
   uri: string;

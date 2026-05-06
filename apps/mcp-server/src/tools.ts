@@ -1,31 +1,33 @@
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { ContractValues, ProtocolEnvelopeKindSchema } from "@kiwi/contracts";
-import { executePlannedStep, resolvePlannerProvider } from "@kiwi/runtime";
 import {
   acceptA2AHandoff,
   addA2ATrustedPeer,
-  buildRunCompletionSummary,
-  buildRunExplanation,
-  finalizeRun,
-  getRunStatusSummary,
   handleA2AEnvelope,
-  kiwiModelRegistryPath,
-  kiwiPolicyPath,
   listA2AInbox,
   loadA2AConfig,
+  publishA2AEnvelope,
+  removeA2ATrustedPeer,
+  setA2AEnabled,
+  syncA2AFilesystem,
+} from "@kiwi/a2a";
+import { executePlannedStep, finalizeRun, resolvePlannerProvider, splitCommandLine } from "@kiwi/runtime";
+import {
+  buildRunCompletionSummary,
+  buildRunExplanation,
+  writeEvidenceManifest,
+  writeOperatorSnapshot,
+} from "@kiwi/ops";
+import {
+  getRunStatusSummary,
+  kiwiModelRegistryPath,
+  kiwiPolicyPath,
   loadPolicy,
   loadRegistry,
   loadTaskGraph,
   planRun,
-  publishA2AEnvelope,
   recordApprovalDecision,
-  removeA2ATrustedPeer,
-  setA2AEnabled,
-  splitCommandLine,
-  syncA2AFilesystem,
   withRunLock,
-  writeEvidenceManifest,
-  writeOperatorSnapshot,
 } from "@kiwi/core";
 import { publishPrDraftTool } from "./publish-tool";
 import { workspaceArgs } from "./workspace";

@@ -1,5 +1,6 @@
 import chalk from "chalk";
-import { withRunLock, writeOperatorSnapshot } from "@kiwi/core";
+import { withRunLock } from "@kiwi/core";
+import { writeOperatorSnapshot } from "@kiwi/ops";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 interface OperatorSnapshotOptions extends CliWorkspaceOptions {

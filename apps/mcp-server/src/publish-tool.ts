@@ -1,4 +1,5 @@
-import { publishPrDraft, withRunLock } from "@kiwi/core";
+import { withRunLock } from "@kiwi/core";
+import { publishPrDraft } from "@kiwi/ops";
 
 export function publishPrDraftTool(args: Record<string, unknown>, workspacePath: string): Promise<unknown> {
   return withRunLock({ cwd: workspacePath, runId: String(args.runId ?? ""), operation: "mcp_publish_pr_draft" }, () => {

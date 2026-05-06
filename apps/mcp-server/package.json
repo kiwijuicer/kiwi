@@ -12,9 +12,11 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@kiwi/a2a": "workspace:*",
     "@kiwi/adapters": "workspace:*",
     "@kiwi/contracts": "workspace:*",
     "@kiwi/core": "workspace:*",
+    "@kiwi/ops": "workspace:*",
     "@kiwi/runtime": "workspace:*"
   },
   "devDependencies": {

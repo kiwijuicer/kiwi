@@ -1,6 +1,6 @@
 import { Artifact, GateResult, GateResultSchema, GateType, GateTypeSchema, KiwiPolicy } from "@kiwi/contracts";
-import { commandForGate, commandProfileForStep, commandProfileToExecutionPolicy } from "@kiwi/core";
 import { executeSandboxCommand, SandboxCommandPolicy } from "@kiwi/sandbox";
+import { commandForGate, commandProfileForStep, commandProfileToExecutionPolicy } from "./operator-policy";
 
 function safeGateType(value: string): GateType | null {
   const parsed = GateTypeSchema.safeParse(value);

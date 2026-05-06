@@ -1,7 +1,5 @@
 import {
   assertStepDependenciesCompleted,
-  commandProfileForStep,
-  commandProfileToExecutionPolicy,
   kiwiModelRegistryPath,
   kiwiPolicyPath,
   loadApprovalDecision,
@@ -9,16 +7,16 @@ import {
   loadPolicy,
   loadRegistry,
   loadTaskGraph,
-  noopCommand,
   remainingBudgetUsdEstimate,
   refreshRunStatusFromAttempts,
-  scheduleStepAttempt,
-  StepAttemptOrchestrator,
 } from "@kiwi/core";
 import { createWorktreeSandbox, SandboxCommandPolicy, teardownWorktreeSandbox } from "@kiwi/sandbox";
+import { commandProfileForStep, commandProfileToExecutionPolicy, noopCommand } from "./operator-policy";
 import { createReviewEngineFromRegistry } from "./provider-review-engine";
 import { resolveRunner } from "./runner-resolution";
 import { runRequiredGates } from "./required-gates";
+import { scheduleStepAttempt } from "./scheduler-policy";
+import { StepAttemptOrchestrator } from "./step-attempt-orchestrator";
 
 export interface ExecutePlannedStepInput {
   cwd: string;

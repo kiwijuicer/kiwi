@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it, vi } from "vitest";
-import { listA2AInbox, loadA2AConfig } from "@kiwi/core";
+import { listA2AInbox, loadA2AConfig } from "@kiwi/a2a";
 import {
   runA2AAccept,
   runA2AEnable,

@@ -44,6 +44,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@kiwi/a2a':
+        specifier: workspace:*
+        version: link:../../packages/a2a
       '@kiwi/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
@@ -53,6 +56,9 @@ importers:
       '@kiwi/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@kiwi/ops':
+        specifier: workspace:*
+        version: link:../../packages/ops
       '@kiwi/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
@@ -81,6 +87,9 @@ importers:
 
   apps/mcp-server:
     dependencies:
+      '@kiwi/a2a':
+        specifier: workspace:*
+        version: link:../../packages/a2a
       '@kiwi/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
@@ -90,9 +99,34 @@ importers:
       '@kiwi/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@kiwi/ops':
+        specifier: workspace:*
+        version: link:../../packages/ops
       '@kiwi/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+    devDependencies:
+      '@types/node':
+        specifier: ^20.12.7
+        version: 20.19.39
+      tsup:
+        specifier: ^8.0.2
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.13)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: ^5.4.5
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/a2a:
+    dependencies:
+      '@kiwi/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@kiwi/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: ^20.12.7
@@ -160,6 +194,34 @@ importers:
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
+      '@types/node':
+        specifier: ^20.12.7
+        version: 20.19.39
+      tsup:
+        specifier: ^8.0.2
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.13)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.4)
+      typescript:
+        specifier: ^5.4.5
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/ops:
+    dependencies:
+      '@kiwi/adapters':
+        specifier: workspace:*
+        version: link:../adapters
+      '@kiwi/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@kiwi/core':
+        specifier: workspace:*
+        version: link:../core
+      '@kiwi/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+    devDependencies:
       '@types/node':
         specifier: ^20.12.7
         version: 20.19.39

@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { ContractValues } from "@kiwi/contracts";
-import { buildRunCompletionSummary, getRunStatusSummary, loadTaskGraph, withRunLock } from "@kiwi/core";
+import { getRunStatusSummary, loadTaskGraph, withRunLock } from "@kiwi/core";
+import { buildRunCompletionSummary } from "@kiwi/ops";
 import { runAttemptUnlocked, AttemptOptions } from "./attempt";
 import { resolveCliWorkspace } from "../workspace-options";
 import { printRunCompletionSummary } from "./run-summary";

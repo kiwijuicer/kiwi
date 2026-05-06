@@ -1,4 +1,4 @@
-import { buildRunExplanation } from "@kiwi/core";
+import { buildRunExplanation } from "@kiwi/ops";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 interface ExplainOptions extends CliWorkspaceOptions {

@@ -1,12 +1,7 @@
 import { ReviewerProviderInput, runReviewerProviderWithRetries } from "@kiwi/adapters";
 import { KiwiPolicy, ModelEntry, ReviewVerdict } from "@kiwi/contracts";
-import {
-  appendAuditEvent,
-  persistReviewerProviderArtifacts,
-  ReviewEngine,
-  ReviewExecutionResult,
-  ReviewInput,
-} from "@kiwi/core";
+import { appendAuditEvent } from "@kiwi/core";
+import { persistReviewerProviderArtifacts, ReviewEngine, ReviewExecutionResult, ReviewInput } from "./review-engine";
 import { ReviewerProviderRegistry } from "./reviewer-provider-registry";
 
 export interface ProviderReviewEngineOptions {

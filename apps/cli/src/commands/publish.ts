@@ -1,5 +1,6 @@
 import chalk from "chalk";
-import { publishPrDraft, withRunLock } from "@kiwi/core";
+import { withRunLock } from "@kiwi/core";
+import { publishPrDraft } from "@kiwi/ops";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 interface PublishPrOptions extends CliWorkspaceOptions {

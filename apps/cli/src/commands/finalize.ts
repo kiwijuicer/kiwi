@@ -1,5 +1,7 @@
 import chalk from "chalk";
-import { buildRunCompletionSummary, finalizeRun, withRunLock } from "@kiwi/core";
+import { withRunLock } from "@kiwi/core";
+import { finalizeRun } from "@kiwi/runtime";
+import { buildRunCompletionSummary } from "@kiwi/ops";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 import { printRunCompletionSummary } from "./run-summary";
 

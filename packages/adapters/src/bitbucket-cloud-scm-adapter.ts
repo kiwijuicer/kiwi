@@ -238,6 +238,34 @@ export class BitbucketCloudScmAdapter implements ScmAdapter {
   }
 }
 
+export function parseBitbucketCloudRemote(remoteUrl: string): ScmRepositoryRef {
+  const trimmed = remoteUrl.trim().replace(/\.git$/, "");
+  const ssh = trimmed.match(/^git@bitbucket\.org:([^/]+)\/(.+)$/);
+  const https = trimmed.match(/^https:\/\/(?:[^@/]+@)?bitbucket\.org\/([^/]+)\/(.+)$/);
+  const match = ssh ?? https;
+  if (!match?.[1] || !match[2]) {
+    throw new Error(`remote is not a Bitbucket Cloud URL: ${remoteUrl}`);
+  }
+  return ScmRepositoryRefSchema.parse({
+    provider: ContractValues.BitbucketCloud,
+    workspace: match[1],
+    repoSlug: match[2],
+    remoteUrl,
+  });
+}
+
+export function bitbucketCloudCreatePrUrl(params: {
+  repository: ScmRepositoryRef;
+  sourceBranch: string;
+  targetBranch: string;
+}): string {
+  const workspace = encodeURIComponent(params.repository.workspace!);
+  const repoSlug = encodeURIComponent(params.repository.repoSlug!);
+  const source = encodeURIComponent(params.sourceBranch);
+  const dest = encodeURIComponent(params.targetBranch);
+  return `https://bitbucket.org/${workspace}/${repoSlug}/pull-requests/new?source=${source}&dest=${dest}`;
+}
+
 function encodeSegment(value: string): string {
   return encodeURIComponent(value);
 }

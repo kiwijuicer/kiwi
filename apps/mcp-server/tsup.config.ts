@@ -6,7 +6,17 @@ export default defineConfig({
   target: "node20",
   clean: true,
   sourcemap: true,
-  noExternal: ["@kiwi/core", "@kiwi/contracts", "@kiwi/adapters", "@kiwi/sandbox", "@kiwi/runtime", "js-yaml", "zod"],
+  noExternal: [
+    "@kiwi/core",
+    "@kiwi/a2a",
+    "@kiwi/ops",
+    "@kiwi/contracts",
+    "@kiwi/adapters",
+    "@kiwi/sandbox",
+    "@kiwi/runtime",
+    "js-yaml",
+    "zod",
+  ],
   banner: {
     js: "#!/usr/bin/env node",
   },
