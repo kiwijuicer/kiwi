@@ -39,6 +39,13 @@ export interface RunnerExecutionOutput {
   status: RunnerExecutionStatus;
   artifactRefs: Artifact[];
   rawLogsRef: string | null;
+  /**
+   * Absolute path to a live NDJSON stream file written during subprocess execution.
+   * Present only when the runner was started with streaming enabled.
+   * Callers may `tail -f` this file while the runner is executing.
+   * The file persists after execution for post-hoc inspection.
+   */
+  liveLogPath?: string | null;
   modelUsage: RunnerModelUsage;
   modelId?: string | null;
   providerName?: string;

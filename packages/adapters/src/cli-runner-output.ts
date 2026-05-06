@@ -36,6 +36,8 @@ export function cliRunnerOutput(params: {
   providerName: AccessMode;
   timeoutMs: number;
   label: string;
+  /** Absolute path to the live stream file, if streaming was enabled for this run. */
+  liveLogPath?: string | null;
 }): RunnerExecutionOutput {
   const logsArtifact = persistRunnerLogs({
     workspacePath: params.input.workspacePath,
@@ -69,6 +71,7 @@ export function cliRunnerOutput(params: {
   const baseOutput = {
     artifactRefs,
     rawLogsRef: logsArtifact.ref,
+    liveLogPath: params.liveLogPath ?? null,
     modelUsage: { inputTokens: params.usage.inputTokens, outputTokens: params.usage.outputTokens },
     modelId: params.modelId,
     providerName: params.providerName,

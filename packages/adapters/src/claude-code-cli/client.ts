@@ -1,5 +1,5 @@
 import { extractTextJson } from "../anthropic-common";
-import { runSubprocess } from "../subprocess";
+import { runSubprocess, SubprocessOutputChunk } from "../subprocess";
 
 export interface ClaudeCodeCliInvocation {
   binary: string;
@@ -13,6 +13,8 @@ export interface ClaudeCodeCliInvocation {
   timeoutMs: number;
   env?: Record<string, string | undefined>;
   extraArgs?: string[];
+  /** Called for each stdout/stderr chunk as it arrives. Optional. */
+  onOutputChunk?: (chunk: SubprocessOutputChunk) => void;
 }
 
 export interface ClaudeCodeCliResult {
@@ -65,6 +67,7 @@ export class DefaultClaudeCodeCliRunner implements ClaudeCodeCliRunner {
       cwd: invocation.cwd,
       env: invocation.env,
       timeoutMs: invocation.timeoutMs,
+      ...(invocation.onOutputChunk ? { onOutputChunk: invocation.onOutputChunk } : {}),
     });
     const parsed =
       invocation.outputFormat === "json" || invocation.outputFormat === undefined

@@ -1,4 +1,4 @@
-import { runSubprocess } from "../subprocess";
+import { runSubprocess, SubprocessOutputChunk } from "../subprocess";
 
 export interface CursorAgentCliInvocation {
   binary: string;
@@ -8,6 +8,8 @@ export interface CursorAgentCliInvocation {
   outputFormat?: "json" | "text" | "stream-json";
   timeoutMs: number;
   env?: Record<string, string | undefined>;
+  /** Called for each stdout/stderr chunk as it arrives. Optional. */
+  onOutputChunk?: (chunk: SubprocessOutputChunk) => void;
 }
 
 export interface CursorAgentCliResult {
@@ -73,6 +75,7 @@ export class DefaultCursorAgentCliRunner implements CursorAgentCliRunner {
       cwd: invocation.cwd,
       env: invocation.env,
       timeoutMs: invocation.timeoutMs,
+      ...(invocation.onOutputChunk ? { onOutputChunk: invocation.onOutputChunk } : {}),
     });
     return {
       ...result,

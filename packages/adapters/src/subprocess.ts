@@ -1,6 +1,11 @@
 import { spawn } from "child_process";
 import { terminateProcessTree, truncateOutput } from "@kiwi/sandbox";
 
+export interface SubprocessOutputChunk {
+  stream: "stdout" | "stderr";
+  text: string;
+}
+
 interface SubprocessInvocation {
   binary: string;
   args: string[];
@@ -8,6 +13,8 @@ interface SubprocessInvocation {
   env?: Record<string, string | undefined> | undefined;
   timeoutMs: number;
   maxOutputBytes?: number | undefined;
+  /** Called for each stdout/stderr chunk as it arrives. Optional; does not affect the returned result. */
+  onOutputChunk?: (chunk: SubprocessOutputChunk) => void;
 }
 
 interface SubprocessResult {
@@ -50,10 +57,14 @@ export async function runSubprocess(invocation: SubprocessInvocation): Promise<S
     }, invocation.timeoutMs);
 
     child.stdout.on("data", (chunk: Buffer) => {
-      stdout = truncateOutput(stdout + chunk.toString("utf-8"), invocation.maxOutputBytes);
+      const text = chunk.toString("utf-8");
+      stdout = truncateOutput(stdout + text, invocation.maxOutputBytes);
+      invocation.onOutputChunk?.({ stream: "stdout", text });
     });
     child.stderr.on("data", (chunk: Buffer) => {
-      stderr = truncateOutput(stderr + chunk.toString("utf-8"), invocation.maxOutputBytes);
+      const text = chunk.toString("utf-8");
+      stderr = truncateOutput(stderr + text, invocation.maxOutputBytes);
+      invocation.onOutputChunk?.({ stream: "stderr", text });
     });
 
     child.on("error", (error) => {
