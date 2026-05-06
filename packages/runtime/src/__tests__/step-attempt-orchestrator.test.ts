@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { Artifact, GateResultSchema, Initiative, ReviewVerdictSchema, Step } from "@kiwi/contracts";
 import { readAuditEvents, readModelInvocations } from "@kiwi/core";
 import { ReviewEngine } from "../review-engine";
-import { scheduleStepAttempt } from "../scheduler-policy";
+import { loadSchedulerDecision, scheduleStepAttempt } from "../scheduler-policy";
 import {
   StepAttemptOrchestrator,
   StepAttemptRunner,
@@ -46,7 +46,11 @@ function fixtureInitiative(overrides: Partial<Initiative> = {}): Initiative {
   };
 }
 
-function schedule(repo: string, attemptId: string) {
+function schedule(
+  repo: string,
+  attemptId: string,
+  overrides: Partial<Parameters<typeof scheduleStepAttempt>[0]> = {},
+) {
   return scheduleStepAttempt({
     cwd: repo,
     runId: "run_demo",
@@ -60,6 +64,7 @@ function schedule(repo: string, attemptId: string) {
     runnerAvailability: ["local-shell"],
     now: new Date("2026-05-04T06:00:00.000Z"),
     attemptId,
+    ...overrides,
   });
 }
 
@@ -300,6 +305,60 @@ describe("step attempt orchestrator", () => {
     expect(result.reviewVerdict.verdict).toBe("needs_changes");
     expect(result.gateResults.some((entry) => entry.gateId === "gate_tests" && entry.status === "fail")).toBe(true);
     expect(result.artifactRefs.some((entry) => entry.type === "test_report")).toBe(true);
+  });
+
+  it("blocks before runner execution when budget estimate exceeds remaining budget", async () => {
+    const repo = cwd();
+    const decision = schedule(repo, "attempt_budget", {
+      step: fixtureStep({ recommendedModelCapability: "frontier" }),
+      initiative: fixtureInitiative({ budgetProfile: "tiny" }),
+      budgetProfile: "tiny",
+      budgetRemainingUsdEstimate: 0.1,
+      contextSize: "large",
+    });
+    let executed = false;
+    const runner: StepAttemptRunner = {
+      name: "local-shell",
+      async execute() {
+        executed = true;
+        throw new Error("runner should not execute when budget is blocked");
+      },
+    };
+
+    const result = await new StepAttemptOrchestrator().execute({
+      cwd: repo,
+      step: fixtureStep({ recommendedModelCapability: "frontier" }),
+      schedulerDecision: decision,
+      selectedModelId: "claude-opus-4-6",
+      runner,
+      worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_budget"),
+      stepPrompt: "budget guard sample",
+      now: new Date("2026-05-04T06:00:01.000Z"),
+    });
+
+    expect(executed).toBe(false);
+    expect(result.status).toBe("blocked");
+    expect(result.runnerStatus).toBe("blocked");
+    expect(result.nextAction.reason).toBe("budget_estimate_exceeds_remaining");
+    expect(
+      loadSchedulerDecision({
+        cwd: repo,
+        runId: "run_demo",
+        stepId: "step_001",
+        attemptId: "attempt_budget",
+      }),
+    ).toMatchObject({
+      status: "blocked",
+      blockedReason: "budget_estimate_exceeds_remaining",
+      routingReason: expect.arrayContaining(["budget_estimate_exceeds_remaining"]),
+    });
+    expect(readModelInvocations(repo, "run_demo")).toHaveLength(0);
+    const schedulerBlocked = readAuditEvents(repo, "run_demo").find((event) => event.eventType === "scheduler_blocked");
+    expect(schedulerBlocked?.payload).toMatchObject({
+      stepId: "step_001",
+      attemptId: "attempt_budget",
+      reason: "budget_estimate_exceeds_remaining",
+    });
   });
 
   it("turns runner exceptions with artifacts into structured attempt errors", async () => {

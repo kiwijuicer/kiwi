@@ -65,6 +65,7 @@ export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
   repoPath?: string;
   step: Step;
   schedulerDecision: import("./scheduler-policy").SchedulerDecision;
+  selectedModelId?: string | null;
   runner: StepAttemptRunner<TCommandPolicy>;
   worktreePath: string;
   stepPrompt: string;

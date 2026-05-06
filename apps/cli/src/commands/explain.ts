@@ -27,6 +27,26 @@ export async function runExplain(runId: string, opts: ExplainOptions = {}, cwd: 
 
   console.log(explanation.completionSummary.compact);
   console.log(`next: ${explanation.nextAction}`);
+  if (explanation.completionSummary.warnings.length > 0) {
+    console.log("warnings:");
+    for (const warning of explanation.completionSummary.warnings) {
+      console.log(`  ${warning}`);
+    }
+  }
+  const byStep = Object.entries(explanation.completionSummary.byStepCostsUsd);
+  if (byStep.length > 0) {
+    console.log("cost_by_step:");
+    for (const [stepId, costs] of byStep) {
+      console.log(`  ${stepId} planner:${costs.planner.toFixed(2)} executor:${costs.executor.toFixed(2)} reviewer:${costs.reviewer.toFixed(2)}`);
+    }
+  }
+  const byModel = Object.entries(explanation.completionSummary.byModelCostsUsd).sort((a, b) => b[1] - a[1]);
+  if (byModel.length > 0) {
+    console.log("cost_by_model:");
+    for (const [modelLabel, costUsd] of byModel) {
+      console.log(`  ${modelLabel} ${costUsd.toFixed(2)}`);
+    }
+  }
   if (explanation.routing.length > 0) {
     console.log("routing:");
     for (const decision of explanation.routing) {

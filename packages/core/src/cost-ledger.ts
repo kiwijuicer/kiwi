@@ -10,6 +10,7 @@ export type AuditEventType =
   | "planner_validation_failed"
   | "planner_succeeded"
   | "planner_failed"
+  | "prompt_version_used"
   | "reviewer_provider_selected"
   | "reviewer_retry"
   | "reviewer_validation_failed"

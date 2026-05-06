@@ -133,6 +133,26 @@ describe("MCP server", () => {
     expect(JSON.stringify(tools.result)).toContain("inputSchema");
   });
 
+  it("returns structured invalid params errors for malformed tool payloads", async () => {
+    const response = await handleMcpRequest(
+      {
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: { workspacePath: setupRepo() },
+        },
+      },
+      setupRepo(),
+    );
+
+    expect(response.error?.code).toBe(-32602);
+    expect(response.error?.message).toBe("Invalid params");
+    const issues = (response.error?.data as { issues?: Array<{ path?: unknown[] }> } | undefined)?.issues ?? [];
+    expect(issues.length).toBeGreaterThan(0);
+    expect(JSON.stringify(issues)).toContain("ticket");
+  });
+
   it("drains multiple newline-delimited stdio messages and skips notifications", async () => {
     const responses: unknown[] = [];
     const drain = createMcpMessageDrainer(setupRepo(), (response) => responses.push(response));

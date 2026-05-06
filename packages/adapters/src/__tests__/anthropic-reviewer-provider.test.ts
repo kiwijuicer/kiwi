@@ -123,6 +123,7 @@ describe("AnthropicReviewerProvider", () => {
     expect(output.cost.estimatedUsd).toBeGreaterThan(0);
     expect(output.reviewVerdict.verdict).toBe("pass");
     expect(captured?.body.tool_choice).toEqual({ type: "tool", name: "emit_review_verdict" });
+    expect(captured?.body.system).toHaveLength(3);
     expect(captured?.body.system.every((block) => block.cache_control?.type === "ephemeral")).toBe(true);
     expect(captured?.body.tools[0]?.cache_control?.type).toBe("ephemeral");
   });

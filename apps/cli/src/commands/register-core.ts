@@ -59,8 +59,12 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
   });
 
   addWorkspaceOptions(
-    program.command("cost <runId>").description("Show run cost and model summary").option("--json", "Print JSON"),
-  ).action((runId: string, opts: { workspace?: string; repo?: string; json?: boolean }) => {
+    program
+      .command("cost <runId>")
+      .description("Show run cost and model summary")
+      .option("--json", "Print JSON")
+      .option("--csv", "Write final cost CSV to run artifacts"),
+  ).action((runId: string, opts: { workspace?: string; repo?: string; json?: boolean; csv?: boolean }) => {
     runCost(runId, withWorkspaceOptions(opts)).catch(handleCommandError);
   });
 

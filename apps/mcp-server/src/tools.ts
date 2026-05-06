@@ -30,6 +30,7 @@ import {
   withRunLock,
 } from "@kiwi/core";
 import { publishPrDraftTool } from "./publish-tool";
+import { validateToolArguments } from "./tool-input-schemas";
 import { workspaceArgs } from "./workspace";
 
 export function toolArguments(params: Record<string, unknown>): Record<string, unknown> {
@@ -301,12 +302,13 @@ function callA2ATool(
 }
 
 export async function callTool(name: string, args: Record<string, unknown>, cwd: string): Promise<unknown> {
-  if (name === "kiwi_plan") return planTool(args, cwd);
-  const workspace = workspaceArgs(args, cwd, false);
+  const validatedArgs = validateToolArguments(name, args);
+  if (name === "kiwi_plan") return planTool(validatedArgs, cwd);
+  const workspace = workspaceArgs(validatedArgs, cwd, false);
   const workspacePath = workspace.workspacePath;
-  const coreResult = callCoreTool(name, args, cwd, workspacePath);
+  const coreResult = callCoreTool(name, validatedArgs, cwd, workspacePath);
   if (coreResult !== undefined) return coreResult;
-  const a2aResult = callA2ATool(name, args, cwd, workspacePath);
+  const a2aResult = callA2ATool(name, validatedArgs, cwd, workspacePath);
   if (a2aResult !== undefined) return a2aResult;
   throw new Error(`Unknown tool: ${name}`);
 }

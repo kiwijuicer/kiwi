@@ -128,7 +128,12 @@ function buildRequest(params: { model: string; maxTokens: number; userEnvelope: 
       },
       {
         type: "text",
-        text: `ReviewVerdict tool schema is provided in the cached tools block. Prompt version: ${REVIEWER_PROMPT_VERSION}`,
+        text: `Prompt version: ${REVIEWER_PROMPT_VERSION}`,
+        cache_control: { type: "ephemeral" },
+      },
+      {
+        type: "text",
+        text: `ReviewVerdict tool schema is provided in the cached tools block. Always return the final verdict through ${REVIEWER_TOOL_NAME}.`,
         cache_control: { type: "ephemeral" },
       },
     ],

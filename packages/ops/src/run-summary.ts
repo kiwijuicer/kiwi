@@ -41,6 +41,12 @@ interface UsagePrecisionCounts {
   unknown: number;
 }
 
+interface RunStepCosts {
+  planner: number;
+  executor: number;
+  reviewer: number;
+}
+
 export interface RunRoutingExplanation {
   stepId: string;
   attemptId: string;
@@ -82,6 +88,21 @@ function modelLabel(record: ModelInvocationRecord): string {
   const accessMode = inferAccessMode(record);
   const target = accessMode ?? record.runner ?? record.modelId ?? record.providerName;
   return `${record.selectedCapability}/${target}`;
+}
+
+function costModelLabel(record: ModelInvocationRecord): string {
+  const runner = record.runner ?? "none";
+  const accessMode = inferAccessMode(record) ?? "none";
+  const modelId = record.modelId ?? "unknown";
+  return `${record.selectedCapability}/${runner}|${accessMode}|${record.providerName}|${modelId}`;
+}
+
+function roundUsd(value: number): number {
+  return Number(value.toFixed(8));
+}
+
+function emptyStepCosts(): RunStepCosts {
+  return { planner: 0, executor: 0, reviewer: 0 };
 }
 
 function phaseSummary(phase: ModelInvocationPhase, invocations: ModelInvocationRecord[]): RunCompletionPhaseSummary {
@@ -182,7 +203,19 @@ export function buildRunCompletionSummary(params: { cwd: string; runId: string; 
   const invocations = readModelInvocations(params.cwd, params.runId);
   const costReport = buildFinalCostReportFromModelInvocations(params);
   const usagePrecision = emptyPrecisionCounts();
+  const byStepCostsUsd: Record<string, RunStepCosts> = {};
+  const byModelCostsUsd: Record<string, number> = {};
   for (const invocation of invocations) addPrecision(usagePrecision, invocation);
+  for (const invocation of invocations) {
+    const estimatedCost = invocation.estimatedCostUsd ?? 0;
+    if (invocation.stepId) {
+      const current = byStepCostsUsd[invocation.stepId] ?? emptyStepCosts();
+      current[invocation.phase] = roundUsd(current[invocation.phase] + estimatedCost);
+      byStepCostsUsd[invocation.stepId] = current;
+    }
+    const modelCostKey = costModelLabel(invocation);
+    byModelCostsUsd[modelCostKey] = roundUsd((byModelCostsUsd[modelCostKey] ?? 0) + estimatedCost);
+  }
 
   const phaseSummaries = {
     planner: phaseSummary(ContractValues.Planner, invocations),
@@ -195,6 +228,12 @@ export function buildRunCompletionSummary(params: { cwd: string; runId: string; 
   const blocked = latest.filter((entry) => entry.attempt.status === ContractValues.Blocked);
   const completed = latest.filter((entry) => entry.attempt.status === ContractValues.Completed);
   const final = readFinalVerdict(params.cwd, params.runId);
+  const warnings: string[] = [];
+  if (usagePrecision.unknown >= Math.max(1, Math.ceil(invocations.length / 4))) {
+    warnings.push(
+      "cost_precision_unknown_dominant: most invocations have unknown token precision; verify provider usage metadata.",
+    );
+  }
   const action = nextAction({
     finalVerdict: final.verdict,
     safeToApply: final.safeToApply,
@@ -216,6 +255,9 @@ export function buildRunCompletionSummary(params: { cwd: string; runId: string; 
       reviewer: costReport.reviewerCostUsd,
     },
     phaseSummaries,
+    byStepCostsUsd,
+    byModelCostsUsd,
+    warnings,
     attempts: {
       total: attempts.length,
       completed: completed.length,
@@ -270,16 +312,20 @@ export function buildRunExplanation(params: { cwd: string; runId: string; now?: 
 
   const auditBlocked: RunRoutingExplanation[] = readAuditEvents(params.cwd, params.runId)
     .filter((event) => event.eventType === "scheduler_blocked")
-    .map((event) => ({
-      stepId: String(event.payload.stepId ?? "unknown"),
-      attemptId: "unknown",
-      status: ContractValues.Blocked,
-      runner: null,
-      requiredGates: [],
-      routingReason: Array.isArray(event.payload.routingReason)
-        ? event.payload.routingReason.filter((entry): entry is string => typeof entry === "string")
-        : [String(event.payload.reason ?? "scheduler_blocked")],
-    }));
+    .map((event) => {
+      const selectedCapability = stringPayloadValue(event.payload, "modelCapability");
+      return {
+        stepId: String(event.payload.stepId ?? "unknown"),
+        attemptId: stringPayloadValue(event.payload, "attemptId") ?? "unknown",
+        status: ContractValues.Blocked,
+        ...(selectedCapability ? { selectedCapability } : {}),
+        runner: null,
+        requiredGates: [],
+        routingReason: Array.isArray(event.payload.routingReason)
+          ? event.payload.routingReason.filter((entry): entry is string => typeof entry === "string")
+          : [String(event.payload.reason ?? "scheduler_blocked")],
+      };
+    });
   const completionSummary = buildRunCompletionSummary(params);
 
   return {

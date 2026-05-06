@@ -99,6 +99,13 @@ level capping is capability-specific.
 | mid        | claude-code-cli haiku        | tests, docs, rules, research     |
 | cheap      | mid with smaller context     | alias behavior, not API key path |
 
+## Prompt Cache Parity Note
+
+Anthropic API planner/reviewer calls use three cached system blocks to maximize
+prompt prefix reuse. CLI access modes (`claude-code-cli`) currently pass a
+single monolithic `--system-prompt`, so cache reuse and prompt-version tracing
+are weaker there by design.
+
 ## Capability-to-Context-Level Caps
 
 Scheduler context level selection applies the following caps before packaging

@@ -2,6 +2,7 @@ import { callTool, toolArguments } from "./tools";
 import { TOOLS } from "./tool-definitions";
 import { MCP_RESOURCES, readResource } from "./resources";
 import { asRecord, JsonRpcRequest, JsonRpcResponse, textContent } from "./json-rpc";
+import { ToolInputValidationError } from "./tool-input-schemas";
 
 export function defaultServerCwd(): string {
   return process.env.KIWI_WORKSPACE ?? process.cwd();
@@ -43,6 +44,19 @@ export async function handleMcpRequest(
     }
     return { jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${request.method}` } };
   } catch (error) {
+    if (error instanceof ToolInputValidationError) {
+      return {
+        jsonrpc: "2.0",
+        id,
+        error: {
+          code: error.code,
+          message: "Invalid params",
+          data: {
+            issues: error.issues,
+          },
+        },
+      };
+    }
     return {
       jsonrpc: "2.0",
       id,

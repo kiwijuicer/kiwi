@@ -12,6 +12,7 @@ export interface JsonRpcResponse {
   error?: {
     code: number;
     message: string;
+    data?: unknown;
   };
 }
 

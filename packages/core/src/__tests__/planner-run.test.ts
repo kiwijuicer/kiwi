@@ -109,7 +109,12 @@ describe("planner run service", () => {
     });
 
     const auditTypes = readAuditEvents(workspacePath, result.runId).map((event) => event.eventType);
-    expect(auditTypes).toEqual(["planner_provider_selected", "planner_succeeded", "model_invocation_recorded"]);
+    expect(auditTypes).toEqual([
+      "planner_provider_selected",
+      "prompt_version_used",
+      "planner_succeeded",
+      "model_invocation_recorded",
+    ]);
 
     const plannerOutput = JSON.parse(
       readFileSync(path.join(workspacePath, ".kiwi", "runs", result.runId, "plan", "planner-output.json"), "utf-8"),

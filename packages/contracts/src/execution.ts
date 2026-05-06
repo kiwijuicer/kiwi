@@ -284,6 +284,12 @@ export const RunCompletionPhaseSummarySchema = z.object({
   accessModes: z.array(InvocationAccessModeSchema),
 });
 
+const RunCompletionStepCostSchema = z.object({
+  planner: z.number().min(0),
+  executor: z.number().min(0),
+  reviewer: z.number().min(0),
+});
+
 export const RunCompletionSummarySchema = z.object({
   schemaVersion: ContractsSchemaVersionSchema,
   runId: z.string().regex(/^run_[a-z0-9_]+$/),
@@ -301,6 +307,9 @@ export const RunCompletionSummarySchema = z.object({
     executor: RunCompletionPhaseSummarySchema,
     reviewer: RunCompletionPhaseSummarySchema,
   }),
+  byStepCostsUsd: z.record(z.string().min(1), RunCompletionStepCostSchema).default({}),
+  byModelCostsUsd: z.record(z.string().min(1), z.number().min(0)).default({}),
+  warnings: z.array(z.string().min(1)).default([]),
   attempts: z.object({
     total: z.number().int().min(0),
     completed: z.number().int().min(0),

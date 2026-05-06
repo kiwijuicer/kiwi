@@ -17,6 +17,22 @@ function emptyDiffEnvelope(stepId: string): { diff: string; diffHash: string } {
   return { diff: `No diff captured for ${stepId}.`, diffHash: "sha256:empty" };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function reviewerPromptVersion(artifacts: { reviewerInput?: unknown; reviewerOutput?: unknown } | undefined): string {
+  const reviewerInput = artifacts?.reviewerInput;
+  if (isRecord(reviewerInput) && typeof reviewerInput.promptVersion === "string") {
+    return reviewerInput.promptVersion;
+  }
+  const reviewerOutput = artifacts?.reviewerOutput;
+  if (isRecord(reviewerOutput) && typeof reviewerOutput.promptVersion === "string") {
+    return reviewerOutput.promptVersion;
+  }
+  return "unknown";
+}
+
 function buildReviewerInput(input: ReviewInput): ReviewerProviderInput {
   if (!input.step) {
     throw new Error("ProviderReviewEngine requires a focal step in ReviewInput");
@@ -115,6 +131,17 @@ export class ProviderReviewEngine implements ReviewEngine {
         },
       });
     }
+
+    appendAuditEvent(this.options.cwd, {
+      eventType: "prompt_version_used",
+      runId: input.runId,
+      timestamp: new Date().toISOString(),
+      payload: {
+        phase: "reviewer",
+        version: reviewerPromptVersion(validated.providerArtifacts),
+        modelId: model.id,
+      },
+    });
 
     appendAuditEvent(this.options.cwd, {
       eventType: "reviewer_succeeded",

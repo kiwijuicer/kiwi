@@ -31,3 +31,24 @@ export class RunCorruptError extends KiwiError {
     super("RUN_CORRUPT", `Run ${runId} is corrupt: ${reason}`);
   }
 }
+
+export interface BudgetExceededErrorContext {
+  budgetProfile: string;
+  remainingUsdEstimate: number;
+  estimatedAttemptCostUsd: number;
+  modelId: string | null;
+  modelCapability: string;
+  contextLevel: string;
+}
+
+export class BudgetExceededError extends KiwiError {
+  public readonly context: BudgetExceededErrorContext;
+
+  public constructor(context: BudgetExceededErrorContext) {
+    super(
+      "BUDGET_EXCEEDED",
+      `Estimated attempt cost $${context.estimatedAttemptCostUsd.toFixed(4)} exceeds remaining budget $${context.remainingUsdEstimate.toFixed(4)}.`,
+    );
+    this.context = context;
+  }
+}

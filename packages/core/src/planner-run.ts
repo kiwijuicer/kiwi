@@ -140,6 +140,18 @@ function plannerValidationFailureEvidence(error: unknown): PlannerValidationFail
   return isPlannerValidationFailureEvidence(error.evidence) ? error.evidence : null;
 }
 
+function plannerPromptVersion(output: PlannerRunOutput): string {
+  const plannerInputArtifact = output.providerArtifacts?.plannerInput;
+  if (isRecord(plannerInputArtifact) && typeof plannerInputArtifact.promptVersion === "string") {
+    return plannerInputArtifact.promptVersion;
+  }
+  const plannerOutputArtifact = output.providerArtifacts?.plannerOutput;
+  if (isRecord(plannerOutputArtifact) && typeof plannerOutputArtifact.promptVersion === "string") {
+    return plannerOutputArtifact.promptVersion;
+  }
+  return "unknown";
+}
+
 function appendPlannerFailureInvocation(params: {
   workspacePath: string;
   runId: string;
@@ -398,6 +410,16 @@ export async function planRun(params: PlanRunParams): Promise<PlanRunResult> {
     runId,
     now,
     records: plannerOutput.retry.records,
+  });
+  appendAuditEvent(params.workspacePath, {
+    eventType: "prompt_version_used",
+    runId,
+    timestamp: now.toISOString(),
+    payload: {
+      phase: ContractValues.Planner,
+      version: plannerPromptVersion(plannerOutput),
+      modelId: params.plannerModel.id,
+    },
   });
   const budgetMetadata: PlannerBudgetMetadata = {
     profile: initiative.budgetProfile,

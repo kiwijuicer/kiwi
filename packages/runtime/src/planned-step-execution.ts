@@ -142,6 +142,7 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
       repoPath,
       step,
       schedulerDecision: decision,
+      selectedModelId: executorSelection.model?.id ?? null,
       runner: runnerAdapter,
       worktreePath: sandbox.worktreePath,
       stepPrompt: step.title,
