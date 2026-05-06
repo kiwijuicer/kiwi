@@ -21,6 +21,11 @@ For behavior changes, ensure tests cover:
 - new behavior acceptance criteria
 - risky path regression where applicable
 
+## Minimalistic
+
+- do only run related or changed tests or lintings
+- do NOT just run all tests and liniting accross all files
+
 ## Minimum Commands
 
 - `pnpm test`

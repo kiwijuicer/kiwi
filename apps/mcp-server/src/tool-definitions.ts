@@ -51,6 +51,7 @@ export const TOOLS = [
       properties: {
         runId: { type: "string" },
         fromStep: { type: "string" },
+        maxConcurrency: { type: "integer", minimum: 1 },
         command: { type: "string" },
         approved: { type: "boolean" },
         workspacePath: { type: "string" },

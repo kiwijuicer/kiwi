@@ -554,6 +554,7 @@ describe("MCP server", () => {
             workspacePath: workspace.root,
             runId: parsed.runId,
             command: "node -e 0",
+            maxConcurrency: 2,
           },
         },
       },

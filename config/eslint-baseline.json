@@ -1,5 +1,8 @@
 {
-  "generatedAt": "2026-05-06T11:16:42.998Z",
-  "issueKeys": [],
+  "generatedAt": "2026-05-06T13:17:27.295Z",
+  "issueKeys": [
+    "packages/runtime/src/provider-review-engine.ts|no-restricted-syntax|1|Avoid canonical domain string 'reviewer' outside contracts/constants. Use exported constants/unions from @kiwi/contracts.|phase: \"reviewer\",",
+    "packages/runtime/src/step-attempt-orchestrator.ts|max-lines-per-function|1|Method 'blockBudgetExceeded' has too many lines (178). Maximum allowed is 120.|private blockBudgetExceeded(params: {"
+  ],
   "ignoredRuleIds": []
 }

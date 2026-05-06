@@ -130,10 +130,20 @@ export function loadRunManifest(runId: string, cwd: string): RunManifest {
 }
 
 export function loadTaskGraph(runId: string, cwd: string): TaskGraph {
-  const target = resolveRunArtifactPath(runId, "plan/task-graph.json", cwd);
-  if (!existsSync(target)) {
+  const baseTarget = resolveRunArtifactPath(runId, "plan/task-graph.json", cwd);
+  if (!existsSync(baseTarget)) {
     throw new RunNotFoundError(runId);
   }
+
+  // Prefer the highest-versioned task-graph.vN.json when one exists (written by replanner)
+  const planDir = path.dirname(baseTarget);
+  const versioned = readdirSync(planDir)
+    .map((f) => ({ f, m: f.match(/^task-graph\.v(\d+)\.json$/) }))
+    .filter(({ m }) => m !== null)
+    .map(({ f, m }) => ({ f, v: parseInt(m![1]!, 10) }))
+    .sort((a, b) => b.v - a.v);
+
+  const target = versioned[0] ? path.join(planDir, versioned[0].f) : baseTarget;
   return TaskGraphSchema.parse(readJson(target));
 }
 

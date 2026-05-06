@@ -1,6 +1,7 @@
 import chalk from "chalk";
-import { getRunStatusSummary, RunArtifactPaths, RunAttemptStatusEntry, RunStatusEntry } from "@kiwi/core";
+import { getRunStatusSummary, loadTaskGraph, RunArtifactPaths, RunAttemptStatusEntry, RunStatusEntry } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
+import { formatSubPlanTreeLines } from "./subplan-tree";
 
 interface StatusOptions extends CliWorkspaceOptions {
   json?: boolean;
@@ -35,7 +36,16 @@ function printArtifactPaths(paths: RunArtifactPaths): void {
   }
 }
 
-function printRunEntry(entry: RunStatusEntry): void {
+function printSubPlanTree(runId: string, cwd: string): void {
+  const lines = formatSubPlanTreeLines(loadTaskGraph(runId, cwd), "    ");
+  if (lines.length === 0) return;
+  console.log("  subplans:");
+  for (const line of lines) {
+    console.log(line);
+  }
+}
+
+function printRunEntry(entry: RunStatusEntry, cwd: string): void {
   console.log(`${entry.runId}  ${entry.status}  ${entry.updatedAt}`);
   console.log(`  title: ${entry.initiativeTitle}`);
   if (entry.repoId || entry.repoPath) {
@@ -43,6 +53,7 @@ function printRunEntry(entry: RunStatusEntry): void {
   }
   console.log(`  plan: ${entry.currentPlanId}`);
   console.log(`  steps: ${entry.stepCount}`);
+  printSubPlanTree(entry.runId, cwd);
   printAttemptStatuses(entry.attempts);
   printArtifactPaths(entry.artifactPaths);
 }
@@ -76,6 +87,6 @@ export async function runStatus(cwd: string = process.cwd(), runId?: string, opt
   console.log("");
   console.log(chalk.bold("latest runs:"));
   for (const entry of summary.latest) {
-    printRunEntry(entry);
+    printRunEntry(entry, workspace.workspacePath);
   }
 }

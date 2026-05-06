@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { executePlannedStep, splitCommandLine } from "@kiwi/runtime";
+import { ExecutePlannedStepResult, executePlannedStep, splitCommandLine } from "@kiwi/runtime";
 import { withRunLock } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
@@ -15,7 +15,7 @@ export async function runAttemptUnlocked(
   stepId: string,
   opts: AttemptOptions = {},
   cwd: string = process.cwd(),
-): Promise<void> {
+): Promise<ExecutePlannedStepResult> {
   const result = await executePlannedStep({
     cwd,
     runId,
@@ -33,6 +33,8 @@ export async function runAttemptUnlocked(
   console.log(chalk.dim(`status: ${result.status}`));
   console.log(chalk.dim(`nextAction: ${result.nextAction.type}`));
   console.log(chalk.dim(`runStatus: ${result.runStatus}`));
+
+  return result;
 }
 
 export async function runAttempt(

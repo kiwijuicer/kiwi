@@ -10,6 +10,8 @@ export * from "./review-engine";
 export * from "./planner-resolution";
 export * from "./reviewer-provider-registry";
 export * from "./runner-registry";
+export * from "./parallel-scheduler";
+export * from "./replanner";
 export * from "./runner-resolution";
 export * from "./scheduler-policy";
 export * from "./step-attempt-orchestrator";

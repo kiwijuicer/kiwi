@@ -78,6 +78,21 @@ export function plannerToolDefinition(): AnthropicToolDefinition {
             },
           },
         },
+        subPlans: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["subPlanId", "title", "stepIds", "dependsOn", "maxConcurrency"],
+            properties: {
+              subPlanId: { type: "string", pattern: "^subplan_[a-z0-9_]+$" },
+              title: { type: "string", minLength: 1 },
+              stepIds: { type: "array", minItems: 1, items: { type: "string", pattern: "^step_\\d{3}$" } },
+              dependsOn: { type: "array", items: { type: "string", pattern: "^subplan_[a-z0-9_]+$" } },
+              maxConcurrency: { type: "integer", minimum: 1 },
+            },
+          },
+        },
         acceptanceCriteria: stringArraySchema,
         assumptions: { type: "array", items: { type: "string" } },
         openQuestions: { type: "array", items: { type: "string" } },

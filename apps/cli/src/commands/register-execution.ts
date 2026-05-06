@@ -30,12 +30,28 @@ export function registerExecutionCommands(program: Command, withWorkspaceOptions
       .command("run <runId>")
       .description("Execute planned steps in order")
       .option("--from-step <stepId>", "Start at a specific step")
+      .option(
+        "--max-concurrency <number>",
+        "Maximum parallel attempts when subplans are available",
+        (value) => Number.parseInt(value, 10),
+      )
       .option("--command <command>", "Command to run for each step")
-      .option("--approved", "Treat approval-required policy checks as approved"),
+      .option("--approved", "Treat approval-required policy checks as approved")
+      .option("--auto-fix", "On needs_changes verdict, inject a fix step and continue")
+      .option("--auto-replan", "On reject verdict, write a versioned plan and stop with a hint"),
   ).action(
     (
       runId: string,
-      opts: { fromStep?: string; command?: string; approved?: boolean; workspace?: string; repo?: string },
+      opts: {
+        fromStep?: string;
+        maxConcurrency?: number;
+        command?: string;
+        approved?: boolean;
+        autoFix?: boolean;
+        autoReplan?: boolean;
+        workspace?: string;
+        repo?: string;
+      },
     ) => {
       runRun(runId, withWorkspaceOptions(opts)).catch(handleCommandError);
     },

@@ -6,6 +6,7 @@ import {
   InitiativeSource,
   ModelCapability,
   RiskProfile,
+  SubPlan,
   Step,
   StepType,
   TaskGraph,
@@ -248,6 +249,134 @@ function scoreComplexity(stepCount: number, rawInput: string): number {
   return Math.max(1, Math.min(5, score));
 }
 
+function createSubPlanId(index: number): string {
+  return `subplan_${index + 1}`;
+}
+
+function resolveRootSubPlanId(params: {
+  previousWasRoot: boolean;
+  currentRootSubPlanId: string | null;
+  subPlanCount: number;
+}): string {
+  if (params.previousWasRoot && params.currentRootSubPlanId) {
+    return params.currentRootSubPlanId;
+  }
+  return createSubPlanId(params.subPlanCount);
+}
+
+function resolveDependentSubPlanId(params: {
+  step: Step;
+  stepToSubPlan: Map<string, string>;
+  subPlanCount: number;
+}): string {
+  const firstDependency = params.step.dependsOn[0];
+  if (firstDependency) {
+    const existing = params.stepToSubPlan.get(firstDependency);
+    if (existing) return existing;
+  }
+  return createSubPlanId(params.subPlanCount);
+}
+
+function ensureSubPlan(params: {
+  subPlans: SubPlan[];
+  byId: Map<string, SubPlan>;
+  subPlanId: string;
+  title: string;
+}): SubPlan {
+  const existing = params.byId.get(params.subPlanId);
+  if (existing) return existing;
+  const created: SubPlan = {
+    subPlanId: params.subPlanId,
+    title: params.title,
+    stepIds: [],
+    dependsOn: [],
+    maxConcurrency: 1,
+  };
+  params.subPlans.push(created);
+  params.byId.set(created.subPlanId, created);
+  return created;
+}
+
+function addStepToSubPlan(params: {
+  step: Step;
+  subPlanId: string;
+  subPlans: SubPlan[];
+  subPlansById: Map<string, SubPlan>;
+  stepToSubPlan: Map<string, string>;
+}): void {
+  const targetSubPlan = ensureSubPlan({
+    subPlans: params.subPlans,
+    byId: params.subPlansById,
+    subPlanId: params.subPlanId,
+    title: `Subplan ${params.subPlans.length + 1}: ${params.step.title}`,
+  });
+  targetSubPlan.stepIds.push(params.step.stepId);
+  params.stepToSubPlan.set(params.step.stepId, targetSubPlan.subPlanId);
+}
+
+function assignSubPlanDependencies(params: {
+  subPlans: SubPlan[];
+  stepsById: Map<string, Step>;
+  stepToSubPlan: Map<string, string>;
+}): void {
+  for (const subPlan of params.subPlans) {
+    const dependsOn = new Set<string>();
+    for (const stepId of subPlan.stepIds) {
+      const step = params.stepsById.get(stepId);
+      if (!step) continue;
+      for (const dependencyStepId of step.dependsOn) {
+        const dependencySubPlanId = params.stepToSubPlan.get(dependencyStepId);
+        if (!dependencySubPlanId || dependencySubPlanId === subPlan.subPlanId) continue;
+        dependsOn.add(dependencySubPlanId);
+      }
+    }
+    subPlan.dependsOn = Array.from(dependsOn).sort();
+  }
+}
+
+export function deriveSubPlansFromSteps(steps: Step[]): SubPlan[] {
+  const subPlans: SubPlan[] = [];
+  const subPlansById = new Map<string, SubPlan>();
+  const stepToSubPlan = new Map<string, string>();
+  const stepsById = new Map(steps.map((step) => [step.stepId, step]));
+  let previousWasRoot = false;
+  let currentRootSubPlanId: string | null = null;
+
+  for (const step of steps) {
+    const rootStep = step.dependsOn.length === 0;
+    const subPlanId: string = rootStep
+      ? resolveRootSubPlanId({
+          previousWasRoot,
+          currentRootSubPlanId,
+          subPlanCount: subPlans.length,
+        })
+      : resolveDependentSubPlanId({
+          step,
+          stepToSubPlan,
+          subPlanCount: subPlans.length,
+        });
+
+    addStepToSubPlan({
+      step,
+      subPlanId,
+      subPlans,
+      subPlansById,
+      stepToSubPlan,
+    });
+
+    if (rootStep) {
+      previousWasRoot = true;
+      currentRootSubPlanId = subPlanId;
+    } else {
+      previousWasRoot = false;
+      currentRootSubPlanId = null;
+    }
+  }
+
+  assignSubPlanDependencies({ subPlans, stepsById, stepToSubPlan });
+  return subPlans;
+}
+
 export function createInitiativeFromInput(params: {
   rawInput: string;
   repoPath: string;
@@ -298,6 +427,7 @@ export function buildDeterministicTaskGraph(params: {
       status: ContractValues.Pending,
     };
   });
+  const subPlans = deriveSubPlansFromSteps(steps);
 
   const graph: TaskGraph = {
     planId: generatePlanId(now, idOptions),
@@ -305,6 +435,7 @@ export function buildDeterministicTaskGraph(params: {
     initiativeId: params.initiative.id,
     summary: `Deterministic plan for "${params.initiative.title}"`,
     steps,
+    subPlans,
     acceptanceCriteria: extractAcceptanceCriteria(params.initiative.rawInput),
     assumptions: [],
     openQuestions: [],

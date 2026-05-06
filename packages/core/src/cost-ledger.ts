@@ -43,7 +43,10 @@ export type AuditEventType =
   | "worktree_created"
   | "worktree_removed"
   | "worktree_remove_failed"
-  | "worktree_orphan_reaped";
+  | "worktree_orphan_reaped"
+  | "replan_succeeded"
+  | "replan_failed"
+  | "fix_step_injected";
 
 export interface AuditEvent {
   eventType: AuditEventType;

@@ -21,6 +21,7 @@ import { buildRunnerEnv } from "../runner-env";
 import {
   buildPlannerRepairEnvelope,
   buildPlannerUserEnvelope,
+  plannerToolDefinition,
   PLANNER_PROMPT_VERSION,
   PLANNER_SYSTEM_PROMPT,
 } from "../prompts/planner/v1";
@@ -132,7 +133,8 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
   }): Promise<PlannerProviderOutput> {
     const redactedInput = redactForProvider(params.input, params.input.policy, this.env);
     const redactedEnvelope = redactForProvider(params.userEnvelope, params.input.policy, this.env);
-    const systemPrompt = `${PLANNER_SYSTEM_PROMPT}\n\nReturn only a JSON TaskGraph; do not explain.`;
+    const plannerToolSchema = JSON.stringify(plannerToolDefinition().input_schema, null, 2);
+    const systemPrompt = `${PLANNER_SYSTEM_PROMPT}\n\nTaskGraph JSON schema:\n${plannerToolSchema}\n\nReturn only a JSON TaskGraph; do not explain.`;
     const prompt = redactedEnvelope.redacted;
     const env = buildRunnerEnv({ sourceEnv: this.env, policy: params.input.policy.commandProfiles.default });
     const invocation: ClaudeCodeCliInvocation = {

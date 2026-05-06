@@ -1,5 +1,7 @@
 import { buildRunExplanation } from "@kiwi/ops";
+import { loadTaskGraph } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
+import { formatSubPlanTreeLines } from "./subplan-tree";
 
 interface ExplainOptions extends CliWorkspaceOptions {
   json?: boolean;
@@ -10,6 +12,15 @@ function executorReasonFor(decision: unknown): string | null {
   if (typeof decision !== "object" || decision === null || !("executorReason" in decision)) return null;
   const value = (decision as { executorReason?: unknown }).executorReason;
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function printSubPlanTree(runId: string, cwd: string): void {
+  const lines = formatSubPlanTreeLines(loadTaskGraph(runId, cwd), "  ");
+  if (lines.length === 0) return;
+  console.log("subplans:");
+  for (const line of lines) {
+    console.log(line);
+  }
 }
 
 export async function runExplain(runId: string, opts: ExplainOptions = {}, cwd: string = process.cwd()): Promise<void> {
@@ -27,6 +38,7 @@ export async function runExplain(runId: string, opts: ExplainOptions = {}, cwd: 
 
   console.log(explanation.completionSummary.compact);
   console.log(`next: ${explanation.nextAction}`);
+  printSubPlanTree(runId, workspace.workspacePath);
   if (explanation.completionSummary.warnings.length > 0) {
     console.log("warnings:");
     for (const warning of explanation.completionSummary.warnings) {

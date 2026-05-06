@@ -11,7 +11,7 @@ import {
   setA2AEnabled,
   syncA2AFilesystem,
 } from "@kiwi/a2a";
-import { executePlannedStep, finalizeRun, resolvePlannerProvider, splitCommandLine } from "@kiwi/runtime";
+import { executePlannedStep, finalizeRun, resolvePlannerProvider, runScheduledSubPlans, splitCommandLine } from "@kiwi/runtime";
 import {
   buildRunCompletionSummary,
   buildRunExplanation,
@@ -95,6 +95,40 @@ async function planTool(args: Record<string, unknown>, cwd: string): Promise<unk
   };
 }
 
+interface RunStepToolResult {
+  attemptId: string;
+  status: string;
+  nextAction: unknown;
+  runStatus: string;
+}
+
+function parseMaxConcurrency(args: Record<string, unknown>): number | undefined {
+  if (typeof args.maxConcurrency === "number") return args.maxConcurrency;
+  if (typeof args.maxConcurrency !== "string" || args.maxConcurrency.trim().length === 0) return undefined;
+  const parsed = Number.parseInt(args.maxConcurrency, 10);
+  if (Number.isNaN(parsed)) {
+    throw new Error(`kiwi_run maxConcurrency must be a positive integer; received ${args.maxConcurrency}`);
+  }
+  return parsed;
+}
+
+async function runStepToolUnlocked(args: Record<string, unknown>, workspacePath: string): Promise<RunStepToolResult> {
+  const runId = String(args.runId ?? "");
+  const stepId = String(args.stepId ?? "");
+  if (!runId || !stepId) throw new Error("kiwi_run_step requires runId and stepId");
+  const input: Parameters<typeof executePlannedStep>[0] = { cwd: workspacePath, runId, stepId };
+  if (typeof args.command === "string") input.command = splitCommandLine(args.command);
+  if (args.approved === true) input.approved = true;
+  if (typeof args.attemptId === "string") input.attemptId = args.attemptId;
+  const result = await executePlannedStep(input);
+  return {
+    attemptId: result.attemptId,
+    status: result.status,
+    nextAction: result.nextAction,
+    runStatus: result.runStatus,
+  };
+}
+
 async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<unknown> {
   const runId = String(args.runId ?? "");
   const stepId = String(args.stepId ?? "");
@@ -107,18 +141,7 @@ async function runStepTool(args: Record<string, unknown>, cwd: string): Promise<
       runId,
       operation: `mcp_run_step:${stepId}`,
     },
-    async () => {
-      const input: Parameters<typeof executePlannedStep>[0] = { cwd: workspace.workspacePath, runId, stepId };
-      if (typeof args.command === "string") input.command = splitCommandLine(args.command);
-      if (args.approved === true) input.approved = true;
-      const result = await executePlannedStep(input);
-      return {
-        attemptId: result.attemptId,
-        status: result.status,
-        nextAction: result.nextAction,
-        runStatus: result.runStatus,
-      };
-    },
+    () => runStepToolUnlocked(args, workspace.workspacePath),
   );
 }
 
@@ -126,34 +149,77 @@ async function runTool(args: Record<string, unknown>, cwd: string): Promise<unkn
   const runId = String(args.runId ?? "");
   if (!runId) throw new Error("kiwi_run requires runId");
   const workspace = workspaceArgs(args, cwd, false);
-  const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
   const fromStep = typeof args.fromStep === "string" ? args.fromStep : undefined;
-  const startIndex = fromStep ? taskGraph.steps.findIndex((step) => step.stepId === fromStep) : 0;
-  if (startIndex < 0) throw new Error(`Step not found: ${fromStep}`);
-
-  const steps: unknown[] = [];
-  for (const step of taskGraph.steps.slice(startIndex)) {
-    steps.push(
-      await runStepTool(
-        {
-          ...args,
-          workspacePath: workspace.workspacePath,
-          runId,
-          stepId: step.stepId,
-        },
-        cwd,
-      ),
-    );
-    const status = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.status;
-    if (status === ContractValues.Failed || status === "needs_approval") break;
+  const maxConcurrency = parseMaxConcurrency(args);
+  if (maxConcurrency !== undefined && (!Number.isInteger(maxConcurrency) || maxConcurrency <= 0)) {
+    throw new Error(`kiwi_run maxConcurrency must be a positive integer; received ${maxConcurrency}`);
   }
-  const run = getRunStatusSummary(workspace.workspacePath, runId).latest[0];
-  return {
-    runId,
-    status: run?.status ?? "missing",
-    steps,
-    completionSummary: buildRunCompletionSummary({ cwd: workspace.workspacePath, runId }),
-  };
+
+  return withRunLock(
+    {
+      cwd: workspace.workspacePath,
+      runId,
+      operation: "mcp_run",
+    },
+    async () => {
+      const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
+      const steps: RunStepToolResult[] = [];
+
+      if (taskGraph.subPlans && taskGraph.subPlans.length > 1) {
+        await runScheduledSubPlans<{ command?: string; approved?: boolean }>({
+          cwd: workspace.workspacePath,
+          runId,
+          ...(fromStep ? { fromStep } : {}),
+          ...(maxConcurrency !== undefined ? { maxGlobalConcurrency: maxConcurrency } : {}),
+          attemptOptions: {
+            ...(typeof args.command === "string" ? { command: args.command } : {}),
+            ...(args.approved === true ? { approved: true } : {}),
+          },
+          runStep: async (_scheduledRunId, stepId, options) => {
+            steps.push(
+              await runStepToolUnlocked(
+                {
+                  ...args,
+                  workspacePath: workspace.workspacePath,
+                  runId,
+                  stepId,
+                  ...options,
+                },
+                workspace.workspacePath,
+              ),
+            );
+          },
+        });
+      } else {
+        const startIndex = fromStep ? taskGraph.steps.findIndex((step) => step.stepId === fromStep) : 0;
+        if (startIndex < 0) throw new Error(`Step not found: ${fromStep}`);
+
+        for (const step of taskGraph.steps.slice(startIndex)) {
+          steps.push(
+            await runStepToolUnlocked(
+              {
+                ...args,
+                workspacePath: workspace.workspacePath,
+                runId,
+                stepId: step.stepId,
+              },
+              workspace.workspacePath,
+            ),
+          );
+          const status = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.status;
+          if (status === ContractValues.Failed || status === "needs_approval") break;
+        }
+      }
+
+      const run = getRunStatusSummary(workspace.workspacePath, runId).latest[0];
+      return {
+        runId,
+        status: run?.status ?? "missing",
+        steps,
+        completionSummary: buildRunCompletionSummary({ cwd: workspace.workspacePath, runId }),
+      };
+    },
+  );
 }
 
 function callCoreTool(

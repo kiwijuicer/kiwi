@@ -36,6 +36,7 @@ export const ToolInputSchemas = {
   kiwi_status: OptionalRunIdSchema,
   kiwi_run: RunIdSchema.extend({
     fromStep: z.string().min(1).optional(),
+    maxConcurrency: z.number().int().positive().optional(),
     command: z.string().min(1).optional(),
     approved: z.boolean().optional(),
   }),
@@ -111,8 +112,8 @@ export class ToolInputValidationError extends Error {
 }
 
 export function validateToolArguments(name: string, args: Record<string, unknown>): Record<string, unknown> {
+  if (!Object.prototype.hasOwnProperty.call(ToolInputSchemas, name)) return args;
   const schema = ToolInputSchemas[name as ToolSchemaName];
-  if (!schema) return args;
   const parsed = schema.safeParse(args);
   if (!parsed.success) {
     throw new ToolInputValidationError(name, parsed.error.issues);

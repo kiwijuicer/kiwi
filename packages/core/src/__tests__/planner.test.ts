@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { KiwiPolicy } from "@kiwi/contracts";
-import { buildDeterministicTaskGraph, createInitiativeFromInput } from "../planner";
+import { KiwiPolicy, Step } from "@kiwi/contracts";
+import { buildDeterministicTaskGraph, createInitiativeFromInput, deriveSubPlansFromSteps } from "../planner";
 
 const policy: KiwiPolicy = {
   version: "1",
@@ -56,6 +56,15 @@ describe("deterministic planner", () => {
     expect(graph.steps.length).toBe(5);
     expect(graph.steps[0]?.stepId).toBe("step_001");
     expect(graph.steps[1]?.dependsOn).toEqual(["step_001"]);
+    expect(graph.subPlans).toEqual([
+      {
+        subPlanId: "subplan_1",
+        title: "Subplan 1: Analyze current behavior",
+        stepIds: ["step_001", "step_002", "step_003", "step_004", "step_005"],
+        dependsOn: [],
+        maxConcurrency: 1,
+      },
+    ]);
     expect(graph.initiativeId).toBe(initiative.id);
     expect(graph.assumptions).toEqual([]);
     expect(graph.openQuestions).toEqual([]);
@@ -151,5 +160,121 @@ Constraints:
     ]);
     expect(graph.steps[0]?.requiredGates).toEqual(["typecheck", "lint", "tests"]);
     expect(graph.steps[3]?.requiredGates).toEqual([]);
+  });
+
+  it("keeps linear chains in one subplan", () => {
+    const steps: Step[] = [
+      {
+        stepId: "step_001",
+        type: "planning",
+        title: "Plan",
+        dependsOn: [],
+        successCriteria: ["Defined"],
+        requiredGates: [],
+        recommendedAgentRole: "planner",
+        recommendedModelCapability: "frontier",
+        status: "pending",
+      },
+      {
+        stepId: "step_002",
+        type: "code_modification",
+        title: "Implement",
+        dependsOn: ["step_001"],
+        successCriteria: ["Done"],
+        requiredGates: [],
+        recommendedAgentRole: "executor",
+        recommendedModelCapability: "strong",
+        status: "pending",
+      },
+      {
+        stepId: "step_003",
+        type: "validation",
+        title: "Validate",
+        dependsOn: ["step_002"],
+        successCriteria: ["Green"],
+        requiredGates: [],
+        recommendedAgentRole: "reviewer",
+        recommendedModelCapability: "strong",
+        status: "pending",
+      },
+    ];
+
+    const subPlans = deriveSubPlansFromSteps(steps);
+    expect(subPlans).toEqual([
+      {
+        subPlanId: "subplan_1",
+        title: "Subplan 1: Plan",
+        stepIds: ["step_001", "step_002", "step_003"],
+        dependsOn: [],
+        maxConcurrency: 1,
+      },
+    ]);
+  });
+
+  it("splits independent chains into separate subplans", () => {
+    const steps: Step[] = [
+      {
+        stepId: "step_001",
+        type: "planning",
+        title: "Chain A - plan",
+        dependsOn: [],
+        successCriteria: ["Defined"],
+        requiredGates: [],
+        recommendedAgentRole: "planner",
+        recommendedModelCapability: "frontier",
+        status: "pending",
+      },
+      {
+        stepId: "step_002",
+        type: "code_modification",
+        title: "Chain A - implement",
+        dependsOn: ["step_001"],
+        successCriteria: ["Done"],
+        requiredGates: [],
+        recommendedAgentRole: "executor",
+        recommendedModelCapability: "strong",
+        status: "pending",
+      },
+      {
+        stepId: "step_003",
+        type: "planning",
+        title: "Chain B - plan",
+        dependsOn: [],
+        successCriteria: ["Defined"],
+        requiredGates: [],
+        recommendedAgentRole: "planner",
+        recommendedModelCapability: "frontier",
+        status: "pending",
+      },
+      {
+        stepId: "step_004",
+        type: "code_modification",
+        title: "Chain B - implement",
+        dependsOn: ["step_003"],
+        successCriteria: ["Done"],
+        requiredGates: [],
+        recommendedAgentRole: "executor",
+        recommendedModelCapability: "strong",
+        status: "pending",
+      },
+    ];
+
+    const subPlans = deriveSubPlansFromSteps(steps);
+    expect(subPlans).toEqual([
+      {
+        subPlanId: "subplan_1",
+        title: "Subplan 1: Chain A - plan",
+        stepIds: ["step_001", "step_002"],
+        dependsOn: [],
+        maxConcurrency: 1,
+      },
+      {
+        subPlanId: "subplan_2",
+        title: "Subplan 2: Chain B - plan",
+        stepIds: ["step_003", "step_004"],
+        dependsOn: [],
+        maxConcurrency: 1,
+      },
+    ]);
   });
 });

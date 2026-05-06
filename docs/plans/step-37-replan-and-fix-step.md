@@ -1,6 +1,7 @@
 # Step 37: Auto-Replan + Auto-Fix-Step
 
-Status: PLANNED
+Status: DONE
+Done-Date: 2026-05-06
 Created-Date: 2026-05-06
 Milestone: Hardening
 Depends-On: -

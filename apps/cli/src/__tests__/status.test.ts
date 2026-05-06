@@ -42,6 +42,8 @@ describe("kiwi status", () => {
     expect(output).toContain("title: Feature: Status Details");
     expect(output).toContain("plan: plan_20260504_040000_s001");
     expect(output).toContain("steps: 4");
+    expect(output).toContain("subplans:");
+    expect(output).toContain("subplan_1 [max=1]");
     expect(output).toContain(".kiwi/runs/run_20260504_040000_s001/run.json");
     expect(output).toContain(".kiwi/runs/run_20260504_040000_s001/initiative.json");
     expect(output).toContain(".kiwi/runs/run_20260504_040000_s001/plan/task-graph.json");
