@@ -6,6 +6,8 @@ export * from "./codex-cli";
 export * from "./cursor-agent-cli";
 export * from "./planner-provider";
 export * from "./provider-redaction";
+export * from "./repo-context";
+export * from "./researcher-provider";
 export * from "./reviewer-provider";
 export * from "./stub-planner-provider";
 export * from "./runner-adapter";

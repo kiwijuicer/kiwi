@@ -11,14 +11,19 @@ import {
   remainingBudgetUsdEstimate,
   refreshRunStatusFromAttempts,
 } from "@kiwi/core";
+import { KiwiPolicy, ModelEntry, RunnerNames } from "@kiwi/contracts";
 import { createWorktreeSandbox, SandboxCommandPolicy, teardownWorktreeSandbox } from "@kiwi/sandbox";
 import { commandProfileForStep, commandProfileToExecutionPolicy, noopCommand } from "./operator-policy";
 import { createReviewEngineFromRegistry } from "./provider-review-engine";
+import { ResearcherProviderRegistry } from "./researcher-provider-registry";
+import { ResearcherStepRunner } from "./researcher-step-runner";
 import { resolveRunner } from "./runner-resolution";
-import type { ExecutorSelection } from "./runner-registry";
+import type { ExecutorSelection, RunnerResolution } from "./runner-registry";
 import { runRequiredGates } from "./required-gates";
 import { scheduleStepAttempt } from "./scheduler-policy";
+import type { SchedulerDecision } from "./scheduler-policy";
 import { StepAttemptOrchestrator } from "./step-attempt-orchestrator";
+import type { StepAttemptRunner } from "./step-runner-types";
 
 export interface ExecutePlannedStepInput {
   cwd: string;
@@ -66,6 +71,58 @@ function auditExecutorModelSelected(params: {
   });
 }
 
+function selectStepRunner(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  decision: SchedulerDecision;
+  registryModels: ModelEntry[];
+  policy: KiwiPolicy;
+  runnerResolution: RunnerResolution | null;
+  isResearchStep: boolean;
+  now: Date;
+}): { runnerAdapter: StepAttemptRunner<SandboxCommandPolicy>; selectedModelId: string | null } {
+  const researcherSelection = params.isResearchStep
+    ? new ResearcherProviderRegistry().select({ registryModels: params.registryModels })
+    : null;
+  if (params.isResearchStep && !researcherSelection) {
+    throw new Error("No enabled researcher model with an available access mode found in .kiwi/model-registry.yaml");
+  }
+
+  const executorSelection = params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
+  if (executorSelection) {
+    auditExecutorModelSelected({
+      cwd: params.cwd,
+      runId: params.runId,
+      stepId: params.stepId,
+      attemptId: params.decision.attemptId,
+      runner: params.decision.runner ?? RunnerNames.Api,
+      selection: executorSelection,
+      now: params.now,
+    });
+  }
+
+  if (params.isResearchStep && researcherSelection) {
+    return {
+      runnerAdapter: new ResearcherStepRunner(
+        researcherSelection.provider,
+        researcherSelection.model,
+        params.policy,
+        researcherSelection.model.accessMode,
+      ),
+      selectedModelId: researcherSelection.model.id,
+    };
+  }
+
+  if (!params.runnerResolution || !params.decision.runner) {
+    throw new Error("Runner resolution is required for non-research steps");
+  }
+  return {
+    runnerAdapter: params.runnerResolution.buildAdapter(params.decision.runner, executorSelection?.model),
+    selectedModelId: executorSelection?.model?.id ?? null,
+  };
+}
+
 export async function executePlannedStep(input: ExecutePlannedStepInput): Promise<ExecutePlannedStepResult> {
   const policy = loadPolicy(kiwiPolicyPath(input.cwd));
   const registry = loadRegistry(kiwiModelRegistryPath(input.cwd));
@@ -80,9 +137,9 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
     stepId: input.stepId,
     dependsOn: step.dependsOn,
   });
-
   const now = input.now ?? new Date();
-  const runnerResolution = resolveRunner({ registryModels: registry.models, step });
+  const isResearchStep = step.type === "context_discovery";
+  const runnerResolution = isResearchStep ? null : resolveRunner({ registryModels: registry.models, step });
   const decision = scheduleStepAttempt({
     cwd: input.cwd,
     runId: input.runId,
@@ -97,17 +154,14 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
     blastRadius: initiative.riskProfile === "production" ? "high" : "low",
     securitySensitivity: initiative.riskProfile === "production" ? "high" : "low",
     contextSize: "small",
-    runnerAvailability: runnerResolution.runnerAvailability,
+    runnerAvailability: isResearchStep ? [RunnerNames.Api] : (runnerResolution?.runnerAvailability ?? []),
     now,
     ...(input.attemptId ? { attemptId: input.attemptId } : {}),
   });
   if (decision.status !== "scheduled") {
     throw new Error(`Step could not be scheduled: ${decision.blockedReason ?? "unknown"}`);
   }
-  if (!decision.runner) {
-    throw new Error("Scheduler selected no runner");
-  }
-
+  if (!decision.runner) throw new Error("Scheduler selected no runner");
   const approval = loadApprovalDecision({ cwd: input.cwd, runId: input.runId, attemptId: decision.attemptId });
   const approved = input.approved ?? approval?.state === "auto";
   const sandbox = createWorktreeSandbox({
@@ -124,17 +178,17 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
     policy,
     registryModels: registry.models,
   });
-  const executorSelection = runnerResolution.selectExecutorModel(decision.modelCapability);
-  auditExecutorModelSelected({
+  const { runnerAdapter, selectedModelId } = selectStepRunner({
     cwd: input.cwd,
     runId: input.runId,
     stepId: input.stepId,
-    attemptId: decision.attemptId,
-    runner: decision.runner,
-    selection: executorSelection,
+    decision,
+    registryModels: registry.models,
+    policy,
+    runnerResolution,
+    isResearchStep,
     now,
   });
-  const runnerAdapter = runnerResolution.buildAdapter(decision.runner, executorSelection.model);
   let result: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>;
   try {
     const orchestratorInput: Parameters<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>[0] = {
@@ -142,7 +196,7 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
       repoPath,
       step,
       schedulerDecision: decision,
-      selectedModelId: executorSelection.model?.id ?? null,
+      selectedModelId,
       runner: runnerAdapter,
       worktreePath: sandbox.worktreePath,
       stepPrompt: step.title,

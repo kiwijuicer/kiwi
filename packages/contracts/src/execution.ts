@@ -119,6 +119,28 @@ export const ReviewVerdictSchema = z.object({
   subject: EvidenceSubjectSchema.optional(),
 });
 
+export const ResearchReportSchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  initiativeId: z.string().regex(/^init_[a-z0-9_]+$/),
+  relevantFiles: z.array(
+    z.object({
+      path: z.string().min(1),
+      reason: z.string().min(1).optional(),
+    }),
+  ),
+  symbolsOfInterest: z.array(
+    z.object({
+      name: z.string().min(1),
+      kind: z.string().min(1).optional(),
+      filePath: z.string().min(1).optional(),
+    }),
+  ),
+  openQuestions: z.array(z.string().min(1)),
+  summary: z.string().min(1).optional(),
+  generatedAt: IsoDateTimeSchema,
+});
+
 export const ContextPackageSchema = z.object({
   runId: z.string().regex(/^run_[a-z0-9_]+$/),
   stepId: z.string().regex(/^step_\d{3}$/),
@@ -356,6 +378,7 @@ export type ReviewIssue = z.infer<typeof ReviewIssueSchema>;
 export type ReviewVerdict = z.infer<typeof ReviewVerdictSchema>;
 export type ReviewVerdictValue = z.infer<typeof ReviewVerdictValueSchema>;
 export type ReviewIssueSeverity = z.infer<typeof ReviewIssueSeveritySchema>;
+export type ResearchReport = z.infer<typeof ResearchReportSchema>;
 export type ContextPackage = z.infer<typeof ContextPackageSchema>;
 export type ContextLevel = z.infer<typeof ContextLevelSchema>;
 export type SchedulerDecision = z.infer<typeof SchedulerDecisionSchema>;

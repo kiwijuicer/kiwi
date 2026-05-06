@@ -1,5 +1,3 @@
-import { existsSync, readdirSync, statSync } from "fs";
-import path from "path";
 import {
   ANTHROPIC_MESSAGES_ENDPOINT,
   ANTHROPIC_VERSION,
@@ -25,6 +23,7 @@ import {
   PlannerProviderSchedulerErrorCodes,
 } from "./planner-provider";
 import { redactForProvider, RedactionSummary } from "./provider-redaction";
+import { buildRepoContextEnvelope, RepoContextEnvelope, renderRepoContext } from "./repo-context";
 import {
   buildPlannerRepairEnvelope,
   buildPlannerUserEnvelope,
@@ -58,6 +57,7 @@ export interface AnthropicPlannerProviderOptions {
 interface PromptBuildResult {
   request: AnthropicMessageRequest;
   redactedInput: PlannerProviderInput;
+  repoContext: RepoContextEnvelope;
   redaction: RedactionSummary;
 }
 
@@ -99,58 +99,12 @@ function providerError(params: {
   });
 }
 
-function repoSkeleton(repoPath: string): string {
-  if (!existsSync(repoPath)) {
-    return JSON.stringify({ repoPath, status: "missing" }, null, 2);
-  }
-
-  const ignored = new Set([".git", ".kiwi", "node_modules", "dist", "build", "coverage", ".turbo"]);
-  const entries: string[] = [];
-  const visit = (directory: string, depth: number): void => {
-    if (depth > 2 || entries.length >= 200) return;
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      if (ignored.has(entry.name)) continue;
-      const absolute = path.join(directory, entry.name);
-      const relative = path.relative(repoPath, absolute);
-      entries.push(entry.isDirectory() ? `${relative}/` : relative);
-      if (entry.isDirectory()) visit(absolute, depth + 1);
-      if (entries.length >= 200) return;
-    }
-  };
-
-  try {
-    const stats = statSync(repoPath);
-    if (!stats.isDirectory()) return JSON.stringify({ repoPath, status: "not_directory" }, null, 2);
-    visit(repoPath, 0);
-    return JSON.stringify(
-      {
-        repoPath,
-        capturedAt: stats.mtime.toISOString(),
-        maxDepth: 2,
-        maxEntries: 200,
-        entries,
-      },
-      null,
-      2,
-    );
-  } catch (error) {
-    return JSON.stringify(
-      {
-        repoPath,
-        status: "unreadable",
-        reason: error instanceof Error ? error.message : String(error),
-      },
-      null,
-      2,
-    );
-  }
-}
-
 function buildRequest(params: {
   input: PlannerProviderInput;
   model: string;
   maxTokens: number;
   userEnvelope: string;
+  repoContext: RepoContextEnvelope;
 }): AnthropicMessageRequest {
   return {
     model: params.model,
@@ -168,7 +122,7 @@ function buildRequest(params: {
       },
       {
         type: "text",
-        text: `Repository skeleton:\n${repoSkeleton(params.input.initiative.repoPath)}`,
+        text: `Repository context:\n${renderRepoContext(params.repoContext)}`,
         cache_control: { type: "ephemeral" },
       },
     ],
@@ -198,24 +152,34 @@ function buildPrompt(params: {
   userEnvelope: string;
   env: Record<string, string | undefined>;
 }): PromptBuildResult {
+  const repoContext = buildRepoContextEnvelope({ initiative: params.input.initiative });
   const redactedInput = redactForProvider(params.input, params.input.policy, params.env);
+  const redactedRepoContext = redactForProvider(repoContext, params.input.policy, params.env);
   const request = buildRequest({
     input: redactedInput.redacted,
     model: params.model,
     maxTokens: params.maxTokens,
     userEnvelope: params.userEnvelope,
+    repoContext: redactedRepoContext.redacted,
   });
   const redactedRequest = redactForProvider(request, params.input.policy, params.env);
 
   return {
     request: redactedRequest.redacted,
     redactedInput: redactedInput.redacted,
+    repoContext: redactedRepoContext.redacted,
     redaction: {
       secretEnvNames: redactedInput.summary.secretEnvNames,
       envSecretValuesRedacted:
-        redactedInput.summary.envSecretValuesRedacted + redactedRequest.summary.envSecretValuesRedacted,
+        redactedInput.summary.envSecretValuesRedacted +
+        redactedRepoContext.summary.envSecretValuesRedacted +
+        redactedRequest.summary.envSecretValuesRedacted,
       detectedPatterns: [
-        ...new Set([...redactedInput.summary.detectedPatterns, ...redactedRequest.summary.detectedPatterns]),
+        ...new Set([
+          ...redactedInput.summary.detectedPatterns,
+          ...redactedRepoContext.summary.detectedPatterns,
+          ...redactedRequest.summary.detectedPatterns,
+        ]),
       ].sort(),
     },
   };
@@ -288,6 +252,7 @@ function buildProviderArtifacts(params: {
       promptVersion: PLANNER_PROMPT_VERSION,
       model: params.model,
       redactedInput: params.prompt.redactedInput,
+      repoContext: params.prompt.repoContext,
       attempts,
     },
     plannerOutput: {

@@ -130,6 +130,7 @@ export {
   GateResultSchema,
   ReviewIssueSchema,
   ReviewVerdictSchema,
+  ResearchReportSchema,
   ContextPackageSchema,
   SchedulerDecisionSchema,
   BudgetProfileLimitSchema,

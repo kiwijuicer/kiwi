@@ -25,6 +25,7 @@ import {
   PLANNER_PROMPT_VERSION,
   PLANNER_SYSTEM_PROMPT,
 } from "../prompts/planner/v1";
+import { buildRepoContextEnvelope, RepoContextEnvelope, renderRepoContext } from "../repo-context";
 
 export interface ClaudeCodeCliPlannerProviderOptions {
   binary?: string;
@@ -82,6 +83,14 @@ interface RedactedInvocationArtifact {
   redaction: RedactionSummary;
 }
 
+function mergeRedactionSummaries(...summaries: RedactionSummary[]): RedactionSummary {
+  return {
+    secretEnvNames: [...new Set(summaries.flatMap((summary) => summary.secretEnvNames))].sort(),
+    envSecretValuesRedacted: summaries.reduce((total, summary) => total + summary.envSecretValuesRedacted, 0),
+    detectedPatterns: [...new Set(summaries.flatMap((summary) => summary.detectedPatterns))].sort(),
+  };
+}
+
 export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
   readonly name: string;
   readonly maxRepairAttempts: number;
@@ -133,8 +142,12 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
   }): Promise<PlannerProviderOutput> {
     const redactedInput = redactForProvider(params.input, params.input.policy, this.env);
     const redactedEnvelope = redactForProvider(params.userEnvelope, params.input.policy, this.env);
+    const repoContext = buildRepoContextEnvelope({ initiative: params.input.initiative });
+    const redactedRepoContext = redactForProvider(repoContext, params.input.policy, this.env);
     const plannerToolSchema = JSON.stringify(plannerToolDefinition().input_schema, null, 2);
-    const systemPrompt = `${PLANNER_SYSTEM_PROMPT}\n\nTaskGraph JSON schema:\n${plannerToolSchema}\n\nReturn only a JSON TaskGraph; do not explain.`;
+    const systemPrompt = `${PLANNER_SYSTEM_PROMPT}\n\nRepository context:\n${renderRepoContext(
+      redactedRepoContext.redacted as RepoContextEnvelope,
+    )}\n\nTaskGraph JSON schema:\n${plannerToolSchema}\n\nReturn only a JSON TaskGraph; do not explain.`;
     const prompt = redactedEnvelope.redacted;
     const env = buildRunnerEnv({ sourceEnv: this.env, policy: params.input.policy.commandProfiles.default });
     const invocation: ClaudeCodeCliInvocation = {
@@ -177,7 +190,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
       args: result.args,
       prompt,
       systemPrompt,
-      redaction: redactedEnvelope.summary,
+      redaction: mergeRedactionSummaries(redactedInput.summary, redactedEnvelope.summary, redactedRepoContext.summary),
     };
     const previous = previousAttempts(params.context);
     const cliArtifact = redactForProvider(result.parsed ?? result.stdout, params.input.policy, this.env);
@@ -189,6 +202,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
         accessMode: "claude-code-cli",
         model: this.model,
         redactedInput: redactedInput.redacted,
+        repoContext: redactedRepoContext.redacted,
         attempts: [...previous, attemptArtifact],
       },
       plannerOutput: {

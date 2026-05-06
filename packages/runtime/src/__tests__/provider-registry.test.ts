@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { KiwiPolicy, ModelEntry } from "@kiwi/contracts";
 import { PlannerProviderRegistry } from "../planner-provider-registry";
+import { ResearcherProviderRegistry } from "../researcher-provider-registry";
 import { ReviewerProviderRegistry } from "../reviewer-provider-registry";
 
 const policy: KiwiPolicy = {
@@ -56,5 +57,23 @@ describe("provider registries", () => {
         env: { ANTHROPIC_API_KEY: "sk-ant-test" },
       })?.provider.name,
     ).toBe("anthropic:claude-opus-4-6");
+  });
+
+  it("selects mid researcher providers with stub fallback", () => {
+    const models: ModelEntry[] = [
+      {
+        id: "stub-mid",
+        provider: "stub",
+        capability: "mid",
+        roles: ["researcher"],
+        accessMode: "stub",
+        enabled: true,
+      },
+    ];
+
+    const selected = new ResearcherProviderRegistry().select({ registryModels: models, env: { PATH: "/empty" } });
+
+    expect(selected?.model.id).toBe("stub-mid");
+    expect(selected?.provider.name).toBe("stub-researcher");
   });
 });

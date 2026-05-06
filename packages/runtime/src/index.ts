@@ -9,6 +9,8 @@ export * from "./required-gates";
 export * from "./review-engine";
 export * from "./planner-resolution";
 export * from "./reviewer-provider-registry";
+export * from "./researcher-provider-registry";
+export * from "./researcher-step-runner";
 export * from "./runner-registry";
 export * from "./parallel-scheduler";
 export * from "./replanner";

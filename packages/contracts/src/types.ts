@@ -52,6 +52,7 @@ import type {
   ReviewIssueSeveritySchema,
   ReviewVerdictSchema,
   ReviewVerdictValueSchema,
+  ResearchReportSchema,
   RiskProfileSchema,
   RunAuditSnapshotSchema,
   RunCompletionPhaseSummarySchema,
@@ -126,6 +127,7 @@ export type StepAttempt = z.infer<typeof StepAttemptSchema>;
 export type GateResult = z.infer<typeof GateResultSchema>;
 export type ReviewIssue = z.infer<typeof ReviewIssueSchema>;
 export type ReviewVerdict = z.infer<typeof ReviewVerdictSchema>;
+export type ResearchReport = z.infer<typeof ResearchReportSchema>;
 export type ScmRepositoryRef = z.infer<typeof ScmRepositoryRefSchema>;
 export type ScmTicketDraft = z.infer<typeof ScmTicketDraftSchema>;
 export type ScmTicketDraftInput = z.input<typeof ScmTicketDraftSchema>;
