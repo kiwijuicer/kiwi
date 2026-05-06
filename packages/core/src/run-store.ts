@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "fs";
 import path from "path";
 import {
   Initiative,
@@ -9,6 +9,7 @@ import {
   TaskGraphSchema,
 } from "@kiwi/contracts";
 import { RunNotFoundError } from "./errors";
+import { writeJsonSafely } from "./storage/json-io";
 
 function runsRoot(cwd: string): string {
   return path.join(cwd, ".kiwi", "runs");
@@ -54,13 +55,6 @@ export function ensureRunLayout(runId: string, cwd: string): RunLayout {
   mkdirSync(finalDir, { recursive: true });
 
   return { baseDir, planDir, stepsDir, finalDir };
-}
-
-function writeJsonSafely(target: string, value: unknown): void {
-  mkdirSync(path.dirname(target), { recursive: true });
-  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
-  renameSync(tempPath, target);
 }
 
 function readJson(target: string): unknown {

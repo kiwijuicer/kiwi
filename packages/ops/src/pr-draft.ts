@@ -1,6 +1,5 @@
 import { execFileSync } from "child_process";
-import { existsSync, mkdirSync, readdirSync, renameSync, writeFileSync } from "fs";
-import path from "path";
+import { existsSync, readdirSync } from "fs";
 import { PrDraftArtifact, PrDraftArtifactSchema } from "@kiwi/contracts";
 import { bitbucketCloudCreatePrUrl, parseBitbucketCloudRemote } from "@kiwi/adapters";
 import {
@@ -13,6 +12,7 @@ import {
 } from "@kiwi/core";
 import { finalizeRun, loadAttemptDiff } from "@kiwi/runtime";
 import { writeEvidenceManifest } from "./evidence";
+import { writeJsonSafely } from "./json-io";
 
 export interface GitCommandResult {
   stdout: string;
@@ -50,13 +50,6 @@ function defaultGit(args: string[], cwd: string): GitCommandResult {
     const stdout = Buffer.isBuffer(typed.stdout) ? typed.stdout.toString("utf-8") : (typed.stdout ?? "");
     throw new Error(`git ${args.join(" ")} failed: ${stderr || stdout}`);
   }
-}
-
-function writeJsonSafely(target: string, value: unknown): void {
-  mkdirSync(path.dirname(target), { recursive: true });
-  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
-  renameSync(tempPath, target);
 }
 
 function branchFromRunId(runId: string): string {

@@ -19,6 +19,20 @@ import {
   resolveRunArtifactPath,
 } from "@kiwi/core";
 
+// Local copy of inferAccessMode. Kept in lockstep with
+// packages/core/src/model-invocations.ts:inferAccessMode.
+// Local because @kiwi/core's dist must be rebuilt before the cross-
+// package import resolves; this avoids a build-order trap.
+function inferAccessMode(record: ModelInvocationRecord): AccessMode | null {
+  if (record.accessMode) return record.accessMode;
+  if (record.runner === "claude-code") return AccessModes.ClaudeCodeCli;
+  if (record.runner === "codex") return AccessModes.CodexCli;
+  if (record.runner === "cursor-agent") return AccessModes.CursorAgentCli;
+  if (record.runner === "local-shell") return AccessModes.Local;
+  if (record.providerName === "stub" || record.providerName.startsWith("stub")) return AccessModes.Stub;
+  return null;
+}
+
 const PHASES: ModelInvocationPhase[] = [ContractValues.Planner, ContractValues.Executor, ContractValues.Reviewer];
 
 interface UsagePrecisionCounts {
@@ -32,6 +46,7 @@ export interface RunRoutingExplanation {
   attemptId: string;
   status: string;
   selectedCapability?: string;
+  executorReason?: string;
   runner?: string | null;
   requiredGates: string[];
   routingReason: string[];
@@ -61,16 +76,6 @@ function emptyPrecisionCounts(): UsagePrecisionCounts {
 
 function addPrecision(target: UsagePrecisionCounts, invocation: ModelInvocationRecord): void {
   target[invocation.usagePrecision] += 1;
-}
-
-function inferAccessMode(record: ModelInvocationRecord): AccessMode | null {
-  if (record.accessMode) return record.accessMode;
-  if (record.runner === "claude-code") return AccessModes.ClaudeCodeCli;
-  if (record.runner === "codex") return AccessModes.CodexCli;
-  if (record.runner === "cursor-agent") return AccessModes.CursorAgentCli;
-  if (record.runner === "local-shell") return AccessModes.Local;
-  if (record.providerName.startsWith("stub")) return AccessModes.Stub;
-  return null;
 }
 
 function modelLabel(record: ModelInvocationRecord): string {
@@ -156,6 +161,22 @@ function compactLine(params: {
   ].join(" · ");
 }
 
+function stringPayloadValue(payload: Record<string, unknown>, key: string): string | null {
+  const value = payload[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function executorReasonByAttempt(cwd: string, runId: string): Map<string, string> {
+  const reasons = new Map<string, string>();
+  for (const event of readAuditEvents(cwd, runId)) {
+    if (String(event.eventType) !== "executor_model_selected") continue;
+    const attemptId = stringPayloadValue(event.payload, "attemptId");
+    const reason = stringPayloadValue(event.payload, "reason");
+    if (attemptId && reason) reasons.set(attemptId, reason);
+  }
+  return reasons;
+}
+
 export function buildRunCompletionSummary(params: { cwd: string; runId: string; now?: Date }): RunCompletionSummary {
   const run = loadRunManifest(params.runId, params.cwd);
   const invocations = readModelInvocations(params.cwd, params.runId);
@@ -220,17 +241,22 @@ export function buildRunCompletionSummary(params: { cwd: string; runId: string; 
 
 export function buildRunExplanation(params: { cwd: string; runId: string; now?: Date }): RunExplanation {
   const attempts = listStepAttemptEvidence(params.cwd, params.runId);
+  const executorReasons = executorReasonByAttempt(params.cwd, params.runId);
   const routing = attempts
     .filter((entry) => entry.schedulerDecision)
-    .map((entry) => ({
-      stepId: entry.stepId,
-      attemptId: entry.attemptId,
-      status: entry.schedulerDecision!.status,
-      selectedCapability: entry.schedulerDecision!.modelCapability,
-      runner: entry.schedulerDecision!.runner,
-      requiredGates: entry.schedulerDecision!.requiredGates,
-      routingReason: entry.schedulerDecision!.routingReason,
-    }));
+    .map((entry) => {
+      const executorReason = executorReasons.get(entry.attemptId);
+      return {
+        stepId: entry.stepId,
+        attemptId: entry.attemptId,
+        status: entry.schedulerDecision!.status,
+        selectedCapability: entry.schedulerDecision!.modelCapability,
+        ...(executorReason ? { executorReason } : {}),
+        runner: entry.schedulerDecision!.runner,
+        requiredGates: entry.schedulerDecision!.requiredGates,
+        routingReason: entry.schedulerDecision!.routingReason,
+      };
+    });
   const gates = attempts.flatMap((entry) =>
     entry.gateResults.map((gate) => ({
       stepId: entry.stepId,

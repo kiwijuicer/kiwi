@@ -2,7 +2,7 @@ import { ContractValues, RunManifest, RunManifestSchema, RunStatus } from "@kiwi
 import { appendAuditEvent } from "../cost-ledger";
 import { loadRunManifest, loadTaskGraph, resolveRunArtifactPath } from "../run-store";
 import { listStepAttemptEvidence } from "./evidence-collection";
-import { writeJsonSafely } from "./files";
+import { writeJsonSafely } from "../storage/json-io";
 
 export function updateRunStatus(params: { cwd: string; runId: string; status: RunStatus; now?: Date }): RunManifest {
   const current = loadRunManifest(params.runId, params.cwd);

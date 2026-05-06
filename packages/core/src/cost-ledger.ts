@@ -1,7 +1,8 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { BudgetProfile } from "@kiwi/contracts";
 import { ensureRunLayout, resolveRunArtifactPath } from "./run-store";
+import { appendJsonLine, writeJsonSafely } from "./storage/json-io";
 
 export type AuditEventType =
   | "planner_provider_selected"
@@ -16,6 +17,7 @@ export type AuditEventType =
   | "reviewer_failed"
   | "scheduler_routing_decided"
   | "scheduler_blocked"
+  | "executor_model_selected"
   | "context_package_created"
   | "step_attempt_started"
   | "runner_attempt_completed"
@@ -73,17 +75,8 @@ function auditLogPath(cwd: string): string {
   return path.join(cwd, ".kiwi", "logs", "audit.log");
 }
 
-function writeJsonSafely(target: string, value: unknown): void {
-  mkdirSync(path.dirname(target), { recursive: true });
-  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
-  renameSync(tempPath, target);
-}
-
 export function appendAuditEvent(cwd: string, event: AuditEvent): void {
-  const target = auditLogPath(cwd);
-  mkdirSync(path.dirname(target), { recursive: true });
-  appendFileSync(target, `${JSON.stringify(event)}\n`, "utf-8");
+  appendJsonLine(auditLogPath(cwd), event);
 }
 
 export function readAuditEvents(cwd: string, runId?: string): AuditEvent[] {

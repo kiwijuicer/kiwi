@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import os from "os";
 import path from "path";
 import { describe, expect, it, vi } from "vitest";
-import { kiwiPolicyPath } from "@kiwi/core";
+import { kiwiPolicyPath, readAuditEvents } from "@kiwi/core";
 import { runAttempt } from "../commands/attempt";
 import { runCost } from "../commands/cost";
 import { runEvidenceManifest } from "../commands/evidence";
@@ -141,7 +141,17 @@ describe("kiwi operator flow", () => {
     const explainOutput = explainSpy.mock.calls.flat().join("\n");
     explainSpy.mockRestore();
     expect(explainOutput).toContain("routing:");
+    expect(explainOutput).toContain("executor:stub_fallback");
     expect(explainOutput).toContain("gates:");
+    const executorEvent = readAuditEvents(cwd, "run_20260504_090000_op01").find(
+      (event) => event.eventType === "executor_model_selected",
+    );
+    expect(executorEvent?.payload).toMatchObject({
+      attemptId: "attempt_001",
+      requestedCapability: "strong",
+      selectedCapability: "strong",
+      reason: "stub_fallback",
+    });
   });
 
   it("blocks direct attempts when dependencies are incomplete and releases the run lock", async () => {

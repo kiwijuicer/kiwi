@@ -6,6 +6,12 @@ interface ExplainOptions extends CliWorkspaceOptions {
   now?: Date;
 }
 
+function executorReasonFor(decision: unknown): string | null {
+  if (typeof decision !== "object" || decision === null || !("executorReason" in decision)) return null;
+  const value = (decision as { executorReason?: unknown }).executorReason;
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 export async function runExplain(runId: string, opts: ExplainOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   const explanation = buildRunExplanation({
@@ -24,8 +30,10 @@ export async function runExplain(runId: string, opts: ExplainOptions = {}, cwd: 
   if (explanation.routing.length > 0) {
     console.log("routing:");
     for (const decision of explanation.routing) {
+      const executorReason = executorReasonFor(decision);
+      const executorSuffix = executorReason ? ` executor:${executorReason}` : "";
       console.log(
-        `  ${decision.stepId}/${decision.attemptId} ${decision.status} capability:${decision.selectedCapability ?? "unknown"} runner:${decision.runner ?? "none"} reasons:${decision.routingReason.join(",") || "none"}`,
+        `  ${decision.stepId}/${decision.attemptId} ${decision.status} capability:${decision.selectedCapability ?? "unknown"} runner:${decision.runner ?? "none"}${executorSuffix} reasons:${decision.routingReason.join(",") || "none"}`,
       );
     }
   }

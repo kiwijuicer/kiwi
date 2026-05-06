@@ -1,5 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
-import path from "path";
+import { existsSync, readFileSync } from "fs";
 import {
   BudgetProfileLimit,
   ContractValues,
@@ -18,6 +17,7 @@ import {
   budgetSoftCapExceeded,
   ensureRunLayout,
   resolveRunArtifactPath,
+  writeJsonSafely,
 } from "@kiwi/core";
 import type {
   BlastRadius,
@@ -73,13 +73,6 @@ const CAPABILITY_RANK: Record<ModelCapability, number> = {
   strong: 2,
   frontier: 3,
 };
-
-function writeJsonSafely(target: string, value: unknown): void {
-  mkdirSync(path.dirname(target), { recursive: true });
-  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
-  renameSync(tempPath, target);
-}
 
 function defaultAttemptId(now: Date): string {
   const stamp = now

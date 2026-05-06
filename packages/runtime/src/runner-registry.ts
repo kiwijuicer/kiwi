@@ -5,13 +5,41 @@ import {
   LocalShellRunnerAdapter,
   RunnerAdapter,
 } from "@kiwi/adapters";
-import { AccessMode, AccessModes, ContractValues, ModelEntry, RunnerName, RunnerNames, Step } from "@kiwi/contracts";
+import {
+  AccessMode,
+  AccessModes,
+  ContractValues,
+  ModelCapability,
+  ModelEntry,
+  RunnerName,
+  RunnerNames,
+  Step,
+} from "@kiwi/contracts";
 import { AccessModeAvailability, evaluateAccessModeAvailability } from "./access-mode-resolver";
 
 export interface RunnerResolutionOptions {
   registryModels: ModelEntry[];
   step: Step;
+  /**
+   * Capability the scheduler decided on (post downgrade/escalation).
+   * If omitted, falls back to `step.recommendedModelCapability`.
+   */
+  requestedCapability?: ModelCapability;
   env?: Record<string, string | undefined>;
+}
+
+export type ExecutorSelectionReason =
+  | "exact_match"
+  | "escalated_for_availability"
+  | "fell_back_to_lower"
+  | "stub_fallback"
+  | "no_model_available";
+
+export interface ExecutorSelection {
+  model: ModelEntry | null;
+  requestedCapability: ModelCapability;
+  selectedCapability: ModelCapability | null;
+  reason: ExecutorSelectionReason;
 }
 
 export interface RunnerAvailabilityDetail {
@@ -36,8 +64,18 @@ export interface RunnerDefinition {
 export interface RunnerResolution {
   runnerAvailability: RunnerName[];
   runnerAvailabilityDetails: RunnerAvailabilityDetail[];
-  buildAdapter(runner: RunnerName): RunnerAdapter;
+  buildAdapter(runner: RunnerName, executorModel?: ModelEntry | null): RunnerAdapter;
+  /**
+   * Backwards-compatible: resolves the executor model with the step's
+   * recommended capability if the caller did not supply
+   * `requestedCapability`. Prefer calling {@link selectExecutorModel}
+   * after the scheduler has produced its final capability decision.
+   */
   selectedExecutorModel: ModelEntry | null;
+  /** Detailed selection trace for the recommended capability. */
+  executorSelection: ExecutorSelection;
+  /** Re-run the executor selection with a different capability. */
+  selectExecutorModel(requestedCapability: ModelCapability): ExecutorSelection;
 }
 
 export interface RunnerRegistryOptions {
@@ -132,19 +170,121 @@ function defaultRunnerDefinitions(): RunnerDefinition[] {
   ];
 }
 
-function pickExecutorModel(models: ModelEntry[], env: Record<string, string | undefined>): ModelEntry | null {
-  const enabled = models.filter(
-    (model) =>
-      model.enabled &&
-      model.roles.includes(ContractValues.Executor) &&
-      (model.capability === ContractValues.Strong || model.capability === ContractValues.Mid),
-  );
+const CAPABILITY_RANK: Record<ModelCapability, number> = {
+  cheap: 0,
+  mid: 1,
+  strong: 2,
+  frontier: 3,
+};
+const CAPABILITY_ORDER: ModelCapability[] = [
+  ContractValues.Cheap,
+  ContractValues.Mid,
+  ContractValues.Strong,
+  ContractValues.Frontier,
+];
+
+function isAccessAvailable(model: ModelEntry, env: Record<string, string | undefined>): boolean {
+  if (env.KIWI_FORCE_ACCESS_MODE && model.accessMode !== env.KIWI_FORCE_ACCESS_MODE) return false;
+  if (model.accessMode === AccessModes.Stub) return true;
+  return evaluateAccessModeAvailability(model.accessMode, env).available;
+}
+
+function preferAccessOrder(candidates: ModelEntry[], env: Record<string, string | undefined>): ModelEntry | null {
   for (const accessMode of EXECUTOR_ACCESS_MODE_ORDER) {
-    const candidate = enabled.find((entry) => entry.accessMode === accessMode);
-    if (candidate && evaluateAccessModeAvailability(accessMode, env).available) return candidate;
+    const candidate = candidates.find((entry) => entry.accessMode === accessMode);
+    if (candidate && isAccessAvailable(candidate, env)) return candidate;
   }
-  const stub = enabled.find((entry) => entry.accessMode === AccessModes.Stub);
-  return stub ?? null;
+  return null;
+}
+
+function preferCapabilityAndAccessOrder(params: {
+  candidates: ModelEntry[];
+  capabilities: ModelCapability[];
+  env: Record<string, string | undefined>;
+}): ModelEntry | null {
+  for (const capability of params.capabilities) {
+    const pick = preferAccessOrder(
+      params.candidates.filter((entry) => entry.capability === capability),
+      params.env,
+    );
+    if (pick) return pick;
+  }
+  return null;
+}
+
+function preferStub(candidates: ModelEntry[], requested: ModelCapability): ModelEntry | null {
+  const requestedRank = CAPABILITY_RANK[requested];
+  const atOrAbove = CAPABILITY_ORDER.filter((capability) => CAPABILITY_RANK[capability] >= requestedRank);
+  const below = CAPABILITY_ORDER.filter((capability) => CAPABILITY_RANK[capability] < requestedRank).reverse();
+  for (const capability of [...atOrAbove, ...below]) {
+    const pick = candidates.find((entry) => entry.capability === capability);
+    if (pick) return pick;
+  }
+  return null;
+}
+
+/**
+ * Pick the cheapest enabled executor model whose capability is at least
+ * `requested` and whose access mode is available. Falls back to a lower
+ * tier and finally to stub if nothing matches.
+ */
+function pickExecutorModel(
+  models: ModelEntry[],
+  env: Record<string, string | undefined>,
+  requested: ModelCapability,
+): ExecutorSelection {
+  const enabled = models.filter((model) => model.enabled && model.roles.includes(ContractValues.Executor));
+  if (enabled.length === 0) {
+    return {
+      model: null,
+      requestedCapability: requested,
+      selectedCapability: null,
+      reason: "no_model_available",
+    };
+  }
+  const requestedRank = CAPABILITY_RANK[requested];
+  const nonStub = enabled.filter((model) => model.accessMode !== AccessModes.Stub);
+  const stubs = enabled.filter((model) => model.accessMode === AccessModes.Stub);
+
+  const atOrAbove = CAPABILITY_ORDER.filter((capability) => CAPABILITY_RANK[capability] >= requestedRank);
+  const adequatePick = preferCapabilityAndAccessOrder({ candidates: nonStub, capabilities: atOrAbove, env });
+  if (adequatePick) {
+    return {
+      model: adequatePick,
+      requestedCapability: requested,
+      selectedCapability: adequatePick.capability,
+      reason: adequatePick.capability === requested ? "exact_match" : "escalated_for_availability",
+    };
+  }
+
+  const below = CAPABILITY_ORDER.filter((capability) => CAPABILITY_RANK[capability] < requestedRank).reverse();
+  const lowerPick = preferCapabilityAndAccessOrder({ candidates: nonStub, capabilities: below, env });
+  if (lowerPick) {
+    return {
+      model: lowerPick,
+      requestedCapability: requested,
+      selectedCapability: lowerPick.capability,
+      reason: "fell_back_to_lower",
+    };
+  }
+
+  const stubAvailable = !env.KIWI_FORCE_ACCESS_MODE || env.KIWI_FORCE_ACCESS_MODE === AccessModes.Stub;
+  const stub = stubAvailable ? preferStub(stubs, requested) : null;
+  if (stub) {
+    return {
+      model: stub,
+      requestedCapability: requested,
+      selectedCapability: stub.capability,
+      reason: "stub_fallback",
+    };
+  }
+
+  return {
+    model: null,
+    requestedCapability: requested,
+    selectedCapability: null,
+    reason: "no_model_available",
+  };
 }
 
 function priorityForStep(step: Step): RunnerName[] {
@@ -175,13 +315,18 @@ export class RunnerRegistry {
       .filter((entry) => entry.available)
       .map((entry) => entry.runner)
       .sort((a, b) => priority.indexOf(a) - priority.indexOf(b));
-    const selectedExecutorModel = pickExecutorModel(options.registryModels, env);
+    const requestedCapability = options.requestedCapability ?? options.step.recommendedModelCapability;
+    const executorSelection = pickExecutorModel(options.registryModels, env, requestedCapability);
+    const selectExecutorModel = (capability: ModelCapability): ExecutorSelection =>
+      pickExecutorModel(options.registryModels, env, capability);
 
     return {
       runnerAvailability,
       runnerAvailabilityDetails: details,
-      buildAdapter: (runner) => this.buildAdapter(runner, { env, selectedExecutorModel }),
-      selectedExecutorModel,
+      buildAdapter: (runner, executorModel) => this.buildAdapter(runner, { env, selectedExecutorModel: executorModel ?? null }),
+      selectedExecutorModel: executorSelection.model,
+      executorSelection,
+      selectExecutorModel,
     };
   }
 

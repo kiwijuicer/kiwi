@@ -1,21 +1,15 @@
 import { createHash } from "crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "fs";
 import path from "path";
 import { EvidenceManifest, EvidenceManifestSchema, RunAuditSnapshot, RunAuditSnapshotSchema } from "@kiwi/contracts";
 import { appendAuditEvent, ensureRunLayout, readAuditEvents, resolveRunArtifactPath } from "@kiwi/core";
+import { writeJsonSafely } from "./json-io";
 
 export interface EvidenceManifestResult {
   manifest: EvidenceManifest;
   manifestRef: string;
   auditSnapshot: RunAuditSnapshot;
   auditSnapshotRef: string;
-}
-
-function writeJsonSafely(target: string, value: unknown): void {
-  mkdirSync(path.dirname(target), { recursive: true });
-  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
-  renameSync(tempPath, target);
 }
 
 function runRoot(cwd: string, runId: string): string {

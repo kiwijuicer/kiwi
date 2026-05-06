@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import { ApprovalDecision, ApprovalDecisionSchema } from "@kiwi/contracts";
 import { appendAuditEvent } from "../cost-ledger";
 import { ensureRunLayout, resolveRunArtifactPath } from "../run-store";
-import { readJson, writeJsonSafely } from "./files";
+import { readJson, writeJsonSafely } from "../storage/json-io";
 
 export function recordApprovalDecision(params: {
   cwd: string;

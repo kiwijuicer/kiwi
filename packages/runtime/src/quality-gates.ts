@@ -1,5 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
-import path from "path";
+import { existsSync, readFileSync } from "fs";
 import {
   ContractValues,
   EvidenceSubject,
@@ -9,7 +8,7 @@ import {
   GateType,
   KiwiPolicy,
 } from "@kiwi/contracts";
-import { resolveRunArtifactPath } from "@kiwi/core";
+import { resolveRunArtifactPath, writeJsonSafely } from "@kiwi/core";
 
 export interface CreateGateResultParams {
   gateType: GateType;
@@ -26,13 +25,6 @@ export interface QualityGateSummary {
   failingGateIds: string[];
   blockedGateIds: string[];
   evidenceRefs: string[];
-}
-
-function writeJsonSafely(target: string, value: unknown): void {
-  mkdirSync(path.dirname(target), { recursive: true });
-  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
-  renameSync(tempPath, target);
 }
 
 export function createGateResult(params: CreateGateResultParams): GateResult {

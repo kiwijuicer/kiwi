@@ -1,5 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
-import path from "path";
+import { existsSync, readFileSync } from "fs";
 import {
   AgentRole,
   Artifact,
@@ -11,7 +10,7 @@ import {
   StepAttemptStatus,
   UsagePrecision,
 } from "@kiwi/contracts";
-import { resolveRunArtifactPath } from "@kiwi/core";
+import { resolveRunArtifactPath, writeJsonSafely } from "@kiwi/core";
 import type {
   StepAttemptNextAction,
   StepRunnerExecutionError,
@@ -52,13 +51,6 @@ interface AttemptSummary {
   artifactRefs: string[];
   completedAt: string;
   error?: StepRunnerExecutionError;
-}
-
-function writeJsonSafely(target: string, value: unknown): void {
-  mkdirSync(path.dirname(target), { recursive: true });
-  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
-  renameSync(tempPath, target);
 }
 
 function attemptRef(stepId: string, attemptId: string): string {

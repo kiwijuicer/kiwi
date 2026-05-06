@@ -1,19 +1,5 @@
 {
-  "generatedAt": "2026-05-04T18:03:39.192Z",
-  "issueKeys": [
-    "apps/cli/src/commands/status.ts|sonarjs/cognitive-complexity|1|Refactor this function to reduce its Cognitive Complexity from 25 to the 20 allowed.|export async function runStatus(",
-    "apps/mcp-server/src/index.ts|max-lines|1|File has too many lines (857). Maximum allowed is 600.|if (value.length === 0) {",
-    "apps/mcp-server/src/index.ts|sonarjs/cognitive-complexity|1|Refactor this function to reduce its Cognitive Complexity from 21 to the 20 allowed.|return async function drainMessages(chunk: Buffer): Promise<void> {",
-    "apps/mcp-server/src/index.ts|sonarjs/cognitive-complexity|1|Refactor this function to reduce its Cognitive Complexity from 30 to the 20 allowed.|function readResource(uri: string, cwd: string): McpResourceContent {",
-    "apps/mcp-server/src/index.ts|sonarjs/cognitive-complexity|1|Refactor this function to reduce its Cognitive Complexity from 34 to the 20 allowed.|async function callTool(name: string, args: Record<string, unknown>, cwd: string): Promise<unknown> {",
-    "packages/core/src/a2a-runtime.ts|max-lines-per-function|1|Function 'handleA2AEnvelope' has too many lines (201). Maximum allowed is 120.|export function handleA2AEnvelope(input: HandleA2AEnvelopeInput): HandleA2AEnvelopeResult {",
-    "packages/core/src/a2a-runtime.ts|max-lines|1|File has too many lines (820). Maximum allowed is 600.|moveA2AFile({",
-    "packages/core/src/a2a-runtime.ts|sonarjs/cognitive-complexity|1|Refactor this function to reduce its Cognitive Complexity from 28 to the 20 allowed.|export function handleA2AEnvelope(input: HandleA2AEnvelopeInput): HandleA2AEnvelopeResult {",
-    "packages/core/src/lifecycle.ts|sonarjs/cognitive-complexity|1|Refactor this function to reduce its Cognitive Complexity from 27 to the 20 allowed.|export function listStepAttemptEvidence(cwd: string, runId: string): StepAttemptEvidence[] {",
-    "packages/core/src/planner-run.ts|max-lines-per-function|1|Async function 'planRun' has too many lines (191). Maximum allowed is 120.|export async function planRun(params: PlanRunParams): Promise<PlanRunResult> {",
-    "packages/core/src/step-attempt-orchestrator.ts|max-lines-per-function|1|Async method 'execute' has too many lines (252). Maximum allowed is 120.|async execute(input: ExecuteStepAttemptInput<TCommandPolicy>): Promise<StepAttemptOrchestrationResult> {",
-    "packages/core/src/step-attempt-orchestrator.ts|max-lines|1|File has too many lines (618). Maximum allowed is 600.|runnerStatus: runnerOutput.status,",
-    "packages/sandbox/src/index.ts|max-lines-per-function|1|Async function 'executeSandboxCommand' has too many lines (122). Maximum allowed is 120.|export async function executeSandboxCommand(input: SandboxCommandInput): Promise<SandboxCommandOutput> {"
-  ],
+  "generatedAt": "2026-05-06T11:16:42.998Z",
+  "issueKeys": [],
   "ignoredRuleIds": []
 }

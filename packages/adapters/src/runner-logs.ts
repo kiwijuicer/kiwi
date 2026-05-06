@@ -2,6 +2,10 @@ import { mkdirSync, renameSync, writeFileSync } from "fs";
 import path from "path";
 import { Artifact } from "@kiwi/contracts";
 
+// Local copy of writeJsonSafely. Adapters is a low-level package
+// without a runtime dependency on @kiwi/core, so the same atomic
+// JSON write is duplicated here. Keep this in lockstep with
+// packages/core/src/storage/json-io.ts.
 function writeJsonSafely(target: string, value: unknown): void {
   mkdirSync(path.dirname(target), { recursive: true });
   const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;

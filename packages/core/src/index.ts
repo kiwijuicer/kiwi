@@ -5,6 +5,7 @@ export * from "./workspace";
 export * from "./planner";
 export * from "./run-store";
 export * from "./status";
+export * from "./storage/json-io";
 export * from "./cost-ledger";
 export * from "./budget-policy";
 export * from "./model-invocations";

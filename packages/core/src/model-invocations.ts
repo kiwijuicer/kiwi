@@ -1,5 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
-import path from "path";
+import { existsSync, readFileSync } from "fs";
 import {
   AccessMode,
   AccessModes,
@@ -14,16 +13,10 @@ import {
 } from "@kiwi/contracts";
 import { appendAuditEvent } from "./cost-ledger";
 import { ensureRunLayout, resolveRunArtifactPath } from "./run-store";
+import { appendJsonLine, writeJsonSafely } from "./storage/json-io";
 
 export const MODEL_INVOCATIONS_REF = "model-invocations.jsonl";
 export const MODEL_USAGE_SUMMARY_REF = "final/model-usage-summary.json";
-
-function writeJsonSafely(target: string, value: unknown): void {
-  mkdirSync(path.dirname(target), { recursive: true });
-  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
-  renameSync(tempPath, target);
-}
 
 function emptyTotals(): ModelUsageSummaryTotals {
   return {
@@ -39,13 +32,13 @@ function addTotals(target: ModelUsageSummaryTotals, record: ModelInvocationRecor
   target.estimatedCostUsd += record.estimatedCostUsd ?? 0;
 }
 
-function inferAccessMode(record: ModelInvocationRecord): AccessMode | null {
+export function inferAccessMode(record: ModelInvocationRecord): AccessMode | null {
   if (record.accessMode) return record.accessMode;
   if (record.runner === "claude-code") return AccessModes.ClaudeCodeCli;
   if (record.runner === "codex") return AccessModes.CodexCli;
   if (record.runner === "cursor-agent") return AccessModes.CursorAgentCli;
   if (record.runner === "local-shell") return AccessModes.Local;
-  if (record.providerName === "stub") return AccessModes.Stub;
+  if (record.providerName === "stub" || record.providerName.startsWith("stub")) return AccessModes.Stub;
   return null;
 }
 
@@ -74,8 +67,7 @@ export function appendModelInvocation(cwd: string, record: ModelInvocationRecord
   const parsed = ModelInvocationRecordSchema.parse(record);
   ensureRunLayout(parsed.runId, cwd);
   const target = resolveRunArtifactPath(parsed.runId, MODEL_INVOCATIONS_REF, cwd);
-  mkdirSync(path.dirname(target), { recursive: true });
-  appendFileSync(target, `${JSON.stringify(parsed)}\n`, "utf-8");
+  appendJsonLine(target, parsed);
   appendAuditEvent(cwd, {
     eventType: "model_invocation_recorded",
     runId: parsed.runId,

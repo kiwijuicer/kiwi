@@ -1,3 +1,4 @@
+import { extractTextJson } from "../anthropic-common";
 import {
   ClaudeCodeCliInvocation,
   ClaudeCodeCliRunner,
@@ -38,22 +39,6 @@ const DEFAULT_TIMEOUT_MS = 180_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function tryParseJson(value: string): unknown {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  try {
-    return JSON.parse(trimmed) as unknown;
-  } catch {
-    const match = trimmed.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]) as unknown;
-    } catch {
-      return null;
-    }
-  }
 }
 
 function providerError(params: {
@@ -172,7 +157,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
     }
 
     const text = extractCliResultText(result.parsed, result.stdout);
-    const taskGraph = tryParseJson(text);
+    const taskGraph = extractTextJson(text);
     if (taskGraph === null) {
       throw providerError({
         code: "provider_schema_invalid",

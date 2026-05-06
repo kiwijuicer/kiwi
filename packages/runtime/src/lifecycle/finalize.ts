@@ -1,5 +1,4 @@
-import { mkdirSync, renameSync, writeFileSync } from "fs";
-import path from "path";
+import { writeFileSync } from "fs";
 import {
   ContractValues,
   FinalCostReport,
@@ -19,6 +18,7 @@ import {
   resolveRunArtifactPath,
   StepAttemptEvidence,
   updateRunStatus,
+  writeJsonSafely,
   writeModelUsageSummary,
 } from "@kiwi/core";
 import { loadAttemptDiff } from "../review-engine";
@@ -40,13 +40,6 @@ const REQUIRED_GATE_TYPES = new Set<GateType>([
   GateTypes.ForbiddenFileChecks,
   GateTypes.SecretsCheck,
 ]);
-
-function writeJsonSafely(target: string, value: unknown): void {
-  mkdirSync(path.dirname(target), { recursive: true });
-  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, JSON.stringify(value, null, 2), "utf-8");
-  renameSync(tempPath, target);
-}
 
 function requiredGateTypes(requiredGates: string[]): GateType[] {
   return requiredGates.filter((entry): entry is GateType => REQUIRED_GATE_TYPES.has(entry as GateType));

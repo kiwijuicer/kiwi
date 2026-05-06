@@ -43,6 +43,21 @@ const models: ModelEntry[] = [
   },
 ];
 
+function executorModel(
+  id: string,
+  capability: ModelEntry["capability"],
+  accessMode: ModelEntry["accessMode"],
+): ModelEntry {
+  return {
+    id,
+    provider: accessMode === "stub" ? "stub" : "local",
+    capability,
+    roles: ["executor"],
+    enabled: true,
+    accessMode,
+  };
+}
+
 describe("runner resolution", () => {
   it("reports cursor-agent availability and builds its adapter when the local CLI is available", () => {
     const resolution = resolveRunner({
@@ -75,6 +90,71 @@ describe("runner resolution", () => {
     });
     expect(resolution.buildAdapter("codex").name).toBe("codex");
     expect(resolution.selectedExecutorModel?.accessMode).toBe("codex-cli");
+  });
+
+  it("honors a cheap scheduler decision before choosing stronger executor models", () => {
+    const resolution = resolveRunner({
+      registryModels: [
+        executorModel("claude-sonnet", "strong", "claude-code-cli"),
+        executorModel("anthropic-haiku", "cheap", "anthropic-api"),
+      ],
+      step: codingStep,
+      requestedCapability: "cheap",
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1", ANTHROPIC_API_KEY: "test-key" },
+    });
+
+    expect(resolution.executorSelection).toMatchObject({
+      requestedCapability: "cheap",
+      selectedCapability: "cheap",
+      reason: "exact_match",
+    });
+    expect(resolution.selectedExecutorModel?.id).toBe("anthropic-haiku");
+  });
+
+  it("escalates to the lowest available stronger executor model", () => {
+    const resolution = resolveRunner({
+      registryModels: [executorModel("claude-sonnet", "strong", "claude-code-cli")],
+      step: codingStep,
+      requestedCapability: "cheap",
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
+    });
+
+    expect(resolution.executorSelection).toMatchObject({
+      requestedCapability: "cheap",
+      selectedCapability: "strong",
+      reason: "escalated_for_availability",
+    });
+    expect(resolution.selectedExecutorModel?.id).toBe("claude-sonnet");
+  });
+
+  it("keeps stub executor models behind available real models", () => {
+    const resolution = resolveRunner({
+      registryModels: [
+        executorModel("stub-cheap", "cheap", "stub"),
+        executorModel("claude-sonnet", "strong", "claude-code-cli"),
+      ],
+      step: codingStep,
+      requestedCapability: "cheap",
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
+    });
+
+    expect(resolution.executorSelection.reason).toBe("escalated_for_availability");
+    expect(resolution.selectedExecutorModel?.id).toBe("claude-sonnet");
+  });
+
+  it("falls back to a lower executor tier when no adequate model is available", () => {
+    const resolution = resolveRunner({
+      registryModels: [executorModel("codex-auto", "strong", "codex-cli")],
+      step: codingStep,
+      requestedCapability: "frontier",
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
+    });
+
+    expect(resolution.executorSelection).toMatchObject({
+      requestedCapability: "frontier",
+      selectedCapability: "strong",
+      reason: "fell_back_to_lower",
+    });
   });
 
   it("does not advertise unimplemented api runner adapters", () => {

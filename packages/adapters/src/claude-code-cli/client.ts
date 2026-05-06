@@ -1,3 +1,4 @@
+import { extractTextJson } from "../anthropic-common";
 import { runSubprocess } from "../subprocess";
 
 export interface ClaudeCodeCliInvocation {
@@ -30,22 +31,6 @@ export interface ClaudeCodeCliResult {
 
 export interface ClaudeCodeCliRunner {
   run(invocation: ClaudeCodeCliInvocation): Promise<ClaudeCodeCliResult>;
-}
-
-function tryParseJson(text: string): unknown {
-  const trimmed = text.trim();
-  if (!trimmed) return null;
-  try {
-    return JSON.parse(trimmed) as unknown;
-  } catch {
-    const match = trimmed.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]) as unknown;
-    } catch {
-      return null;
-    }
-  }
 }
 
 function buildArgs(invocation: ClaudeCodeCliInvocation): string[] {
@@ -82,7 +67,9 @@ export class DefaultClaudeCodeCliRunner implements ClaudeCodeCliRunner {
       timeoutMs: invocation.timeoutMs,
     });
     const parsed =
-      invocation.outputFormat === "json" || invocation.outputFormat === undefined ? tryParseJson(result.stdout) : null;
+      invocation.outputFormat === "json" || invocation.outputFormat === undefined
+        ? extractTextJson(result.stdout)
+        : null;
     return {
       ...result,
       parsed,

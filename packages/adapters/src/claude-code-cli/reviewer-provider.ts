@@ -6,6 +6,7 @@ import {
   normalizeUsageFromCli,
 } from "./client";
 import { ContractValues, KiwiPolicy } from "@kiwi/contracts";
+import { extractTextJson } from "../anthropic-common";
 import { redactForProvider, RedactionSummary } from "../provider-redaction";
 import { buildRunnerEnv } from "../runner-env";
 import {
@@ -40,22 +41,6 @@ export interface ClaudeCodeCliReviewerProviderOptions {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function tryParseJson(value: string): unknown {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  try {
-    return JSON.parse(trimmed) as unknown;
-  } catch {
-    const match = trimmed.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]) as unknown;
-    } catch {
-      return null;
-    }
-  }
 }
 
 function providerError(params: {
@@ -175,7 +160,7 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
     }
 
     const text = extractCliResultText(result.parsed, result.stdout);
-    const reviewVerdict = tryParseJson(text);
+    const reviewVerdict = extractTextJson(text);
     if (reviewVerdict === null) {
       throw providerError({
         code: "provider_schema_invalid",

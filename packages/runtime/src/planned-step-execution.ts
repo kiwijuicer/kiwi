@@ -1,4 +1,5 @@
 import {
+  appendAuditEvent,
   assertStepDependenciesCompleted,
   kiwiModelRegistryPath,
   kiwiPolicyPath,
@@ -14,6 +15,7 @@ import { createWorktreeSandbox, SandboxCommandPolicy, teardownWorktreeSandbox } 
 import { commandProfileForStep, commandProfileToExecutionPolicy, noopCommand } from "./operator-policy";
 import { createReviewEngineFromRegistry } from "./provider-review-engine";
 import { resolveRunner } from "./runner-resolution";
+import type { ExecutorSelection } from "./runner-registry";
 import { runRequiredGates } from "./required-gates";
 import { scheduleStepAttempt } from "./scheduler-policy";
 import { StepAttemptOrchestrator } from "./step-attempt-orchestrator";
@@ -35,6 +37,33 @@ export interface ExecutePlannedStepResult {
   status: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>["status"];
   nextAction: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>["nextAction"];
   runStatus: ReturnType<typeof refreshRunStatusFromAttempts>["status"];
+}
+
+function auditExecutorModelSelected(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  runner: string;
+  selection: ExecutorSelection;
+  now: Date;
+}): void {
+  appendAuditEvent(params.cwd, {
+    eventType: "executor_model_selected",
+    runId: params.runId,
+    timestamp: params.now.toISOString(),
+    payload: {
+      stepId: params.stepId,
+      attemptId: params.attemptId,
+      runner: params.runner,
+      requestedCapability: params.selection.requestedCapability,
+      selectedCapability: params.selection.selectedCapability,
+      modelId: params.selection.model?.id ?? null,
+      providerName: params.selection.model?.provider ?? null,
+      accessMode: params.selection.model?.accessMode ?? null,
+      reason: params.selection.reason,
+    },
+  });
 }
 
 export async function executePlannedStep(input: ExecutePlannedStepInput): Promise<ExecutePlannedStepResult> {
@@ -95,7 +124,17 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
     policy,
     registryModels: registry.models,
   });
-  const runnerAdapter = runnerResolution.buildAdapter(decision.runner);
+  const executorSelection = runnerResolution.selectExecutorModel(decision.modelCapability);
+  auditExecutorModelSelected({
+    cwd: input.cwd,
+    runId: input.runId,
+    stepId: input.stepId,
+    attemptId: decision.attemptId,
+    runner: decision.runner,
+    selection: executorSelection,
+    now,
+  });
+  const runnerAdapter = runnerResolution.buildAdapter(decision.runner, executorSelection.model);
   let result: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>;
   try {
     const orchestratorInput: Parameters<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>[0] = {

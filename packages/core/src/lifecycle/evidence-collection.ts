@@ -13,7 +13,7 @@ import {
   StepAttemptSchema,
 } from "@kiwi/contracts";
 import { resolveRunArtifactPath } from "../run-store";
-import { readJson } from "./files";
+import { readJson } from "../storage/json-io";
 
 export interface StepAttemptEvidence {
   stepId: string;
