@@ -7,17 +7,12 @@ Official MCP docs: https://docs.cursor.com/advanced/model-context-protocol
 From the Cursor project terminal:
 
 ```bash
-kiwi init
+kiwi init --mcp cursor
 ```
 
 This writes or merges `.cursor/mcp.json` with a `kiwi` MCP server entry and preserves other configured servers.
 
-Manual setup is still possible. Build `kiwi`:
-
-```bash
-cd /Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi
-pnpm build
-```
+Manual setup is still possible after `make install`.
 
 Create `/Users/norberthanauer/Projects/voice/.cursor/mcp.json`:
 
@@ -26,11 +21,8 @@ Create `/Users/norberthanauer/Projects/voice/.cursor/mcp.json`:
   "mcpServers": {
     "kiwi": {
       "type": "stdio",
-      "command": "node",
-      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js"],
-      "env": {
-        "KIWI_WORKSPACE": "/Users/norberthanauer/Projects/voice"
-      }
+      "command": "/Users/norberthanauer/.local/bin/kiwi-mcp",
+      "args": ["--workspace", "/Users/norberthanauer/Projects/voice"]
     }
   }
 }

@@ -1,6 +1,7 @@
 import chalk from "chalk";
-import { finalizeRun, withRunLock } from "@kiwi/core";
+import { buildRunCompletionSummary, finalizeRun, withRunLock } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
+import { printRunCompletionSummary } from "./run-summary";
 
 interface FinalizeOptions extends CliWorkspaceOptions {
   now?: Date;
@@ -29,4 +30,11 @@ export async function runFinalize(
   console.log(chalk.dim(`verdict: ${result.verdict.verdict}`));
   console.log(chalk.dim(`safeToApply: ${result.verdict.safeToApply}`));
   console.log(chalk.dim(`summary: .kiwi/runs/${runId}/${result.summaryRef}`));
+  printRunCompletionSummary(
+    buildRunCompletionSummary({
+      cwd: workspace.workspacePath,
+      runId,
+      ...(opts.now ? { now: opts.now } : {}),
+    }),
+  );
 }

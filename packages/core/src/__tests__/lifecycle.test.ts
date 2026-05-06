@@ -1,8 +1,8 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { Initiative, Step } from "@kiwi/contracts";
+import { Initiative, KiwiPolicy, Step } from "@kiwi/contracts";
 import { savePlannedRun } from "../run-store";
 import { scheduleStepAttempt } from "../scheduler-policy";
 import {
@@ -74,11 +74,33 @@ class PassRunner implements StepAttemptRunner {
   }
 }
 
-function createRun(repo: string, steps: Step[] = [step]): void {
+class DiffRunner extends PassRunner {
+  override async execute(input: StepRunnerExecutionInput): Promise<StepRunnerExecutionOutput> {
+    const artifactsDir = path.join(
+      input.workspacePath,
+      ".kiwi",
+      "runs",
+      input.runId,
+      "steps",
+      input.stepId,
+      input.attemptId,
+      "artifacts",
+    );
+    mkdirSync(artifactsDir, { recursive: true });
+    writeFileSync(
+      path.join(artifactsDir, "diff.patch"),
+      "diff --git a/src/auth/service.ts b/src/auth/service.ts\n--- a/src/auth/service.ts\n+++ b/src/auth/service.ts\n@@ -0,0 +1 @@\n+ok\n",
+      "utf-8",
+    );
+    return super.execute(input);
+  }
+}
+
+function createRun(repo: string, steps: Step[] = [step], runInitiative: Initiative = initiative): void {
   savePlannedRun({
     cwd: repo,
     runId: "run_demo",
-    initiative,
+    initiative: runInitiative,
     taskGraph: {
       planId: "plan_demo",
       runId: "run_demo",
@@ -95,6 +117,39 @@ function createRun(repo: string, steps: Step[] = [step]): void {
     now: new Date("2026-05-04T08:00:00.000Z"),
   });
 }
+
+const highRiskPolicy: KiwiPolicy = {
+  version: "1",
+  project: { name: "kiwi", language: "typescript", packageManager: "pnpm" },
+  commands: { test: "node -e 0", lint: "node -e 0", typecheck: "node -e 0" },
+  routing: { defaultAgentRole: "executor", defaultModelCapability: "mid", stepTypeOverrides: {} },
+  riskZones: { high: ["src/auth/**"] },
+  approvals: { requireFor: [], commandApprovalStates: {} },
+  commandProfiles: {
+    default: {
+      allowedCommands: ["node"],
+      approvalState: "auto",
+      approvalRequiredPaths: [],
+      deniedPaths: [".env*", "secrets/**"],
+      envAllowlist: ["PATH"],
+      secretEnvNames: [],
+      networkPolicy: "disabled",
+      timeoutMs: 1000,
+      maxOutputBytes: 4096,
+    },
+    coding: {
+      allowedCommands: ["node"],
+      approvalState: "auto",
+      approvalRequiredPaths: [],
+      deniedPaths: [".env*", "secrets/**"],
+      envAllowlist: ["PATH"],
+      secretEnvNames: [],
+      networkPolicy: "disabled",
+      timeoutMs: 1000,
+      maxOutputBytes: 4096,
+    },
+  },
+};
 
 describe("run lifecycle", () => {
   it("records approval decisions", () => {
@@ -259,5 +314,51 @@ describe("run lifecycle", () => {
 
     expect(finalized.verdict.safeToApply).toBe(false);
     expect(finalized.verdict.reason).toContain("not bound to current diff hash");
+  });
+
+  it("executes and finalizes scheduler-required risk gates", async () => {
+    const repo = cwd();
+    const productionInitiative: Initiative = { ...initiative, riskProfile: "production", budgetProfile: "tiny" };
+    createRun(repo, [step], productionInitiative);
+    const decision = scheduleStepAttempt({
+      cwd: repo,
+      runId: "run_demo",
+      step,
+      initiative: productionInitiative,
+      budgetProfile: "tiny",
+      budgetRemainingUsdEstimate: 0,
+      blastRadius: "high",
+      securitySensitivity: "high",
+      contextSize: "small",
+      runnerAvailability: ["local-shell"],
+      attemptId: "attempt_risk",
+      now: new Date("2026-05-04T08:20:00.000Z"),
+    });
+
+    await new StepAttemptOrchestrator().execute({
+      cwd: repo,
+      step,
+      schedulerDecision: decision,
+      runner: new DiffRunner(),
+      worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_risk"),
+      stepPrompt: "ok",
+      policy: highRiskPolicy,
+      now: new Date("2026-05-04T08:21:00.000Z"),
+    });
+
+    const attempts = listStepAttemptEvidence(repo, "run_demo");
+    expect(attempts[0]?.gateResults.map((gate) => gate.gateType)).toEqual([
+      "tests",
+      "forbidden_file_checks",
+      "secrets_check",
+    ]);
+
+    const finalized = finalizeRun({
+      cwd: repo,
+      runId: "run_demo",
+      now: new Date("2026-05-04T08:22:00.000Z"),
+    });
+    expect(finalized.verdict.safeToApply).toBe(false);
+    expect(finalized.verdict.reason).toContain("gate gate_forbidden_file_checks is fail");
   });
 });

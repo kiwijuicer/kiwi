@@ -10,6 +10,14 @@ import {
   ModelRegistrySchema,
 } from "@kiwi/contracts";
 
+export function kiwiPolicyPath(cwd: string): string {
+  return path.join(cwd, ".kiwi", "policy.yaml");
+}
+
+export function kiwiModelRegistryPath(cwd: string): string {
+  return path.join(cwd, ".kiwi", "model-registry.yaml");
+}
+
 export function loadPolicy(path: string): KiwiPolicy {
   if (!existsSync(path)) {
     throw new Error(`Policy file not found: ${path}`);

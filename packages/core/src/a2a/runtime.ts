@@ -22,7 +22,7 @@ import {
 } from "@kiwi/contracts";
 import { buildDeterministicTaskGraph, createInitiativeFromInput } from "../planner";
 import { generateA2ACorrelationId, generateA2AMessageId, generateRunId } from "../ids";
-import { loadKiwiConfig, loadPolicy, saveKiwiConfig } from "../config";
+import { kiwiPolicyPath, loadKiwiConfig, loadPolicy, saveKiwiConfig } from "../config";
 import { loadInitiative, loadTaskGraph, resolveRunArtifactPath, savePlannedRun } from "../run-store";
 import {
   A2ARuntimePolicy,
@@ -815,7 +815,7 @@ export function acceptA2AHandoff(input: A2AAcceptHandoffInput): A2AAcceptHandoff
   const remoteInitiative = InitiativeSchema.parse(record.acceptedPayload);
   const now = input.now ?? new Date();
   const runId = generateRunId(now);
-  const policy = loadPolicy(path.join(input.cwd, "kiwi-policy.yaml"));
+  const policy = loadPolicy(kiwiPolicyPath(input.cwd));
   const initiative = createInitiativeFromInput({
     rawInput: remoteInitiative.rawInput,
     repoPath: input.repoPath,

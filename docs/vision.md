@@ -520,9 +520,11 @@ kiwi/
       testing.md
       security.md
       agents.md
+  .kiwi/
+    config.yaml
+    policy.yaml
+    .kiwi/model-registry.yaml
   AGENTS.md
-  kiwi-policy.yaml
-  model-registry.yaml
   package.json
   pnpm-workspace.yaml
   tsconfig.base.json

@@ -5,6 +5,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { Initiative, ProtocolEnvelope } from "@kiwi/contracts";
 import { readAuditEvents } from "../cost-ledger";
+import { kiwiPolicyPath } from "../config";
 import {
   acceptA2AHandoff,
   addA2ATrustedPeer,
@@ -23,7 +24,7 @@ function cwd(): string {
 
 function writePolicy(repo: string): void {
   writeFileSync(
-    path.join(repo, "kiwi-policy.yaml"),
+    kiwiPolicyPath(repo),
     `version: "1"
 project:
   name: kiwi

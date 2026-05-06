@@ -78,6 +78,12 @@ export const TOOLS = [
     },
   },
   { name: "kiwi_finalize", description: `Finalize a run. ${NO_AUTO_COMMIT_NOTE}`, inputSchema: RUN_ID_SCHEMA },
+  { name: "kiwi_cost", description: "Read deterministic run cost and model summary", inputSchema: RUN_ID_SCHEMA },
+  {
+    name: "kiwi_explain",
+    description: "Read routing reasons, gate status, cost, and next action",
+    inputSchema: RUN_ID_SCHEMA,
+  },
   {
     name: "kiwi_request_approval",
     description: "Record an approval decision",

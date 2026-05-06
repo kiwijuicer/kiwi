@@ -1,4 +1,8 @@
 {
-  "allowedMechanicalPaths": ["packages/contracts/src/a2a.ts", "apps/cli/src/commands/register-a2a.ts"],
-  "reason": "Step 22 is still PARTIAL; only the contracts split may touch the A2A contract module."
+  "allowedMechanicalPaths": [
+    "packages/contracts/src/a2a.ts",
+    "apps/cli/src/commands/register-a2a.ts",
+    "packages/core/src/a2a/runtime.ts"
+  ],
+  "reason": "Step 22 is still PARTIAL; only contracts split updates and the mechanical .kiwi/policy.yaml path correction may touch A2A files."
 }

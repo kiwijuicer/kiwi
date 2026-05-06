@@ -49,7 +49,7 @@ Prove the milestone end-to-end with a single real run: from a Bitbucket ticket t
 ## Tasks
 
 - Select a candidate ticket and target repo. Keep it outside `riskZones.high`.
-- Configure `kiwi-policy.yaml` for the target workspace; verify denied paths and approval-required paths.
+- Configure `.kiwi/policy.yaml` for the target workspace; verify denied paths and approval-required paths.
 - Run the demo end-to-end without manual editing of artifacts.
 - Verify evidence manifest hashes match the persisted artifacts.
 - Capture metrics: total wall time, total token cost, planner cost, reviewer cost, runner cost, gate wall time, retry count.

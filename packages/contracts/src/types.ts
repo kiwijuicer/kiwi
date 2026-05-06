@@ -15,6 +15,7 @@ import type {
   ArtifactTypeSchema,
   AttemptSummarySchema,
   AuditEventSchema,
+  BudgetProfileLimitSchema,
   BudgetProfileSchema,
   CommandProfileSchema,
   ContextLevelSchema,
@@ -53,6 +54,8 @@ import type {
   ReviewVerdictValueSchema,
   RiskProfileSchema,
   RunAuditSnapshotSchema,
+  RunCompletionPhaseSummarySchema,
+  RunCompletionSummarySchema,
   RunSchema,
   RunStatusSchema,
   RunnerExecutionErrorSchema,
@@ -75,6 +78,7 @@ import type {
   StepAttemptStatusSchema,
   StepSchema,
   StepStatusSchema,
+  SubPlanSchema,
   StepTypeSchema,
   TaskGraphSchema,
   UsagePrecisionSchema,
@@ -109,6 +113,7 @@ export type ScmProvider = z.infer<typeof ScmProviderSchema>;
 export type ScmAuthMode = z.infer<typeof ScmAuthModeSchema>;
 export type ScmMutationStatus = z.infer<typeof ScmMutationStatusSchema>;
 export type Step = z.infer<typeof StepSchema>;
+export type SubPlan = z.infer<typeof SubPlanSchema>;
 export type TaskGraph = z.infer<typeof TaskGraphSchema>;
 export type Run = z.infer<typeof RunSchema>;
 export type RunManifest = Run;
@@ -141,6 +146,9 @@ export type RunnerExecutionOutput = z.infer<typeof RunnerExecutionOutputSchema>;
 export type AttemptSummary = z.infer<typeof AttemptSummarySchema>;
 export type FinalVerdict = z.infer<typeof FinalVerdictSchema>;
 export type FinalCostReport = z.infer<typeof FinalCostReportSchema>;
+export type BudgetProfileLimit = z.infer<typeof BudgetProfileLimitSchema>;
+export type RunCompletionPhaseSummary = z.infer<typeof RunCompletionPhaseSummarySchema>;
+export type RunCompletionSummary = z.infer<typeof RunCompletionSummarySchema>;
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type EvidenceFileHash = z.infer<typeof EvidenceFileHashSchema>;
 export type RunAuditSnapshot = z.infer<typeof RunAuditSnapshotSchema>;

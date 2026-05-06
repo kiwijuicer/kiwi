@@ -19,7 +19,7 @@ Implement the first real planner provider behind the existing `PlannerProvider` 
 - Schema-repair retry: on invalid output, send a constrained repair turn including the original output and validation errors. Max repair attempts is configurable, default 1.
 - Token and cost extraction from `usage` in provider response. Cost feeds the existing cost ledger; no zero-cost shortcut.
 - Prompt caching: system prompt, tool/schema block, and repo skeleton block are sent with `cache_control` so subsequent attempts amortize cost.
-- Secret redaction on prompt construction: any value in `kiwi-policy.yaml` `secretEnvNames` or detected in the input is replaced with `[REDACTED]` before send.
+- Secret redaction on prompt construction: any value in `.kiwi/policy.yaml` `secretEnvNames` or detected in the input is replaced with `[REDACTED]` before send.
 - Typed provider errors: rate-limit, timeout, network, schema-invalid, content-policy. Each maps to an existing scheduler error class.
 
 ## Out Of Scope
@@ -35,7 +35,7 @@ Implement the first real planner provider behind the existing `PlannerProvider` 
 - Implement prompt-versioning helper in `packages/adapters/src/prompts/`.
 - Implement schema-repair retry wrapper. Reuse existing retry primitive from Step 08 if compatible.
 - Wire real cost into `cost-ledger.ts`. Stub providers continue to emit zero-cost.
-- Add provider selection to `kiwi-policy.yaml` and `apps/cli/src/commands/init.ts` defaults.
+- Add provider selection to `.kiwi/policy.yaml` and `apps/cli/src/commands/init.ts` defaults.
 - Add unit tests against recorded fixtures (no live calls in CI). Add one opt-in live smoke behind `KIWI_LIVE_PROVIDER=1`.
 
 ## Acceptance Criteria

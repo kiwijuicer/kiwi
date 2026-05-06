@@ -1,14 +1,15 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
+import { kiwiModelRegistryPath, kiwiPolicyPath } from "@kiwi/core";
 import { DEFAULT_MODEL_REGISTRY_YAML, DEFAULT_POLICY_YAML, defaultKiwiConfigYaml } from "../default-config";
+
+type McpTarget = "none" | "cursor" | "claude" | "codex" | "all";
 
 interface InitOptions {
   force?: boolean;
   workspace?: string;
-  cursorMcp?: boolean;
-  claudeCodeMcp?: boolean;
-  codexMcp?: boolean;
+  mcp?: string;
 }
 
 interface McpServerLaunch {
@@ -32,7 +33,12 @@ interface GitignoreWriteResult {
   status: "updated" | "preserved" | "missing";
 }
 
-const KIWI_GITIGNORE_ENTRIES = [".kiwi/", ".cursor/mcp.json", ".mcp.json", ".codex/config.toml"];
+const KIWI_GITIGNORE_ENTRY = ".kiwi/";
+const MCP_GITIGNORE_ENTRIES: Record<Exclude<McpTarget, "none" | "all">, string> = {
+  cursor: ".cursor/mcp.json",
+  claude: ".mcp.json",
+  codex: ".codex/config.toml",
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -249,11 +255,22 @@ function logConfigWrite(result: ConfigWriteResult | null, displayPath: string): 
   if (result?.status === "updated") console.log(chalk.green("✓") + ` ${displayPath} updated`);
 }
 
+function resolveMcpTargets(target: string | undefined): Set<Exclude<McpTarget, "none" | "all">> {
+  const value = target ?? "none";
+  if (value === "none") return new Set();
+  if (value === "all") return new Set(["cursor", "claude", "codex"]);
+  if (value === "cursor" || value === "claude" || value === "codex") return new Set([value]);
+  throw new Error(`Invalid MCP target: ${value}. Expected one of: none, cursor, claude, codex, all`);
+}
+
 function normalizeGitignoreLine(line: string): string {
   return line.trim().replace(/^\//, "");
 }
 
-function writeGitignoreEntries(targetCwd: string): GitignoreWriteResult {
+function writeGitignoreEntries(
+  targetCwd: string,
+  mcpTargets: Set<Exclude<McpTarget, "none" | "all">>,
+): GitignoreWriteResult {
   const gitignorePath = path.join(targetCwd, ".gitignore");
   if (!existsSync(gitignorePath)) {
     return { path: gitignorePath, status: "missing" };
@@ -266,7 +283,8 @@ function writeGitignoreEntries(targetCwd: string): GitignoreWriteResult {
       .map(normalizeGitignoreLine)
       .filter((line) => line.length > 0 && !line.startsWith("#")),
   );
-  const missing = KIWI_GITIGNORE_ENTRIES.filter((entry) => !existing.has(normalizeGitignoreLine(entry)));
+  const entries = [KIWI_GITIGNORE_ENTRY, ...[...mcpTargets].map((target) => MCP_GITIGNORE_ENTRIES[target])];
+  const missing = entries.filter((entry) => !existing.has(normalizeGitignoreLine(entry)));
 
   if (missing.length === 0) {
     return { path: gitignorePath, status: "preserved" };
@@ -284,8 +302,9 @@ export async function runInit(opts: InitOptions = {}, cwd: string = process.cwd(
   }
   const kiwiDir = path.join(targetCwd, ".kiwi");
   const configPath = path.join(kiwiDir, "config.yaml");
-  const policyPath = path.join(targetCwd, "kiwi-policy.yaml");
-  const registryPath = path.join(targetCwd, "model-registry.yaml");
+  const policyPath = kiwiPolicyPath(targetCwd);
+  const registryPath = kiwiModelRegistryPath(targetCwd);
+  const mcpTargets = resolveMcpTargets(opts.mcp);
 
   mkdirSync(path.join(kiwiDir, "runs"), { recursive: true });
   mkdirSync(path.join(kiwiDir, "logs"), { recursive: true });
@@ -304,21 +323,21 @@ export async function runInit(opts: InitOptions = {}, cwd: string = process.cwd(
   if (shouldWriteRegistry) {
     writeFileSync(registryPath, DEFAULT_MODEL_REGISTRY_YAML, "utf-8");
   }
-  const cursorMcp = opts.cursorMcp === false ? null : writeCursorMcpConfig(targetCwd, Boolean(opts.force));
-  const claudeCodeMcp = opts.claudeCodeMcp === false ? null : writeClaudeCodeMcpConfig(targetCwd, Boolean(opts.force));
-  const codexMcp = opts.codexMcp === false ? null : writeCodexMcpConfig(targetCwd, Boolean(opts.force));
-  const gitignore = writeGitignoreEntries(targetCwd);
+  const cursorMcp = mcpTargets.has("cursor") ? writeCursorMcpConfig(targetCwd, Boolean(opts.force)) : null;
+  const claudeMcp = mcpTargets.has("claude") ? writeClaudeCodeMcpConfig(targetCwd, Boolean(opts.force)) : null;
+  const codexMcp = mcpTargets.has("codex") ? writeCodexMcpConfig(targetCwd, Boolean(opts.force)) : null;
+  const gitignore = writeGitignoreEntries(targetCwd, mcpTargets);
 
   console.log(chalk.green("✓") + " .kiwi initialized");
   console.log(chalk.dim(`workspace: ${targetCwd}`));
   if (!shouldWriteConfig) console.log(chalk.gray("•") + " .kiwi/config.yaml preserved");
-  if (!shouldWritePolicy) console.log(chalk.gray("•") + " kiwi-policy.yaml preserved");
-  if (!shouldWriteRegistry) console.log(chalk.gray("•") + " model-registry.yaml preserved");
+  if (!shouldWritePolicy) console.log(chalk.gray("•") + " .kiwi/policy.yaml preserved");
+  if (!shouldWriteRegistry) console.log(chalk.gray("•") + " .kiwi/model-registry.yaml preserved");
   if (shouldWriteConfig) console.log(chalk.green("✓") + " .kiwi/config.yaml written");
-  if (shouldWritePolicy) console.log(chalk.green("✓") + " kiwi-policy.yaml written");
-  if (shouldWriteRegistry) console.log(chalk.green("✓") + " model-registry.yaml written");
+  if (shouldWritePolicy) console.log(chalk.green("✓") + " .kiwi/policy.yaml written");
+  if (shouldWriteRegistry) console.log(chalk.green("✓") + " .kiwi/model-registry.yaml written");
   logConfigWrite(cursorMcp, ".cursor/mcp.json");
-  logConfigWrite(claudeCodeMcp, ".mcp.json");
+  logConfigWrite(claudeMcp, ".mcp.json");
   logConfigWrite(codexMcp, ".codex/config.toml");
   if (gitignore.status === "updated") console.log(chalk.green("✓") + " .gitignore updated");
   if (gitignore.status === "preserved") console.log(chalk.gray("•") + " .gitignore preserved");

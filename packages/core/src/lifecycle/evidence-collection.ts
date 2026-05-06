@@ -7,6 +7,8 @@ import {
   GateResult,
   ReviewVerdict,
   ReviewVerdictSchema,
+  SchedulerDecision,
+  SchedulerDecisionSchema,
   StepAttempt,
   StepAttemptSchema,
 } from "@kiwi/contracts";
@@ -23,6 +25,8 @@ export interface StepAttemptEvidence {
   reviewVerdict?: ReviewVerdict;
   summaryRef?: string;
   summary?: AttemptSummary;
+  schedulerDecisionRef?: string;
+  schedulerDecision?: SchedulerDecision;
 }
 
 function tryReadGateResults(
@@ -83,6 +87,28 @@ function tryReadAttemptSummary(
   }
 }
 
+function tryReadSchedulerDecision(
+  cwd: string,
+  runId: string,
+  stepId: string,
+  attemptId: string,
+): {
+  ref?: string;
+  schedulerDecision?: SchedulerDecision;
+} {
+  const ref = `steps/${stepId}/${attemptId}/scheduler-decision.json`;
+  const target = resolveRunArtifactPath(runId, ref, cwd);
+  if (!existsSync(target)) return {};
+  try {
+    return {
+      ref,
+      schedulerDecision: SchedulerDecisionSchema.parse(readJson(target)),
+    };
+  } catch {
+    return { ref };
+  }
+}
+
 function attemptEvidence(
   cwd: string,
   runId: string,
@@ -94,6 +120,7 @@ function attemptEvidence(
   const gateEvidence = tryReadGateResults(cwd, runId, stepId, attemptId);
   const reviewEvidence = tryReadReview(cwd, runId, stepId, attemptId);
   const summaryEvidence = tryReadAttemptSummary(cwd, runId, stepId, attemptId);
+  const schedulerEvidence = tryReadSchedulerDecision(cwd, runId, stepId, attemptId);
   const entry: StepAttemptEvidence = {
     stepId,
     attemptId,
@@ -105,6 +132,8 @@ function attemptEvidence(
   if (reviewEvidence.reviewVerdict) entry.reviewVerdict = reviewEvidence.reviewVerdict;
   if (summaryEvidence.ref) entry.summaryRef = summaryEvidence.ref;
   if (summaryEvidence.summary) entry.summary = summaryEvidence.summary;
+  if (schedulerEvidence.ref) entry.schedulerDecisionRef = schedulerEvidence.ref;
+  if (schedulerEvidence.schedulerDecision) entry.schedulerDecision = schedulerEvidence.schedulerDecision;
   return entry;
 }
 

@@ -17,7 +17,7 @@ Eine kleine, stabile Planning Foundation fuer `kiwi`, ohne Runner oder echte LLM
   - `kiwi init`
   - `kiwi plan <ticket>`
   - `kiwi status`
-- Default `kiwi-policy.yaml` und `model-registry.yaml`
+- Default `.kiwi/policy.yaml` und `.kiwi/model-registry.yaml`
 - Unit tests fuer contracts/core/cli
 
 ## Out Of Scope
@@ -32,7 +32,7 @@ Eine kleine, stabile Planning Foundation fuer `kiwi`, ohne Runner oder echte LLM
 
 ## Akzeptanzkriterien
 
-- `kiwi init` erzeugt `.kiwi/config.yaml`, `.kiwi/runs/`, `kiwi-policy.yaml`, `model-registry.yaml`.
+- `kiwi init` erzeugt `.kiwi/config.yaml`, `.kiwi/runs/`, `.kiwi/policy.yaml`, `.kiwi/model-registry.yaml`.
 - `kiwi plan <ticket>` erzeugt:
   - `.kiwi/runs/<run-id>/run.json`
   - `.kiwi/runs/<run-id>/initiative.json`

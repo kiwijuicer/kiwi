@@ -2,7 +2,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileS
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { loadPolicy, loadRegistry } from "@kiwi/core";
+import { kiwiModelRegistryPath, kiwiPolicyPath, loadPolicy, loadRegistry } from "@kiwi/core";
 import { runInit } from "../commands/init";
 
 interface CursorMcpConfig {
@@ -76,26 +76,28 @@ async function withKiwiMcpBin(value: string | undefined, fn: () => Promise<void>
 }
 
 describe("kiwi init", () => {
-  it("creates .kiwi and default config files", async () => {
+  it("creates .kiwi and default config files only", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-"));
 
     await runInit({}, cwd);
 
     expect(existsSync(path.join(cwd, ".kiwi", "config.yaml"))).toBe(true);
     expect(existsSync(path.join(cwd, ".kiwi", "runs"))).toBe(true);
-    expect(existsSync(path.join(cwd, "kiwi-policy.yaml"))).toBe(true);
-    expect(existsSync(path.join(cwd, "model-registry.yaml"))).toBe(true);
-    expect(existsSync(path.join(cwd, ".cursor", "mcp.json"))).toBe(true);
-    expect(existsSync(path.join(cwd, ".mcp.json"))).toBe(true);
-    expect(existsSync(path.join(cwd, ".codex", "config.toml"))).toBe(true);
+    expect(existsSync(kiwiPolicyPath(cwd))).toBe(true);
+    expect(existsSync(kiwiModelRegistryPath(cwd))).toBe(true);
+    expect(existsSync(path.join(cwd, "kiwi-policy.yaml"))).toBe(false);
+    expect(existsSync(path.join(cwd, "model-registry.yaml"))).toBe(false);
+    expect(existsSync(path.join(cwd, ".cursor", "mcp.json"))).toBe(false);
+    expect(existsSync(path.join(cwd, ".mcp.json"))).toBe(false);
+    expect(existsSync(path.join(cwd, ".codex", "config.toml"))).toBe(false);
   });
 
   it("is idempotent and preserves user-edited policy/registry by default", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-idempotent-"));
     await runInit({}, cwd);
 
-    const policyPath = path.join(cwd, "kiwi-policy.yaml");
-    const registryPath = path.join(cwd, "model-registry.yaml");
+    const policyPath = kiwiPolicyPath(cwd);
+    const registryPath = kiwiModelRegistryPath(cwd);
     const configPath = path.join(cwd, ".kiwi", "config.yaml");
 
     const customPolicy = `version: "1"
@@ -141,8 +143,8 @@ models:
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-force-"));
     await runInit({}, cwd);
 
-    const policyPath = path.join(cwd, "kiwi-policy.yaml");
-    const registryPath = path.join(cwd, "model-registry.yaml");
+    const policyPath = kiwiPolicyPath(cwd);
+    const registryPath = kiwiModelRegistryPath(cwd);
 
     writeFileSync(policyPath, 'version: "1"\nproject: {}\n', "utf-8");
     writeFileSync(registryPath, 'version: "1"\nmodels: []\n', "utf-8");
@@ -157,8 +159,8 @@ models:
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-contracts-"));
     await runInit({}, cwd);
 
-    const policy = loadPolicy(path.join(cwd, "kiwi-policy.yaml"));
-    const registry = loadRegistry(path.join(cwd, "model-registry.yaml"));
+    const policy = loadPolicy(kiwiPolicyPath(cwd));
+    const registry = loadRegistry(kiwiModelRegistryPath(cwd));
 
     expect(policy.version).toBe("1");
     expect(registry.models.length).toBeGreaterThan(0);
@@ -174,14 +176,15 @@ models:
     await runInit({ workspace: "voice" }, cwd);
 
     expect(existsSync(path.join(workspace, ".kiwi", "config.yaml"))).toBe(true);
-    expect(existsSync(path.join(workspace, "kiwi-policy.yaml"))).toBe(true);
+    expect(existsSync(kiwiPolicyPath(workspace))).toBe(true);
+    expect(existsSync(kiwiModelRegistryPath(workspace))).toBe(true);
     expect(existsSync(path.join(cwd, ".kiwi"))).toBe(false);
   });
 
   it("writes Cursor MCP config for the workspace", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-cursor-"));
 
-    await runInit({}, cwd);
+    await runInit({ mcp: "cursor" }, cwd);
 
     const config = readCursorMcpConfig(cwd);
     const server = config.mcpServers?.kiwi;
@@ -197,7 +200,7 @@ models:
     chmodSync(kiwiMcpBin, 0o755);
 
     await withKiwiMcpBin(kiwiMcpBin, async () => {
-      await runInit({}, cwd);
+      await runInit({ mcp: "all" }, cwd);
     });
 
     const config = readCursorMcpConfig(cwd);
@@ -220,7 +223,7 @@ models:
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-source-mcp-"));
 
     await withKiwiMcpBin(undefined, async () => {
-      await runInit({}, cwd);
+      await runInit({ mcp: "cursor" }, cwd);
     });
 
     const config = readCursorMcpConfig(cwd);
@@ -232,7 +235,7 @@ models:
   it("writes Claude Code MCP config for the workspace", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-claude-"));
 
-    await runInit({}, cwd);
+    await runInit({ mcp: "claude" }, cwd);
 
     const config = readClaudeCodeMcpConfig(cwd);
     const server = config.mcpServers?.kiwi;
@@ -242,7 +245,7 @@ models:
   it("writes Codex MCP config for the workspace", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-codex-"));
 
-    await runInit({}, cwd);
+    await runInit({ mcp: "codex" }, cwd);
 
     const config = readCodexConfig(cwd).content;
     expect(config).toContain("[mcp_servers.kiwi]");
@@ -272,7 +275,7 @@ models:
       "utf-8",
     );
 
-    await runInit({}, cwd);
+    await runInit({ mcp: "cursor" }, cwd);
 
     const config = readCursorMcpConfig(cwd);
     expect(config.mcpServers?.existing?.args).toEqual(["existing.js"]);
@@ -298,7 +301,7 @@ models:
       "utf-8",
     );
 
-    await runInit({}, cwd);
+    await runInit({ mcp: "claude" }, cwd);
 
     const config = readClaudeCodeMcpConfig(cwd);
     expect(config.mcpServers?.existing?.args).toEqual(["existing.js"]);
@@ -311,7 +314,7 @@ models:
     mkdirSync(codexDir);
     writeFileSync(path.join(codexDir, "config.toml"), '[profiles.default]\nmodel = "gpt-5.4"\n', "utf-8");
 
-    await runInit({}, cwd);
+    await runInit({ mcp: "codex" }, cwd);
 
     const config = readCodexConfig(cwd).content;
     expect(config).toContain("[profiles.default]");
@@ -319,10 +322,10 @@ models:
     expect(config).toContain("[mcp_servers.kiwi]");
   });
 
-  it("can skip MCP client config", async () => {
+  it("does not write MCP client config by default", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-no-mcp-"));
 
-    await runInit({ cursorMcp: false, claudeCodeMcp: false, codexMcp: false }, cwd);
+    await runInit({}, cwd);
 
     expect(existsSync(path.join(cwd, ".cursor", "mcp.json"))).toBe(false);
     expect(existsSync(path.join(cwd, ".mcp.json"))).toBe(false);
@@ -335,6 +338,16 @@ models:
     writeFileSync(gitignorePath, "node_modules/\n.kiwi/\n", "utf-8");
 
     await runInit({}, cwd);
+
+    expect(readFileSync(gitignorePath, "utf-8")).toBe(["node_modules/", ".kiwi/", ""].join("\n"));
+  });
+
+  it("adds MCP config entries to gitignore only when requested", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-gitignore-mcp-"));
+    const gitignorePath = path.join(cwd, ".gitignore");
+    writeFileSync(gitignorePath, "node_modules/\n", "utf-8");
+
+    await runInit({ mcp: "all" }, cwd);
 
     expect(readFileSync(gitignorePath, "utf-8")).toBe(
       ["node_modules/", ".kiwi/", ".cursor/mcp.json", ".mcp.json", ".codex/config.toml", ""].join("\n"),

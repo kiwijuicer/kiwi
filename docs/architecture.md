@@ -18,8 +18,8 @@ flowchart TD
   adapters --> contracts
   sandbox --> contracts
   core --> runstore[.kiwi/runs/<run-id>/]
-  cli --> policy[kiwi-policy.yaml]
-  cli --> registry[model-registry.yaml]
+  cli --> policy[.kiwi/policy.yaml]
+  cli --> registry[.kiwi/model-registry.yaml]
 ```
 
 ## Module
@@ -50,6 +50,8 @@ flowchart TD
 ```text
 .kiwi/
   config.yaml
+  policy.yaml
+  .kiwi/model-registry.yaml
   runs/
     <run-id>/
       run.json
@@ -85,7 +87,7 @@ Payload-Arten oder Trust-Regeln sind nicht in Scope.
 
 ## Model Tier Mapping
 
-Capability tiers in `model-registry.yaml` map to local CLI access modes by
+Capability tiers in `.kiwi/model-registry.yaml` map to local CLI access modes by
 default. Direct provider API keys are not required for daily use.
 `cheap` is an alias of `mid` with a reduced context budget.
 
@@ -99,7 +101,7 @@ default. Direct provider API keys are not required for daily use.
 ## Tier-to-Step-Type Defaults
 
 The scheduler picks `agentRole` and `modelCapability` from the policy
-`stepTypeOverrides`. Defaults below match `kiwi-policy.yaml` and the
+`stepTypeOverrides`. Defaults below match `.kiwi/policy.yaml` and the
 defaults written by `kiwi init`. Risk zones from `riskZones.high` may
 escalate execution and review tiers; downgrading for security-sensitive
 steps is not allowed.

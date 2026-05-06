@@ -1,13 +1,16 @@
-import path from "path";
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { ContractValues, ProtocolEnvelopeKindSchema } from "@kiwi/contracts";
 import { executePlannedStep, resolvePlannerProvider } from "@kiwi/runtime";
 import {
   acceptA2AHandoff,
   addA2ATrustedPeer,
+  buildRunCompletionSummary,
+  buildRunExplanation,
   finalizeRun,
   getRunStatusSummary,
   handleA2AEnvelope,
+  kiwiModelRegistryPath,
+  kiwiPolicyPath,
   listA2AInbox,
   loadA2AConfig,
   loadPolicy,
@@ -58,9 +61,9 @@ async function planTool(args: Record<string, unknown>, cwd: string): Promise<unk
   const workspace = workspaceArgs(args, cwd, true);
   const repo = workspace.repo!;
   const now = new Date();
-  const policyPath = path.join(workspace.workspacePath, "kiwi-policy.yaml");
+  const policyPath = kiwiPolicyPath(workspace.workspacePath);
   const policy = loadPolicy(policyPath);
-  const registry = loadRegistry(path.join(workspace.workspacePath, "model-registry.yaml"));
+  const registry = loadRegistry(kiwiModelRegistryPath(workspace.workspacePath));
   const resolution = resolvePlannerProvider({
     registryModels: registry.models,
     now: () => now,
@@ -146,6 +149,7 @@ async function runTool(args: Record<string, unknown>, cwd: string): Promise<unkn
     runId,
     status: run?.status ?? "missing",
     steps,
+    completionSummary: buildRunCompletionSummary({ cwd: workspace.workspacePath, runId }),
   };
 }
 
@@ -163,9 +167,18 @@ function callCoreTool(
     case "kiwi_run_step":
       return runStepTool(args, cwd);
     case "kiwi_finalize":
-      return withRunLock({ cwd: workspacePath, runId: String(args.runId ?? ""), operation: "mcp_finalize" }, () =>
-        finalizeRun({ cwd: workspacePath, runId: String(args.runId ?? "") }),
-      );
+      return withRunLock({ cwd: workspacePath, runId: String(args.runId ?? ""), operation: "mcp_finalize" }, () => {
+        const runId = String(args.runId ?? "");
+        const finalized = finalizeRun({ cwd: workspacePath, runId });
+        return {
+          ...finalized,
+          completionSummary: buildRunCompletionSummary({ cwd: workspacePath, runId }),
+        };
+      });
+    case "kiwi_cost":
+      return buildRunCompletionSummary({ cwd: workspacePath, runId: String(args.runId ?? "") });
+    case "kiwi_explain":
+      return buildRunExplanation({ cwd: workspacePath, runId: String(args.runId ?? "") });
     case "kiwi_request_approval":
       return withRunLock(
         {

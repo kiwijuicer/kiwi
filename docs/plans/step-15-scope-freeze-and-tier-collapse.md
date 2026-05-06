@@ -14,12 +14,12 @@ Establish a hard scope freeze for the Real Loop milestone and collapse the four-
 ## Scope
 
 - Freeze A2A runtime as-is. No new A2A features land in Production Milestone 1. `packages/core/src/a2a-runtime*.ts` and related CLI/MCP surfaces stay stable.
-- Update `model-registry.yaml` with real Anthropic model entries:
+- Update `.kiwi/model-registry.yaml` with real Anthropic model entries:
   - `frontier` -> `claude-opus-4-6`
   - `strong` -> `claude-sonnet-4-6`
   - `mid` -> `claude-haiku-4-5-20251001`
   - `cheap` -> alias of `mid` with reduced context budget; not a separate model.
-- Keep stub providers as test fixtures only. Default selection in `kiwi-policy.yaml` switches from stub to real once Steps 16-18 are `DONE`.
+- Keep stub providers as test fixtures only. Default selection in `.kiwi/policy.yaml` switches from stub to real once Steps 16-18 are `DONE`.
 - Document tier-to-step-type defaults so the scheduler does not silently re-route:
   - `planning` -> `frontier`
   - `review` -> `frontier` for `riskZones.high`, `strong` otherwise
@@ -36,15 +36,15 @@ Establish a hard scope freeze for the Real Loop milestone and collapse the four-
 
 ## Tasks
 
-- Edit `model-registry.yaml`. Keep existing stub models behind `enabled: false` for tests that opt in explicitly.
+- Edit `.kiwi/model-registry.yaml`. Keep existing stub models behind `enabled: false` for tests that opt in explicitly.
 - Document tier defaults in `docs/architecture.md` (extend, do not replace).
 - Add `Status: FROZEN` headers to `docs/plans/step-14-*.md` and `docs/protocols/a2a-readiness.md` notes that point at this milestone.
-- Update `kiwi-policy.yaml` defaults to reference real capability names, not provider IDs.
+- Update `.kiwi/policy.yaml` defaults to reference real capability names, not provider IDs.
 - Add a one-paragraph "scope freeze" section to `docs/plans/README.md` that lists what is frozen and until when.
 
 ## Acceptance Criteria
 
-- `model-registry.yaml` lists `claude-opus-4-6`, `claude-sonnet-4-6`, and `claude-haiku-4-5-20251001`.
+- `.kiwi/model-registry.yaml` lists `claude-opus-4-6`, `claude-sonnet-4-6`, and `claude-haiku-4-5-20251001`.
 - `cheap` resolves to the same provider as `mid` and is documented as a context-budget variant.
 - A2A surfaces are marked as frozen and no Step 16-22 task touches them.
 - `pnpm typecheck` and `pnpm test` stay green.

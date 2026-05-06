@@ -93,7 +93,7 @@ install:
 	"$$CANDIDATE/bin/kiwi" --version >/dev/null; \
 	node -e 'const server = require(process.argv[1]); if (typeof server.startMcpServer !== "function") throw new Error("startMcpServer export not found");' "$$CANDIDATE/apps/mcp-server/dist/index.js"; \
 	mkdir -p "$$SMOKE_WORKSPACE"; \
-	"$$CANDIDATE/bin/kiwi" init --workspace "$$SMOKE_WORKSPACE" --no-cursor-mcp --no-claude-code-mcp --no-codex-mcp >/dev/null; \
+	"$$CANDIDATE/bin/kiwi" init --workspace "$$SMOKE_WORKSPACE" >/dev/null; \
 	KIWI_FORCE_ACCESS_MODE=stub "$$CANDIDATE/bin/kiwi" doctor --workspace "$$SMOKE_WORKSPACE" >/dev/null; \
 	mv "$$CANDIDATE" "$$RELEASE_PATH"; \
 	if [ -e "$$CURRENT_LINK" ] && [ ! -L "$$CURRENT_LINK" ]; then \

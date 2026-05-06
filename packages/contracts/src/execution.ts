@@ -1,7 +1,9 @@
 import { z } from "zod";
 import {
+  ACCESS_MODE_VALUES,
   ApprovalStateSchema,
   AgentRoleSchema,
+  BudgetProfileSchema,
   ContextLevelSchema,
   ContractsSchemaVersionSchema,
   GateStatusSchema,
@@ -15,6 +17,7 @@ import {
   RUNNER_EXECUTION_STATUS_VALUES,
   ReviewIssueSeveritySchema,
   ReviewVerdictValueSchema,
+  RunStatusSchema,
   RunnerNameSchema,
   SchedulerDecisionStatusSchema,
   StepAttemptStatusSchema,
@@ -23,6 +26,8 @@ import {
 } from "./common";
 import { ArtifactSchema } from "./domain";
 import { EvidenceSubjectSchema } from "./evidence";
+
+const InvocationAccessModeSchema = enumFrom(ACCESS_MODE_VALUES);
 
 export const ModelUsageSchema = z.object({
   inputTokens: z.number().int().min(0),
@@ -47,6 +52,7 @@ export const ModelInvocationRecordSchema = z.object({
   modelId: z.union([z.string().min(1), z.null()]),
   providerName: z.string().min(1),
   runner: z.union([RunnerNameSchema, z.null()]),
+  accessMode: z.union([InvocationAccessModeSchema, z.null()]).optional(),
   usage: ModelUsageSchema,
   usagePrecision: UsagePrecisionSchema.default("unknown"),
   estimatedCostUsd: z.union([z.number().min(0), z.null()]),
@@ -146,6 +152,15 @@ export const SchedulerDecisionSchema = z.object({
   contextLevel: ContextLevelSchema,
   reviewDepth: ModelCapabilitySchema,
   requiredGates: z.array(z.string()),
+  routingReason: z.array(z.string().min(1)).default([]),
+  budget: z
+    .object({
+      profile: BudgetProfileSchema,
+      softCapUsd: z.number().min(0),
+      hardCapUsd: z.union([z.number().min(0), z.null()]),
+      remainingUsdEstimate: z.union([z.number().min(0), z.null()]),
+    })
+    .optional(),
   contextPackageRef: z.string().min(1),
 });
 
@@ -221,10 +236,84 @@ export const FinalCostReportSchema = z.object({
   schemaVersion: ContractsSchemaVersionSchema,
   runId: z.string().regex(/^run_[a-z0-9_]+$/),
   plannerCostUsd: z.number().min(0),
+  executorCostUsd: z.number().min(0).default(0),
+  reviewerCostUsd: z.number().min(0).default(0),
   runnerCostUsd: z.number().min(0),
   totalEstimatedUsd: z.number().min(0),
+  usagePrecision: z
+    .object({
+      exact: z.number().int().min(0),
+      estimated: z.number().int().min(0),
+      unknown: z.number().int().min(0),
+    })
+    .default({ exact: 0, estimated: 0, unknown: 0 }),
+  models: z
+    .array(
+      z.object({
+        phase: ModelInvocationPhaseSchema,
+        selectedCapability: ModelCapabilitySchema,
+        modelId: z.union([z.string().min(1), z.null()]),
+        providerName: z.string().min(1),
+        runner: z.union([RunnerNameSchema, z.null()]),
+        accessMode: z.union([InvocationAccessModeSchema, z.null()]).optional(),
+      }),
+    )
+    .default([]),
   currency: z.literal("USD"),
   createdAt: IsoDateTimeSchema,
+});
+
+export const BudgetProfileLimitSchema = z.object({
+  profile: BudgetProfileSchema,
+  softCapUsd: z.number().min(0),
+  hardCapUsd: z.union([z.number().min(0), z.null()]),
+});
+
+const UsagePrecisionCountsSchema = z.object({
+  exact: z.number().int().min(0),
+  estimated: z.number().int().min(0),
+  unknown: z.number().int().min(0),
+});
+
+export const RunCompletionPhaseSummarySchema = z.object({
+  phase: ModelInvocationPhaseSchema,
+  costUsd: z.number().min(0),
+  invocations: z.number().int().min(0),
+  usagePrecision: UsagePrecisionCountsSchema,
+  models: z.array(z.string().min(1)),
+  accessModes: z.array(InvocationAccessModeSchema),
+});
+
+export const RunCompletionSummarySchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  status: RunStatusSchema,
+  totalEstimatedCostUsd: z.number().min(0),
+  currency: z.literal("USD"),
+  usagePrecision: UsagePrecisionCountsSchema,
+  phaseCostsUsd: z.object({
+    planner: z.number().min(0),
+    executor: z.number().min(0),
+    reviewer: z.number().min(0),
+  }),
+  phaseSummaries: z.object({
+    planner: RunCompletionPhaseSummarySchema,
+    executor: RunCompletionPhaseSummarySchema,
+    reviewer: RunCompletionPhaseSummarySchema,
+  }),
+  attempts: z.object({
+    total: z.number().int().min(0),
+    completed: z.number().int().min(0),
+    failed: z.number().int().min(0),
+    blocked: z.number().int().min(0),
+  }),
+  failedStepIds: z.array(z.string().regex(/^step_\d{3}$/)),
+  blockedStepIds: z.array(z.string().regex(/^step_\d{3}$/)),
+  finalVerdict: z.union([ReviewVerdictValueSchema, z.literal("missing")]),
+  safeToApply: z.union([z.boolean(), z.null()]),
+  nextAction: z.string().min(1),
+  compact: z.string().min(1),
+  generatedAt: IsoDateTimeSchema,
 });
 
 export const ApprovalDecisionSchema = z.object({
@@ -277,3 +366,6 @@ export type NetworkPolicy = z.infer<typeof NetworkPolicySchema>;
 export type AttemptSummary = z.infer<typeof AttemptSummarySchema>;
 export type FinalVerdict = z.infer<typeof FinalVerdictSchema>;
 export type FinalCostReport = z.infer<typeof FinalCostReportSchema>;
+export type BudgetProfileLimit = z.infer<typeof BudgetProfileLimitSchema>;
+export type RunCompletionPhaseSummary = z.infer<typeof RunCompletionPhaseSummarySchema>;
+export type RunCompletionSummary = z.infer<typeof RunCompletionSummarySchema>;

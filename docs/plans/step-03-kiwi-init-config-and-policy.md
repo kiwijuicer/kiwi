@@ -17,8 +17,8 @@ Implement `kiwi init` and the minimum local config files needed for later planni
 - Create default:
   - `.kiwi/config.yaml`
   - `.kiwi/runs/`
-  - `kiwi-policy.yaml`
-  - `model-registry.yaml`
+  - `.kiwi/policy.yaml`
+  - `.kiwi/model-registry.yaml`
 - Keep initialization idempotent.
 - Seed policy defaults for command approval states and risk zones.
 - Seed model registry defaults for `cheap`, `mid`, `strong`, and `frontier`.

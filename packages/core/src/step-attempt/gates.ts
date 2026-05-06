@@ -8,7 +8,6 @@ import {
   KiwiPolicy,
   ReviewVerdict,
   ReviewVerdictSchema,
-  Step,
   StepAttemptStatus,
 } from "@kiwi/contracts";
 import { runForbiddenFileGate, runSecretsScanGate, saveGateResults, summarizeGateResults } from "../quality-gates";
@@ -74,16 +73,16 @@ export function enforceGateResultsBeforePositiveReview(params: {
 function policyGateResults(params: {
   cwd: string;
   runId: string;
-  step: Step;
   stepId: string;
   attemptId: string;
   attemptDiff: AttemptDiff | null;
+  requiredGates: string[];
   policy?: KiwiPolicy;
   approved?: boolean;
 }): GateResult[] {
   if (!params.policy || !params.attemptDiff) return [];
   const gateResults: GateResult[] = [];
-  if (params.step.requiredGates.includes("forbidden_file_checks")) {
+  if (params.requiredGates.includes("forbidden_file_checks")) {
     gateResults.push(
       runForbiddenFileGate({
         cwd: params.cwd,
@@ -97,7 +96,7 @@ function policyGateResults(params: {
       }),
     );
   }
-  if (params.step.requiredGates.includes("secrets_check")) {
+  if (params.requiredGates.includes("secrets_check")) {
     gateResults.push(
       runSecretsScanGate({
         cwd: params.cwd,
@@ -133,10 +132,10 @@ export async function coordinateAttemptGates<TCommandPolicy>(params: {
   const diffGateResults = policyGateResults({
     cwd: params.input.cwd,
     runId: params.runId,
-    step: params.input.step,
     stepId: params.stepId,
     attemptId: params.attemptId,
     attemptDiff: params.attemptDiff,
+    requiredGates: params.input.schedulerDecision.requiredGates,
     ...(params.input.policy ? { policy: params.input.policy } : {}),
     ...(params.input.approved !== undefined ? { approved: params.input.approved } : {}),
   });

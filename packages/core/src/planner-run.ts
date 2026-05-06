@@ -1,6 +1,6 @@
 import {
-  ContractValues,
   BudgetProfile,
+  ContractValues,
   Initiative,
   InitiativeSource,
   KiwiPolicy,
@@ -9,6 +9,7 @@ import {
   RiskProfile,
   TaskGraph,
 } from "@kiwi/contracts";
+import { remainingBudgetAfterEstimatedCost } from "./budget-policy";
 import { appendAuditEvent, writePlannerCostReport } from "./cost-ledger";
 import { generateRunId } from "./ids";
 import { appendModelInvocation } from "./model-invocations";
@@ -114,7 +115,7 @@ export function selectPlannerModel(models: ModelEntry[]): ModelEntry {
     ) ?? models.find((model) => model.enabled && model.roles.includes(ContractValues.Planner));
 
   if (!candidate) {
-    throw new Error("No enabled planner model found in model-registry.yaml");
+    throw new Error("No enabled planner model found in .kiwi/model-registry.yaml");
   }
 
   return candidate;
@@ -156,6 +157,7 @@ function appendPlannerFailureInvocation(params: {
     modelId: params.plannerModel.id,
     providerName: params.providerName,
     runner: null,
+    accessMode: params.plannerModel.accessMode,
     usage: { inputTokens: 0, outputTokens: 0 },
     usagePrecision: "unknown",
     estimatedCostUsd: 0,
@@ -289,6 +291,7 @@ function persistPlannerRunArtifacts(params: {
     modelId: params.planParams.plannerModel.id,
     providerName: params.plannerOutput.providerName,
     runner: null,
+    accessMode: params.planParams.plannerModel.accessMode,
     usage: params.plannerOutput.modelUsage,
     usagePrecision: "estimated",
     estimatedCostUsd: params.plannerOutput.cost.estimatedUsd,
@@ -398,7 +401,10 @@ export async function planRun(params: PlanRunParams): Promise<PlanRunResult> {
   });
   const budgetMetadata: PlannerBudgetMetadata = {
     profile: initiative.budgetProfile,
-    remainingUsdEstimate: null,
+    remainingUsdEstimate: remainingBudgetAfterEstimatedCost({
+      budgetProfile: initiative.budgetProfile,
+      estimatedCostUsd: plannerOutput.cost.estimatedUsd,
+    }),
   };
   appendPlannerSuccessEvent({
     workspacePath: params.workspacePath,

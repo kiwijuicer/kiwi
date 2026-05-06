@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
 import {
+  BudgetProfileLimit,
   BudgetProfile,
   ContractValues,
   Initiative,
@@ -8,10 +9,12 @@ import {
   ModelCapabilitySchema,
   RunnerName,
   RunnerNameSchema,
+  SchedulerDecisionSchema,
   Step,
   StepAttempt,
   StepAttemptSchema,
 } from "@kiwi/contracts";
+import { budgetLimitForProfile, budgetSoftCapExceeded } from "./budget-policy";
 import { appendAuditEvent } from "./cost-ledger";
 import { ensureRunLayout, resolveRunArtifactPath } from "./run-store";
 
@@ -76,6 +79,10 @@ export interface SchedulerDecision {
   contextLevel: ContextLevel;
   reviewDepth: ModelCapability;
   requiredGates: string[];
+  routingReason: string[];
+  budget?: BudgetProfileLimit & {
+    remainingUsdEstimate: number | null;
+  };
   contextPackageRef: string;
 }
 
@@ -91,6 +98,20 @@ export function loadContextPackage(params: {
     throw new Error(`context package not found: ${relative}`);
   }
   return JSON.parse(readFileSync(target, "utf-8")) as ContextPackage;
+}
+
+export function loadSchedulerDecision(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+}): SchedulerDecision {
+  const relative = `steps/${params.stepId}/${params.attemptId}/scheduler-decision.json`;
+  const target = resolveRunArtifactPath(params.runId, relative, params.cwd);
+  if (!existsSync(target)) {
+    throw new Error(`scheduler decision not found: ${relative}`);
+  }
+  return SchedulerDecisionSchema.parse(JSON.parse(readFileSync(target, "utf-8"))) as SchedulerDecision;
 }
 
 const CAPABILITY_RANK: Record<ModelCapability, number> = {
@@ -208,42 +229,66 @@ function isCodeExecutionStep(step: Step): boolean {
   return ["coding", "code_creation", "code_modification", "refactoring"].includes(step.type);
 }
 
-function determineAgentRole(input: SchedulerInput): Step["recommendedAgentRole"] {
+function determineAgentRole(input: SchedulerInput, routingReason: string[]): Step["recommendedAgentRole"] {
   const riskHigh = determineRiskHigh(input);
   if (!riskHigh) return input.step.recommendedAgentRole;
+  routingReason.push("risk_high_agent_role_escalation");
   if (isCodeExecutionStep(input.step) || input.step.type === "validation") return ContractValues.Security;
   if (input.step.type === "review") return ContractValues.Reviewer;
   return input.step.recommendedAgentRole;
 }
 
-function determineModelCapability(input: SchedulerInput): ModelCapability {
+function determineModelCapability(input: SchedulerInput, routingReason: string[]): ModelCapability {
   const riskHigh = determineRiskHigh(input);
   let capability = ModelCapabilitySchema.parse(input.step.recommendedModelCapability);
 
-  if (!riskHigh && (input.budgetProfile === "tiny" || input.budgetProfile === "small")) {
+  const budgetConstrained =
+    input.budgetProfile === "tiny" ||
+    input.budgetProfile === "small" ||
+    budgetSoftCapExceeded({
+      budgetProfile: input.budgetProfile,
+      remainingUsdEstimate: input.budgetRemainingUsdEstimate,
+    });
+  if (!riskHigh && budgetConstrained) {
     capability = downgradeCapability(capability);
+    routingReason.push("budget_constrained_downgrade");
   }
   if (riskHigh) {
     capability = maxCapability(capability, ContractValues.Strong);
+    routingReason.push("risk_over_budget_min_strong");
   }
 
   return capability;
 }
 
-function determineReviewDepth(input: SchedulerInput, capability: ModelCapability): ModelCapability {
+function determineReviewDepth(
+  input: SchedulerInput,
+  capability: ModelCapability,
+  routingReason: string[],
+): ModelCapability {
   const riskHigh = determineRiskHigh(input);
-  if (input.step.type === "review") return ContractValues.Frontier;
-  if (riskHigh) return ContractValues.Frontier;
-  if (CAPABILITY_RANK[capability] >= CAPABILITY_RANK.strong) return ContractValues.Strong;
+  if (input.step.type === "review") {
+    routingReason.push("review_step_frontier_review");
+    return ContractValues.Frontier;
+  }
+  if (riskHigh) {
+    routingReason.push("risk_high_frontier_review");
+    return ContractValues.Frontier;
+  }
+  if (CAPABILITY_RANK[capability] >= CAPABILITY_RANK.strong) {
+    routingReason.push("strong_capability_strong_review");
+    return ContractValues.Strong;
+  }
   return ContractValues.Mid;
 }
 
-function determineRequiredGates(input: SchedulerInput): string[] {
+function determineRequiredGates(input: SchedulerInput, routingReason: string[]): string[] {
   const riskHigh = determineRiskHigh(input);
   const gates = new Set(input.step.requiredGates);
   if (riskHigh) {
     gates.add("forbidden_file_checks");
     gates.add("secrets_check");
+    routingReason.push("risk_high_security_gates");
   }
   return Array.from(gates);
 }
@@ -281,11 +326,46 @@ function saveAttemptAndContext(params: {
   return { attemptRef, contextRef };
 }
 
-export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
+function saveSchedulerDecision(cwd: string, decision: SchedulerDecision): string {
+  const relative = `steps/${decision.stepId}/${decision.attemptId}/scheduler-decision.json`;
+  const target = resolveRunArtifactPath(decision.runId, relative, cwd);
+  writeJsonSafely(target, SchedulerDecisionSchema.parse(decision));
+  return relative;
+}
+
+interface PreparedScheduling {
+  now: Date;
+  attemptId: string;
+  runner: RunnerName | null;
+  routingReason: string[];
+  budget: BudgetProfileLimit & { remainingUsdEstimate: number | null };
+  riskHigh: boolean;
+  agentRole: Step["recommendedAgentRole"];
+  contextLevel: ContextLevel;
+  modelCapability: ModelCapability;
+  reviewDepth: ModelCapability;
+  requiredGates: string[];
+  contextPackage: ContextPackage;
+}
+
+function contextPackageRef(stepId: string, attemptId: string): string {
+  return `steps/${stepId}/${attemptId}/context-package.json`;
+}
+
+function prepareScheduling(input: SchedulerInput): PreparedScheduling {
   const now = input.now ?? new Date();
   const attemptId = input.attemptId ?? defaultAttemptId(now);
   const runner = pickRunner(input.runnerAvailability);
-  const agentRole = determineAgentRole(input);
+  const routingReason: string[] = [];
+  const budgetLimit = budgetLimitForProfile(input.budgetProfile);
+  const budget = {
+    ...budgetLimit,
+    remainingUsdEstimate: input.budgetRemainingUsdEstimate,
+  };
+  if (input.budgetRemainingUsdEstimate === null) {
+    routingReason.push("budget_remaining_unknown");
+  }
+  const agentRole = determineAgentRole(input, routingReason);
   const riskHigh = determineRiskHigh(input);
   const contextLevel = determineContextLevel({
     contextSize: input.contextSize,
@@ -293,9 +373,9 @@ export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
     blastRadius: input.blastRadius,
     securitySensitivity: input.securitySensitivity,
   });
-  const modelCapability = determineModelCapability(input);
-  const reviewDepth = determineReviewDepth(input, modelCapability);
-  const requiredGates = determineRequiredGates(input);
+  const modelCapability = determineModelCapability(input, routingReason);
+  const reviewDepth = determineReviewDepth(input, modelCapability, routingReason);
+  const requiredGates = determineRequiredGates(input, routingReason);
   const contextPackage = buildContextPackage({
     runId: input.runId,
     stepId: input.step.stepId,
@@ -311,96 +391,152 @@ export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
     historicalOutcomeRefs: input.historicalOutcomeRefs ?? [],
   });
 
-  if (!runner) {
-    appendAuditEvent(input.cwd, {
-      eventType: "scheduler_blocked",
-      runId: input.runId,
-      timestamp: now.toISOString(),
-      payload: {
-        stepId: input.step.stepId,
-        reason: "no_runner_available",
-        runnerAvailability: input.runnerAvailability,
-      },
-    });
-    return {
-      status: ContractValues.Blocked,
-      runId: input.runId,
-      stepId: input.step.stepId,
-      attemptId,
-      blockedReason: "no_runner_available",
-      agentRole,
-      modelCapability,
-      runner: null,
-      contextLevel,
-      reviewDepth,
-      requiredGates,
-      contextPackageRef: `steps/${input.step.stepId}/${attemptId}/context-package.json`,
-    };
-  }
+  return {
+    now,
+    attemptId,
+    runner,
+    routingReason,
+    budget,
+    riskHigh,
+    agentRole,
+    contextLevel,
+    modelCapability,
+    reviewDepth,
+    requiredGates,
+    contextPackage,
+  };
+}
 
+function blockScheduling(input: SchedulerInput, prepared: PreparedScheduling, reason: string): SchedulerDecision {
+  prepared.routingReason.push(reason);
+  const decision: SchedulerDecision = {
+    status: ContractValues.Blocked,
+    runId: input.runId,
+    stepId: input.step.stepId,
+    attemptId: prepared.attemptId,
+    blockedReason: reason,
+    agentRole: prepared.agentRole,
+    modelCapability: prepared.modelCapability,
+    runner: reason === "no_runner_available" ? null : prepared.runner,
+    contextLevel: prepared.contextLevel,
+    reviewDepth: prepared.reviewDepth,
+    requiredGates: prepared.requiredGates,
+    routingReason: prepared.routingReason,
+    budget: prepared.budget,
+    contextPackageRef: contextPackageRef(input.step.stepId, prepared.attemptId),
+  };
+  saveSchedulerDecision(input.cwd, decision);
+  appendAuditEvent(input.cwd, {
+    eventType: "scheduler_blocked",
+    runId: input.runId,
+    timestamp: prepared.now.toISOString(),
+    payload: {
+      stepId: input.step.stepId,
+      reason,
+      runnerAvailability: input.runnerAvailability,
+      budgetProfile: input.budgetProfile,
+      budgetRemainingUsdEstimate: input.budgetRemainingUsdEstimate,
+      routingReason: prepared.routingReason,
+    },
+  });
+  return decision;
+}
+
+function schedulePreparedAttempt(
+  input: SchedulerInput,
+  prepared: PreparedScheduling,
+  runner: RunnerName,
+): SchedulerDecision {
+  prepared.routingReason.push(`runner_selected:${runner}`);
   const saved = saveAttemptAndContext({
     cwd: input.cwd,
     runId: input.runId,
     step: input.step,
-    attemptId,
+    attemptId: prepared.attemptId,
     decision: {
-      agentRole,
-      modelCapability,
+      agentRole: prepared.agentRole,
+      modelCapability: prepared.modelCapability,
       runner,
-      contextLevel,
-      reviewDepth,
-      requiredGates,
+      contextLevel: prepared.contextLevel,
+      reviewDepth: prepared.reviewDepth,
+      requiredGates: prepared.requiredGates,
+      routingReason: prepared.routingReason,
+      budget: prepared.budget,
     },
-    contextPackage,
-    now,
+    contextPackage: prepared.contextPackage,
+    now: prepared.now,
   });
+  const decision: SchedulerDecision = {
+    status: "scheduled",
+    runId: input.runId,
+    stepId: input.step.stepId,
+    attemptId: prepared.attemptId,
+    agentRole: prepared.agentRole,
+    modelCapability: prepared.modelCapability,
+    runner,
+    contextLevel: prepared.contextLevel,
+    reviewDepth: prepared.reviewDepth,
+    requiredGates: prepared.requiredGates,
+    routingReason: prepared.routingReason,
+    budget: prepared.budget,
+    contextPackageRef: saved.contextRef,
+  };
+  saveSchedulerDecision(input.cwd, decision);
+  return decision;
+}
 
+function auditScheduled(input: SchedulerInput, prepared: PreparedScheduling, decision: SchedulerDecision): void {
   appendAuditEvent(input.cwd, {
     eventType: "scheduler_routing_decided",
     runId: input.runId,
-    timestamp: now.toISOString(),
+    timestamp: prepared.now.toISOString(),
     payload: {
       stepId: input.step.stepId,
-      attemptId,
+      attemptId: prepared.attemptId,
       agentRole: input.step.recommendedAgentRole,
-      selectedAgentRole: agentRole,
-      modelCapability,
-      runner,
-      contextLevel,
-      reviewDepth,
-      requiredGates,
+      selectedAgentRole: prepared.agentRole,
+      modelCapability: prepared.modelCapability,
+      runner: decision.runner,
+      contextLevel: prepared.contextLevel,
+      reviewDepth: prepared.reviewDepth,
+      requiredGates: prepared.requiredGates,
       budgetProfile: input.budgetProfile,
       budgetRemainingUsdEstimate: input.budgetRemainingUsdEstimate,
       riskProfile: input.initiative.riskProfile,
       blastRadius: input.blastRadius,
       securitySensitivity: input.securitySensitivity,
+      routingReason: prepared.routingReason,
     },
   });
   appendAuditEvent(input.cwd, {
     eventType: "context_package_created",
     runId: input.runId,
-    timestamp: now.toISOString(),
+    timestamp: prepared.now.toISOString(),
     payload: {
       stepId: input.step.stepId,
-      attemptId,
-      contextLevel,
-      contextPackageRef: saved.contextRef,
-      relevantFiles: contextPackage.include.relevantFiles.length,
-      symbolHits: contextPackage.include.symbolHits.length,
+      attemptId: prepared.attemptId,
+      contextLevel: prepared.contextLevel,
+      contextPackageRef: decision.contextPackageRef,
+      relevantFiles: prepared.contextPackage.include.relevantFiles.length,
+      symbolHits: prepared.contextPackage.include.symbolHits.length,
     },
   });
+}
 
-  return {
-    status: "scheduled",
-    runId: input.runId,
-    stepId: input.step.stepId,
-    attemptId,
-    agentRole,
-    modelCapability,
-    runner,
-    contextLevel,
-    reviewDepth,
-    requiredGates,
-    contextPackageRef: saved.contextRef,
-  };
+export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
+  const prepared = prepareScheduling(input);
+
+  if (!prepared.riskHigh && input.budgetRemainingUsdEstimate !== null && input.budgetRemainingUsdEstimate <= 0) {
+    return blockScheduling(input, prepared, "budget_hard_cap_exhausted");
+  }
+
+  if (prepared.riskHigh && input.budgetRemainingUsdEstimate !== null && input.budgetRemainingUsdEstimate <= 0) {
+    prepared.routingReason.push("risk_over_budget_hard_cap_override");
+  }
+
+  if (!prepared.runner) return blockScheduling(input, prepared, "no_runner_available");
+
+  const decision = schedulePreparedAttempt(input, prepared, prepared.runner);
+  auditScheduled(input, prepared, decision);
+  return decision;
 }

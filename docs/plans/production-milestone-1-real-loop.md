@@ -7,7 +7,7 @@ Targets: Steps 15-22
 Depends-On: Steps 01-14 DONE
 
 > Architectural pivot landed mid-milestone: API keys are not the default
-> path. `accessMode` is a first-class concept in `model-registry.yaml`,
+> path. `accessMode` is a first-class concept in `.kiwi/model-registry.yaml`,
 > and the runtime resolves the best available access mode per
 > invocation. Claude Code CLI is the preferred default; direct
 > Anthropic/OpenAI APIs are opt-in. Cost evidence distinguishes exact /

@@ -35,7 +35,7 @@ export class PlannerProviderRegistry {
       selectEnabledModelByAccessMode({ candidates: fallbackCandidates, env });
 
     if (!selected) {
-      throw new Error("No enabled planner model with an available access mode found in model-registry.yaml");
+      throw new Error("No enabled planner model with an available access mode found in .kiwi/model-registry.yaml");
     }
 
     return {

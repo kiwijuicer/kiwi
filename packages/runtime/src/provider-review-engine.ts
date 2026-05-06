@@ -65,7 +65,7 @@ export class ProviderReviewEngine implements ReviewEngine {
       riskHigh: input.riskHigh ?? false,
     });
     if (!selected) {
-      throw new Error("No reviewer model with an available access mode is enabled in model-registry.yaml");
+      throw new Error("No reviewer model with an available access mode is enabled in .kiwi/model-registry.yaml");
     }
     const { model, provider } = selected;
 
@@ -153,6 +153,7 @@ export class ProviderReviewEngine implements ReviewEngine {
       metadata: {
         modelId: model.id,
         providerName: validated.providerName,
+        accessMode: model.accessMode,
         selectedCapability: model.capability,
         requestedCapability: model.capability,
         modelUsage: validated.modelUsage,

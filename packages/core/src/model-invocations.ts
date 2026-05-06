@@ -1,6 +1,10 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import path from "path";
 import {
+  AccessMode,
+  AccessModes,
+  FinalCostReport,
+  FinalCostReportSchema,
   ModelInvocationPhase,
   ModelInvocationRecord,
   ModelInvocationRecordSchema,
@@ -35,6 +39,37 @@ function addTotals(target: ModelUsageSummaryTotals, record: ModelInvocationRecor
   target.estimatedCostUsd += record.estimatedCostUsd ?? 0;
 }
 
+function inferAccessMode(record: ModelInvocationRecord): AccessMode | null {
+  if (record.accessMode) return record.accessMode;
+  if (record.runner === "claude-code") return AccessModes.ClaudeCodeCli;
+  if (record.runner === "codex") return AccessModes.CodexCli;
+  if (record.runner === "cursor-agent") return AccessModes.CursorAgentCli;
+  if (record.runner === "local-shell") return AccessModes.Local;
+  if (record.providerName === "stub") return AccessModes.Stub;
+  return null;
+}
+
+function uniqueInvocationModels(invocations: ModelInvocationRecord[]): FinalCostReport["models"] {
+  const seen = new Set<string>();
+  const models: FinalCostReport["models"] = [];
+  for (const invocation of invocations) {
+    const accessMode = inferAccessMode(invocation);
+    const entry = {
+      phase: invocation.phase,
+      selectedCapability: invocation.selectedCapability,
+      modelId: invocation.modelId,
+      providerName: invocation.providerName,
+      runner: invocation.runner,
+      ...(accessMode ? { accessMode } : {}),
+    };
+    const key = JSON.stringify(entry);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    models.push(entry);
+  }
+  return models;
+}
+
 export function appendModelInvocation(cwd: string, record: ModelInvocationRecord): string {
   const parsed = ModelInvocationRecordSchema.parse(record);
   ensureRunLayout(parsed.runId, cwd);
@@ -54,6 +89,7 @@ export function appendModelInvocation(cwd: string, record: ModelInvocationRecord
       modelId: parsed.modelId,
       providerName: parsed.providerName,
       runner: parsed.runner,
+      accessMode: parsed.accessMode ?? null,
       status: parsed.status,
       usage: parsed.usage,
       usagePrecision: parsed.usagePrecision,
@@ -115,4 +151,41 @@ export function writeModelUsageSummary(params: { cwd: string; runId: string; now
     summary,
     ref: MODEL_USAGE_SUMMARY_REF,
   };
+}
+
+export function buildFinalCostReportFromModelInvocations(params: {
+  cwd: string;
+  runId: string;
+  now?: Date;
+}): FinalCostReport {
+  const invocations = readModelInvocations(params.cwd, params.runId);
+  const phaseCosts: Record<ModelInvocationPhase, number> = {
+    planner: 0,
+    executor: 0,
+    reviewer: 0,
+  };
+  const usagePrecision = {
+    exact: 0,
+    estimated: 0,
+    unknown: 0,
+  };
+
+  for (const invocation of invocations) {
+    phaseCosts[invocation.phase] += invocation.estimatedCostUsd ?? 0;
+    usagePrecision[invocation.usagePrecision] += 1;
+  }
+
+  return FinalCostReportSchema.parse({
+    schemaVersion: "1",
+    runId: params.runId,
+    plannerCostUsd: phaseCosts.planner,
+    executorCostUsd: phaseCosts.executor,
+    reviewerCostUsd: phaseCosts.reviewer,
+    runnerCostUsd: phaseCosts.executor + phaseCosts.reviewer,
+    totalEstimatedUsd: phaseCosts.planner + phaseCosts.executor + phaseCosts.reviewer,
+    usagePrecision,
+    models: uniqueInvocationModels(invocations),
+    currency: "USD",
+    createdAt: (params.now ?? new Date()).toISOString(),
+  });
 }

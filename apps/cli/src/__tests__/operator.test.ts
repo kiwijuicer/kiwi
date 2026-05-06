@@ -2,8 +2,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import os from "os";
 import path from "path";
 import { describe, expect, it, vi } from "vitest";
+import { kiwiPolicyPath } from "@kiwi/core";
 import { runAttempt } from "../commands/attempt";
+import { runCost } from "../commands/cost";
 import { runEvidenceManifest } from "../commands/evidence";
+import { runExplain } from "../commands/explain";
 import { runFinalize } from "../commands/finalize";
 import { runInit } from "../commands/init";
 import { runOperatorSnapshot } from "../commands/operator";
@@ -13,7 +16,7 @@ import { runStatus } from "../commands/status";
 
 function writeFastPolicy(cwd: string): void {
   writeFileSync(
-    path.join(cwd, "kiwi-policy.yaml"),
+    kiwiPolicyPath(cwd),
     `version: "1"
 project:
   name: kiwi
@@ -86,7 +89,12 @@ describe("kiwi operator flow", () => {
       },
       cwd,
     );
+    const finalizeSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
     await runFinalize("run_20260504_090000_op01", { now: new Date("2026-05-04T09:02:00.000Z") }, cwd);
+    const finalizeOutput = finalizeSpy.mock.calls.flat().join("\n");
+    finalizeSpy.mockRestore();
+    expect(finalizeOutput).toContain("cost: $0.00 estimated");
+    expect(finalizeOutput).toContain("verdict: pass");
     await runEvidenceManifest("run_20260504_090000_op01", { now: new Date("2026-05-04T09:03:00.000Z") }, cwd);
     await runOperatorSnapshot("run_20260504_090000_op01", { now: new Date("2026-05-04T09:04:00.000Z") }, cwd);
 
@@ -119,6 +127,21 @@ describe("kiwi operator flow", () => {
     expect(output).toContain("final/final-summary.md");
     expect(output).toContain("final/evidence-manifest.json");
     expect(output).toContain("operator/index.html");
+
+    const costSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await runCost("run_20260504_090000_op01", {}, cwd);
+    const costOutput = costSpy.mock.calls.flat().join("\n");
+    costSpy.mockRestore();
+    expect(costOutput).toContain("planner:");
+    expect(costOutput).toContain("executor:");
+    expect(costOutput).toContain("reviewer:");
+
+    const explainSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await runExplain("run_20260504_090000_op01", {}, cwd);
+    const explainOutput = explainSpy.mock.calls.flat().join("\n");
+    explainSpy.mockRestore();
+    expect(explainOutput).toContain("routing:");
+    expect(explainOutput).toContain("gates:");
   });
 
   it("blocks direct attempts when dependencies are incomplete and releases the run lock", async () => {

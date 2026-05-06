@@ -105,6 +105,7 @@ describe("planner run service", () => {
       plannerModelId: "stub-frontier",
       providerName: "stub-deterministic",
       attemptsUsed: 1,
+      budgetRemainingUsdEstimate: 9.99,
     });
 
     const auditTypes = readAuditEvents(workspacePath, result.runId).map((event) => event.eventType);

@@ -35,12 +35,21 @@ export const StepSchema = z.object({
   status: StepStatusSchema.default("pending"),
 });
 
+export const SubPlanSchema = z.object({
+  subPlanId: z.string().regex(/^subplan_[a-z0-9_]+$/),
+  title: z.string().min(1),
+  stepIds: z.array(z.string().regex(/^step_\d{3}$/)).min(1),
+  dependsOn: z.array(z.string().regex(/^subplan_[a-z0-9_]+$/)).default([]),
+  maxConcurrency: z.number().int().positive().default(1),
+});
+
 export const TaskGraphSchema = z.object({
   planId: z.string().regex(/^plan_[a-z0-9_]+$/),
   runId: z.string().regex(/^run_[a-z0-9_]+$/),
   initiativeId: z.string().regex(/^init_[a-z0-9_]+$/),
   summary: z.string().min(1),
   steps: z.array(StepSchema).min(1),
+  subPlans: z.array(SubPlanSchema).optional(),
   acceptanceCriteria: z.array(z.string()).min(1),
   assumptions: z.array(z.string()).default([]),
   openQuestions: z.array(z.string()).default([]),
@@ -75,6 +84,7 @@ export type InitiativeSource = z.infer<typeof InitiativeSourceSchema>;
 export type RiskProfile = z.infer<typeof RiskProfileSchema>;
 export type BudgetProfile = z.infer<typeof BudgetProfileSchema>;
 export type Step = z.infer<typeof StepSchema>;
+export type SubPlan = z.infer<typeof SubPlanSchema>;
 export type StepType = z.infer<typeof StepTypeSchema>;
 export type StepStatus = z.infer<typeof StepStatusSchema>;
 export type TaskGraph = z.infer<typeof TaskGraphSchema>;

@@ -8,6 +8,7 @@ import {
   A2ARuntimeModeSchema,
   ArtifactSchema,
   AttemptSummarySchema,
+  BudgetProfileLimitSchema,
   ContextPackageSchema,
   ContractsMetadataSchema,
   EvidenceManifestSchema,
@@ -24,6 +25,7 @@ import {
   ProtocolEnvelopeSchema,
   ReviewVerdictSchema,
   RunAuditSnapshotSchema,
+  RunCompletionSummarySchema,
   RunnerExecutionOutputSchema,
   SchedulerDecisionSchema,
   ScmMutationResultSchema,
@@ -33,6 +35,7 @@ import {
   ScmTicketDraftSchema,
   RunSchema,
   StepAttemptSchema,
+  SubPlanSchema,
   TaskGraphSchema,
 } from "../schemas";
 
@@ -99,9 +102,21 @@ describe("contracts schemas", () => {
           status: "pending",
         },
       ],
+      subPlans: [
+        {
+          subPlanId: "subplan_wave_1",
+          title: "Wave 1",
+          stepIds: ["step_001"],
+          maxConcurrency: 1,
+        },
+      ],
     });
 
     expect(parsed.steps).toHaveLength(1);
+    expect(parsed.subPlans?.[0]?.stepIds).toEqual(["step_001"]);
+    expect(
+      SubPlanSchema.parse({ subPlanId: "subplan_demo", title: "Demo", stepIds: ["step_001"] }).maxConcurrency,
+    ).toBe(1);
   });
 
   it("parses artifact, step attempt, gate result, and review verdict", () => {
@@ -197,6 +212,7 @@ describe("contracts schemas", () => {
       modelId: "stub-frontier",
       providerName: "stub-deterministic",
       runner: null,
+      accessMode: "stub",
       usage: { inputTokens: 12, outputTokens: 34 },
       estimatedCostUsd: 0,
       status: "completed",
@@ -219,7 +235,103 @@ describe("contracts schemas", () => {
     });
 
     expect(summary.invocations[0]?.modelId).toBe("stub-frontier");
+    expect(summary.invocations[0]?.accessMode).toBe("stub");
     expect(summary.totals.outputTokens).toBe(34);
+  });
+
+  it("parses budget limits, final cost reports, scheduler reasons, and run completion summaries", () => {
+    const budget = BudgetProfileLimitSchema.parse({
+      profile: "tiny",
+      softCapUsd: 0.25,
+      hardCapUsd: 0.5,
+    });
+    expect(budget.hardCapUsd).toBe(0.5);
+
+    const scheduler = SchedulerDecisionSchema.parse({
+      status: "scheduled",
+      runId: "run_demo",
+      stepId: "step_001",
+      attemptId: "attempt_001",
+      agentRole: "executor",
+      modelCapability: "mid",
+      runner: "codex",
+      contextLevel: "L1",
+      reviewDepth: "strong",
+      requiredGates: ["tests"],
+      routingReason: ["budget_constrained_downgrade"],
+      budget: { profile: "tiny", softCapUsd: 0.25, hardCapUsd: 0.5, remainingUsdEstimate: 0.2 },
+      contextPackageRef: "steps/step_001/attempt_001/context-package.json",
+    });
+    expect(scheduler.routingReason).toContain("budget_constrained_downgrade");
+
+    const cost = FinalCostReportSchema.parse({
+      schemaVersion: "1",
+      runId: "run_demo",
+      plannerCostUsd: 0.1,
+      executorCostUsd: 0.2,
+      reviewerCostUsd: 0.3,
+      runnerCostUsd: 0.5,
+      totalEstimatedUsd: 0.6,
+      usagePrecision: { exact: 1, estimated: 2, unknown: 0 },
+      models: [
+        {
+          phase: "executor",
+          selectedCapability: "strong",
+          modelId: "codex-cli-auto",
+          providerName: "local",
+          runner: "codex",
+          accessMode: "codex-cli",
+        },
+      ],
+      currency: "USD",
+      createdAt: "2026-05-04T08:00:02.000Z",
+    });
+    expect(cost.reviewerCostUsd).toBe(0.3);
+
+    const completion = RunCompletionSummarySchema.parse({
+      schemaVersion: "1",
+      runId: "run_demo",
+      status: "completed",
+      totalEstimatedCostUsd: 0.6,
+      currency: "USD",
+      usagePrecision: { exact: 1, estimated: 2, unknown: 0 },
+      phaseCostsUsd: { planner: 0.1, executor: 0.2, reviewer: 0.3 },
+      phaseSummaries: {
+        planner: {
+          phase: "planner",
+          costUsd: 0.1,
+          invocations: 1,
+          usagePrecision: { exact: 0, estimated: 1, unknown: 0 },
+          models: ["frontier/stub"],
+          accessModes: ["stub"],
+        },
+        executor: {
+          phase: "executor",
+          costUsd: 0.2,
+          invocations: 1,
+          usagePrecision: { exact: 1, estimated: 0, unknown: 0 },
+          models: ["strong/codex-cli"],
+          accessModes: ["codex-cli"],
+        },
+        reviewer: {
+          phase: "reviewer",
+          costUsd: 0.3,
+          invocations: 1,
+          usagePrecision: { exact: 0, estimated: 1, unknown: 0 },
+          models: ["frontier/claude-code-cli"],
+          accessModes: ["claude-code-cli"],
+        },
+      },
+      attempts: { total: 1, completed: 1, failed: 0, blocked: 0 },
+      failedStepIds: [],
+      blockedStepIds: [],
+      finalVerdict: "pass",
+      safeToApply: true,
+      nextAction: "complete",
+      compact: "cost: $0.60 estimated · verdict: pass",
+      generatedAt: "2026-05-04T08:00:03.000Z",
+    });
+    expect(completion.nextAction).toBe("complete");
   });
 
   it("rejects invalid gate status", () => {

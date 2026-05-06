@@ -1,5 +1,7 @@
 import { Command } from "commander";
+import { runCost } from "./cost";
 import { runDoctor } from "./doctor";
+import { runExplain } from "./explain";
 import { runInit } from "./init";
 import { runPlan } from "./plan";
 import { runRulesSync } from "./rules";
@@ -12,21 +14,11 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
     .command("init")
     .description("Initialize kiwi in current directory")
     .option("-f, --force", "Regenerate initialization files")
-    .option("--no-cursor-mcp", "Skip writing .cursor/mcp.json")
-    .option("--no-claude-code-mcp", "Skip writing Claude Code .mcp.json")
-    .option("--no-codex-mcp", "Skip writing .codex/config.toml")
+    .option("--mcp <target>", "Write MCP client config: none|cursor|claude|codex|all", "none")
     .option("--workspace <path>", "Workspace control root to initialize")
-    .action(
-      (opts: {
-        force?: boolean;
-        cursorMcp?: boolean;
-        claudeCodeMcp?: boolean;
-        codexMcp?: boolean;
-        workspace?: string;
-      }) => {
-        runInit(withWorkspaceOptions(opts)).catch(handleCommandError);
-      },
-    );
+    .action((opts: { force?: boolean; mcp?: string; workspace?: string }) => {
+      runInit(withWorkspaceOptions(opts)).catch(handleCommandError);
+    });
 
   addWorkspaceOptions(
     program
@@ -60,11 +52,26 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
       runWorkspaceList(withWorkspaceOptions(opts)).catch(handleCommandError);
     });
 
-  addWorkspaceOptions(program.command("status [runId]").description("Show summary for stored runs")).action(
-    (runId?: string, opts?: { workspace?: string; repo?: string }) => {
-      runStatus(process.cwd(), runId, withWorkspaceOptions(opts ?? {})).catch(handleCommandError);
-    },
-  );
+  addWorkspaceOptions(
+    program.command("status [runId]").description("Show summary for stored runs").option("--json", "Print JSON"),
+  ).action((runId?: string, opts?: { workspace?: string; repo?: string; json?: boolean }) => {
+    runStatus(process.cwd(), runId, withWorkspaceOptions(opts ?? {})).catch(handleCommandError);
+  });
+
+  addWorkspaceOptions(
+    program.command("cost <runId>").description("Show run cost and model summary").option("--json", "Print JSON"),
+  ).action((runId: string, opts: { workspace?: string; repo?: string; json?: boolean }) => {
+    runCost(runId, withWorkspaceOptions(opts)).catch(handleCommandError);
+  });
+
+  addWorkspaceOptions(
+    program
+      .command("explain <runId>")
+      .description("Show routing, gate, cost, and next action")
+      .option("--json", "Print JSON"),
+  ).action((runId: string, opts: { workspace?: string; repo?: string; json?: boolean }) => {
+    runExplain(runId, withWorkspaceOptions(opts)).catch(handleCommandError);
+  });
 
   addWorkspaceOptions(
     program.command("doctor").description("Probe configured policies, registry entries, and available access modes"),

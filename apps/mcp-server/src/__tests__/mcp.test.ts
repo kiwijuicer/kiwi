@@ -4,6 +4,7 @@ import { AddressInfo } from "net";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
+import { kiwiModelRegistryPath, kiwiPolicyPath } from "@kiwi/core";
 import { createMcpMessageDrainer, handleMcpRequest, startHttpMcpServer } from "../index";
 
 function setupRepo(): string {
@@ -17,7 +18,7 @@ function writeKiwiConfig(cwd: string): void {
   mkdirSync(path.join(cwd, ".kiwi", "logs"), { recursive: true });
   writeFileSync(path.join(cwd, ".kiwi", "config.yaml"), 'version: "1"\n', "utf-8");
   writeFileSync(
-    path.join(cwd, "kiwi-policy.yaml"),
+    kiwiPolicyPath(cwd),
     `version: "1"
 project:
   name: kiwi
@@ -51,7 +52,7 @@ commandProfiles:
     "utf-8",
   );
   writeFileSync(
-    path.join(cwd, "model-registry.yaml"),
+    kiwiModelRegistryPath(cwd),
     `version: "1"
 models:
   - id: stub-frontier
@@ -540,9 +541,45 @@ describe("MCP server", () => {
     );
     expect(run.error).toBeUndefined();
     expect(JSON.stringify(run.result)).toContain("completed");
+    const runParsed = toolJson(run) as { completionSummary: { totalEstimatedCostUsd: number; nextAction: string } };
+    expect(runParsed.completionSummary.totalEstimatedCostUsd).toBe(0);
 
     const worktrees = path.join(workspace.root, ".kiwi", "runs", parsed.runId, "worktrees");
     expect(existsSync(worktrees) ? readdirSync(worktrees) : []).toHaveLength(0);
+
+    const cost = await handleMcpRequest(
+      {
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "kiwi_cost",
+          arguments: {
+            workspacePath: workspace.root,
+            runId: parsed.runId,
+          },
+        },
+      },
+      os.tmpdir(),
+    );
+    expect(cost.error).toBeUndefined();
+    expect((toolJson(cost) as { phaseCostsUsd: { executor: number } }).phaseCostsUsd.executor).toBe(0);
+
+    const explain = await handleMcpRequest(
+      {
+        id: 4,
+        method: "tools/call",
+        params: {
+          name: "kiwi_explain",
+          arguments: {
+            workspacePath: workspace.root,
+            runId: parsed.runId,
+          },
+        },
+      },
+      os.tmpdir(),
+    );
+    expect(explain.error).toBeUndefined();
+    expect((toolJson(explain) as { routing: unknown[] }).routing.length).toBeGreaterThan(0);
   });
 
   it("exposes filesystem A2A trust, publish, sync, inbox, and accept tools", async () => {

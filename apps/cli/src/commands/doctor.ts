@@ -1,7 +1,6 @@
-import path from "path";
 import chalk from "chalk";
 import { ACCESS_MODE_VALUES, AccessMode, ContractValues, Step } from "@kiwi/contracts";
-import { isInitialized, loadPolicy, loadRegistry } from "@kiwi/core";
+import { isInitialized, kiwiModelRegistryPath, kiwiPolicyPath, loadPolicy, loadRegistry } from "@kiwi/core";
 import { evaluateAccessModeAvailability, preferredAccessModes, RunnerRegistry } from "@kiwi/runtime";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
@@ -31,8 +30,8 @@ export async function runDoctor(opts: DoctorOptions = {}, cwd: string = process.
   if (!isInitialized(workspacePath)) {
     console.log(chalk.yellow(`! workspace not initialized — run 'kiwi init'`));
   } else {
-    const policy = loadPolicy(path.join(workspacePath, "kiwi-policy.yaml"));
-    const registry = loadRegistry(path.join(workspacePath, "model-registry.yaml"));
+    const policy = loadPolicy(kiwiPolicyPath(workspacePath));
+    const registry = loadRegistry(kiwiModelRegistryPath(workspacePath));
     console.log(`policy: ${chalk.green(policy.project.name)} (${policy.routing.defaultModelCapability} default)`);
     console.log(`registry: ${chalk.green(registry.models.length)} entries`);
 

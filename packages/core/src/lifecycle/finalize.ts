@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from "fs";
+import { writeFileSync } from "fs";
 import {
   ContractValues,
   FinalCostReport,
@@ -9,11 +9,11 @@ import {
   GateTypes,
 } from "@kiwi/contracts";
 import { appendAuditEvent } from "../cost-ledger";
-import { writeModelUsageSummary } from "../model-invocations";
+import { buildFinalCostReportFromModelInvocations, writeModelUsageSummary } from "../model-invocations";
 import { loadAttemptDiff } from "../review-engine";
 import { ensureRunLayout, loadTaskGraph, resolveRunArtifactPath } from "../run-store";
 import { latestAttemptByStep, listStepAttemptEvidence, StepAttemptEvidence } from "./evidence-collection";
-import { readJson, writeJsonSafely } from "./files";
+import { writeJsonSafely } from "./files";
 import { updateRunStatus } from "./status";
 
 export interface FinalizeRunResult {
@@ -85,27 +85,6 @@ function evidenceFailureReasons(params: {
   return failures;
 }
 
-function sumRunnerCost(cwd: string, runId: string, attempts: StepAttemptEvidence[]): number {
-  let total = 0;
-  for (const attempt of attempts) {
-    for (const artifact of attempt.attempt.artifacts) {
-      if (artifact.type !== "cost_report") continue;
-      const target = resolveRunArtifactPath(runId, artifact.ref, cwd);
-      if (!existsSync(target)) continue;
-      const parsed = readJson(target) as { estimatedCostUsd?: number };
-      total += parsed.estimatedCostUsd ?? 0;
-    }
-  }
-  return total;
-}
-
-function readPlannerCost(cwd: string, runId: string): number {
-  const target = resolveRunArtifactPath(runId, "plan/cost-report.json", cwd);
-  if (!existsSync(target)) return 0;
-  const parsed = readJson(target) as { cost?: { estimatedUsd?: number } };
-  return parsed.cost?.estimatedUsd ?? 0;
-}
-
 function writeFinalSummary(params: {
   cwd: string;
   runId: string;
@@ -175,7 +154,7 @@ function collectFinalEvidence(params: {
       runId: params.runId,
       stepId: step.stepId,
       attempt,
-      requiredGates: step.requiredGates,
+      requiredGates: attempt.schedulerDecision?.requiredGates ?? step.requiredGates,
     });
     if (failures.length > 0) {
       if (!summary.failedStepIds.includes(step.stepId)) summary.failedStepIds.push(step.stepId);
@@ -220,17 +199,13 @@ export function finalizeRun(params: { cwd: string; runId: string; now?: Date }):
     createdAt: now.toISOString(),
   });
 
-  const plannerCostUsd = readPlannerCost(params.cwd, params.runId);
-  const runnerCostUsd = sumRunnerCost(params.cwd, params.runId, attempts);
-  const costReport = FinalCostReportSchema.parse({
-    schemaVersion: "1",
-    runId: params.runId,
-    plannerCostUsd,
-    runnerCostUsd,
-    totalEstimatedUsd: plannerCostUsd + runnerCostUsd,
-    currency: "USD",
-    createdAt: now.toISOString(),
-  });
+  const costReport = FinalCostReportSchema.parse(
+    buildFinalCostReportFromModelInvocations({
+      cwd: params.cwd,
+      runId: params.runId,
+      now,
+    }),
+  );
 
   const verdictRef = "final/final-verdict.json";
   const costReportRef = "final/final-cost-report.json";

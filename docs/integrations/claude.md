@@ -7,26 +7,20 @@ Official MCP docs: https://code.claude.com/docs/en/mcp
 From the Claude Code project terminal:
 
 ```bash
-kiwi init
+kiwi init --mcp claude
 ```
 
 This writes or merges project-scoped `.mcp.json` with a `kiwi` MCP server entry and preserves other configured servers.
 
-Manual setup is still possible. Build `kiwi` first:
-
-```bash
-cd /Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi
-pnpm build
-```
+Manual setup is still possible after `make install`.
 
 Add the local stdio MCP server from the target workspace:
 
 ```bash
 cd /Users/norberthanauer/Projects/voice
 claude mcp add --transport stdio \
-  --env KIWI_WORKSPACE=/Users/norberthanauer/Projects/voice \
   kiwi \
-  -- node /Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js
+  -- /Users/norberthanauer/.local/bin/kiwi-mcp --workspace /Users/norberthanauer/Projects/voice
 ```
 
 Check it:
@@ -50,11 +44,8 @@ If you keep a project-scoped `.mcp.json`, use:
 {
   "mcpServers": {
     "kiwi": {
-      "command": "node",
-      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js"],
-      "env": {
-        "KIWI_WORKSPACE": "/Users/norberthanauer/Projects/voice"
-      }
+      "command": "/Users/norberthanauer/.local/bin/kiwi-mcp",
+      "args": ["--workspace", "/Users/norberthanauer/Projects/voice"]
     }
   }
 }

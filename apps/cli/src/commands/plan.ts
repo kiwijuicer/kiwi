@@ -2,7 +2,15 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
-import { NotInitializedError, isInitialized, loadPolicy, loadRegistry, planRun } from "@kiwi/core";
+import {
+  kiwiModelRegistryPath,
+  kiwiPolicyPath,
+  NotInitializedError,
+  isInitialized,
+  loadPolicy,
+  loadRegistry,
+  planRun,
+} from "@kiwi/core";
 import { resolvePlannerProvider } from "@kiwi/runtime";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
@@ -54,8 +62,8 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
     throw new NotInitializedError(workspacePath);
   }
 
-  const policy = loadPolicy(path.join(workspacePath, "kiwi-policy.yaml"));
-  const registry = loadRegistry(path.join(workspacePath, "model-registry.yaml"));
+  const policy = loadPolicy(kiwiPolicyPath(workspacePath));
+  const registry = loadRegistry(kiwiModelRegistryPath(workspacePath));
 
   const { rawInput, source } = resolveTicketInput(ticketArg, cwd);
   const now = opts.now ?? new Date();

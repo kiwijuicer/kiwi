@@ -23,7 +23,7 @@ Replace placeholder gate evidence with real typecheck, lint, test, forbidden-fil
 
 ## Scope
 
-- Add gate command profiles under `kiwi-policy.yaml`:
+- Add gate command profiles under `.kiwi/policy.yaml`:
   - `typecheck` -> `pnpm typecheck`
   - `lint` -> root `pnpm lint` (eslint baseline + biome) once it is non-placeholder
   - `tests` -> `pnpm test` filtered to changed packages where possible

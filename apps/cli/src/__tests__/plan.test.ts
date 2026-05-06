@@ -72,7 +72,7 @@ describe("kiwi plan", () => {
     expect(plannerOutput.retry.attemptsUsed).toBe(1);
     expect(plannerOutput.retry.invalidAttempts).toBe(0);
     expect(plannerOutput.budget.profile).toBe("normal");
-    expect(plannerOutput.budget.remainingUsdEstimate).toBe(null);
+    expect(plannerOutput.budget.remainingUsdEstimate).toBe(10);
     expect(existsSync(path.join(runDir, "plan", "cost-report.json"))).toBe(true);
     const invocations = readFileSync(path.join(runDir, "model-invocations.jsonl"), "utf-8")
       .trim()

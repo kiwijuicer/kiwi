@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import path from "path";
 import {
   ContractValues,
+  AccessMode,
   GateResult,
   ModelCapability,
   ModelEntry,
@@ -29,6 +30,7 @@ export interface ReviewInput {
 export interface ReviewExecutionMetadata {
   modelId: string | null;
   providerName: string;
+  accessMode?: AccessMode;
   selectedCapability?: ModelCapability;
   requestedCapability?: ModelCapability;
   modelUsage: { inputTokens: number; outputTokens: number };
@@ -169,7 +171,7 @@ export function loadAttemptDiff(params: {
 export function selectReviewerModel(models: ModelEntry[], riskHigh: boolean): ModelEntry {
   const enabled = models.filter((model) => model.enabled && model.roles.includes(ContractValues.Reviewer));
   if (enabled.length === 0) {
-    throw new Error("No enabled reviewer model found in model-registry.yaml");
+    throw new Error("No enabled reviewer model found in .kiwi/model-registry.yaml");
   }
   const targetCapability = riskHigh ? ContractValues.Frontier : ContractValues.Strong;
   const exact = enabled.find((model) => model.capability === targetCapability);

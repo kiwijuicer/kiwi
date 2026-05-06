@@ -1,14 +1,16 @@
-import path from "path";
 import {
   assertStepDependenciesCompleted,
   commandProfileForStep,
   commandProfileToExecutionPolicy,
+  kiwiModelRegistryPath,
+  kiwiPolicyPath,
   loadApprovalDecision,
   loadInitiative,
   loadPolicy,
   loadRegistry,
   loadTaskGraph,
   noopCommand,
+  remainingBudgetUsdEstimate,
   refreshRunStatusFromAttempts,
   scheduleStepAttempt,
   StepAttemptOrchestrator,
@@ -38,8 +40,8 @@ export interface ExecutePlannedStepResult {
 }
 
 export async function executePlannedStep(input: ExecutePlannedStepInput): Promise<ExecutePlannedStepResult> {
-  const policy = loadPolicy(path.join(input.cwd, "kiwi-policy.yaml"));
-  const registry = loadRegistry(path.join(input.cwd, "model-registry.yaml"));
+  const policy = loadPolicy(kiwiPolicyPath(input.cwd));
+  const registry = loadRegistry(kiwiModelRegistryPath(input.cwd));
   const initiative = loadInitiative(input.runId, input.cwd);
   const repoPath = initiative.repoPath || input.cwd;
   const taskGraph = loadTaskGraph(input.runId, input.cwd);
@@ -60,7 +62,11 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
     step,
     initiative,
     budgetProfile: initiative.budgetProfile,
-    budgetRemainingUsdEstimate: null,
+    budgetRemainingUsdEstimate: remainingBudgetUsdEstimate({
+      cwd: input.cwd,
+      runId: input.runId,
+      budgetProfile: initiative.budgetProfile,
+    }),
     blastRadius: initiative.riskProfile === "production" ? "high" : "low",
     securitySensitivity: initiative.riskProfile === "production" ? "high" : "low",
     contextSize: "small",
