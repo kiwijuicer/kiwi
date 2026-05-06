@@ -117,11 +117,23 @@ function determineContextLevel(params: {
   riskHigh: boolean;
   blastRadius: BlastRadius;
   securitySensitivity: SecuritySensitivity;
+  modelCapability: ModelCapability;
+  routingReason: string[];
 }): ContextLevel {
   const base: ContextLevel = params.contextSize === "small" ? "L0" : params.contextSize === "medium" ? "L1" : "L2";
-  if (!params.riskHigh) return base;
-  if (params.blastRadius === "high" && params.securitySensitivity === "high") return "L3";
-  return base === "L0" ? "L2" : base;
+  if (params.riskHigh) {
+    if (params.blastRadius === "high" && params.securitySensitivity === "high") return "L3";
+    return base === "L0" ? "L2" : base;
+  }
+  if (params.modelCapability === ContractValues.Cheap && base !== "L0") {
+    params.routingReason.push("cheap_capability_l0_cap");
+    return "L0";
+  }
+  if (params.modelCapability === ContractValues.Mid && base === "L2") {
+    params.routingReason.push("mid_capability_l1_cap");
+    return "L1";
+  }
+  return base;
 }
 
 function buildContextPackage(params: {
@@ -313,13 +325,15 @@ function prepareScheduling(input: SchedulerInput): PreparedScheduling {
   }
   const agentRole = determineAgentRole(input, routingReason);
   const riskHigh = determineRiskHigh(input);
+  const modelCapability = determineModelCapability(input, routingReason);
   const contextLevel = determineContextLevel({
     contextSize: input.contextSize,
     riskHigh,
     blastRadius: input.blastRadius,
     securitySensitivity: input.securitySensitivity,
+    modelCapability,
+    routingReason,
   });
-  const modelCapability = determineModelCapability(input, routingReason);
   const reviewDepth = determineReviewDepth(input, modelCapability, routingReason);
   const requiredGates = determineRequiredGates(input, routingReason);
   const contextPackage = buildContextPackage({

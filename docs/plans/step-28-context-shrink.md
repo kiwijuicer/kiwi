@@ -1,6 +1,6 @@
 # Step 28: Capability-driven Context Shrink
 
-Status: PLANNED
+Status: COMPLETED
 Created-Date: 2026-05-06
 Milestone: Hardening
 Depends-On: -

@@ -89,7 +89,8 @@ Payload-Arten oder Trust-Regeln sind nicht in Scope.
 
 Capability tiers in `.kiwi/model-registry.yaml` map to local CLI access modes by
 default. Direct provider API keys are not required for daily use.
-`cheap` is an alias of `mid` with a reduced context budget.
+`cheap` remains an alias of `mid` for access mode mapping, but scheduler context
+level capping is capability-specific.
 
 | Capability | Default Local Access         | Notes                            |
 | ---------- | ---------------------------- | -------------------------------- |
@@ -97,6 +98,18 @@ default. Direct provider API keys are not required for daily use.
 | strong     | claude-code-cli/codex/cursor | default coding, default reviewer |
 | mid        | claude-code-cli haiku        | tests, docs, rules, research     |
 | cheap      | mid with smaller context     | alias behavior, not API key path |
+
+## Capability-to-Context-Level Caps
+
+Scheduler context level selection applies the following caps before packaging
+context for non-risk-high routes:
+
+| Model Capability | Non-Risk Max Context Level | Risk-High Override |
+| ---------------- | -------------------------- | ------------------ |
+| cheap            | L0                         | risk rules may raise to L2/L3 |
+| mid              | L1                         | risk rules may raise to L2/L3 |
+| strong           | context-size driven (L0-L2) | risk rules may raise to L2/L3 |
+| frontier         | context-size driven (L0-L2) | risk rules may raise to L2/L3 |
 
 ## Tier-to-Step-Type Defaults
 

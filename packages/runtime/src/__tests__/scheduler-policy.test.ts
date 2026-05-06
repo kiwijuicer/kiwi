@@ -107,6 +107,73 @@ describe("scheduler policy", () => {
     expect(decision.routingReason).toContain("risk_over_budget_hard_cap_override");
   });
 
+  it("caps low-risk cheap capability to L0 context", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-scheduler-cheap-cap-"));
+    const decision = scheduleStepAttempt({
+      cwd,
+      runId: "run_demo",
+      step: fixtureStep({ recommendedModelCapability: "cheap" }),
+      initiative: fixtureInitiative(),
+      budgetProfile: "normal",
+      budgetRemainingUsdEstimate: 12,
+      blastRadius: "low",
+      securitySensitivity: "low",
+      contextSize: "large",
+      runnerAvailability: ["local-shell"],
+      now: new Date("2026-05-04T06:00:00.000Z"),
+      attemptId: "attempt_cheap_cap",
+    });
+
+    expect(decision.modelCapability).toBe("cheap");
+    expect(decision.contextLevel).toBe("L0");
+    expect(decision.routingReason).toContain("cheap_capability_l0_cap");
+  });
+
+  it("caps low-risk mid capability to L1 context", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-scheduler-mid-cap-"));
+    const decision = scheduleStepAttempt({
+      cwd,
+      runId: "run_demo",
+      step: fixtureStep({ recommendedModelCapability: "mid" }),
+      initiative: fixtureInitiative(),
+      budgetProfile: "normal",
+      budgetRemainingUsdEstimate: 12,
+      blastRadius: "low",
+      securitySensitivity: "low",
+      contextSize: "large",
+      runnerAvailability: ["local-shell"],
+      now: new Date("2026-05-04T06:00:00.000Z"),
+      attemptId: "attempt_mid_cap",
+    });
+
+    expect(decision.modelCapability).toBe("mid");
+    expect(decision.contextLevel).toBe("L1");
+    expect(decision.routingReason).toContain("mid_capability_l1_cap");
+  });
+
+  it("keeps low-risk frontier capability at L2 for large context", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-scheduler-frontier-context-"));
+    const decision = scheduleStepAttempt({
+      cwd,
+      runId: "run_demo",
+      step: fixtureStep({ recommendedModelCapability: "frontier" }),
+      initiative: fixtureInitiative(),
+      budgetProfile: "normal",
+      budgetRemainingUsdEstimate: 12,
+      blastRadius: "low",
+      securitySensitivity: "low",
+      contextSize: "large",
+      runnerAvailability: ["local-shell"],
+      now: new Date("2026-05-04T06:00:00.000Z"),
+      attemptId: "attempt_frontier_context",
+    });
+
+    expect(decision.modelCapability).toBe("frontier");
+    expect(decision.contextLevel).toBe("L2");
+    expect(decision.routingReason).not.toContain("cheap_capability_l0_cap");
+    expect(decision.routingReason).not.toContain("mid_capability_l1_cap");
+  });
+
   it("blocks low-risk steps when the hard budget cap is exhausted", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-scheduler-budget-blocked-"));
     const decision = scheduleStepAttempt({
