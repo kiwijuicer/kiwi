@@ -22,8 +22,7 @@ export async function captureGitDiffArtifact(params: {
   if (!existsSync(path.join(params.worktreePath, ".git"))) return null;
   let diff = "";
   try {
-    const { stdout } = await execFileAsync("git", ["-C", params.worktreePath, "diff", "--no-color"]);
-    diff = stdout;
+    diff = await captureGitDiffText(params.worktreePath);
   } catch {
     return null;
   }
@@ -39,6 +38,58 @@ export async function captureGitDiffArtifact(params: {
   };
 }
 
+function commandOutput(error: unknown, key: "stdout" | "stderr"): string {
+  if (typeof error !== "object" || error === null) return "";
+  const value = (error as { stdout?: unknown; stderr?: unknown })[key];
+  if (Buffer.isBuffer(value)) return value.toString("utf-8");
+  return typeof value === "string" ? value : "";
+}
+
+function execGitDiffWithExpectedDifference(args: string[], cwd: string): string {
+  try {
+    return execFileSync("git", args, { cwd, encoding: "utf-8" });
+  } catch (error) {
+    const stdout = commandOutput(error, "stdout");
+    if (stdout.trim()) return stdout;
+    throw error;
+  }
+}
+
+function listUntrackedFiles(worktreePath: string): string[] {
+  const output = execFileSync("git", ["-C", worktreePath, "ls-files", "--others", "--exclude-standard"], {
+    encoding: "utf-8",
+  });
+  return output
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function untrackedFileDiff(worktreePath: string, relativePath: string): string {
+  return execGitDiffWithExpectedDifference(
+    ["diff", "--no-color", "--no-index", "--", "/dev/null", relativePath],
+    worktreePath,
+  );
+}
+
+async function captureGitDiffText(worktreePath: string): Promise<string> {
+  const { stdout } = await execFileAsync("git", ["-C", worktreePath, "diff", "--no-color", "--binary"]);
+  const untrackedDiffs = listUntrackedFiles(worktreePath).map((relativePath) =>
+    untrackedFileDiff(worktreePath, relativePath),
+  );
+  return [stdout, ...untrackedDiffs].filter((entry) => entry.trim().length > 0).join("\n");
+}
+
+function captureGitDiffTextSync(worktreePath: string): string {
+  const tracked = execFileSync("git", ["-C", worktreePath, "diff", "--no-color", "--binary"], {
+    encoding: "utf-8",
+  });
+  const untrackedDiffs = listUntrackedFiles(worktreePath).map((relativePath) =>
+    untrackedFileDiff(worktreePath, relativePath),
+  );
+  return [tracked, ...untrackedDiffs].filter((entry) => entry.trim().length > 0).join("\n");
+}
+
 function captureGitDiffSync(params: {
   cwd: string;
   runId: string;
@@ -49,9 +100,7 @@ function captureGitDiffSync(params: {
   if (!existsSync(path.join(params.worktreePath, ".git"))) return null;
   let diff = "";
   try {
-    diff = execFileSync("git", ["-C", params.worktreePath, "diff", "--no-color"], {
-      encoding: "utf-8",
-    });
+    diff = captureGitDiffTextSync(params.worktreePath);
   } catch {
     return null;
   }
@@ -192,4 +241,53 @@ export function readCommandOutputArtifact(params: {
     throw new Error("command output artifact not found");
   }
   return JSON.parse(readFileSync(target, "utf-8")) as unknown;
+}
+
+export interface ApplyDiffArtifactResult {
+  applied: boolean;
+  patchPath: string;
+  reason?: string;
+}
+
+function gitApplyCheck(sourcePath: string, patchPath: string): void {
+  execFileSync("git", ["-C", sourcePath, "apply", "--check", patchPath], { stdio: "pipe" });
+}
+
+function gitApply(sourcePath: string, patchPath: string): void {
+  execFileSync("git", ["-C", sourcePath, "apply", patchPath], { stdio: "pipe" });
+}
+
+function gitApplyErrorMessage(error: unknown): string {
+  if (typeof error === "object" && error !== null) {
+    const maybe = error as { stderr?: unknown; stdout?: unknown };
+    const stderr = Buffer.isBuffer(maybe.stderr) ? maybe.stderr.toString("utf-8") : maybe.stderr;
+    const stdout = Buffer.isBuffer(maybe.stdout) ? maybe.stdout.toString("utf-8") : maybe.stdout;
+    const detail = [stderr, stdout]
+      .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+      .join("\n");
+    if (detail.trim()) return detail.trim();
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function applyDiffArtifactToSource(params: {
+  cwd: string;
+  runId: string;
+  diffRef: string;
+  sourcePath: string;
+}): ApplyDiffArtifactResult {
+  const patchPath = resolveRunArtifactPath(params.cwd, params.runId, params.diffRef);
+  if (!existsSync(patchPath)) {
+    return { applied: false, patchPath, reason: `diff artifact not found: ${params.diffRef}` };
+  }
+  if (!existsSync(path.join(params.sourcePath, ".git"))) {
+    return { applied: false, patchPath, reason: `source path is not a git repository: ${params.sourcePath}` };
+  }
+  try {
+    gitApplyCheck(params.sourcePath, patchPath);
+    gitApply(params.sourcePath, patchPath);
+    return { applied: true, patchPath };
+  } catch (error) {
+    return { applied: false, patchPath, reason: gitApplyErrorMessage(error) };
+  }
 }

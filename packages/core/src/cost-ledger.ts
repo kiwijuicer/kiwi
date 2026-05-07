@@ -41,6 +41,8 @@ export type AuditEventType =
   | "gate_command_executed"
   | "gate_command_blocked"
   | "diff_path_blocked"
+  | "attempt_diff_applied"
+  | "attempt_diff_apply_failed"
   | "worktree_created"
   | "worktree_removed"
   | "worktree_remove_failed"

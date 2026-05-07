@@ -33,6 +33,11 @@ export async function runAttemptUnlocked(
   console.log(chalk.dim(`status: ${result.status}`));
   console.log(chalk.dim(`nextAction: ${result.nextAction.type}`));
   console.log(chalk.dim(`runStatus: ${result.runStatus}`));
+  if (result.materializedDiff.status === "applied") {
+    console.log(chalk.dim(`appliedDiff: ${result.materializedDiff.diffRef}`));
+  } else {
+    console.log(chalk.dim(`appliedDiff: ${result.materializedDiff.status} (${result.materializedDiff.reason})`));
+  }
 
   return result;
 }

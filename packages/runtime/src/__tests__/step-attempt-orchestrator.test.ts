@@ -46,11 +46,7 @@ function fixtureInitiative(overrides: Partial<Initiative> = {}): Initiative {
   };
 }
 
-function schedule(
-  repo: string,
-  attemptId: string,
-  overrides: Partial<Parameters<typeof scheduleStepAttempt>[0]> = {},
-) {
+function schedule(repo: string, attemptId: string, overrides: Partial<Parameters<typeof scheduleStepAttempt>[0]> = {}) {
   return scheduleStepAttempt({
     cwd: repo,
     runId: "run_demo",
@@ -272,7 +268,7 @@ describe("step attempt orchestrator", () => {
     expect(result.nextAction).toMatchObject({
       type: "fix_step",
       reason: "needs_changes",
-      issueCodes: ["GATE_REVIEW_CONFLICT"],
+      issueCodes: ["GATE_FAILURE"],
     });
     expect(result.error?.code).toBe("RUNNER_FAILED");
   });
@@ -319,18 +315,26 @@ describe("step attempt orchestrator", () => {
     const repo = cwd();
     const decision = schedule(repo, "attempt_review_error");
 
-    await expect(
-      new StepAttemptOrchestrator().execute({
-        cwd: repo,
-        step: fixtureStep(),
-        schedulerDecision: decision,
-        runner: new SafeSampleRunner(),
-        worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_review_error"),
-        stepPrompt: "review failure sample",
-        reviewEngine: new ThrowingReviewEngine(),
-        now: new Date("2026-05-04T06:00:01.000Z"),
-      }),
-    ).rejects.toThrow("review provider returned invalid JSON");
+    const result = await new StepAttemptOrchestrator().execute({
+      cwd: repo,
+      step: fixtureStep(),
+      schedulerDecision: decision,
+      runner: new SafeSampleRunner(),
+      worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_review_error"),
+      stepPrompt: "review failure sample",
+      reviewEngine: new ThrowingReviewEngine(),
+      now: new Date("2026-05-04T06:00:01.000Z"),
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.error).toMatchObject({
+      code: "REVIEW_EXECUTION_FAILED",
+      message: "review provider returned invalid JSON",
+    });
+    expect(result.reviewVerdict).toMatchObject({
+      verdict: "reject",
+      safeToContinue: false,
+    });
 
     const attempt = JSON.parse(
       readFileSync(
@@ -341,12 +345,57 @@ describe("step attempt orchestrator", () => {
     expect(attempt.status).toBe("failed");
     expect(attempt.completedAt).toBeTruthy();
     expect(attempt.artifacts.some((entry) => entry.type === "command_output")).toBe(true);
+    expect(attempt.artifacts.some((entry) => entry.type === "review_report")).toBe(true);
+    const invocations = readModelInvocations(repo, "run_demo");
+    expect(invocations.at(-1)).toMatchObject({
+      phase: "reviewer",
+      providerName: "review-error",
+      status: "failed",
+    });
     const failedEvent = readAuditEvents(repo, "run_demo").find((event) => event.eventType === "step_attempt_failed");
     expect(failedEvent?.payload).toMatchObject({
       stepId: "step_001",
       attemptId: "attempt_review_error",
       phase: "review",
     });
+  });
+
+  it("uses deterministic review when runner fails before provider review", async () => {
+    const repo = cwd();
+    const decision = schedule(repo, "attempt_runner_failed_before_review");
+
+    const result = await new StepAttemptOrchestrator().execute({
+      cwd: repo,
+      step: fixtureStep(),
+      schedulerDecision: decision,
+      runner: new FailingRunner(),
+      worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_runner_failed_before_review"),
+      stepPrompt: "runner failure sample",
+      reviewEngine: new ThrowingReviewEngine(),
+      now: new Date("2026-05-04T06:00:01.000Z"),
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.error?.code).toBe("RUNNER_FAILED");
+    expect(result.reviewVerdict.issues.map((issue) => issue.code)).toEqual(["GATE_FAILURE"]);
+    const attempt = JSON.parse(
+      readFileSync(
+        path.join(
+          repo,
+          ".kiwi",
+          "runs",
+          "run_demo",
+          "steps",
+          "step_001",
+          "attempt_runner_failed_before_review",
+          "attempt.json",
+        ),
+        "utf-8",
+      ),
+    ) as { status: string; completedAt: string | null; artifacts: Artifact[] };
+    expect(attempt.status).toBe("failed");
+    expect(attempt.completedAt).toBeTruthy();
+    expect(attempt.artifacts.some((entry) => entry.type === "review_report")).toBe(true);
   });
 
   it("blocks before runner execution when budget estimate exceeds remaining budget", async () => {

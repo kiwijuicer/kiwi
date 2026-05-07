@@ -18,12 +18,18 @@ import {
   resolveRunArtifactPath,
   writeJsonSafely,
 } from "@kiwi/core";
-import { loadAttemptDiff, ReviewEngine, saveReviewVerdict } from "./review-engine";
+import {
+  loadAttemptDiff,
+  ReviewEngine,
+  ReviewExecutionMetadata,
+  saveReviewVerdict,
+  StubReviewEngine,
+} from "./review-engine";
 import { loadContextPackage } from "./scheduler-policy";
 import { auditAttemptFinished, auditStepAttemptStarted } from "./step-attempt/audit";
 import { coordinateAttemptGates, mapRunnerStatusToAttemptStatus } from "./step-attempt/gates";
 import { recordAttemptModelCost } from "./step-attempt/model-cost";
-import { markAttemptFailed, markAttemptRunning, persistAttemptCompletion } from "./step-attempt/persistence";
+import { markAttemptRunning, persistAttemptCompletion } from "./step-attempt/persistence";
 import { loadStepAttempt, saveRunnerCostReport } from "./step-attempt-artifacts";
 import { nextActionFromReview, runAttemptReview } from "./step-attempt/review";
 import {
@@ -66,6 +72,63 @@ export interface StepAttemptOrchestrationResult {
   attemptRef: string;
   nextAction: StepAttemptNextAction;
   error?: StepRunnerExecutionError;
+}
+
+function reviewExecutionError(error: unknown): StepRunnerExecutionError {
+  return {
+    code: "REVIEW_EXECUTION_FAILED",
+    message: error instanceof Error ? error.message : String(error),
+  };
+}
+
+function persistReviewExecutionFailure(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  diffSubject: EvidenceSubject | null;
+  error: StepRunnerExecutionError;
+}): {
+  reviewVerdict: ReviewVerdict;
+  reviewReportRef: string;
+  metadata: ReviewExecutionMetadata;
+  startedAt: string;
+} {
+  const startedAt = new Date().toISOString();
+  const reviewVerdict = ReviewVerdictSchema.parse({
+    verdict: ContractValues.Reject,
+    safeToContinue: false,
+    issues: [
+      {
+        code: params.error.code,
+        title: "Review execution failed",
+        severity: "high",
+        detail: params.error.message,
+      },
+    ],
+    recommendedNextSteps: ["Fix reviewer/provider configuration or retry the review after the provider is available."],
+    confidence: 1,
+    ...(params.diffSubject ? { subject: params.diffSubject } : {}),
+  });
+  const reviewReportRef = saveReviewVerdict({
+    cwd: params.cwd,
+    runId: params.runId,
+    stepId: params.stepId,
+    attemptId: params.attemptId,
+    verdict: reviewVerdict,
+  });
+  return {
+    reviewVerdict,
+    reviewReportRef,
+    metadata: {
+      modelId: null,
+      providerName: "review-error",
+      modelUsage: { inputTokens: 0, outputTokens: 0 },
+      estimatedCostUsd: 0,
+      ...(params.diffSubject?.type === "diff" ? { diffHash: params.diffSubject.hash } : {}),
+    },
+    startedAt,
+  };
 }
 
 export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
@@ -299,7 +362,9 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
     });
 
     let reviewResult: Awaited<ReturnType<typeof runAttemptReview>>;
+    let reviewError: StepRunnerExecutionError | undefined;
     try {
+      const runnerNeedsDeterministicReview = runnerOutput.status !== ContractValues.Completed;
       reviewResult = await runAttemptReview({
         ...attemptScope,
         step: input.step,
@@ -307,29 +372,28 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
         attemptDiff,
         diffSubject,
         reviewDepth: input.schedulerDecision.reviewDepth,
-        ...(input.reviewEngine ? { reviewEngine: input.reviewEngine } : {}),
-        ...(this.defaults.reviewEngine ? { defaultReviewEngine: this.defaults.reviewEngine } : {}),
+        reviewEngine: runnerNeedsDeterministicReview
+          ? new StubReviewEngine()
+          : (input.reviewEngine ?? this.defaults.reviewEngine ?? new StubReviewEngine()),
       });
     } catch (error) {
-      const completedAt = new Date().toISOString();
-      markAttemptFailed({
+      reviewError = reviewExecutionError(error);
+      reviewResult = persistReviewExecutionFailure({
         ...attemptScope,
-        existingAttempt,
-        artifacts: [...runnerOutput.artifactRefs, ...postRunnerArtifacts],
-        completedAt,
+        diffSubject,
+        error: reviewError,
       });
       appendAuditEvent(input.cwd, {
         eventType: "step_attempt_failed",
         runId,
-        timestamp: completedAt,
+        timestamp: new Date().toISOString(),
         payload: {
           stepId,
           attemptId,
           phase: "review",
-          reason: error instanceof Error ? error.message : String(error),
+          reason: reviewError.message,
         },
       });
-      throw error;
     }
     const completedAt = new Date().toISOString();
     const nextAction = nextActionFromReview(reviewResult.reviewVerdict);
@@ -347,6 +411,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       reviewDepth: input.schedulerDecision.reviewDepth,
       runnerOutput,
       reviewMetadata: reviewResult.metadata,
+      reviewInvocationStatus: reviewError ? ContractValues.Failed : ContractValues.Completed,
       gateResultsRef,
       reviewReportRef: reviewResult.reviewReportRef,
       startedAt,
@@ -399,6 +464,12 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       return {
         ...result,
         error: runnerOutput.error,
+      };
+    }
+    if (reviewError) {
+      return {
+        ...result,
+        error: reviewError,
       };
     }
 

@@ -1,3 +1,4 @@
+import { execFileSync } from "child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
@@ -5,6 +6,8 @@ import { describe, expect, it } from "vitest";
 import { GateResultSchema, Initiative, KiwiPolicy, Step } from "@kiwi/contracts";
 import {
   assertStepDependenciesCompleted,
+  kiwiModelRegistryPath,
+  kiwiPolicyPath,
   listStepAttemptEvidence,
   recordApprovalDecision,
   refreshRunStatusFromAttempts,
@@ -18,6 +21,7 @@ import {
   StepRunnerExecutionInput,
   StepRunnerExecutionOutput,
 } from "../step-attempt-orchestrator";
+import { executePlannedStep } from "../planned-step-execution";
 
 function cwd(): string {
   return mkdtempSync(path.join(os.tmpdir(), "kiwi-lifecycle-"));
@@ -117,6 +121,66 @@ function createRun(repo: string, steps: Step[] = [step], runInitiative: Initiati
   });
 }
 
+function writeExecutionConfig(repo: string): void {
+  writeFileSync(
+    kiwiPolicyPath(repo),
+    JSON.stringify({
+      version: "1",
+      project: { name: "kiwi", language: "typescript", packageManager: "pnpm" },
+      commands: {
+        test: `${process.execPath} -e 0`,
+        lint: `${process.execPath} -e 0`,
+        typecheck: `${process.execPath} -e 0`,
+      },
+      routing: { defaultAgentRole: "executor", defaultModelCapability: "mid", stepTypeOverrides: {} },
+      riskZones: { high: [] },
+      approvals: { requireFor: [], commandApprovalStates: {} },
+      commandProfiles: {
+        default: {
+          allowedCommands: [process.execPath],
+          approvalState: "auto",
+          approvalRequiredPaths: [],
+          deniedPaths: [".env*", "secrets/**"],
+          envAllowlist: ["PATH"],
+          secretEnvNames: [],
+          networkPolicy: "disabled",
+          timeoutMs: 1000,
+          maxOutputBytes: 4096,
+        },
+        coding: {
+          allowedCommands: [process.execPath],
+          approvalState: "auto",
+          approvalRequiredPaths: [],
+          deniedPaths: [".env*", "secrets/**"],
+          envAllowlist: ["PATH"],
+          secretEnvNames: [],
+          networkPolicy: "disabled",
+          timeoutMs: 1000,
+          maxOutputBytes: 4096,
+        },
+      },
+    }),
+    "utf-8",
+  );
+  writeFileSync(
+    kiwiModelRegistryPath(repo),
+    JSON.stringify({
+      version: "1",
+      models: [
+        {
+          id: "stub-strong",
+          provider: "stub",
+          capability: "strong",
+          roles: ["executor"],
+          accessMode: "stub",
+          enabled: true,
+        },
+      ],
+    }),
+    "utf-8",
+  );
+}
+
 const highRiskPolicy: KiwiPolicy = {
   version: "1",
   project: { name: "kiwi", language: "typescript", packageManager: "pnpm" },
@@ -151,6 +215,42 @@ const highRiskPolicy: KiwiPolicy = {
 };
 
 describe("run lifecycle", () => {
+  it("materializes successful attempt diffs into the current working tree by default", async () => {
+    const repo = cwd();
+    execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+    writeFileSync(path.join(repo, "README.md"), "old\n", "utf-8");
+    execFileSync("git", ["add", "README.md"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+    const materializedStep = { ...step, requiredGates: [] };
+    createRun(repo, [materializedStep], { ...initiative, repoPath: repo });
+    writeExecutionConfig(repo);
+
+    const previousForceAccessMode = process.env.KIWI_FORCE_ACCESS_MODE;
+    process.env.KIWI_FORCE_ACCESS_MODE = "stub";
+    let result: Awaited<ReturnType<typeof executePlannedStep>>;
+    try {
+      result = await executePlannedStep({
+        cwd: repo,
+        runId: "run_demo",
+        stepId: "step_001",
+        attemptId: "attempt_apply",
+        command: [process.execPath, "-e", "require('fs').writeFileSync('feature.txt', 'new\\n')"],
+        now: new Date("2026-05-04T08:00:30.000Z"),
+      });
+    } finally {
+      if (previousForceAccessMode === undefined) delete process.env.KIWI_FORCE_ACCESS_MODE;
+      else process.env.KIWI_FORCE_ACCESS_MODE = previousForceAccessMode;
+    }
+
+    expect(result.status).toBe("completed");
+    expect(result.materializedDiff.status).toBe("applied");
+    expect(readFileSync(path.join(repo, "feature.txt"), "utf-8")).toBe("new\n");
+    expect(execFileSync("git", ["status", "--short"], { cwd: repo, encoding: "utf-8" })).toContain("?? feature.txt\n");
+  });
+
   it("records approval decisions", () => {
     const repo = cwd();
     createRun(repo);

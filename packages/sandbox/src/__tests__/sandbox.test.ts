@@ -1,10 +1,13 @@
-import { existsSync, mkdtempSync, readFileSync } from "fs";
+import { execFileSync } from "child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import {
   captureWorktreeDiffArtifact,
   SandboxCommandPolicy,
+  applyDiffArtifactToSource,
+  captureDiffArtifact,
   createWorktreeSandbox,
   executeSandboxCommand,
   readCommandOutputArtifact,
@@ -242,5 +245,75 @@ describe("worktree sandbox command execution", () => {
         path.join(repo, ".kiwi", "runs", "run_demo", "steps", "step_001", "attempt_007", "artifacts", "diff.patch"),
       ),
     ).toBe(true);
+  });
+
+  it("applies a captured git diff artifact to the source working tree without staging", () => {
+    const repo = cwd();
+    execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+    writeFileSync(path.join(repo, "feature.txt"), "old\n", "utf-8");
+    execFileSync("git", ["add", "feature.txt"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+    const diffRef = "steps/step_001/attempt_apply/artifacts/diff.patch";
+    const diffPath = path.join(repo, ".kiwi", "runs", "run_demo", diffRef);
+    mkdirSync(path.dirname(diffPath), { recursive: true });
+    writeFileSync(
+      diffPath,
+      "diff --git a/feature.txt b/feature.txt\n--- a/feature.txt\n+++ b/feature.txt\n@@ -1 +1 @@\n-old\n+new\n",
+      "utf-8",
+    );
+
+    const result = applyDiffArtifactToSource({
+      cwd: repo,
+      runId: "run_demo",
+      diffRef,
+      sourcePath: repo,
+    });
+
+    expect(result.applied).toBe(true);
+    expect(readFileSync(path.join(repo, "feature.txt"), "utf-8")).toBe("new\n");
+    expect(execFileSync("git", ["status", "--short"], { cwd: repo, encoding: "utf-8" })).toContain(" M feature.txt\n");
+  });
+
+  it("captures and applies untracked files from a git worktree", () => {
+    const repo = cwd();
+    execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+    writeFileSync(path.join(repo, "README.md"), "old\n", "utf-8");
+    execFileSync("git", ["add", "README.md"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+    const sandbox = createWorktreeSandbox({
+      cwd: repo,
+      runId: "run_demo",
+      attemptId: "attempt_untracked",
+    });
+    writeFileSync(path.join(sandbox.worktreePath, "new-file.txt"), "new\n", "utf-8");
+
+    const artifact = captureDiffArtifact({
+      cwd: repo,
+      runId: "run_demo",
+      stepId: "step_001",
+      attemptId: "attempt_untracked",
+      worktreePath: sandbox.worktreePath,
+      sourcePath: repo,
+    });
+
+    expect(artifact?.ref).toBe("steps/step_001/attempt_untracked/artifacts/diff.patch");
+    expect(readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", artifact!.ref), "utf-8")).toContain(
+      "new-file.txt",
+    );
+    const result = applyDiffArtifactToSource({
+      cwd: repo,
+      runId: "run_demo",
+      diffRef: artifact!.ref,
+      sourcePath: repo,
+    });
+    expect(result.applied).toBe(true);
+    expect(readFileSync(path.join(repo, "new-file.txt"), "utf-8")).toBe("new\n");
+    expect(execFileSync("git", ["status", "--short"], { cwd: repo, encoding: "utf-8" })).toContain("?? new-file.txt\n");
   });
 });

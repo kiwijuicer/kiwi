@@ -107,6 +107,7 @@ interface RunStepToolResult {
   status: string;
   nextAction: unknown;
   runStatus: string;
+  materializedDiff: unknown;
 }
 
 function parseMaxConcurrency(args: Record<string, unknown>): number | undefined {
@@ -133,6 +134,7 @@ async function runStepToolUnlocked(args: Record<string, unknown>, workspacePath:
     status: result.status,
     nextAction: result.nextAction,
     runStatus: result.runStatus,
+    materializedDiff: result.materializedDiff,
   };
 }
 

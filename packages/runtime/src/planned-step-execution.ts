@@ -11,8 +11,13 @@ import {
   remainingBudgetUsdEstimate,
   refreshRunStatusFromAttempts,
 } from "@kiwi/core";
-import { KiwiPolicy, ModelEntry, RunnerNames } from "@kiwi/contracts";
-import { createWorktreeSandbox, SandboxCommandPolicy, teardownWorktreeSandbox } from "@kiwi/sandbox";
+import { ArtifactTypes, ContractValues, KiwiPolicy, ModelEntry, RunnerNames } from "@kiwi/contracts";
+import {
+  applyDiffArtifactToSource,
+  createWorktreeSandbox,
+  SandboxCommandPolicy,
+  teardownWorktreeSandbox,
+} from "@kiwi/sandbox";
 import { commandProfileForStep, commandProfileToExecutionPolicy, noopCommand } from "./operator-policy";
 import { createReviewEngineFromRegistry } from "./provider-review-engine";
 import { ResearcherProviderRegistry } from "./researcher-provider-registry";
@@ -42,7 +47,13 @@ export interface ExecutePlannedStepResult {
   status: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>["status"];
   nextAction: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>["nextAction"];
   runStatus: ReturnType<typeof refreshRunStatusFromAttempts>["status"];
+  materializedDiff: AttemptDiffMaterialization;
 }
+
+export type AttemptDiffMaterialization =
+  | { status: "applied"; diffRef: string; patchPath: string; targetPath: string }
+  | { status: "skipped"; reason: string }
+  | { status: "failed"; diffRef: string; patchPath: string; targetPath: string; reason: string };
 
 function auditExecutorModelSelected(params: {
   cwd: string;
@@ -69,6 +80,68 @@ function auditExecutorModelSelected(params: {
       reason: params.selection.reason,
     },
   });
+}
+
+function materializeAttemptDiff(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  repoPath: string;
+  result: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>;
+}): AttemptDiffMaterialization {
+  if (params.result.runnerStatus !== ContractValues.Completed) {
+    return { status: "skipped", reason: `runner status is ${params.result.runnerStatus}` };
+  }
+
+  const diffArtifact = params.result.artifactRefs.find((artifact) => artifact.type === ArtifactTypes.Diff);
+  if (!diffArtifact) return { status: "skipped", reason: "attempt produced no diff artifact" };
+
+  const applied = applyDiffArtifactToSource({
+    cwd: params.cwd,
+    runId: params.runId,
+    diffRef: diffArtifact.ref,
+    sourcePath: params.repoPath,
+  });
+  const base = {
+    diffRef: diffArtifact.ref,
+    patchPath: applied.patchPath,
+    targetPath: params.repoPath,
+  };
+
+  if (applied.applied) {
+    appendAuditEvent(params.cwd, {
+      eventType: "attempt_diff_applied",
+      runId: params.runId,
+      timestamp: new Date().toISOString(),
+      payload: {
+        stepId: params.stepId,
+        attemptId: params.attemptId,
+        diffRef: diffArtifact.ref,
+        targetPath: params.repoPath,
+      },
+    });
+    return { status: "applied", ...base };
+  }
+
+  if (applied.reason?.startsWith("source path is not a git repository:")) {
+    return { status: "skipped", reason: applied.reason };
+  }
+
+  const failed = { status: "failed" as const, ...base, reason: applied.reason ?? "git apply failed" };
+  appendAuditEvent(params.cwd, {
+    eventType: "attempt_diff_apply_failed",
+    runId: params.runId,
+    timestamp: new Date().toISOString(),
+    payload: {
+      stepId: params.stepId,
+      attemptId: params.attemptId,
+      diffRef: diffArtifact.ref,
+      targetPath: params.repoPath,
+      reason: failed.reason,
+    },
+  });
+  return failed;
 }
 
 function selectStepRunner(params: {
@@ -190,6 +263,7 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
     now,
   });
   let result: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>;
+  let materializedDiff: AttemptDiffMaterialization = { status: "skipped", reason: "attempt did not run" };
   try {
     const orchestratorInput: Parameters<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>[0] = {
       cwd: input.cwd,
@@ -223,6 +297,17 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
     if (reviewEngine) orchestratorInput.reviewEngine = reviewEngine;
     try {
       result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute(orchestratorInput);
+      materializedDiff = materializeAttemptDiff({
+        cwd: input.cwd,
+        runId: input.runId,
+        stepId: input.stepId,
+        attemptId: decision.attemptId,
+        repoPath,
+        result,
+      });
+      if (materializedDiff.status === "failed") {
+        throw new Error(`Attempt diff could not be applied to current codebase: ${materializedDiff.reason}`);
+      }
     } catch (error) {
       refreshRunStatusFromAttempts({ cwd: input.cwd, runId: input.runId, now: new Date() });
       throw error;
@@ -245,5 +330,6 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
     status: result.status,
     nextAction: result.nextAction,
     runStatus: run.status,
+    materializedDiff,
   };
 }

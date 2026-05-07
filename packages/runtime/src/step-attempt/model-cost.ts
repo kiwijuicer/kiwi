@@ -16,6 +16,10 @@ export function recordAttemptModelCost(params: {
   reviewDepth: ModelCapability;
   runnerOutput: StepRunnerExecutionOutput;
   reviewMetadata: ReviewExecutionMetadata;
+  reviewInvocationStatus?:
+    | typeof ContractValues.Completed
+    | typeof ContractValues.Failed
+    | typeof ContractValues.Blocked;
   gateResultsRef: string;
   reviewReportRef: string;
   startedAt: string;
@@ -59,7 +63,7 @@ export function recordAttemptModelCost(params: {
     usage: params.reviewMetadata.modelUsage,
     usagePrecision: "estimated",
     estimatedCostUsd: params.reviewMetadata.estimatedCostUsd,
-    status: ContractValues.Completed,
+    status: params.reviewInvocationStatus ?? ContractValues.Completed,
     evidenceRefs: [params.gateResultsRef, params.reviewReportRef],
     startedAt: params.reviewStartedAt,
     completedAt: params.completedAt,
