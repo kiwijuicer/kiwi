@@ -72,8 +72,8 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
   const now = opts.now ?? new Date();
   const resolution = resolvePlannerProvider({
     registryModels: registry.models,
-    env: opts.env,
     now: () => now,
+    ...(opts.env ? { env: opts.env } : {}),
     ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
     ...(opts.allowStub ? { allowStub: opts.allowStub } : {}),
   });

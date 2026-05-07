@@ -4,6 +4,7 @@ export interface CodexCliInvocation {
   binary: string;
   cwd: string;
   model?: string;
+  sandbox?: "read-only" | "workspace-write" | "danger-full-access";
   prompt: string;
   timeoutMs: number;
   env?: Record<string, string | undefined>;
@@ -50,10 +51,9 @@ function buildArgs(invocation: CodexCliInvocation): string[] {
     "--cd",
     invocation.cwd,
     "--sandbox",
-    "workspace-write",
-    "--ask-for-approval",
-    "never",
+    invocation.sandbox ?? "workspace-write",
     "--skip-git-repo-check",
+    "--ephemeral",
   ];
   if (invocation.model) {
     args.push("--model", invocation.model);

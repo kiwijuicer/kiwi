@@ -45,7 +45,8 @@ export async function runDoctor(opts: DoctorOptions = {}, cwd: string = process.
       if (count === 0) continue;
       const availability = evaluateAccessModeAvailability(accessMode, env);
       const status = availability.available ? chalk.green("available") : chalk.yellow("unavailable");
-      const reason = availability.reason ? chalk.dim(` (${availability.reason})`) : "";
+      const reasonText = accessMode === "stub" ? "tests/dev only; disabled for plan by default" : availability.reason;
+      const reason = reasonText ? chalk.dim(` (${reasonText})`) : "";
       console.log(`  ${chalk.cyan(accessMode)}: ${count} entries — ${status}${reason}`);
     }
 
@@ -81,7 +82,7 @@ export async function runDoctor(opts: DoctorOptions = {}, cwd: string = process.
     { mode: "jetbrains", label: "phpstorm", role: "IDE surface" },
     { mode: "anthropic-api", label: "ANTHROPIC_API_KEY", role: "not required for daily use" },
     { mode: "openai-api", label: "OPENAI_API_KEY", role: "not required for daily use" },
-    { mode: "stub", label: "stub", role: "tests/dev" },
+    { mode: "stub", label: "stub", role: "tests/dev only; disabled for plan by default" },
   ];
   console.log(chalk.bold("\naccess modes:"));
   for (const probe of probes) {

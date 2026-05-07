@@ -1,4 +1,4 @@
-const BASE_RUNNER_ENV = ["PATH", "HOME", "TMPDIR", "SHELL", "CI"] as const;
+const BASE_RUNNER_ENV = ["PATH", "HOME", "USER", "LOGNAME", "TMPDIR", "SHELL", "CI"] as const;
 
 interface RunnerEnvPolicy {
   envAllowlist?: string[];

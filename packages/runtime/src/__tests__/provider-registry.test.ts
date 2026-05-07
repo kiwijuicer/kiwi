@@ -99,6 +99,56 @@ describe("provider registries", () => {
     expect(resolution.provider.name).toBe("claude-code-cli:default");
   });
 
+  it("uses Codex CLI as a real planner fallback when Claude is unavailable", () => {
+    const models: ModelEntry[] = [
+      {
+        id: "claude-code-cli-frontier",
+        provider: "anthropic",
+        capability: "frontier",
+        roles: ["planner"],
+        accessMode: "claude-code-cli",
+        enabled: true,
+      },
+      {
+        id: "codex-cli-auto",
+        provider: "local",
+        capability: "strong",
+        roles: ["planner"],
+        accessMode: "codex-cli",
+        enabled: true,
+      },
+    ];
+
+    const resolution = new PlannerProviderRegistry().resolve({
+      registryModels: models,
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1", KIWI_FORCE_ACCESS_MODE: "codex-cli" },
+    });
+
+    expect(resolution.model.id).toBe("codex-cli-auto");
+    expect(resolution.provider.name).toBe("codex-cli:default");
+  });
+
+  it("can build a Cursor Agent CLI planner provider", () => {
+    const models: ModelEntry[] = [
+      {
+        id: "cursor-agent-auto",
+        provider: "local",
+        capability: "strong",
+        roles: ["planner"],
+        accessMode: "cursor-agent-cli",
+        enabled: true,
+      },
+    ];
+
+    const resolution = new PlannerProviderRegistry().resolve({
+      registryModels: models,
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
+    });
+
+    expect(resolution.model.id).toBe("cursor-agent-auto");
+    expect(resolution.provider.name).toBe("cursor-agent-cli:default");
+  });
+
   it("selects reviewer providers only when a real access mode is available", () => {
     const models: ModelEntry[] = [
       {

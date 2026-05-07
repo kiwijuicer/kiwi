@@ -1,6 +1,8 @@
 import {
   AnthropicPlannerProvider,
   ClaudeCodeCliPlannerProvider,
+  CodexCliPlannerProvider,
+  CursorAgentPlannerProvider,
   PlannerProvider,
   StubPlannerProvider,
 } from "@kiwi/adapters";
@@ -84,6 +86,18 @@ export class PlannerProviderRegistry {
     }
     if (model.accessMode === AccessModes.ClaudeCodeCli) {
       return new ClaudeCodeCliPlannerProvider({
+        ...(model.providerModel ? { model: model.providerModel } : {}),
+        env,
+      });
+    }
+    if (model.accessMode === AccessModes.CodexCli) {
+      return new CodexCliPlannerProvider({
+        ...(model.providerModel ? { model: model.providerModel } : {}),
+        env,
+      });
+    }
+    if (model.accessMode === AccessModes.CursorAgentCli) {
+      return new CursorAgentPlannerProvider({
         ...(model.providerModel ? { model: model.providerModel } : {}),
         env,
       });

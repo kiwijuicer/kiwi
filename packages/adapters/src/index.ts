@@ -1,6 +1,7 @@
 export * from "./anthropic-planner-provider";
 export * from "./anthropic-reviewer-provider";
 export * from "./cli-runner-output";
+export * from "./cli-planner-provider";
 export * from "./claude-code-cli";
 export * from "./codex-cli";
 export * from "./cursor-agent-cli";
