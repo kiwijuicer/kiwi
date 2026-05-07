@@ -3,6 +3,7 @@ import {
   ClaudeCodeCliRunner,
   DefaultClaudeCodeCliRunner,
   extractCliResultText,
+  formatCliFailure,
   normalizeUsageFromCli,
 } from "./client";
 import { ContractValues, KiwiPolicy } from "@kiwi/contracts";
@@ -154,7 +155,7 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
         code: result.timedOut ? "provider_timeout" : "provider_network",
         message: result.timedOut
           ? `claude-code-cli reviewer request timed out after ${this.timeoutMs}ms`
-          : `claude-code-cli reviewer exited ${result.exitCode}: ${result.stderr.slice(0, 500)}`,
+          : formatCliFailure("claude-code-cli reviewer", result),
         retryable: result.timedOut,
       });
     }

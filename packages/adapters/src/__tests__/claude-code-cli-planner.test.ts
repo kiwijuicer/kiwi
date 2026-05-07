@@ -126,4 +126,13 @@ describe("ClaudeCodeCliPlannerProvider", () => {
     expect(runner.invocations).toHaveLength(2);
     expect(runner.invocations[1]?.prompt).toContain("Repair the previous TaskGraph");
   });
+
+  it("surfaces JSON stdout errors when the CLI exits without stderr", async () => {
+    const runner = new StubCliRunner([{ result: "Not logged in · Please run /login", ok: false }]);
+    const provider = new ClaudeCodeCliPlannerProvider({ binary: "claude", runner });
+
+    await expect(runPlannerProviderWithRetries(provider, input, { maxAttempts: 1 })).rejects.toThrow(
+      "claude-code-cli planner exited 1: Not logged in",
+    );
+  });
 });

@@ -153,3 +153,19 @@ export function extractCliResultText(parsed: unknown, fallback: string): string 
   }
   return fallback;
 }
+
+function truncateCliDetail(value: string, maxLength: number): string {
+  const text = value.trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1)}…`;
+}
+
+export function formatCliFailure(
+  label: string,
+  result: Pick<ClaudeCodeCliResult, "exitCode" | "parsed" | "stderr" | "stdout">,
+  maxLength = 500,
+): string {
+  const parsedText = extractCliResultText(result.parsed, "");
+  const detail = truncateCliDetail(parsedText || result.stderr || result.stdout || "no CLI output", maxLength);
+  return `${label} exited ${result.exitCode}: ${detail}`;
+}

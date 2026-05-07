@@ -18,6 +18,7 @@ import {
   ClaudeCodeCliRunner,
   DefaultClaudeCodeCliRunner,
   extractCliResultText,
+  formatCliFailure,
   normalizeUsageFromCli,
 } from "./claude-code-cli/client";
 import { redactForProvider } from "./provider-redaction";
@@ -350,7 +351,7 @@ export class ClaudeCodeCliResearcherProvider implements ResearcherProvider {
         code: result.timedOut ? "provider_timeout" : "provider_network",
         message: result.timedOut
           ? `claude-code-cli researcher request timed out after ${this.timeoutMs}ms`
-          : `claude-code-cli researcher exited ${result.exitCode}: ${result.stderr.slice(0, 500)}`,
+          : formatCliFailure("claude-code-cli researcher", result),
         retryable: result.timedOut,
       });
     }

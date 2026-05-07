@@ -4,6 +4,7 @@ import {
   ClaudeCodeCliRunner,
   DefaultClaudeCodeCliRunner,
   extractCliResultText,
+  formatCliFailure,
   normalizeUsageFromCli,
 } from "./client";
 import {
@@ -166,7 +167,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
         code: result.timedOut ? "provider_timeout" : "provider_network",
         message: result.timedOut
           ? `claude-code-cli planner request timed out after ${this.timeoutMs}ms`
-          : `claude-code-cli planner exited ${result.exitCode}: ${result.stderr.slice(0, 500)}`,
+          : formatCliFailure("claude-code-cli planner", result),
         retryable: result.timedOut,
       });
     }
