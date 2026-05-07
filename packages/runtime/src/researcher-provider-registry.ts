@@ -31,10 +31,13 @@ export class ResearcherProviderRegistry {
 
   buildProvider(model: ModelEntry, env: Record<string, string | undefined>): ResearcherProvider {
     if (model.accessMode === AccessModes.AnthropicApi) {
-      return new AnthropicResearcherProvider({ model: model.id, env });
+      return new AnthropicResearcherProvider({ model: model.providerModel ?? model.id, env });
     }
     if (model.accessMode === AccessModes.ClaudeCodeCli) {
-      return new ClaudeCodeCliResearcherProvider({ model: model.id, env });
+      return new ClaudeCodeCliResearcherProvider({
+        ...(model.providerModel ? { model: model.providerModel } : {}),
+        env,
+      });
     }
     if (model.accessMode === AccessModes.Stub) {
       return new StubResearcherProvider();

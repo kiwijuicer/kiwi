@@ -51,10 +51,13 @@ export class PlannerProviderRegistry {
     options: Pick<ResolvePlannerProviderOptions, "now" | "planIdSuffix"> = {},
   ): PlannerProvider {
     if (model.accessMode === AccessModes.AnthropicApi) {
-      return new AnthropicPlannerProvider({ model: model.id, env });
+      return new AnthropicPlannerProvider({ model: model.providerModel ?? model.id, env });
     }
     if (model.accessMode === AccessModes.ClaudeCodeCli) {
-      return new ClaudeCodeCliPlannerProvider({ model: model.id, env });
+      return new ClaudeCodeCliPlannerProvider({
+        ...(model.providerModel ? { model: model.providerModel } : {}),
+        env,
+      });
     }
     if (model.accessMode === AccessModes.Stub) {
       const now = options.now ?? (() => new Date());

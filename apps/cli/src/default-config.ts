@@ -183,20 +183,22 @@ export const DEFAULT_MODEL_REGISTRY_YAML = `version: "1"
 #   4. cursor / jetbrains as IDE surfaces, plus local
 #   5. stub (tests only)
 models:
-  # Claude Code CLI — preferred default, reuses local claude auth
-  - id: claude-code-cli-opus-4-6
+  # Claude Code CLI — preferred default, reuses local claude auth.
+  # \`id\` is Kiwi-local. Omit \`providerModel\` by default so the Claude CLI
+  # resolves its current configured/default model dynamically.
+  - id: claude-code-cli-frontier
     provider: anthropic
     capability: frontier
     roles: [planner, reviewer, security]
     accessMode: claude-code-cli
     enabled: true
-  - id: claude-code-cli-sonnet-4-6
+  - id: claude-code-cli-strong
     provider: anthropic
     capability: strong
     roles: [executor, reviewer, security]
     accessMode: claude-code-cli
     enabled: true
-  - id: claude-code-cli-haiku-4-5
+  - id: claude-code-cli-mid
     provider: anthropic
     capability: mid
     roles: [researcher, executor, rules]

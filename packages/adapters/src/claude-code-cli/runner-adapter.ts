@@ -42,7 +42,7 @@ function buildPrompt(input: RunnerExecutionInput): string {
 export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
   readonly name: RunnerName = RunnerNames.ClaudeCode;
   private readonly binary: string;
-  private readonly model: string;
+  private readonly model: string | undefined;
   private readonly timeoutMs: number;
   private readonly cliRunner: ClaudeCodeCliRunner;
   private readonly env: Record<string, string | undefined>;
@@ -50,7 +50,7 @@ export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
 
   constructor(options: ClaudeCodeRunnerAdapterOptions = {}) {
     this.binary = options.binary ?? process.env.KIWI_CLAUDE_CODE_BINARY ?? "claude";
-    this.model = options.model ?? "claude-sonnet-4-6";
+    this.model = options.model;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.cliRunner = options.cliRunner ?? new DefaultClaudeCodeCliRunner();
     this.env = options.env ?? process.env;
@@ -67,7 +67,7 @@ export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
     const invocation: ClaudeCodeCliInvocation = {
       binary: this.binary,
       cwd: input.worktreePath,
-      model: this.model,
+      ...(this.model ? { model: this.model } : {}),
       prompt,
       outputFormat: "json",
       allowedTools: this.allowedTools,
@@ -81,7 +81,7 @@ export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
       runnerName: this.name,
       result,
       usage,
-      modelId: this.model,
+      modelId: this.model ?? null,
       providerName: CLAUDE_CODE_ACCESS_MODE,
       timeoutMs: invocation.timeoutMs,
       label: "claude-code",

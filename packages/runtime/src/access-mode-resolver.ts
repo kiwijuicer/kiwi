@@ -41,6 +41,20 @@ function selectedProbeEnv(env: Record<string, string | undefined>): NodeJS.Proce
   };
 }
 
+function errorOutput(error: unknown): string {
+  const parts: string[] = [];
+  if (typeof error === "object" && error !== null) {
+    const maybe = error as { stdout?: unknown; stderr?: unknown };
+    for (const value of [maybe.stdout, maybe.stderr]) {
+      if (Buffer.isBuffer(value)) parts.push(value.toString("utf-8"));
+      if (typeof value === "string") parts.push(value);
+    }
+  }
+  if (error instanceof Error) parts.push(error.message);
+  else parts.push(String(error));
+  return parts.filter(Boolean).join("\n");
+}
+
 function cursorAgentAuthAvailable(env: Record<string, string | undefined>): AccessModeAvailability {
   if (env.KIWI_FAKE_BINARY_AVAILABLE === "1") return { accessMode: AccessModes.CursorAgentCli, available: true };
   try {
@@ -51,7 +65,7 @@ function cursorAgentAuthAvailable(env: Record<string, string | undefined>): Acce
     });
     return { accessMode: AccessModes.CursorAgentCli, available: true };
   } catch (error) {
-    const output = error instanceof Error ? error.message : String(error);
+    const output = errorOutput(error);
     if (/not authenticated|unauthenticated|login required|please log in/i.test(output)) {
       return { accessMode: AccessModes.CursorAgentCli, available: false, reason: "cursor-agent is not authenticated" };
     }
@@ -59,6 +73,40 @@ function cursorAgentAuthAvailable(env: Record<string, string | undefined>): Acce
       accessMode: AccessModes.CursorAgentCli,
       available: true,
       reason: "cursor-agent status probe inconclusive",
+    };
+  }
+}
+
+function claudeCodeAuthAvailable(binary: string, env: Record<string, string | undefined>): AccessModeAvailability {
+  if (env.KIWI_FAKE_BINARY_AVAILABLE === "1") {
+    return { accessMode: AccessModes.ClaudeCodeCli, available: true };
+  }
+  try {
+    const output = execFileSync(binary, ["auth", "status"], {
+      encoding: "utf-8",
+      env: selectedProbeEnv(env),
+      timeout: 10_000,
+    });
+    const parsed = JSON.parse(output) as { loggedIn?: unknown; authMethod?: unknown; apiProvider?: unknown };
+    if (parsed.loggedIn === true) {
+      const authMethod = typeof parsed.authMethod === "string" ? ` via ${parsed.authMethod}` : "";
+      const apiProvider = typeof parsed.apiProvider === "string" ? ` (${parsed.apiProvider})` : "";
+      return {
+        accessMode: AccessModes.ClaudeCodeCli,
+        available: true,
+        reason: `authenticated${authMethod}${apiProvider}`,
+      };
+    }
+    return { accessMode: AccessModes.ClaudeCodeCli, available: false, reason: "claude is not logged in" };
+  } catch (error) {
+    const output = errorOutput(error);
+    if (/loggedIn["']?\s*:\s*false|not logged in|login/i.test(output)) {
+      return { accessMode: AccessModes.ClaudeCodeCli, available: false, reason: "claude is not logged in" };
+    }
+    return {
+      accessMode: AccessModes.ClaudeCodeCli,
+      available: false,
+      reason: "claude auth status probe failed",
     };
   }
 }
@@ -86,6 +134,7 @@ export function evaluateAccessModeAvailability(
     if (!which(candidate, env)) {
       return { accessMode, available: false, reason: `binary '${candidate}' not on PATH` };
     }
+    if (accessMode === AccessModes.ClaudeCodeCli) return claudeCodeAuthAvailable(candidate, env);
     if (accessMode === AccessModes.CursorAgentCli) return cursorAgentAuthAvailable(env);
     return { accessMode, available: true };
   }

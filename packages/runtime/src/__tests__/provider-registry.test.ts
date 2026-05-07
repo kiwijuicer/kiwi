@@ -36,6 +36,48 @@ describe("provider registries", () => {
     expect(resolution.provider.name).toBe("stub-deterministic");
   });
 
+  it("passes providerModel to Claude Code providers while keeping stable local ids", () => {
+    const models: ModelEntry[] = [
+      {
+        id: "claude-code-cli-frontier",
+        providerModel: "opus",
+        provider: "anthropic",
+        capability: "frontier",
+        roles: ["planner"],
+        accessMode: "claude-code-cli",
+        enabled: true,
+      },
+    ];
+
+    const resolution = new PlannerProviderRegistry().resolve({
+      registryModels: models,
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
+    });
+
+    expect(resolution.model.id).toBe("claude-code-cli-frontier");
+    expect(resolution.provider.name).toBe("claude-code-cli:opus");
+  });
+
+  it("lets Claude Code CLI resolve its default model when providerModel is omitted", () => {
+    const models: ModelEntry[] = [
+      {
+        id: "claude-code-cli-frontier",
+        provider: "anthropic",
+        capability: "frontier",
+        roles: ["planner"],
+        accessMode: "claude-code-cli",
+        enabled: true,
+      },
+    ];
+
+    const resolution = new PlannerProviderRegistry().resolve({
+      registryModels: models,
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
+    });
+
+    expect(resolution.provider.name).toBe("claude-code-cli:default");
+  });
+
   it("selects reviewer providers only when a real access mode is available", () => {
     const models: ModelEntry[] = [
       {

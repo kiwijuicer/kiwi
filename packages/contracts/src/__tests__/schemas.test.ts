@@ -457,6 +457,7 @@ describe("contracts schemas", () => {
       models: [
         {
           id: "stub-mid",
+          providerModel: "stub-provider-mid",
           provider: "stub",
           capability: "mid",
           roles: ["executor"],
@@ -469,6 +470,7 @@ describe("contracts schemas", () => {
     expect(policy.version).toBe("1");
     expect(policy.commandProfiles.default).toBeUndefined();
     expect(registry.models[0]?.id).toBe("stub-mid");
+    expect(registry.models[0]?.providerModel).toBe("stub-provider-mid");
   });
 
   it("parses operator, finalization, and protocol boundary contracts", () => {

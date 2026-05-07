@@ -139,7 +139,7 @@ function defaultRunnerDefinitions(): RunnerDefinition[] {
         detailFromAccessMode(RunnerNames.ClaudeCode, evaluateAccessModeAvailability(AccessModes.ClaudeCodeCli, env)),
       buildAdapter: ({ env, selectedExecutorModel }) =>
         new ClaudeCodeRunnerAdapter({
-          ...(selectedExecutorModel ? { model: selectedExecutorModel.id } : {}),
+          ...(selectedExecutorModel?.providerModel ? { model: selectedExecutorModel.providerModel } : {}),
           env,
         }),
     },
@@ -150,7 +150,9 @@ function defaultRunnerDefinitions(): RunnerDefinition[] {
         detailFromAccessMode(RunnerNames.Codex, evaluateAccessModeAvailability(AccessModes.CodexCli, env)),
       buildAdapter: ({ env, selectedExecutorModel }) =>
         new CodexCliRunnerAdapter({
-          ...(selectedExecutorModel?.accessMode === AccessModes.CodexCli ? { model: selectedExecutorModel.id } : {}),
+          ...(selectedExecutorModel?.accessMode === AccessModes.CodexCli && selectedExecutorModel.providerModel
+            ? { model: selectedExecutorModel.providerModel }
+            : {}),
           env,
         }),
     },
@@ -161,8 +163,8 @@ function defaultRunnerDefinitions(): RunnerDefinition[] {
         detailFromAccessMode(RunnerNames.CursorAgent, evaluateAccessModeAvailability(AccessModes.CursorAgentCli, env)),
       buildAdapter: ({ env, selectedExecutorModel }) =>
         new CursorAgentRunnerAdapter({
-          ...(selectedExecutorModel?.accessMode === AccessModes.CursorAgentCli
-            ? { model: selectedExecutorModel.id }
+          ...(selectedExecutorModel?.accessMode === AccessModes.CursorAgentCli && selectedExecutorModel.providerModel
+            ? { model: selectedExecutorModel.providerModel }
             : {}),
           env,
         }),
@@ -323,7 +325,8 @@ export class RunnerRegistry {
     return {
       runnerAvailability,
       runnerAvailabilityDetails: details,
-      buildAdapter: (runner, executorModel) => this.buildAdapter(runner, { env, selectedExecutorModel: executorModel ?? null }),
+      buildAdapter: (runner, executorModel) =>
+        this.buildAdapter(runner, { env, selectedExecutorModel: executorModel ?? null }),
       selectedExecutorModel: executorSelection.model,
       executorSelection,
       selectExecutorModel,

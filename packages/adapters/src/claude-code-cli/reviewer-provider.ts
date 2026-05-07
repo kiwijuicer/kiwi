@@ -93,7 +93,7 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
   readonly maxRepairAttempts: number;
   private readonly binary: string;
   private readonly cwd: string | undefined;
-  private readonly model: string;
+  private readonly model: string | undefined;
   private readonly timeoutMs: number;
   private readonly runner: ClaudeCodeCliRunner;
   private readonly env: Record<string, string | undefined>;
@@ -102,8 +102,8 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
   constructor(options: ClaudeCodeCliReviewerProviderOptions = {}) {
     this.binary = options.binary ?? process.env.KIWI_CLAUDE_CODE_BINARY ?? "claude";
     if (options.cwd !== undefined) this.cwd = options.cwd;
-    this.model = options.model ?? "claude-sonnet-4-6";
-    this.name = `claude-code-cli:${this.model}`;
+    this.model = options.model;
+    this.name = `claude-code-cli:${this.model ?? "default"}`;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.maxRepairAttempts = options.maxRepairAttempts ?? 1;
     this.runner = options.runner ?? new DefaultClaudeCodeCliRunner();
@@ -141,7 +141,7 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
     const invocation: ClaudeCodeCliInvocation = {
       binary: this.binary,
       ...(this.cwd ? { cwd: this.cwd } : {}),
-      model: this.model,
+      ...(this.model ? { model: this.model } : {}),
       prompt: redacted.redacted,
       systemPrompt,
       outputFormat: "json",
@@ -174,7 +174,7 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
     const attemptArtifact = {
       attemptType: params.attemptType,
       promptVersion: REVIEWER_PROMPT_VERSION,
-      model: this.model,
+      model: this.model ?? "default",
       binary: this.binary,
       args: result.args,
       prompt: redacted.redacted,
@@ -188,13 +188,13 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
       reviewerInput: {
         promptVersion: REVIEWER_PROMPT_VERSION,
         accessMode: "claude-code-cli",
-        model: this.model,
+        model: this.model ?? "default",
         attempts: [...previous, attemptArtifact],
       },
       reviewerOutput: {
         promptVersion: REVIEWER_PROMPT_VERSION,
         accessMode: "claude-code-cli",
-        model: this.model,
+        model: this.model ?? "default",
         cli: {
           binary: this.binary,
           args: result.args,

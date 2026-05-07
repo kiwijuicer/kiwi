@@ -34,10 +34,14 @@ export class ReviewerProviderRegistry {
 
   buildProvider(model: ModelEntry, env: Record<string, string | undefined>, policy: KiwiPolicy): ReviewerProvider {
     if (model.accessMode === AccessModes.AnthropicApi) {
-      return new AnthropicReviewerProvider({ model: model.id, env, policy });
+      return new AnthropicReviewerProvider({ model: model.providerModel ?? model.id, env, policy });
     }
     if (model.accessMode === AccessModes.ClaudeCodeCli) {
-      return new ClaudeCodeCliReviewerProvider({ model: model.id, env, policy });
+      return new ClaudeCodeCliReviewerProvider({
+        ...(model.providerModel ? { model: model.providerModel } : {}),
+        env,
+        policy,
+      });
     }
     throw new Error(`Reviewer access mode '${model.accessMode}' is not supported yet (modelId: ${model.id}).`);
   }

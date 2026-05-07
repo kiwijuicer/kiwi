@@ -96,7 +96,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
   readonly maxRepairAttempts: number;
   private readonly binary: string;
   private readonly cwd: string | undefined;
-  private readonly model: string;
+  private readonly model: string | undefined;
   private readonly timeoutMs: number;
   private readonly runner: ClaudeCodeCliRunner;
   private readonly env: Record<string, string | undefined>;
@@ -104,8 +104,8 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
   constructor(options: ClaudeCodeCliPlannerProviderOptions = {}) {
     this.binary = options.binary ?? process.env.KIWI_CLAUDE_CODE_BINARY ?? "claude";
     if (options.cwd !== undefined) this.cwd = options.cwd;
-    this.model = options.model ?? "claude-opus-4-6";
-    this.name = `claude-code-cli:${this.model}`;
+    this.model = options.model;
+    this.name = `claude-code-cli:${this.model ?? "default"}`;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.maxRepairAttempts = options.maxRepairAttempts ?? 1;
     this.runner = options.runner ?? new DefaultClaudeCodeCliRunner();
@@ -153,7 +153,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
     const invocation: ClaudeCodeCliInvocation = {
       binary: this.binary,
       ...(this.cwd ? { cwd: this.cwd } : {}),
-      model: this.model,
+      ...(this.model ? { model: this.model } : {}),
       prompt,
       systemPrompt,
       outputFormat: "json",
@@ -185,7 +185,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
     const attemptArtifact: RedactedInvocationArtifact = {
       attemptType: params.attemptType,
       promptVersion: PLANNER_PROMPT_VERSION,
-      model: this.model,
+      model: this.model ?? "default",
       binary: this.binary,
       args: result.args,
       prompt,
@@ -200,7 +200,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
       plannerInput: {
         promptVersion: PLANNER_PROMPT_VERSION,
         accessMode: "claude-code-cli",
-        model: this.model,
+        model: this.model ?? "default",
         redactedInput: redactedInput.redacted,
         repoContext: redactedRepoContext.redacted,
         attempts: [...previous, attemptArtifact],
@@ -208,7 +208,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
       plannerOutput: {
         promptVersion: PLANNER_PROMPT_VERSION,
         accessMode: "claude-code-cli",
-        model: this.model,
+        model: this.model ?? "default",
         cli: {
           binary: this.binary,
           args: result.args,

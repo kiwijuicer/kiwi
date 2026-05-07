@@ -27,7 +27,6 @@ import { buildRunnerEnv } from "./runner-env";
 const RESEARCHER_TOOL_NAME = "emit_research_report";
 const RESEARCHER_PROMPT_VERSION = "researcher.v1";
 const DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5";
-const DEFAULT_CLI_MODEL = "claude-code-cli-haiku-4-5";
 const DEFAULT_MAX_TOKENS = 4096;
 const DEFAULT_TIMEOUT_MS = 120_000;
 
@@ -66,7 +65,13 @@ export interface ResearcherProvider {
 
 export class ResearcherProviderError extends Error {
   constructor(
-    readonly code: "provider_rate_limited" | "provider_timeout" | "provider_network" | "provider_schema_invalid" | "provider_content_policy" | "provider_auth",
+    readonly code:
+      | "provider_rate_limited"
+      | "provider_timeout"
+      | "provider_network"
+      | "provider_schema_invalid"
+      | "provider_content_policy"
+      | "provider_auth",
     message: string,
     readonly retryable: boolean,
     readonly statusCode?: number,
@@ -92,7 +97,15 @@ function researchToolDefinition() {
     input_schema: {
       type: "object",
       additionalProperties: false,
-      required: ["schemaVersion", "runId", "initiativeId", "relevantFiles", "symbolsOfInterest", "openQuestions", "generatedAt"],
+      required: [
+        "schemaVersion",
+        "runId",
+        "initiativeId",
+        "relevantFiles",
+        "symbolsOfInterest",
+        "openQuestions",
+        "generatedAt",
+      ],
       properties: {
         schemaVersion: { type: "string", enum: ["1"] },
         runId: { type: "string", pattern: "^run_[a-z0-9_]+$" },
@@ -229,7 +242,11 @@ export class AnthropicResearcherProvider implements ResearcherProvider {
 
   async research(input: ResearcherProviderInput): Promise<ResearcherProviderOutput> {
     if (!this.apiKey) {
-      throw providerError({ code: "provider_auth", message: "ANTHROPIC_API_KEY is required for AnthropicResearcherProvider", retryable: false });
+      throw providerError({
+        code: "provider_auth",
+        message: "ANTHROPIC_API_KEY is required for AnthropicResearcherProvider",
+        retryable: false,
+      });
     }
     const envelope = buildResearchEnvelope(input);
     const redactedEnvelope = redactForProvider(envelope, input.policy, this.env);
@@ -299,7 +316,7 @@ export class ClaudeCodeCliResearcherProvider implements ResearcherProvider {
   readonly name: string;
   private readonly binary: string;
   private readonly cwd: string | undefined;
-  private readonly model: string;
+  private readonly model: string | undefined;
   private readonly timeoutMs: number;
   private readonly runner: ClaudeCodeCliRunner;
   private readonly env: Record<string, string | undefined>;
@@ -307,8 +324,8 @@ export class ClaudeCodeCliResearcherProvider implements ResearcherProvider {
   constructor(options: ClaudeCodeCliResearcherProviderOptions = {}) {
     this.binary = options.binary ?? process.env.KIWI_CLAUDE_CODE_BINARY ?? "claude";
     if (options.cwd !== undefined) this.cwd = options.cwd;
-    this.model = options.model ?? DEFAULT_CLI_MODEL;
-    this.name = `claude-code-cli:${this.model}`;
+    this.model = options.model;
+    this.name = `claude-code-cli:${this.model ?? "default"}`;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.runner = options.runner ?? new DefaultClaudeCodeCliRunner();
     this.env = options.env ?? process.env;
@@ -320,7 +337,7 @@ export class ClaudeCodeCliResearcherProvider implements ResearcherProvider {
     const invocation: ClaudeCodeCliInvocation = {
       binary: this.binary,
       ...(this.cwd ? { cwd: this.cwd } : {}),
-      model: this.model,
+      ...(this.model ? { model: this.model } : {}),
       prompt: redactedEnvelope.redacted,
       systemPrompt: "You are kiwi's researcher agent. Return only JSON matching ResearchReportSchema; no commentary.",
       outputFormat: "json",
@@ -356,7 +373,7 @@ export class ClaudeCodeCliResearcherProvider implements ResearcherProvider {
         researcherInput: {
           promptVersion: RESEARCHER_PROMPT_VERSION,
           accessMode: "claude-code-cli",
-          model: this.model,
+          model: this.model ?? "default",
           binary: this.binary,
           args: result.args,
           prompt: redactedEnvelope.redacted,
@@ -365,7 +382,7 @@ export class ClaudeCodeCliResearcherProvider implements ResearcherProvider {
         researcherOutput: {
           promptVersion: RESEARCHER_PROMPT_VERSION,
           accessMode: "claude-code-cli",
-          model: this.model,
+          model: this.model ?? "default",
           cli: {
             binary: this.binary,
             args: result.args,
@@ -388,7 +405,9 @@ export class StubResearcherProvider implements ResearcherProvider {
 
   async research(input: ResearcherProviderInput): Promise<ResearcherProviderOutput> {
     const context = buildRepoContextEnvelope({ initiative: input.initiative });
-    const files = [...new Set([...input.candidateFiles, ...context.grepHits.map((hit) => hit.path), ...context.localDiffPaths])]
+    const files = [
+      ...new Set([...input.candidateFiles, ...context.grepHits.map((hit) => hit.path), ...context.localDiffPaths]),
+    ]
       .filter(Boolean)
       .slice(0, 10);
     const generatedAt = input.requestedAt;
@@ -398,7 +417,10 @@ export class StubResearcherProvider implements ResearcherProvider {
         schemaVersion: "1",
         runId: input.runId,
         initiativeId: input.initiative.id,
-        relevantFiles: files.map((filePath) => ({ path: filePath, reason: "Matched candidate, grep, or local diff context" })),
+        relevantFiles: files.map((filePath) => ({
+          path: filePath,
+          reason: "Matched candidate, grep, or local diff context",
+        })),
         symbolsOfInterest: [],
         openQuestions: files.length === 0 ? ["No relevant files were identified from bounded repository context."] : [],
         summary: "Deterministic stub research report from bounded repository context.",

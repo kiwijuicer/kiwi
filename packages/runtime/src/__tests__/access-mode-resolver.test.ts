@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { chmodSync, mkdtempSync, writeFileSync } from "fs";
+import os from "os";
+import path from "path";
 import { ModelEntry } from "@kiwi/contracts";
 import {
   evaluateAccessModeAvailability,
@@ -32,6 +35,14 @@ const candidates: ModelEntry[] = [
     enabled: true,
   },
 ];
+
+function fakeClaudeBin(script: string): string {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "kiwi-claude-bin-"));
+  const target = path.join(dir, "claude");
+  writeFileSync(target, `#!/usr/bin/env sh\n${script}\n`, "utf-8");
+  chmodSync(target, 0o755);
+  return dir;
+}
 
 describe("access mode resolver", () => {
   it("prefers Claude Code CLI when binary is available", () => {
@@ -78,6 +89,26 @@ describe("access mode resolver", () => {
     expect(evaluateAccessModeAvailability("anthropic-api", {}).available).toBe(false);
     expect(evaluateAccessModeAvailability("anthropic-api", { ANTHROPIC_API_KEY: "x" }).available).toBe(true);
     expect(evaluateAccessModeAvailability("cursor-agent-cli", { PATH: "/empty" }).available).toBe(false);
+  });
+
+  it("treats Claude Code CLI as unavailable when auth status is logged out", () => {
+    const binDir = fakeClaudeBin(`printf '{"loggedIn":false,"authMethod":"none","apiProvider":"firstParty"}'; exit 1`);
+    const availability = evaluateAccessModeAvailability("claude-code-cli", {
+      PATH: `${binDir}:${process.env.PATH ?? ""}`,
+    });
+
+    expect(availability.available).toBe(false);
+    expect(availability.reason).toContain("not logged in");
+  });
+
+  it("treats Claude Code CLI as available when auth status is logged in", () => {
+    const binDir = fakeClaudeBin(`printf '{"loggedIn":true,"authMethod":"oauth","apiProvider":"firstParty"}'`);
+    const availability = evaluateAccessModeAvailability("claude-code-cli", {
+      PATH: `${binDir}:${process.env.PATH ?? ""}`,
+    });
+
+    expect(availability.available).toBe(true);
+    expect(availability.reason).toContain("authenticated");
   });
 
   it("excludes stub when excludeStub flag is set", () => {

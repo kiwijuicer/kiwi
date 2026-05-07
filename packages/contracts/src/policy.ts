@@ -80,6 +80,7 @@ export function defaultAccessModeForProvider(
 export const ModelEntrySchema = z
   .object({
     id: z.string().min(1),
+    providerModel: z.string().min(1).optional(),
     provider: ModelProviderSchema,
     capability: ModelCapabilitySchema,
     roles: z.array(AgentRoleSchema).min(1),

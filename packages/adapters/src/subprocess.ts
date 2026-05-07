@@ -31,6 +31,9 @@ interface SubprocessResult {
 }
 
 function selectedEnv(env: Record<string, string | undefined> | undefined): Record<string, string> {
+  if (env === undefined) {
+    return selectedEnv(process.env);
+  }
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(env ?? {})) {
     if (typeof value === "string") out[key] = value;
