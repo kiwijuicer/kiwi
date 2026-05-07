@@ -172,6 +172,43 @@ describe("provider registries", () => {
     ).toBe("anthropic:claude-opus-4-6");
   });
 
+  it("can build Codex and Cursor reviewer providers", () => {
+    const models: ModelEntry[] = [
+      {
+        id: "codex-cli-auto",
+        provider: "local",
+        capability: "strong",
+        roles: ["reviewer"],
+        accessMode: "codex-cli",
+        enabled: true,
+      },
+      {
+        id: "cursor-agent-auto",
+        provider: "local",
+        capability: "strong",
+        roles: ["reviewer"],
+        accessMode: "cursor-agent-cli",
+        enabled: true,
+      },
+    ];
+    const registry = new ReviewerProviderRegistry();
+
+    expect(
+      registry.select({
+        registryModels: models,
+        policy,
+        env: { KIWI_FAKE_BINARY_AVAILABLE: "1", KIWI_FORCE_ACCESS_MODE: "codex-cli" },
+      })?.provider.name,
+    ).toBe("codex-cli:default");
+    expect(
+      registry.select({
+        registryModels: models,
+        policy,
+        env: { KIWI_FAKE_BINARY_AVAILABLE: "1", KIWI_FORCE_ACCESS_MODE: "cursor-agent-cli" },
+      })?.provider.name,
+    ).toBe("cursor-agent-cli:default");
+  });
+
   it("selects mid researcher providers with stub fallback", () => {
     const models: ModelEntry[] = [
       {
@@ -188,5 +225,40 @@ describe("provider registries", () => {
 
     expect(selected?.model.id).toBe("stub-mid");
     expect(selected?.provider.name).toBe("stub-researcher");
+  });
+
+  it("can build Codex and Cursor researcher providers", () => {
+    const models: ModelEntry[] = [
+      {
+        id: "codex-cli-auto",
+        provider: "local",
+        capability: "strong",
+        roles: ["researcher"],
+        accessMode: "codex-cli",
+        enabled: true,
+      },
+      {
+        id: "cursor-agent-auto",
+        provider: "local",
+        capability: "strong",
+        roles: ["researcher"],
+        accessMode: "cursor-agent-cli",
+        enabled: true,
+      },
+    ];
+    const registry = new ResearcherProviderRegistry();
+
+    expect(
+      registry.select({
+        registryModels: models,
+        env: { KIWI_FAKE_BINARY_AVAILABLE: "1", KIWI_FORCE_ACCESS_MODE: "codex-cli" },
+      })?.provider.name,
+    ).toBe("codex-cli:default");
+    expect(
+      registry.select({
+        registryModels: models,
+        env: { KIWI_FAKE_BINARY_AVAILABLE: "1", KIWI_FORCE_ACCESS_MODE: "cursor-agent-cli" },
+      })?.provider.name,
+    ).toBe("cursor-agent-cli:default");
   });
 });

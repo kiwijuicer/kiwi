@@ -209,7 +209,7 @@ models:
   - id: cursor-agent-auto
     provider: local
     capability: strong
-    roles: [planner, executor]
+    roles: [planner, researcher, executor, reviewer]
     accessMode: cursor-agent-cli
     enabled: true
 
@@ -217,7 +217,7 @@ models:
   - id: codex-cli-auto
     provider: local
     capability: strong
-    roles: [planner, executor]
+    roles: [planner, researcher, executor, reviewer]
     accessMode: codex-cli
     enabled: true
 

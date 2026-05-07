@@ -1,4 +1,10 @@
-import { AnthropicReviewerProvider, ClaudeCodeCliReviewerProvider, ReviewerProvider } from "@kiwi/adapters";
+import {
+  AnthropicReviewerProvider,
+  ClaudeCodeCliReviewerProvider,
+  CodexCliReviewerProvider,
+  CursorAgentReviewerProvider,
+  ReviewerProvider,
+} from "@kiwi/adapters";
 import { AccessModes, ContractValues, KiwiPolicy, ModelEntry } from "@kiwi/contracts";
 import { selectEnabledModelByAccessMode } from "./access-mode-resolver";
 
@@ -38,6 +44,20 @@ export class ReviewerProviderRegistry {
     }
     if (model.accessMode === AccessModes.ClaudeCodeCli) {
       return new ClaudeCodeCliReviewerProvider({
+        ...(model.providerModel ? { model: model.providerModel } : {}),
+        env,
+        policy,
+      });
+    }
+    if (model.accessMode === AccessModes.CodexCli) {
+      return new CodexCliReviewerProvider({
+        ...(model.providerModel ? { model: model.providerModel } : {}),
+        env,
+        policy,
+      });
+    }
+    if (model.accessMode === AccessModes.CursorAgentCli) {
+      return new CursorAgentReviewerProvider({
         ...(model.providerModel ? { model: model.providerModel } : {}),
         env,
         policy,

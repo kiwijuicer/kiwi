@@ -1,6 +1,8 @@
 import {
   AnthropicResearcherProvider,
   ClaudeCodeCliResearcherProvider,
+  CodexCliResearcherProvider,
+  CursorAgentResearcherProvider,
   ResearcherProvider,
   StubResearcherProvider,
 } from "@kiwi/adapters";
@@ -35,6 +37,18 @@ export class ResearcherProviderRegistry {
     }
     if (model.accessMode === AccessModes.ClaudeCodeCli) {
       return new ClaudeCodeCliResearcherProvider({
+        ...(model.providerModel ? { model: model.providerModel } : {}),
+        env,
+      });
+    }
+    if (model.accessMode === AccessModes.CodexCli) {
+      return new CodexCliResearcherProvider({
+        ...(model.providerModel ? { model: model.providerModel } : {}),
+        env,
+      });
+    }
+    if (model.accessMode === AccessModes.CursorAgentCli) {
+      return new CursorAgentResearcherProvider({
         ...(model.providerModel ? { model: model.providerModel } : {}),
         env,
       });

@@ -26,7 +26,7 @@ import { buildRepoContextEnvelope } from "./repo-context";
 import { buildRunnerEnv } from "./runner-env";
 
 const RESEARCHER_TOOL_NAME = "emit_research_report";
-const RESEARCHER_PROMPT_VERSION = "researcher.v1";
+export const RESEARCHER_PROMPT_VERSION = "researcher.v1";
 const DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5";
 const DEFAULT_MAX_TOKENS = 4096;
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -91,7 +91,7 @@ function providerError(params: {
   return new ResearcherProviderError(params.code, params.message, params.retryable, params.statusCode);
 }
 
-function researchToolDefinition() {
+export function researchToolDefinition() {
   return {
     name: RESEARCHER_TOOL_NAME,
     description: "Emit a schema-valid kiwi ResearchReport for the requested Initiative.",
@@ -145,7 +145,7 @@ function researchToolDefinition() {
   };
 }
 
-function buildResearchEnvelope(input: ResearcherProviderInput): string {
+export function buildResearchEnvelope(input: ResearcherProviderInput): string {
   return JSON.stringify(
     {
       request: "Identify relevant files, symbols of interest, and open questions for this kiwi Initiative.",
