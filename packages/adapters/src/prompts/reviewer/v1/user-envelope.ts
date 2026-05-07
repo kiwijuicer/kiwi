@@ -54,7 +54,7 @@ export function buildReviewerRepairEnvelope(params: {
       validationError: params.validationError,
       invalidOutput: params.invalidOutput,
       constraints: [
-        "Return only the corrected ReviewVerdict via the required tool.",
+        "Return only the corrected ReviewVerdict.",
         "Preserve valid intent from the original verdict.",
         "Do not add unrelated issues.",
       ],

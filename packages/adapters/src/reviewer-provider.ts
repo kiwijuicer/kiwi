@@ -82,6 +82,8 @@ export interface ReviewerValidationFailureEvidence {
   attemptsUsed: number;
   records: ReviewerRetryRecord[];
   lastValidationError?: string;
+  lastInvalidOutput?: unknown;
+  lastProviderArtifacts?: ReviewerProviderArtifacts;
 }
 
 export const ReviewerProviderSchedulerErrorCodes = {
@@ -156,6 +158,8 @@ export async function runReviewerProviderWithRetries(
 ): Promise<ValidatedReviewerProviderOutput> {
   const maxAttempts = maxAttemptsForProvider(provider, options.maxAttempts ?? 2);
   let lastError: unknown;
+  let lastInvalidOutput: unknown;
+  let lastProviderArtifacts: ReviewerProviderArtifacts | undefined;
   const records: ReviewerRetryRecord[] = [];
   let repairContext: ReviewerProviderRepairContext | undefined;
 
@@ -188,6 +192,8 @@ export async function runReviewerProviderWithRetries(
       };
     } catch (error) {
       lastError = error;
+      lastInvalidOutput = output.reviewVerdict;
+      lastProviderArtifacts = output.providerArtifacts;
       const validationError = error instanceof Error ? error.message : String(error);
       records.push({
         attempt,
@@ -213,6 +219,8 @@ export async function runReviewerProviderWithRetries(
       attemptsUsed: records.length,
       records,
       lastValidationError: lastError instanceof Error ? lastError.message : String(lastError),
+      ...(lastInvalidOutput !== undefined ? { lastInvalidOutput } : {}),
+      ...(lastProviderArtifacts ? { lastProviderArtifacts } : {}),
     },
     lastError,
   );

@@ -5,8 +5,8 @@ import {
   buildReviewerRepairEnvelope,
   buildReviewerUserEnvelope,
   reviewerToolDefinition,
+  REVIEWER_JSON_SYSTEM_PROMPT,
   REVIEWER_PROMPT_VERSION,
-  REVIEWER_SYSTEM_PROMPT,
 } from "./prompts/reviewer/v1";
 import { redactForProvider, RedactionSummary } from "./provider-redaction";
 import { buildRunnerEnv } from "./runner-env";
@@ -99,7 +99,7 @@ function buildPrompt(params: {
       : buildReviewerUserEnvelope(params.input);
   const schema = JSON.stringify(reviewerToolDefinition().input_schema, null, 2);
   return redactForProvider(
-    `${REVIEWER_SYSTEM_PROMPT}
+    `${REVIEWER_JSON_SYSTEM_PROMPT}
 
 Prompt version: ${REVIEWER_PROMPT_VERSION}
 
@@ -109,7 +109,7 @@ ${schema}
 Reviewer request:
 ${userEnvelope}
 
-Return only a JSON ReviewVerdict; no commentary.`,
+Return only a JSON ReviewVerdict; no commentary or extra top-level keys.`,
     params.policy,
     params.env,
   );

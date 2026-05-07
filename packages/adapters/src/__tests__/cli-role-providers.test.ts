@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { KiwiPolicy } from "@kiwi/contracts";
+import { ClaudeCodeCliInvocation, ClaudeCodeCliResult, ClaudeCodeCliRunner } from "../claude-code-cli/client";
+import { ClaudeCodeCliReviewerProvider } from "../claude-code-cli/reviewer-provider";
 import { CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../codex-cli/client";
 import { CodexCliResearcherProvider } from "../codex-cli/researcher-provider";
 import { CodexCliReviewerProvider } from "../codex-cli/reviewer-provider";
@@ -156,7 +158,50 @@ class FakeCursorRunner implements CursorAgentCliRunner {
   }
 }
 
+class FakeClaudeRunner implements ClaudeCodeCliRunner {
+  readonly invocations: ClaudeCodeCliInvocation[] = [];
+
+  constructor(private readonly output: unknown) {}
+
+  async run(invocation: ClaudeCodeCliInvocation): Promise<ClaudeCodeCliResult> {
+    this.invocations.push(invocation);
+    const parsed = {
+      type: "result",
+      result: JSON.stringify(this.output),
+      usage: { input_tokens: 29, output_tokens: 11 },
+      total_cost_usd: 0.06,
+    };
+    return {
+      ok: true,
+      exitCode: 0,
+      stdout: JSON.stringify(parsed),
+      stderr: "",
+      parsed,
+      durationMs: 10,
+      startedAt: "2026-05-04T12:00:00.000Z",
+      completedAt: "2026-05-04T12:00:00.010Z",
+      binary: invocation.binary,
+      args: ["-p", invocation.prompt, "--output-format", "json"],
+      timedOut: false,
+    };
+  }
+}
+
 describe("CLI reviewer providers", () => {
+  it("reviews through claude-code-cli with explicit ReviewVerdict JSON schema", async () => {
+    const runner = new FakeClaudeRunner(reviewVerdict);
+    const provider = new ClaudeCodeCliReviewerProvider({ runner, env: { PATH: "/bin" }, policy });
+
+    const output = await runReviewerProviderWithRetries(provider, reviewInput);
+
+    expect(output.providerName).toBe("claude-code-cli:default");
+    expect(output.reviewVerdict.verdict).toBe("pass");
+    expect(output.cost.estimatedUsd).toBe(0.06);
+    expect(runner.invocations[0]?.outputFormat).toBe("json");
+    expect(runner.invocations[0]?.systemPrompt).toContain("ReviewVerdict JSON schema");
+    expect(runner.invocations[0]?.systemPrompt).toContain("raw JSON ReviewVerdict");
+  });
+
   it("reviews through codex-cli with a read-only sandbox", async () => {
     const runner = new FakeCodexRunner(reviewVerdict);
     const provider = new CodexCliReviewerProvider({

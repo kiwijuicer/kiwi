@@ -13,8 +13,9 @@ import { buildRunnerEnv } from "../runner-env";
 import {
   buildReviewerRepairEnvelope,
   buildReviewerUserEnvelope,
+  reviewerToolDefinition,
+  REVIEWER_JSON_SYSTEM_PROMPT,
   REVIEWER_PROMPT_VERSION,
-  REVIEWER_SYSTEM_PROMPT,
 } from "../prompts/reviewer/v1";
 import {
   ReviewerProvider,
@@ -130,6 +131,18 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
     });
   }
 
+  private systemPrompt(): string {
+    const schema = JSON.stringify(reviewerToolDefinition().input_schema, null, 2);
+    return `${REVIEWER_JSON_SYSTEM_PROMPT}
+
+Prompt version: ${REVIEWER_PROMPT_VERSION}
+
+ReviewVerdict JSON schema:
+${schema}
+
+Return only a JSON ReviewVerdict; no commentary or extra top-level keys.`;
+  }
+
   private async invoke(params: {
     input: ReviewerProviderInput;
     attemptType: "initial" | "repair";
@@ -137,7 +150,7 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
     context?: ReviewerProviderRepairContext;
   }): Promise<ReviewerProviderOutput> {
     const redacted = redactForProvider(params.envelope, this.policy, this.env);
-    const systemPrompt = `${REVIEWER_SYSTEM_PROMPT}\n\nReturn only a JSON ReviewVerdict; no commentary.`;
+    const systemPrompt = this.systemPrompt();
     const env = buildRunnerEnv({ sourceEnv: this.env, policy: this.policy.commandProfiles.default });
     const invocation: ClaudeCodeCliInvocation = {
       binary: this.binary,

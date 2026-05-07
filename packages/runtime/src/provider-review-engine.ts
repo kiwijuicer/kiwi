@@ -1,4 +1,9 @@
-import { ReviewerProviderInput, runReviewerProviderWithRetries } from "@kiwi/adapters";
+import {
+  ReviewerProviderInput,
+  ReviewerProviderValidationError,
+  ReviewerValidationFailureEvidence,
+  runReviewerProviderWithRetries,
+} from "@kiwi/adapters";
 import { KiwiPolicy, ModelEntry, ReviewVerdict } from "@kiwi/contracts";
 import { appendAuditEvent } from "@kiwi/core";
 import { persistReviewerProviderArtifacts, ReviewEngine, ReviewExecutionResult, ReviewInput } from "./review-engine";
@@ -31,6 +36,70 @@ function reviewerPromptVersion(artifacts: { reviewerInput?: unknown; reviewerOut
     return reviewerOutput.promptVersion;
   }
   return "unknown";
+}
+
+function invalidAttemptCount(evidence: ReviewerValidationFailureEvidence): number {
+  return evidence.records.filter((record) => record.status === "invalid").length;
+}
+
+function annotateInvalidReviewerOutput(output: unknown, evidence: ReviewerValidationFailureEvidence): unknown {
+  const validation = {
+    schema: "ReviewVerdictSchema",
+    valid: false,
+    maxAttempts: evidence.maxAttempts,
+    attemptsUsed: evidence.attemptsUsed,
+    invalidAttempts: invalidAttemptCount(evidence),
+    lastValidationError: evidence.lastValidationError ?? "unknown",
+    records: evidence.records,
+  };
+  if (isRecord(output)) return { ...output, validation };
+  return { output, validation };
+}
+
+function persistInvalidReviewerProviderArtifacts(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  evidence: ReviewerValidationFailureEvidence;
+}): { reviewerInputRef: string; reviewerOutputRef: string } | null {
+  const artifacts = params.evidence.lastProviderArtifacts;
+  if (!artifacts) return null;
+  return persistReviewerProviderArtifacts({
+    cwd: params.cwd,
+    runId: params.runId,
+    stepId: params.stepId,
+    attemptId: params.attemptId,
+    reviewerInput: artifacts.reviewerInput ?? { promptVersion: "unknown" },
+    reviewerOutput: annotateInvalidReviewerOutput(
+      artifacts.reviewerOutput ?? { reviewVerdict: params.evidence.lastInvalidOutput ?? null },
+      params.evidence,
+    ),
+  });
+}
+
+function appendReviewerRetryEvents(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  records: ReviewerValidationFailureEvidence["records"];
+}): void {
+  for (const record of params.records) {
+    if (record.status !== "invalid") continue;
+    appendAuditEvent(params.cwd, {
+      eventType: "reviewer_retry",
+      runId: params.runId,
+      timestamp: new Date().toISOString(),
+      payload: {
+        stepId: params.stepId,
+        attemptId: params.attemptId,
+        attempt: record.attempt,
+        providerName: record.providerName,
+        validationError: record.validationError ?? "unknown",
+      },
+    });
+  }
 }
 
 function buildReviewerInput(input: ReviewInput): ReviewerProviderInput {
@@ -101,6 +170,37 @@ export class ProviderReviewEngine implements ReviewEngine {
         maxAttempts: this.options.maxAttempts ?? 2,
       });
     } catch (error) {
+      if (error instanceof ReviewerProviderValidationError) {
+        appendReviewerRetryEvents({
+          cwd: this.options.cwd,
+          runId: input.runId,
+          stepId: input.stepId,
+          attemptId: input.attemptId,
+          records: error.evidence.records,
+        });
+        const invalidArtifactRefs = persistInvalidReviewerProviderArtifacts({
+          cwd: this.options.cwd,
+          runId: input.runId,
+          stepId: input.stepId,
+          attemptId: input.attemptId,
+          evidence: error.evidence,
+        });
+        appendAuditEvent(this.options.cwd, {
+          eventType: "reviewer_validation_failed",
+          runId: input.runId,
+          timestamp: new Date().toISOString(),
+          payload: {
+            stepId: input.stepId,
+            attemptId: input.attemptId,
+            providerName: error.evidence.providerName,
+            attemptsUsed: error.evidence.attemptsUsed,
+            maxAttempts: error.evidence.maxAttempts,
+            invalidAttempts: invalidAttemptCount(error.evidence),
+            lastValidationError: error.evidence.lastValidationError ?? "unknown",
+            ...(invalidArtifactRefs ? invalidArtifactRefs : {}),
+          },
+        });
+      }
       appendAuditEvent(this.options.cwd, {
         eventType: "reviewer_failed",
         runId: input.runId,
