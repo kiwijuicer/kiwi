@@ -221,7 +221,12 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
       now,
     };
     if (reviewEngine) orchestratorInput.reviewEngine = reviewEngine;
-    result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute(orchestratorInput);
+    try {
+      result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute(orchestratorInput);
+    } catch (error) {
+      refreshRunStatusFromAttempts({ cwd: input.cwd, runId: input.runId, now: new Date() });
+      throw error;
+    }
   } finally {
     teardownWorktreeSandbox({
       cwd: input.cwd,

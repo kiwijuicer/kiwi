@@ -12,11 +12,75 @@ interface RunOptions extends AttemptOptions {
   maxConcurrency?: number;
   autoFix?: boolean;
   autoReplan?: boolean;
+  progress?: RunProgressOptions;
 }
 
 interface StepStopResult {
   stoppedStatus?: string;
   stoppedStepId?: string;
+}
+
+interface RunProgressOptions {
+  enabled?: boolean;
+  write?: (line: string) => void;
+  nowMs?: () => number;
+}
+
+interface RunProgressReporter {
+  line(line: string): void;
+  stepStart(stepId: string, title?: string): void;
+  stepDone(stepId: string, result: ExecutePlannedStepResult, runStatus?: string): void;
+  stepFailed(stepId: string, error: unknown): void;
+  stopAll(): void;
+}
+
+function createRunProgressReporter(opts: RunProgressOptions | undefined): RunProgressReporter {
+  const enabled = opts?.enabled ?? process.stderr.isTTY;
+  const write = opts?.write ?? ((line: string) => process.stderr.write(`${line}\n`));
+  const nowMs = opts?.nowMs ?? (() => Date.now());
+  const active = new Map<string, { startedAt: number; timer: NodeJS.Timeout }>();
+
+  function stopStep(stepId: string): void {
+    const entry = active.get(stepId);
+    if (!entry) return;
+    clearInterval(entry.timer);
+    active.delete(stepId);
+  }
+
+  function message(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  return {
+    line(line: string): void {
+      if (!enabled) return;
+      write(line);
+    },
+    stepStart(stepId: string, title?: string): void {
+      if (!enabled) return;
+      write(title ? `step ${stepId}: ${title}` : `step ${stepId}`);
+      write("executing attempt and review...");
+      const startedAt = nowMs();
+      const timer = setInterval(() => {
+        const elapsedSeconds = Math.max(0, Math.floor((nowMs() - startedAt) / 1000));
+        write(`still running ${stepId}... ${elapsedSeconds}s elapsed`);
+      }, 30_000);
+      active.set(stepId, { startedAt, timer });
+    },
+    stepDone(stepId: string, result: ExecutePlannedStepResult, runStatus?: string): void {
+      if (!enabled) return;
+      stopStep(stepId);
+      write(`step ${stepId} done: status=${result.status} next=${result.nextAction.type} runStatus=${runStatus ?? result.runStatus}`);
+    },
+    stepFailed(stepId: string, error: unknown): void {
+      if (!enabled) return;
+      stopStep(stepId);
+      write(`step ${stepId} failed: ${message(error)}`);
+    },
+    stopAll(): void {
+      for (const stepId of active.keys()) stopStep(stepId);
+    },
+  };
 }
 
 /**
@@ -58,18 +122,28 @@ async function runSequentialSteps(params: {
   cwd: string;
   runId: string;
   startIndex: number;
-  taskGraphSteps: { stepId: string }[];
+  taskGraphSteps: { stepId: string; title?: string }[];
   attemptOptions: AttemptOptions;
   opts: RunOptions;
+  progress: RunProgressReporter;
 }): Promise<StepStopResult> {
-  const { cwd, runId, startIndex, taskGraphSteps, attemptOptions, opts } = params;
+  const { cwd, runId, startIndex, taskGraphSteps, attemptOptions, opts, progress } = params;
   const stepIds: string[] = taskGraphSteps.slice(startIndex).map((s) => s.stepId);
+  const titlesByStepId = new Map(taskGraphSteps.map((step) => [step.stepId, step.title]));
   let i = 0;
 
   while (i < stepIds.length) {
     const stepId = stepIds[i]!;
-    const attemptResult = await runAttemptUnlocked(runId, stepId, attemptOptions, cwd);
+    progress.stepStart(stepId, titlesByStepId.get(stepId));
+    let attemptResult: ExecutePlannedStepResult;
+    try {
+      attemptResult = await runAttemptUnlocked(runId, stepId, attemptOptions, cwd);
+    } catch (error) {
+      progress.stepFailed(stepId, error);
+      throw error;
+    }
     const runStatus = getRunStatusSummary(cwd, runId).latest[0]?.status;
+    progress.stepDone(stepId, attemptResult, runStatus);
 
     if (runStatus === ContractValues.Failed || runStatus === "needs_approval") {
       if (runStatus !== "needs_approval") {
@@ -92,53 +166,78 @@ export async function runRun(runId: string, opts: RunOptions = {}, cwd: string =
     throw new Error(`--max-concurrency must be a positive integer; received ${opts.maxConcurrency}`);
   }
 
+  const progress = createRunProgressReporter(opts.progress);
   const workspace = resolveCliWorkspace(opts, cwd, false);
+  progress.line("Running run...");
+  progress.line(chalk.dim(`runId: ${runId}`));
+  progress.line(chalk.dim(`workspace: ${workspace.workspacePath}`));
   let stoppedStatus: string | undefined;
   let stoppedStepId: string | undefined;
-  await withRunLock(
-    {
-      cwd: workspace.workspacePath,
-      runId,
-      operation: "run",
-      now: opts.now,
-    },
-    async () => {
-      const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
-      const attemptOptions: AttemptOptions = {};
-      if (opts.command) attemptOptions.command = opts.command;
-      if (opts.approved !== undefined) attemptOptions.approved = opts.approved;
-      if (opts.now) attemptOptions.now = opts.now;
-
-      if (taskGraph.subPlans && taskGraph.subPlans.length > 1) {
-        const scheduled = await runScheduledSubPlans<AttemptOptions>({
-          cwd: workspace.workspacePath,
-          runId,
-          ...(opts.fromStep ? { fromStep: opts.fromStep } : {}),
-          ...(opts.maxConcurrency !== undefined ? { maxGlobalConcurrency: opts.maxConcurrency } : {}),
-          ...(opts.now ? { now: opts.now } : {}),
-          attemptOptions,
-          runStep: (_scheduledRunId, stepId, options) => runAttemptUnlocked(runId, stepId, options, workspace.workspacePath),
-        });
-        stoppedStatus = scheduled.stoppedStatus;
-        stoppedStepId = scheduled.stoppedStepId;
-        return;
-      }
-
-      const startIndex = opts.fromStep ? taskGraph.steps.findIndex((step) => step.stepId === opts.fromStep) : 0;
-      if (startIndex < 0) throw new Error(`Step not found: ${opts.fromStep}`);
-
-      const result = await runSequentialSteps({
+  try {
+    await withRunLock(
+      {
         cwd: workspace.workspacePath,
         runId,
-        startIndex,
-        taskGraphSteps: taskGraph.steps,
-        attemptOptions,
-        opts,
-      });
-      stoppedStatus = result.stoppedStatus;
-      stoppedStepId = result.stoppedStepId;
-    },
-  );
+        operation: "run",
+        now: opts.now,
+      },
+      async () => {
+        const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
+        const titlesByStepId = new Map(taskGraph.steps.map((step) => [step.stepId, step.title]));
+        progress.line(chalk.dim(`steps: ${taskGraph.steps.length}`));
+        if (opts.fromStep) progress.line(chalk.dim(`fromStep: ${opts.fromStep}`));
+        const attemptOptions: AttemptOptions = {};
+        if (opts.command) attemptOptions.command = opts.command;
+        if (opts.approved !== undefined) attemptOptions.approved = opts.approved;
+        if (opts.now) attemptOptions.now = opts.now;
+
+        if (taskGraph.subPlans && taskGraph.subPlans.length > 1) {
+          progress.line(chalk.dim(`subplans: ${taskGraph.subPlans.length}`));
+          progress.line(chalk.dim(`maxConcurrency: ${opts.maxConcurrency ?? 2}`));
+          const scheduled = await runScheduledSubPlans<AttemptOptions>({
+            cwd: workspace.workspacePath,
+            runId,
+            ...(opts.fromStep ? { fromStep: opts.fromStep } : {}),
+            ...(opts.maxConcurrency !== undefined ? { maxGlobalConcurrency: opts.maxConcurrency } : {}),
+            ...(opts.now ? { now: opts.now } : {}),
+            attemptOptions,
+            runStep: async (_scheduledRunId, stepId, options) => {
+              progress.stepStart(stepId, titlesByStepId.get(stepId));
+              try {
+                const result = await runAttemptUnlocked(runId, stepId, options, workspace.workspacePath);
+                const runStatus = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.status;
+                progress.stepDone(stepId, result, runStatus);
+                return result;
+              } catch (error) {
+                progress.stepFailed(stepId, error);
+                throw error;
+              }
+            },
+          });
+          stoppedStatus = scheduled.stoppedStatus;
+          stoppedStepId = scheduled.stoppedStepId;
+          return;
+        }
+
+        const startIndex = opts.fromStep ? taskGraph.steps.findIndex((step) => step.stepId === opts.fromStep) : 0;
+        if (startIndex < 0) throw new Error(`Step not found: ${opts.fromStep}`);
+
+        const result = await runSequentialSteps({
+          cwd: workspace.workspacePath,
+          runId,
+          startIndex,
+          taskGraphSteps: taskGraph.steps,
+          attemptOptions,
+          opts,
+          progress,
+        });
+        stoppedStatus = result.stoppedStatus;
+        stoppedStepId = result.stoppedStepId;
+      },
+    );
+  } finally {
+    progress.stopAll();
+  }
 
   console.log(
     (stoppedStatus ? chalk.yellow("•") : chalk.green("✓")) +

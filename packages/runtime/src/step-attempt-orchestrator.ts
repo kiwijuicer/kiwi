@@ -23,7 +23,7 @@ import { loadContextPackage } from "./scheduler-policy";
 import { auditAttemptFinished, auditStepAttemptStarted } from "./step-attempt/audit";
 import { coordinateAttemptGates, mapRunnerStatusToAttemptStatus } from "./step-attempt/gates";
 import { recordAttemptModelCost } from "./step-attempt/model-cost";
-import { markAttemptRunning, persistAttemptCompletion } from "./step-attempt/persistence";
+import { markAttemptFailed, markAttemptRunning, persistAttemptCompletion } from "./step-attempt/persistence";
 import { loadStepAttempt, saveRunnerCostReport } from "./step-attempt-artifacts";
 import { nextActionFromReview, runAttemptReview } from "./step-attempt/review";
 import {
@@ -298,16 +298,39 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       diffSubject,
     });
 
-    const reviewResult = await runAttemptReview({
-      ...attemptScope,
-      step: input.step,
-      gateResults,
-      attemptDiff,
-      diffSubject,
-      reviewDepth: input.schedulerDecision.reviewDepth,
-      ...(input.reviewEngine ? { reviewEngine: input.reviewEngine } : {}),
-      ...(this.defaults.reviewEngine ? { defaultReviewEngine: this.defaults.reviewEngine } : {}),
-    });
+    let reviewResult: Awaited<ReturnType<typeof runAttemptReview>>;
+    try {
+      reviewResult = await runAttemptReview({
+        ...attemptScope,
+        step: input.step,
+        gateResults,
+        attemptDiff,
+        diffSubject,
+        reviewDepth: input.schedulerDecision.reviewDepth,
+        ...(input.reviewEngine ? { reviewEngine: input.reviewEngine } : {}),
+        ...(this.defaults.reviewEngine ? { defaultReviewEngine: this.defaults.reviewEngine } : {}),
+      });
+    } catch (error) {
+      const completedAt = new Date().toISOString();
+      markAttemptFailed({
+        ...attemptScope,
+        existingAttempt,
+        artifacts: [...runnerOutput.artifactRefs, ...postRunnerArtifacts],
+        completedAt,
+      });
+      appendAuditEvent(input.cwd, {
+        eventType: "step_attempt_failed",
+        runId,
+        timestamp: completedAt,
+        payload: {
+          stepId,
+          attemptId,
+          phase: "review",
+          reason: error instanceof Error ? error.message : String(error),
+        },
+      });
+      throw error;
+    }
     const completedAt = new Date().toISOString();
     const nextAction = nextActionFromReview(reviewResult.reviewVerdict);
     const status = mapRunnerStatusToAttemptStatus({

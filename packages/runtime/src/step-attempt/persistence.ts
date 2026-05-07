@@ -98,3 +98,25 @@ export function persistAttemptCompletion(params: {
   });
   return { artifacts, attemptRef };
 }
+
+export function markAttemptFailed(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  existingAttempt: StepAttempt;
+  artifacts?: Artifact[];
+  completedAt: string;
+}): string {
+  return saveStepAttempt({
+    cwd: params.cwd,
+    runId: params.runId,
+    attempt: StepAttemptSchema.parse({
+      ...params.existingAttempt,
+      status: ContractValues.Failed,
+      artifacts: dedupeArtifacts([...(params.existingAttempt.artifacts ?? []), ...(params.artifacts ?? [])]),
+      modelInvocationRefs: params.existingAttempt.modelInvocationRefs,
+      completedAt: params.completedAt,
+    }),
+  });
+}

@@ -21,6 +21,7 @@ export type AuditEventType =
   | "executor_model_selected"
   | "context_package_created"
   | "step_attempt_started"
+  | "step_attempt_failed"
   | "runner_attempt_completed"
   | "runner_attempt_failed"
   | "step_attempt_reviewed"

@@ -11,6 +11,7 @@ import { runFinalize } from "../commands/finalize";
 import { runInit } from "../commands/init";
 import { runOperatorSnapshot } from "../commands/operator";
 import { runPlan } from "../commands/plan";
+import { runRun } from "../commands/run";
 import { runRulesSync } from "../commands/rules";
 import { runStatus } from "../commands/status";
 
@@ -196,6 +197,44 @@ describe("kiwi operator flow", () => {
       },
       cwd,
     );
+  });
+
+  it("writes safe progress while running planned steps", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-run-progress-"));
+    await runInit({}, cwd);
+    writeFastPolicy(cwd);
+    await runPlan(
+      "# Feature: Run Progress\n\n## Validate",
+      {
+        allowStub: true,
+        env: { PATH: "/empty" },
+        now: new Date("2026-05-04T12:00:00.000Z"),
+        runIdSuffix: "r001",
+        initiativeIdSuffix: "r001",
+        planIdSuffix: "r001",
+      },
+      cwd,
+    );
+    const lines: string[] = [];
+
+    await runRun(
+      "run_20260504_140000_r001",
+      {
+        now: new Date("2026-05-04T12:01:00.000Z"),
+        progress: {
+          enabled: true,
+          write: (line) => lines.push(line),
+        },
+      },
+      cwd,
+    );
+
+    const output = lines.join("\n");
+    expect(output).toContain("Running run...");
+    expect(output).toContain("runId: run_20260504_140000_r001");
+    expect(output).toContain("step step_001: Validate");
+    expect(output).toContain("executing attempt and review...");
+    expect(output).toContain("step step_001 done: status=completed next=continue runStatus=completed");
   });
 
   it("copies only the selected repo into a workspace attempt sandbox", async () => {
