@@ -25,6 +25,7 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
       .command("plan <ticket>")
       .description("Generate deterministic TaskGraph from ticket")
       .option("--dry-run", "Print generated plan without writing files")
+      .option("--allow-stub", "Allow deterministic stub planner for tests/dev")
       .option("--risk-profile <profile>", "local|dev|staging|production", "dev")
       .option("--budget-profile <profile>", "tiny|small|normal|large|critical", "normal"),
   ).action(
@@ -32,6 +33,7 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
       ticket: string,
       opts: {
         dryRun?: boolean;
+        allowStub?: boolean;
         workspace?: string;
         repo?: string;
         riskProfile?: "local" | "dev" | "staging" | "production";

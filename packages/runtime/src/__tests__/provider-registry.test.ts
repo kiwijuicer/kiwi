@@ -30,10 +30,31 @@ describe("provider registries", () => {
     const resolution = new PlannerProviderRegistry().resolve({
       registryModels: models,
       env: { PATH: "/empty" },
+      allowStub: true,
     });
 
     expect(resolution.model.id).toBe("stub-frontier");
     expect(resolution.provider.name).toBe("stub-deterministic");
+  });
+
+  it("does not select a stub planner unless explicitly allowed", () => {
+    const models: ModelEntry[] = [
+      {
+        id: "stub-frontier",
+        provider: "stub",
+        capability: "frontier",
+        roles: ["planner"],
+        accessMode: "stub",
+        enabled: true,
+      },
+    ];
+
+    expect(() =>
+      new PlannerProviderRegistry().resolve({
+        registryModels: models,
+        env: { PATH: "/empty" },
+      }),
+    ).toThrow(/No real planner model[\s\S]*stub-frontier \(stub\): disabled by default/);
   });
 
   it("passes providerModel to Claude Code providers while keeping stable local ids", () => {

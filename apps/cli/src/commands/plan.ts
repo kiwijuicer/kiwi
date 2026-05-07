@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
+import { AccessModes } from "@kiwi/contracts";
 import {
   kiwiModelRegistryPath,
   kiwiPolicyPath,
@@ -23,6 +24,8 @@ interface PlanOptions extends CliWorkspaceOptions {
   runIdSuffix?: string;
   initiativeIdSuffix?: string;
   planIdSuffix?: string;
+  allowStub?: boolean;
+  env?: Record<string, string | undefined>;
 }
 
 function looksLikeTicketPath(ticketArg: string): boolean {
@@ -69,8 +72,10 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
   const now = opts.now ?? new Date();
   const resolution = resolvePlannerProvider({
     registryModels: registry.models,
+    env: opts.env,
     now: () => now,
     ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
+    ...(opts.allowStub ? { allowStub: opts.allowStub } : {}),
   });
   const plannerModel = resolution.model;
   const provider = resolution.provider;
@@ -114,6 +119,8 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
   console.log(chalk.dim(`runId: ${planned.runId}`));
   console.log(chalk.dim(`workspace: ${workspacePath}`));
   console.log(chalk.dim(`repo: ${repo.id} (${repo.path})`));
+  const plannerLine = `planner: ${planned.plannerModelId} (${planned.providerName})`;
+  console.log(plannerModel.accessMode === AccessModes.Stub ? chalk.yellow(plannerLine) : chalk.dim(plannerLine));
   console.log(chalk.dim(`steps: ${planned.taskGraph.steps.length}`));
   console.log(chalk.dim(`saved: .kiwi/runs/${planned.runId}/`));
 }

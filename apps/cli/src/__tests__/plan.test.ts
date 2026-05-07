@@ -31,6 +31,8 @@ describe("kiwi plan", () => {
     await runPlan(
       ticketPath,
       {
+        allowStub: true,
+        env: { PATH: "/empty" },
         now: new Date("2026-05-03T19:00:00.000Z"),
         runIdSuffix: "abcd",
         initiativeIdSuffix: "abcd",
@@ -90,7 +92,7 @@ describe("kiwi plan", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-inline-"));
     await runInit({}, cwd);
 
-    await runPlan("Implement inline ticket planning", {}, cwd);
+    await runPlan("Implement inline ticket planning", { allowStub: true, env: { PATH: "/empty" } }, cwd);
 
     const runsRoot = path.join(cwd, ".kiwi", "runs");
     const runs = readdirSync(runsRoot);
@@ -115,6 +117,8 @@ describe("kiwi plan", () => {
     await runPlan(
       "Implement workspace-aware planning",
       {
+        allowStub: true,
+        env: { PATH: "/empty" },
         workspace,
         repo: "voice-core",
         now: new Date("2026-05-03T20:00:00.000Z"),
@@ -134,5 +138,14 @@ describe("kiwi plan", () => {
     expect(run.repoPath).toBe(repo);
     expect(initiative.repoPath).toBe(repo);
     expect(existsSync(path.join(repo, ".kiwi"))).toBe(false);
+  });
+
+  it("does not silently use the stub planner by default", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-no-stub-"));
+    await runInit({}, cwd);
+
+    await expect(runPlan("Implement real planning", { env: { PATH: "/empty" } }, cwd)).rejects.toThrow(
+      /No real planner model[\s\S]*stub-frontier \(stub\): disabled by default/,
+    );
   });
 });

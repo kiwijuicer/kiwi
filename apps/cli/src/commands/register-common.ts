@@ -26,14 +26,14 @@ export function mapErrorToHelp(error: unknown): string | null {
   if (error instanceof BudgetExceededError) return "Increase `--budget-profile` or relax risk profile.";
 
   const message = error instanceof Error ? error.message : String(error);
-  if (message.includes("No enabled planner model")) {
-    return "Check `.kiwi/model-registry.yaml` and run `kiwi doctor`.";
+  if (message.includes("No real planner model") || message.includes("No enabled planner model")) {
+    return "Run `kiwi doctor`, then log in/configure a real planner. Use `--allow-stub` only for tests/dev.";
   }
   if (message.includes("No reviewer model with an available access mode")) {
     return "Check `.kiwi/model-registry.yaml` and run `kiwi doctor`.";
   }
   if (hasErrorCode(error, "provider_auth")) {
-    return "Run `claude login` (or `codex login` / `cursor-agent status`).";
+    return "Run `claude` and `/login` (or `codex login` / `cursor-agent status`).";
   }
 
   return null;

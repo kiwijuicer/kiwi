@@ -26,6 +26,7 @@ export const TOOLS = [
         repoPath: { type: "string" },
         riskProfile: { type: "string", enum: ["dev", "production"] },
         budgetProfile: { type: "string", enum: ["tiny", "normal"] },
+        allowStub: { type: "boolean" },
       },
       anyOf: [{ required: ["ticket"] }, { required: ["rawInput"] }],
     },

@@ -15,6 +15,8 @@ async function setupRun(cwd: string): Promise<void> {
   await runPlan(
     "# Cost Report\n\n## Implement",
     {
+      allowStub: true,
+      env: { PATH: "/empty" },
       now: NOW,
       runIdSuffix: "cost",
       initiativeIdSuffix: "cost",

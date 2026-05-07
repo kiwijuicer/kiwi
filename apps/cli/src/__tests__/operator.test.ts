@@ -72,6 +72,8 @@ describe("kiwi operator flow", () => {
     await runPlan(
       "# Feature: Operator\n\n## Validate",
       {
+        allowStub: true,
+        env: { PATH: "/empty" },
         now: new Date("2026-05-04T09:00:00.000Z"),
         runIdSuffix: "op01",
         initiativeIdSuffix: "op01",
@@ -161,6 +163,8 @@ describe("kiwi operator flow", () => {
     await runPlan(
       "# Feature: Dependencies\n\n## First\n\n## Second",
       {
+        allowStub: true,
+        env: { PATH: "/empty" },
         now: new Date("2026-05-04T09:10:00.000Z"),
         runIdSuffix: "deps",
         initiativeIdSuffix: "deps",
@@ -217,6 +221,8 @@ describe("kiwi operator flow", () => {
     await runPlan(
       "# Feature: Workspace Attempt\n\n## Implement",
       {
+        allowStub: true,
+        env: { PATH: "/empty" },
         workspace,
         repo: "voice-core",
         now: new Date("2026-05-04T10:00:00.000Z"),

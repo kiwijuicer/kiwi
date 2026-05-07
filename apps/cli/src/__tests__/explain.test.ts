@@ -13,6 +13,8 @@ describe("kiwi explain", () => {
     await runPlan(
       "# Feature: Explain Tree\n\n## Analyze\n## Implement\n## Validate",
       {
+        allowStub: true,
+        env: { PATH: "/empty" },
         now: new Date("2026-05-06T10:00:00.000Z"),
         runIdSuffix: "x001",
         initiativeIdSuffix: "x001",

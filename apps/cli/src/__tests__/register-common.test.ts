@@ -20,9 +20,11 @@ function captureHandleCommandError(error: unknown): string[] {
 
 describe("register-common error hints", () => {
   it("maps provider auth and known model errors to actionable help", () => {
-    expect(mapErrorToHelp(Object.assign(new Error("auth failed"), { code: "provider_auth" }))).toContain("claude login");
+    expect(mapErrorToHelp(Object.assign(new Error("auth failed"), { code: "provider_auth" }))).toContain("/login");
     expect(
-      mapErrorToHelp(new Error("No enabled planner model with an available access mode found in .kiwi/model-registry.yaml")),
+      mapErrorToHelp(
+        new Error("No real planner model with an available access mode found in .kiwi/model-registry.yaml"),
+      ),
     ).toContain("kiwi doctor");
   });
 

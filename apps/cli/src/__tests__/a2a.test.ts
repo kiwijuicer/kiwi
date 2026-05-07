@@ -41,6 +41,8 @@ describe("kiwi a2a", () => {
     await runPlan(
       "# A2A Handoff\n\n## Implement",
       {
+        allowStub: true,
+        env: { PATH: "/empty" },
         now: new Date("2026-05-04T13:00:00.000Z"),
         runIdSuffix: "a2a1",
         initiativeIdSuffix: "a2a1",

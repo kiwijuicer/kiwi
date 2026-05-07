@@ -70,6 +70,7 @@ async function planTool(args: Record<string, unknown>, cwd: string): Promise<unk
   const resolution = resolvePlannerProvider({
     registryModels: registry.models,
     now: () => now,
+    ...(args.allowStub === true ? { allowStub: true } : {}),
   });
   const planned = await planRun({
     workspacePath: workspace.workspacePath,

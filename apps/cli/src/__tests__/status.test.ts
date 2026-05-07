@@ -25,6 +25,8 @@ describe("kiwi status", () => {
     await runPlan(
       "# Feature: Status Details\n\n## Analyze\n## Plan\n## Implement\n## Validate",
       {
+        allowStub: true,
+        env: { PATH: "/empty" },
         now: new Date("2026-05-04T04:00:00.000Z"),
         runIdSuffix: "s001",
         initiativeIdSuffix: "s001",
@@ -56,6 +58,8 @@ describe("kiwi status", () => {
     await runPlan(
       "Ticket A",
       {
+        allowStub: true,
+        env: { PATH: "/empty" },
         now: new Date("2026-05-04T04:00:00.000Z"),
         runIdSuffix: "a001",
         initiativeIdSuffix: "a001",
@@ -66,6 +70,8 @@ describe("kiwi status", () => {
     await runPlan(
       "Ticket B",
       {
+        allowStub: true,
+        env: { PATH: "/empty" },
         now: new Date("2026-05-04T04:00:01.000Z"),
         runIdSuffix: "b002",
         initiativeIdSuffix: "b002",

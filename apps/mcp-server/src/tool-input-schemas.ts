@@ -29,6 +29,7 @@ export const ToolInputSchemas = {
     rawInput: z.string().min(1).optional(),
     riskProfile: z.enum(["dev", "production"]).optional(),
     budgetProfile: z.enum(["tiny", "normal"]).optional(),
+    allowStub: z.boolean().optional(),
   }).refine((value) => Boolean(value.ticket || value.rawInput), {
     message: "Either ticket or rawInput is required",
     path: ["ticket"],
