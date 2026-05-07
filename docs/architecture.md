@@ -3,7 +3,7 @@
 ## Scope
 
 Dieses Dokument konkretisiert `docs/vision.md` fuer die aktuelle Codebasis.
-MVP 1 fokussiert auf Planning Foundation: Intake, deterministic TaskGraph, Run Store und CLI.
+Stand: Production Milestone 1 (Real Loop) — echte Provider- und Runner-Integration aktiv.
 
 ## Architektur-Ueberblick
 
@@ -25,9 +25,11 @@ flowchart TD
 ## Module
 
 - `apps/cli`
-  - Kommandos: `init`, `plan`, `status`
+  - Kommandos: `init`, `plan`, `run`, `attempt`, `finalize`, `status`, `cost`, `doctor`,
+    `evidence`, `explain`, `operator`, `publish`, `rules`, `run-summary`, `subplan-tree`,
+    `workspace`, `approve`, `a2a` (frozen)
   - laedt Policy/Registry
-  - triggert deterministic planner
+  - loest Provider und Access Mode auf und delegiert an runtime
 - `packages/core`
   - Initiative creation
   - deterministic TaskGraph builder
@@ -51,7 +53,7 @@ flowchart TD
 .kiwi/
   config.yaml
   policy.yaml
-  .kiwi/model-registry.yaml
+  model-registry.yaml
   runs/
     <run-id>/
       run.json
@@ -76,14 +78,6 @@ Bis `docs/plans/step-22-end-to-end-real-run-demo.md` `Status: DONE` ist,
 bleibt A2A eingefroren. Erlaubt sind nur mechanische Move-/Import-Updates, die
 vom A2A-Freeze-Gate akzeptiert werden. Neue A2A-Kommandos, Runtime-Semantik,
 Payload-Arten oder Trust-Regeln sind nicht in Scope.
-
-## Nicht in MVP 1
-
-- echte LLM Calls
-- runner execution
-- MCP server
-- dashboard/tui
-- A2A runtime
 
 ## Model Tier Mapping
 

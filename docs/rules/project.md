@@ -9,10 +9,10 @@ Build `kiwi` as a local-first control plane for AI-assisted coding work:
 - enforce quality gates
 - keep full audit and cost traceability
 
-## Product Non-Goals (MVP 1)
+## Product Non-Goals
 
-- no autonomous end-to-end coding
-- no A2A runtime
+- no autonomous end-to-end coding without gates
+- no A2A runtime in production (frozen until Step 22 is DONE)
 - no dashboard requirement
 - no multi-tenant backend
 

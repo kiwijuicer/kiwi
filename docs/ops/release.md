@@ -10,14 +10,16 @@ Run before tagging or packaging:
 pnpm release:check
 ```
 
-This currently runs:
+This runs:
 
+- `pnpm format:check`
+- `pnpm lint` (`lint:eslint` + `lint:baseline`)
+- `pnpm lint:arch` (dependency-cruiser)
+- `pnpm code-health` (`lint:file-size`, `lint:a2a-freeze`, `lint:deadcode`, `lint:duplicates`)
 - `pnpm typecheck`
 - `pnpm test`
 - `pnpm build`
 - `pnpm smoke`
-
-`pnpm lint` is still a placeholder and must be replaced before production release.
 
 ## Smoke Coverage
 
@@ -37,11 +39,11 @@ This currently runs:
 - CLI binary: `kiwi`
 - Build output: `apps/cli/dist`
 - Runtime requirement: Node.js 20+
-- Production packaging is blocked until real linting, safe apply/rollback, and real provider/runner paths exist.
+- Production packaging is blocked until safe apply/rollback and real provider/runner paths are fully validated.
 
 ## Release Blockers
 
-- Configure real linting.
 - Add migration fixtures once schema evolution leaves `breaking_allowed`.
 - Add real provider and runner fixture suites.
 - Add sandbox security smoke for denied paths, approval paths, network-disabled behavior, timeout cleanup, and rollback.
+- Step 22 (End-to-End Real Run Demo) must reach `DONE` before first tagged release.

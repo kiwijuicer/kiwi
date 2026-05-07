@@ -6,7 +6,8 @@ Frozen-During: Production Milestone 1 (Real Loop)
 > Scope freeze: A2A surfaces (`packages/core/src/a2a-runtime*.ts`,
 > `apps/cli/src/commands/a2a.ts`, A2A MCP tools) are frozen for the
 > duration of Production Milestone 1. No new A2A features land until
-> Step 22 is `DONE`. See `docs/plans/step-15-scope-freeze-and-tier-collapse.md`.
+> Step 22 is `DONE`. Freeze enforced by `scripts/check-a2a-freeze.mjs`.
+> See `docs/plans/production-milestone-1-real-loop.md`.
 
 `kiwi` now has a disabled-by-default A2A runtime for validating, recording, and exchanging canonical envelopes between explicitly trusted local peers.
 The beta transport is filesystem outbox/inbox. It is not remote discovery, auth negotiation, SaaS behavior, or automatic patch application.

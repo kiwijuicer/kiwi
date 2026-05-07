@@ -2,6 +2,7 @@ node_modules/
 dist/
 .kiwi/
 .tmp/
+.pnpm-store/
 *.log
 .env
 .DS_Store
