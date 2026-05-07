@@ -34,7 +34,9 @@ function formatPlannerAvailability(candidates: ModelEntry[], env: Record<string,
         return `  - ${model.id} (${model.accessMode}): disabled by default`;
       }
       const availability = evaluateAccessModeAvailability(model.accessMode, env);
-      const status = availability.available ? "available" : `unavailable${availability.reason ? ` - ${availability.reason}` : ""}`;
+      const status = availability.available
+        ? "available"
+        : `unavailable${availability.reason ? ` - ${availability.reason}` : ""}`;
       return `  - ${model.id} (${model.accessMode}): ${status}`;
     });
   return rows.length > 0 ? rows.join("\n") : "  - no enabled planner models";
