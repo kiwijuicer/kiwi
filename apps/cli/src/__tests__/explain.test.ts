@@ -24,7 +24,7 @@ describe("kiwi explain", () => {
     );
 
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    await runExplain("run_20260506_100000_x001", {}, cwd);
+    await runExplain("run_20260506_120000_x001", {}, cwd);
     const output = spy.mock.calls.flat().join("\n");
     spy.mockRestore();
 

@@ -4,11 +4,39 @@ export interface IdGenerationOptions {
   suffix?: string;
 }
 
+const PLANNED_RUN_TIME_ZONE = "Europe/Berlin";
+
 function pad(value: number): string {
   return value.toString().padStart(2, "0");
 }
 
-function dateToken(now: Date = new Date()): string {
+function datePart(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes): string {
+  return parts.find((part) => part.type === type)?.value ?? "00";
+}
+
+function localDateToken(now: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  return (
+    `${datePart(parts, "year")}` +
+    `${datePart(parts, "month")}` +
+    `${datePart(parts, "day")}` +
+    `_` +
+    `${datePart(parts, "hour")}` +
+    `${datePart(parts, "minute")}` +
+    `${datePart(parts, "second")}`
+  );
+}
+
+function utcDateToken(now: Date = new Date()): string {
   return (
     `${now.getUTCFullYear()}` +
     `${pad(now.getUTCMonth() + 1)}` +
@@ -18,6 +46,10 @@ function dateToken(now: Date = new Date()): string {
     `${pad(now.getUTCMinutes())}` +
     `${pad(now.getUTCSeconds())}`
   );
+}
+
+function plannedRunDateToken(now: Date = new Date()): string {
+  return localDateToken(now, PLANNED_RUN_TIME_ZONE);
 }
 
 function suffix(size = 2): string {
@@ -38,19 +70,19 @@ function safeIdToken(value: string): string {
 }
 
 export function generateInitiativeId(now: Date = new Date(), options: IdGenerationOptions = {}): string {
-  return `init_${dateToken(now)}_${idSuffix(options)}`;
+  return `init_${plannedRunDateToken(now)}_${idSuffix(options)}`;
 }
 
 export function generateRunId(now: Date = new Date(), options: IdGenerationOptions = {}): string {
-  return `run_${dateToken(now)}_${idSuffix(options)}`;
+  return `run_${plannedRunDateToken(now)}_${idSuffix(options)}`;
 }
 
 export function generatePlanId(now: Date = new Date(), options: IdGenerationOptions = {}): string {
-  return `plan_${dateToken(now)}_${idSuffix(options)}`;
+  return `plan_${plannedRunDateToken(now)}_${idSuffix(options)}`;
 }
 
 export function generateA2AMessageId(now: Date = new Date(), options: IdGenerationOptions = {}): string {
-  return `msg_${dateToken(now)}_${idSuffix(options)}`;
+  return `msg_${utcDateToken(now)}_${idSuffix(options)}`;
 }
 
 export function generateA2ACorrelationId(value: string): string {

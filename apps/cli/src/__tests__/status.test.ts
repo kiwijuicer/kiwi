@@ -40,15 +40,15 @@ describe("kiwi status", () => {
     const output = spy.mock.calls.flat().join("\n");
 
     expect(output).toContain("runs: 1");
-    expect(output).toContain("run_20260504_040000_s001");
+    expect(output).toContain("run_20260504_060000_s001");
     expect(output).toContain("title: Feature: Status Details");
-    expect(output).toContain("plan: plan_20260504_040000_s001");
+    expect(output).toContain("plan: plan_20260504_060000_s001");
     expect(output).toContain("steps: 4");
     expect(output).toContain("subplans:");
     expect(output).toContain("subplan_1 [max=1]");
-    expect(output).toContain(".kiwi/runs/run_20260504_040000_s001/run.json");
-    expect(output).toContain(".kiwi/runs/run_20260504_040000_s001/initiative.json");
-    expect(output).toContain(".kiwi/runs/run_20260504_040000_s001/plan/task-graph.json");
+    expect(output).toContain(".kiwi/runs/run_20260504_060000_s001/run.json");
+    expect(output).toContain(".kiwi/runs/run_20260504_060000_s001/initiative.json");
+    expect(output).toContain(".kiwi/runs/run_20260504_060000_s001/plan/task-graph.json");
     spy.mockRestore();
   });
 
@@ -81,13 +81,13 @@ describe("kiwi status", () => {
     );
 
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    await runStatus(cwd, "run_20260504_040001_b002");
+    await runStatus(cwd, "run_20260504_060001_b002");
     const output = spy.mock.calls.flat().join("\n");
 
-    expect(output).toContain("selected_run: run_20260504_040001_b002");
+    expect(output).toContain("selected_run: run_20260504_060001_b002");
     expect(output).toContain("runs: 1");
-    expect(output).toContain("run_20260504_040001_b002");
-    expect(output).not.toContain("run_20260504_040000_a001");
+    expect(output).toContain("run_20260504_060001_b002");
+    expect(output).not.toContain("run_20260504_060000_a001");
     spy.mockRestore();
   });
 

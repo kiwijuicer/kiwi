@@ -83,7 +83,7 @@ describe("kiwi operator flow", () => {
     );
 
     await runAttempt(
-      "run_20260504_090000_op01",
+      "run_20260504_110000_op01",
       "step_001",
       {
         attemptId: "attempt_001",
@@ -92,13 +92,13 @@ describe("kiwi operator flow", () => {
       cwd,
     );
     const finalizeSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    await runFinalize("run_20260504_090000_op01", { now: new Date("2026-05-04T09:02:00.000Z") }, cwd);
+    await runFinalize("run_20260504_110000_op01", { now: new Date("2026-05-04T09:02:00.000Z") }, cwd);
     const finalizeOutput = finalizeSpy.mock.calls.flat().join("\n");
     finalizeSpy.mockRestore();
     expect(finalizeOutput).toContain("cost: $0.00 estimated");
     expect(finalizeOutput).toContain("verdict: pass");
-    await runEvidenceManifest("run_20260504_090000_op01", { now: new Date("2026-05-04T09:03:00.000Z") }, cwd);
-    await runOperatorSnapshot("run_20260504_090000_op01", { now: new Date("2026-05-04T09:04:00.000Z") }, cwd);
+    await runEvidenceManifest("run_20260504_110000_op01", { now: new Date("2026-05-04T09:03:00.000Z") }, cwd);
+    await runOperatorSnapshot("run_20260504_110000_op01", { now: new Date("2026-05-04T09:04:00.000Z") }, cwd);
 
     expect(
       existsSync(
@@ -106,7 +106,7 @@ describe("kiwi operator flow", () => {
           cwd,
           ".kiwi",
           "runs",
-          "run_20260504_090000_op01",
+          "run_20260504_110000_op01",
           "steps",
           "step_001",
           "attempt_001",
@@ -115,11 +115,11 @@ describe("kiwi operator flow", () => {
       ),
     ).toBe(true);
     expect(
-      readFileSync(path.join(cwd, ".kiwi", "runs", "run_20260504_090000_op01", "final", "final-summary.md"), "utf-8"),
+      readFileSync(path.join(cwd, ".kiwi", "runs", "run_20260504_110000_op01", "final", "final-summary.md"), "utf-8"),
     ).toContain("safeToApply: true");
 
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    await runStatus(cwd, "run_20260504_090000_op01");
+    await runStatus(cwd, "run_20260504_110000_op01");
     const output = spy.mock.calls.flat().join("\n");
     spy.mockRestore();
 
@@ -131,7 +131,7 @@ describe("kiwi operator flow", () => {
     expect(output).toContain("operator/index.html");
 
     const costSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    await runCost("run_20260504_090000_op01", {}, cwd);
+    await runCost("run_20260504_110000_op01", {}, cwd);
     const costOutput = costSpy.mock.calls.flat().join("\n");
     costSpy.mockRestore();
     expect(costOutput).toContain("planner:");
@@ -139,13 +139,13 @@ describe("kiwi operator flow", () => {
     expect(costOutput).toContain("reviewer:");
 
     const explainSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    await runExplain("run_20260504_090000_op01", {}, cwd);
+    await runExplain("run_20260504_110000_op01", {}, cwd);
     const explainOutput = explainSpy.mock.calls.flat().join("\n");
     explainSpy.mockRestore();
     expect(explainOutput).toContain("routing:");
     expect(explainOutput).toContain("executor:stub_fallback");
     expect(explainOutput).toContain("gates:");
-    const executorEvent = readAuditEvents(cwd, "run_20260504_090000_op01").find(
+    const executorEvent = readAuditEvents(cwd, "run_20260504_110000_op01").find(
       (event) => event.eventType === "executor_model_selected",
     );
     expect(executorEvent?.payload).toMatchObject({
@@ -175,7 +175,7 @@ describe("kiwi operator flow", () => {
 
     await expect(
       runAttempt(
-        "run_20260504_091000_deps",
+        "run_20260504_111000_deps",
         "step_002",
         {
           attemptId: "attempt_002",
@@ -185,10 +185,10 @@ describe("kiwi operator flow", () => {
       ),
     ).rejects.toThrow("Cannot execute step_002 before dependencies complete: step_001");
 
-    expect(existsSync(path.join(cwd, ".kiwi", "runs", "run_20260504_091000_deps", "run.lock"))).toBe(false);
+    expect(existsSync(path.join(cwd, ".kiwi", "runs", "run_20260504_111000_deps", "run.lock"))).toBe(false);
 
     await runAttempt(
-      "run_20260504_091000_deps",
+      "run_20260504_111000_deps",
       "step_001",
       {
         attemptId: "attempt_001",
@@ -234,7 +234,7 @@ describe("kiwi operator flow", () => {
     );
 
     await runAttempt(
-      "run_20260504_100000_ws01",
+      "run_20260504_120000_ws01",
       "step_001",
       {
         workspace,
@@ -245,13 +245,13 @@ describe("kiwi operator flow", () => {
       workspace,
     );
 
-    const worktree = path.join(workspace, ".kiwi", "runs", "run_20260504_100000_ws01", "worktrees", "attempt_ws");
+    const worktree = path.join(workspace, ".kiwi", "runs", "run_20260504_120000_ws01", "worktrees", "attempt_ws");
     expect(existsSync(worktree)).toBe(false);
     const diff = path.join(
       workspace,
       ".kiwi",
       "runs",
-      "run_20260504_100000_ws01",
+      "run_20260504_120000_ws01",
       "steps",
       "step_001",
       "attempt_ws",

@@ -50,7 +50,7 @@ describe("kiwi a2a", () => {
       },
       a,
     );
-    await runA2APublish("initiative", { peer: "agent-b", runId: "run_20260504_130000_a2a1" }, a);
+    await runA2APublish("initiative", { peer: "agent-b", runId: "run_20260504_150000_a2a1" }, a);
     await runA2ASync({}, a);
     expect(existsSync(incoming(b))).toBe(true);
 

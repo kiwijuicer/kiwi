@@ -100,8 +100,8 @@ describe("deterministic planner", () => {
     });
 
     expect(second).toEqual(first);
-    expect(first.planId).toBe("plan_20260503_190000_fixed");
-    expect(first.initiativeId).toBe("init_20260503_190000_fixed");
+    expect(first.planId).toBe("plan_20260503_210000_fixed");
+    expect(first.initiativeId).toBe("init_20260503_210000_fixed");
   });
 
   it("captures constraints section as acceptance criteria", () => {

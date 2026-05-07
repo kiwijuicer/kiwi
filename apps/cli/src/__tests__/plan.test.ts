@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { InitiativeSchema, RunManifestSchema, TaskGraphSchema } from "@kiwi/contracts";
 import { runInit } from "../commands/init";
 import { runPlan } from "../commands/plan";
@@ -52,9 +52,9 @@ describe("kiwi plan", () => {
     const initiative = InitiativeSchema.parse(readJson(path.join(runDir, "initiative.json")));
     const taskGraph = TaskGraphSchema.parse(readJson(path.join(runDir, "plan", "task-graph.json")));
 
-    expect(run.runId).toBe("run_20260503_190000_abcd");
-    expect(initiative.id).toBe("init_20260503_190000_abcd");
-    expect(taskGraph.planId).toBe("plan_20260503_190000_abcd");
+    expect(run.runId).toBe("run_20260503_210000_abcd");
+    expect(initiative.id).toBe("init_20260503_210000_abcd");
+    expect(taskGraph.planId).toBe("plan_20260503_210000_abcd");
     expect(existsSync(path.join(runDir, "plan", "planner-input.json"))).toBe(true);
     expect(existsSync(path.join(runDir, "plan", "planner-output.json"))).toBe(true);
 
@@ -129,7 +129,7 @@ describe("kiwi plan", () => {
       os.tmpdir(),
     );
 
-    const runDir = path.join(workspace, ".kiwi", "runs", "run_20260503_200000_w001");
+    const runDir = path.join(workspace, ".kiwi", "runs", "run_20260503_220000_w001");
     const run = RunManifestSchema.parse(readJson(path.join(runDir, "run.json")));
     const initiative = InitiativeSchema.parse(readJson(path.join(runDir, "initiative.json")));
 
@@ -147,5 +147,65 @@ describe("kiwi plan", () => {
     await expect(runPlan("Implement real planning", { env: { PATH: "/empty" } }, cwd)).rejects.toThrow(
       /No real planner model[\s\S]*stub-frontier \(stub\): disabled by default/,
     );
+  });
+
+  it("writes safe progress to the configured progress writer", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-progress-"));
+    await runInit({}, cwd);
+    const lines: string[] = [];
+
+    await runPlan(
+      "Implement visible planning progress",
+      {
+        allowStub: true,
+        env: { PATH: "/empty" },
+        now: new Date("2026-05-04T12:00:00.000Z"),
+        runIdSuffix: "prog",
+        initiativeIdSuffix: "prog",
+        planIdSuffix: "prog",
+        progress: {
+          enabled: true,
+          write: (line) => lines.push(line),
+        },
+      },
+      cwd,
+    );
+
+    expect(lines.join("\n")).toContain("Planning run...");
+    expect(lines.join("\n")).toContain("planner: stub-frontier (stub-deterministic)");
+    expect(lines.join("\n")).toContain("runId: run_20260504_140000_prog");
+    expect(lines.join("\n")).toContain("generating TaskGraph");
+    expect(lines.join("\n")).toContain("valid TaskGraph received; artifacts written.");
+  });
+
+  it("keeps dry-run output as JSON without progress text", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-dry-run-"));
+    await runInit({}, cwd);
+    const progressLines: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    await runPlan(
+      "Implement dry-run planning",
+      {
+        dryRun: true,
+        allowStub: true,
+        env: { PATH: "/empty" },
+        now: new Date("2026-05-04T12:00:00.000Z"),
+        runIdSuffix: "dry1",
+        initiativeIdSuffix: "dry1",
+        planIdSuffix: "dry1",
+        progress: {
+          enabled: true,
+          write: (line) => progressLines.push(line),
+        },
+      },
+      cwd,
+    );
+
+    const output = spy.mock.calls.flat().join("\n");
+    spy.mockRestore();
+    expect(progressLines).toEqual([]);
+    expect(() => JSON.parse(output)).not.toThrow();
+    expect(output).toContain('"runId": "run_20260504_140000_dry1"');
   });
 });
