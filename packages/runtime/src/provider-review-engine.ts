@@ -3,11 +3,12 @@ import {
   ReviewerProviderValidationError,
   ReviewerValidationFailureEvidence,
   runReviewerProviderWithRetries,
+  ValidatedReviewerProviderOutput,
 } from "@kiwi/adapters";
-import { KiwiPolicy, ModelEntry, ReviewVerdict } from "@kiwi/contracts";
+import { ContractValues, KiwiPolicy, ModelEntry, ReviewVerdict } from "@kiwi/contracts";
 import { appendAuditEvent } from "@kiwi/core";
 import { persistReviewerProviderArtifacts, ReviewEngine, ReviewExecutionResult, ReviewInput } from "./review-engine";
-import { ReviewerProviderRegistry } from "./reviewer-provider-registry";
+import { ReviewerProviderRegistry, ReviewerProviderSelection } from "./reviewer-provider-registry";
 
 export interface ProviderReviewEngineOptions {
   cwd: string;
@@ -125,6 +126,117 @@ function buildReviewerInput(input: ReviewInput): ReviewerProviderInput {
   };
 }
 
+async function runReviewerValidation(params: {
+  options: ProviderReviewEngineOptions;
+  input: ReviewInput;
+  reviewerInput: ReviewerProviderInput;
+  selected: ReviewerProviderSelection;
+}): Promise<ValidatedReviewerProviderOutput> {
+  try {
+    return await runReviewerProviderWithRetries(params.selected.provider, params.reviewerInput, {
+      maxAttempts: params.options.maxAttempts ?? 2,
+    });
+  } catch (error) {
+    if (error instanceof ReviewerProviderValidationError) {
+      appendReviewerRetryEvents({
+        cwd: params.options.cwd,
+        runId: params.input.runId,
+        stepId: params.input.stepId,
+        attemptId: params.input.attemptId,
+        records: error.evidence.records,
+      });
+      const invalidArtifactRefs = persistInvalidReviewerProviderArtifacts({
+        cwd: params.options.cwd,
+        runId: params.input.runId,
+        stepId: params.input.stepId,
+        attemptId: params.input.attemptId,
+        evidence: error.evidence,
+      });
+      appendAuditEvent(params.options.cwd, {
+        eventType: "reviewer_validation_failed",
+        runId: params.input.runId,
+        timestamp: new Date().toISOString(),
+        payload: {
+          stepId: params.input.stepId,
+          attemptId: params.input.attemptId,
+          providerName: error.evidence.providerName,
+          attemptsUsed: error.evidence.attemptsUsed,
+          maxAttempts: error.evidence.maxAttempts,
+          invalidAttempts: invalidAttemptCount(error.evidence),
+          lastValidationError: error.evidence.lastValidationError ?? "unknown",
+          ...(invalidArtifactRefs ? invalidArtifactRefs : {}),
+        },
+      });
+    }
+    appendAuditEvent(params.options.cwd, {
+      eventType: "reviewer_failed",
+      runId: params.input.runId,
+      timestamp: new Date().toISOString(),
+      payload: {
+        stepId: params.input.stepId,
+        attemptId: params.input.attemptId,
+        modelId: params.selected.model.id,
+        accessMode: params.selected.model.accessMode,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
+    throw error;
+  }
+}
+
+function appendReviewerSuccessEvidence(params: {
+  options: ProviderReviewEngineOptions;
+  input: ReviewInput;
+  model: ModelEntry;
+  validated: ValidatedReviewerProviderOutput;
+}): void {
+  appendReviewerRetryEvents({
+    cwd: params.options.cwd,
+    runId: params.input.runId,
+    stepId: params.input.stepId,
+    attemptId: params.input.attemptId,
+    records: params.validated.retry.records,
+  });
+
+  appendAuditEvent(params.options.cwd, {
+    eventType: "prompt_version_used",
+    runId: params.input.runId,
+    timestamp: new Date().toISOString(),
+    payload: {
+      phase: ContractValues.Reviewer,
+      version: reviewerPromptVersion(params.validated.providerArtifacts),
+      modelId: params.model.id,
+    },
+  });
+
+  appendAuditEvent(params.options.cwd, {
+    eventType: "reviewer_succeeded",
+    runId: params.input.runId,
+    timestamp: new Date().toISOString(),
+    payload: {
+      stepId: params.input.stepId,
+      attemptId: params.input.attemptId,
+      modelId: params.model.id,
+      accessMode: params.model.accessMode,
+      attemptsUsed: params.validated.retry.attemptsUsed,
+      invalidAttempts: params.validated.retry.invalidAttempts,
+      modelUsage: params.validated.modelUsage,
+      cost: params.validated.cost,
+    },
+  });
+
+  if (params.validated.providerArtifacts) {
+    persistReviewerProviderArtifacts({
+      cwd: params.options.cwd,
+      runId: params.input.runId,
+      stepId: params.input.stepId,
+      attemptId: params.input.attemptId,
+      reviewerInput: params.validated.providerArtifacts.reviewerInput,
+      reviewerOutput: params.validated.providerArtifacts.reviewerOutput,
+    });
+  }
+}
+
 export class ProviderReviewEngine implements ReviewEngine {
   readonly name = "provider-review";
 
@@ -147,7 +259,7 @@ export class ProviderReviewEngine implements ReviewEngine {
     if (!selected) {
       throw new Error("No reviewer model with an available access mode is enabled in .kiwi/model-registry.yaml");
     }
-    const { model, provider } = selected;
+    const { model } = selected;
 
     appendAuditEvent(this.options.cwd, {
       eventType: "reviewer_provider_selected",
@@ -164,111 +276,8 @@ export class ProviderReviewEngine implements ReviewEngine {
       },
     });
 
-    let validated;
-    try {
-      validated = await runReviewerProviderWithRetries(provider, reviewerInput, {
-        maxAttempts: this.options.maxAttempts ?? 2,
-      });
-    } catch (error) {
-      if (error instanceof ReviewerProviderValidationError) {
-        appendReviewerRetryEvents({
-          cwd: this.options.cwd,
-          runId: input.runId,
-          stepId: input.stepId,
-          attemptId: input.attemptId,
-          records: error.evidence.records,
-        });
-        const invalidArtifactRefs = persistInvalidReviewerProviderArtifacts({
-          cwd: this.options.cwd,
-          runId: input.runId,
-          stepId: input.stepId,
-          attemptId: input.attemptId,
-          evidence: error.evidence,
-        });
-        appendAuditEvent(this.options.cwd, {
-          eventType: "reviewer_validation_failed",
-          runId: input.runId,
-          timestamp: new Date().toISOString(),
-          payload: {
-            stepId: input.stepId,
-            attemptId: input.attemptId,
-            providerName: error.evidence.providerName,
-            attemptsUsed: error.evidence.attemptsUsed,
-            maxAttempts: error.evidence.maxAttempts,
-            invalidAttempts: invalidAttemptCount(error.evidence),
-            lastValidationError: error.evidence.lastValidationError ?? "unknown",
-            ...(invalidArtifactRefs ? invalidArtifactRefs : {}),
-          },
-        });
-      }
-      appendAuditEvent(this.options.cwd, {
-        eventType: "reviewer_failed",
-        runId: input.runId,
-        timestamp: new Date().toISOString(),
-        payload: {
-          stepId: input.stepId,
-          attemptId: input.attemptId,
-          modelId: model.id,
-          accessMode: model.accessMode,
-          message: error instanceof Error ? error.message : String(error),
-        },
-      });
-      throw error;
-    }
-
-    for (const record of validated.retry.records) {
-      if (record.status !== "invalid") continue;
-      appendAuditEvent(this.options.cwd, {
-        eventType: "reviewer_retry",
-        runId: input.runId,
-        timestamp: new Date().toISOString(),
-        payload: {
-          stepId: input.stepId,
-          attemptId: input.attemptId,
-          attempt: record.attempt,
-          providerName: record.providerName,
-          validationError: record.validationError ?? "unknown",
-        },
-      });
-    }
-
-    appendAuditEvent(this.options.cwd, {
-      eventType: "prompt_version_used",
-      runId: input.runId,
-      timestamp: new Date().toISOString(),
-      payload: {
-        phase: "reviewer",
-        version: reviewerPromptVersion(validated.providerArtifacts),
-        modelId: model.id,
-      },
-    });
-
-    appendAuditEvent(this.options.cwd, {
-      eventType: "reviewer_succeeded",
-      runId: input.runId,
-      timestamp: new Date().toISOString(),
-      payload: {
-        stepId: input.stepId,
-        attemptId: input.attemptId,
-        modelId: model.id,
-        accessMode: model.accessMode,
-        attemptsUsed: validated.retry.attemptsUsed,
-        invalidAttempts: validated.retry.invalidAttempts,
-        modelUsage: validated.modelUsage,
-        cost: validated.cost,
-      },
-    });
-
-    if (validated.providerArtifacts) {
-      persistReviewerProviderArtifacts({
-        cwd: this.options.cwd,
-        runId: input.runId,
-        stepId: input.stepId,
-        attemptId: input.attemptId,
-        reviewerInput: validated.providerArtifacts.reviewerInput,
-        reviewerOutput: validated.providerArtifacts.reviewerOutput,
-      });
-    }
+    const validated = await runReviewerValidation({ options: this.options, input, reviewerInput, selected });
+    appendReviewerSuccessEvidence({ options: this.options, input, model, validated });
 
     return {
       verdict: validated.reviewVerdict,

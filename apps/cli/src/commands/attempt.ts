@@ -30,6 +30,7 @@ export async function runAttemptUnlocked(
   console.log(chalk.dim(`runId: ${runId}`));
   console.log(chalk.dim(`stepId: ${stepId}`));
   console.log(chalk.dim(`attemptId: ${result.attemptId}`));
+  console.log(chalk.dim(`execution: ${result.executionMode}`));
   console.log(chalk.dim(`status: ${result.status}`));
   console.log(chalk.dim(`nextAction: ${result.nextAction.type}`));
   console.log(chalk.dim(`runStatus: ${result.runStatus}`));

@@ -114,7 +114,7 @@ export function markAttemptFailed(params: {
     attempt: StepAttemptSchema.parse({
       ...params.existingAttempt,
       status: ContractValues.Failed,
-      artifacts: dedupeArtifacts([...(params.existingAttempt.artifacts ?? []), ...(params.artifacts ?? [])]),
+      artifacts: dedupeArtifacts([...params.existingAttempt.artifacts, ...(params.artifacts ?? [])]),
       modelInvocationRefs: params.existingAttempt.modelInvocationRefs,
       completedAt: params.completedAt,
     }),

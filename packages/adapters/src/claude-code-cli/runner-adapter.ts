@@ -33,6 +33,11 @@ function buildPrompt(input: RunnerExecutionInput): string {
       contextPackage: input.contextPackage,
       worktreePath: input.worktreePath,
       allowedTools: input.allowedTools,
+      safety: {
+        doNotCommit: true,
+        doNotPush: true,
+        doNotModifyMainWorkspace: input.executionMode !== "direct",
+      },
     },
     null,
     2,

@@ -66,6 +66,7 @@ export function cliRunnerOutput(params: {
     worktreePath: params.input.worktreePath,
   };
   if (params.input.repoPath) diffInput.sourcePath = params.input.repoPath;
+  if (params.input.diffBaseTree !== undefined) diffInput.baseTree = params.input.diffBaseTree;
   const diffArtifact = captureDiffArtifact(diffInput);
   const artifactRefs = diffArtifact ? [logsArtifact, diffArtifact] : [logsArtifact];
   const baseOutput = {

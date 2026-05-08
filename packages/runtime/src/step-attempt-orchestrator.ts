@@ -19,6 +19,7 @@ import {
   writeJsonSafely,
 } from "@kiwi/core";
 import {
+  AttemptDiff,
   loadAttemptDiff,
   ReviewEngine,
   ReviewExecutionMetadata,
@@ -72,6 +73,67 @@ export interface StepAttemptOrchestrationResult {
   attemptRef: string;
   nextAction: StepAttemptNextAction;
   error?: StepRunnerExecutionError;
+}
+
+interface AttemptScope {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+}
+type AttemptReviewExecutionResult = Awaited<ReturnType<typeof runAttemptReview>>;
+
+function ensureRunnerExecutionPath(input: ExecuteStepAttemptInput): void {
+  if (input.executionMode === "direct") return;
+  ensureIsolatedWorktree(input.cwd, input.worktreePath);
+  if (input.repoPath) ensureWorktreeIsNotSource(input.repoPath, input.worktreePath);
+}
+
+async function reviewAttemptWithFallback<TCommandPolicy>(params: {
+  input: ExecuteStepAttemptInput<TCommandPolicy>;
+  attemptScope: AttemptScope;
+  runnerOutput: StepRunnerExecutionOutput;
+  gateResults: GateResult[];
+  attemptDiff: AttemptDiff | null;
+  diffSubject: EvidenceSubject | null;
+  defaultReviewEngine?: ReviewEngine;
+}): Promise<{ reviewResult: AttemptReviewExecutionResult; reviewError?: StepRunnerExecutionError }> {
+  try {
+    const runnerNeedsDeterministicReview =
+      params.runnerOutput.status !== ContractValues.Completed || !params.attemptDiff;
+    return {
+      reviewResult: await runAttemptReview({
+        ...params.attemptScope,
+        step: params.input.step,
+        gateResults: params.gateResults,
+        attemptDiff: params.attemptDiff,
+        diffSubject: params.diffSubject,
+        reviewDepth: params.input.schedulerDecision.reviewDepth,
+        reviewEngine: runnerNeedsDeterministicReview
+          ? new StubReviewEngine()
+          : (params.input.reviewEngine ?? params.defaultReviewEngine ?? new StubReviewEngine()),
+      }),
+    };
+  } catch (error) {
+    const reviewError = reviewExecutionError(error);
+    const reviewResult = persistReviewExecutionFailure({
+      ...params.attemptScope,
+      diffSubject: params.diffSubject,
+      error: reviewError,
+    });
+    appendAuditEvent(params.input.cwd, {
+      eventType: "step_attempt_failed",
+      runId: params.attemptScope.runId,
+      timestamp: new Date().toISOString(),
+      payload: {
+        stepId: params.attemptScope.stepId,
+        attemptId: params.attemptScope.attemptId,
+        phase: "review",
+        reason: reviewError.message,
+      },
+    });
+    return { reviewResult, reviewError };
+  }
 }
 
 function reviewExecutionError(error: unknown): StepRunnerExecutionError {
@@ -322,8 +384,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
 
   async execute(input: ExecuteStepAttemptInput<TCommandPolicy>): Promise<StepAttemptOrchestrationResult> {
     ensureRunnerMatchesDecision(input);
-    ensureIsolatedWorktree(input.cwd, input.worktreePath);
-    if (input.repoPath) ensureWorktreeIsNotSource(input.repoPath, input.worktreePath);
+    ensureRunnerExecutionPath(input);
     ensureRunLayout(input.schedulerDecision.runId, input.cwd);
 
     const now = input.now ?? new Date();
@@ -361,40 +422,15 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       diffSubject,
     });
 
-    let reviewResult: Awaited<ReturnType<typeof runAttemptReview>>;
-    let reviewError: StepRunnerExecutionError | undefined;
-    try {
-      const runnerNeedsDeterministicReview = runnerOutput.status !== ContractValues.Completed;
-      reviewResult = await runAttemptReview({
-        ...attemptScope,
-        step: input.step,
-        gateResults,
-        attemptDiff,
-        diffSubject,
-        reviewDepth: input.schedulerDecision.reviewDepth,
-        reviewEngine: runnerNeedsDeterministicReview
-          ? new StubReviewEngine()
-          : (input.reviewEngine ?? this.defaults.reviewEngine ?? new StubReviewEngine()),
-      });
-    } catch (error) {
-      reviewError = reviewExecutionError(error);
-      reviewResult = persistReviewExecutionFailure({
-        ...attemptScope,
-        diffSubject,
-        error: reviewError,
-      });
-      appendAuditEvent(input.cwd, {
-        eventType: "step_attempt_failed",
-        runId,
-        timestamp: new Date().toISOString(),
-        payload: {
-          stepId,
-          attemptId,
-          phase: "review",
-          reason: reviewError.message,
-        },
-      });
-    }
+    const { reviewResult, reviewError } = await reviewAttemptWithFallback({
+      input,
+      attemptScope,
+      runnerOutput,
+      gateResults,
+      attemptDiff,
+      diffSubject,
+      ...(this.defaults.reviewEngine ? { defaultReviewEngine: this.defaults.reviewEngine } : {}),
+    });
     const completedAt = new Date().toISOString();
     const nextAction = nextActionFromReview(reviewResult.reviewVerdict);
     const status = mapRunnerStatusToAttemptStatus({
@@ -460,18 +496,8 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       nextAction,
     };
 
-    if (runnerOutput.error) {
-      return {
-        ...result,
-        error: runnerOutput.error,
-      };
-    }
-    if (reviewError) {
-      return {
-        ...result,
-        error: reviewError,
-      };
-    }
+    if (runnerOutput.error) return { ...result, error: runnerOutput.error };
+    if (reviewError) return { ...result, error: reviewError };
 
     return result;
   }

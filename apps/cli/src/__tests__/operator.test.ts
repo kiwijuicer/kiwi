@@ -1,3 +1,4 @@
+import { execFileSync } from "child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
@@ -237,7 +238,7 @@ describe("kiwi operator flow", () => {
     expect(output).toContain("step step_001 done: status=completed next=continue runStatus=completed");
   });
 
-  it("copies only the selected repo into a workspace attempt sandbox", async () => {
+  it("edits only the selected repo directly by default", async () => {
     const workspace = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-workspace-attempt-"));
     const core = path.join(workspace, "voice-core");
     const agent = path.join(workspace, "voice-livekit-agent");
@@ -245,6 +246,12 @@ describe("kiwi operator flow", () => {
     mkdirSync(agent);
     writeFileSync(path.join(core, "core.txt"), "core\n", "utf-8");
     writeFileSync(path.join(agent, "agent.txt"), "agent\n", "utf-8");
+    execFileSync("git", ["init"], { cwd: core, stdio: "ignore" });
+    execFileSync("git", ["add", "core.txt"], { cwd: core, stdio: "ignore" });
+    execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+      cwd: core,
+      stdio: "ignore",
+    });
     writeFileSync(
       path.join(workspace, "workspace.code-workspace"),
       JSON.stringify({
@@ -286,6 +293,8 @@ describe("kiwi operator flow", () => {
 
     const worktree = path.join(workspace, ".kiwi", "runs", "run_20260504_120000_ws01", "worktrees", "attempt_ws");
     expect(existsSync(worktree)).toBe(false);
+    expect(existsSync(path.join(core, "changed.txt"))).toBe(true);
+    expect(existsSync(path.join(agent, "changed.txt"))).toBe(false);
     const diff = path.join(
       workspace,
       ".kiwi",

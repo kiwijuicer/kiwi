@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
-import { AccessModes } from "@kiwi/contracts";
+import { AccessModes, ContractValues } from "@kiwi/contracts";
 import {
   kiwiModelRegistryPath,
   kiwiPolicyPath,
@@ -36,10 +36,36 @@ interface PlanProgressOptions {
   nowMs?: () => number;
 }
 
+type ProgressValue = string | number | boolean | null | undefined;
+type PlanProgressStatus = "started" | typeof ContractValues.Completed | typeof ContractValues.Failed;
+
 interface PlanProgressReporter {
   line(line: string): void;
+  phase(phase: string, status: PlanProgressStatus, fields?: Record<string, ProgressValue>): void;
   startHeartbeat(): void;
   stopHeartbeat(): void;
+}
+
+function formatProgressValue(value: Exclude<ProgressValue, undefined>): string {
+  const raw = String(value);
+  return /^[A-Za-z0-9._:/@-]+$/.test(raw) ? raw : JSON.stringify(raw);
+}
+
+function formatProgressLine(
+  phase: string,
+  status: PlanProgressStatus,
+  fields: Record<string, ProgressValue> = {},
+): string {
+  const entries: string[] = [];
+  for (const [key, value] of Object.entries({ phase, status, ...fields }) as Array<[string, ProgressValue]>) {
+    if (value === undefined) continue;
+    entries.push(`${key}=${formatProgressValue(value)}`);
+  }
+  return entries.join(" ");
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function createPlanProgressReporter(opts: {
@@ -56,6 +82,10 @@ function createPlanProgressReporter(opts: {
     line(line: string): void {
       if (!enabled) return;
       write(line);
+    },
+    phase(phase: string, status: PlanProgressStatus, fields?: Record<string, ProgressValue>): void {
+      if (!enabled) return;
+      write(formatProgressLine(phase, status, fields));
     },
     startHeartbeat(): void {
       if (!enabled || timer) return;
@@ -136,6 +166,11 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
   );
   progress.line(chalk.dim(`runId: ${runId}`));
   progress.line("generating TaskGraph, this can take a few minutes...");
+  progress.phase(ContractValues.Planner, "started", {
+    runId,
+    model: plannerModel.id,
+    provider: provider.name,
+  });
 
   let planned: Awaited<ReturnType<typeof planRun>>;
   progress.startHeartbeat();
@@ -157,6 +192,16 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
       ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
       persistRunArtifacts: !opts.dryRun,
     });
+    progress.phase(ContractValues.Planner, ContractValues.Completed, {
+      runId: planned.runId,
+      steps: planned.taskGraph.steps.length,
+    });
+  } catch (error) {
+    progress.phase(ContractValues.Planner, ContractValues.Failed, {
+      runId,
+      error: errorMessage(error),
+    });
+    throw error;
   } finally {
     progress.stopHeartbeat();
   }

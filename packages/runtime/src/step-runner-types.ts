@@ -23,6 +23,8 @@ export interface StepRunnerExecutionInput<TCommandPolicy = unknown> {
   workspacePath: string;
   repoPath?: string;
   worktreePath: string;
+  executionMode?: "direct" | "worktree";
+  diffBaseTree?: string | null;
   stepPrompt: string;
   contextPackage: unknown;
   allowedTools: string[];
@@ -68,6 +70,8 @@ export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
   selectedModelId?: string | null;
   runner: StepAttemptRunner<TCommandPolicy>;
   worktreePath: string;
+  executionMode?: "direct" | "worktree";
+  diffBaseTree?: string | null;
   stepPrompt: string;
   allowedTools?: string[];
   timeouts?: StepRunnerExecutionTimeouts;

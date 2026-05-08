@@ -24,6 +24,8 @@ export interface RunnerExecutionInput {
   workspacePath: string;
   repoPath?: string;
   worktreePath: string;
+  executionMode?: "direct" | "worktree";
+  diffBaseTree?: string | null;
   stepPrompt: string;
   contextPackage: unknown;
   allowedTools: string[];

@@ -175,7 +175,45 @@ describe("kiwi plan", () => {
     expect(lines.join("\n")).toContain("planner: stub-frontier (stub-deterministic)");
     expect(lines.join("\n")).toContain("runId: run_20260504_140000_prog");
     expect(lines.join("\n")).toContain("generating TaskGraph");
+    expect(lines.join("\n")).toContain(
+      "phase=planner status=started runId=run_20260504_140000_prog model=stub-frontier provider=stub-deterministic",
+    );
+    expect(lines.join("\n")).toContain("phase=planner status=completed runId=run_20260504_140000_prog steps=5");
     expect(lines.join("\n")).toContain("valid TaskGraph received; artifacts written.");
+  });
+
+  it("writes structured failure progress when the planner provider fails", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-progress-fail-"));
+    await runInit({}, cwd);
+    const lines: string[] = [];
+
+    await expect(
+      runPlan(
+        "Implement failed planner progress",
+        {
+          env: {
+            KIWI_FAKE_BINARY_AVAILABLE: "1",
+            KIWI_FORCE_ACCESS_MODE: "codex-cli",
+            PATH: "/empty",
+          },
+          now: new Date("2026-05-04T12:00:00.000Z"),
+          runIdSuffix: "fail",
+          initiativeIdSuffix: "fail",
+          planIdSuffix: "fail",
+          progress: {
+            enabled: true,
+            write: (line) => lines.push(line),
+          },
+        },
+        cwd,
+      ),
+    ).rejects.toThrow(/codex-cli planner/);
+
+    const output = lines.join("\n");
+    expect(output).toContain(
+      "phase=planner status=started runId=run_20260504_140000_fail model=codex-cli-auto provider=codex-cli:default",
+    );
+    expect(output).toContain("phase=planner status=failed runId=run_20260504_140000_fail error=");
   });
 
   it("keeps dry-run output as JSON without progress text", async () => {

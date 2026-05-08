@@ -1,7 +1,7 @@
 import { ContractValues, RunManifest, RunManifestSchema, RunStatus } from "@kiwi/contracts";
 import { appendAuditEvent } from "../cost-ledger";
 import { loadRunManifest, loadTaskGraph, resolveRunArtifactPath } from "../run-store";
-import { listStepAttemptEvidence } from "./evidence-collection";
+import { latestAttemptByStep, listStepAttemptEvidence } from "./evidence-collection";
 import { writeJsonSafely } from "../storage/json-io";
 
 export function updateRunStatus(params: { cwd: string; runId: string; status: RunStatus; now?: Date }): RunManifest {
@@ -23,7 +23,7 @@ export function updateRunStatus(params: { cwd: string; runId: string; status: Ru
 
 export function refreshRunStatusFromAttempts(params: { cwd: string; runId: string; now?: Date }): RunManifest {
   const taskGraph = loadTaskGraph(params.runId, params.cwd);
-  const attempts = listStepAttemptEvidence(params.cwd, params.runId);
+  const attempts = Array.from(latestAttemptByStep(listStepAttemptEvidence(params.cwd, params.runId)).values());
   if (attempts.length === 0) {
     return updateRunStatus({ ...params, status: "planned" });
   }

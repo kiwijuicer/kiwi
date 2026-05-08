@@ -224,6 +224,7 @@ describe("run lifecycle", () => {
       cwd: repo,
       stdio: "ignore",
     });
+    writeFileSync(path.join(repo, "preexisting.txt"), "already here\n", "utf-8");
     const materializedStep = { ...step, requiredGates: [] };
     createRun(repo, [materializedStep], { ...initiative, repoPath: repo });
     writeExecutionConfig(repo);
@@ -248,7 +249,12 @@ describe("run lifecycle", () => {
     expect(result.status).toBe("completed");
     expect(result.materializedDiff.status).toBe("applied");
     expect(readFileSync(path.join(repo, "feature.txt"), "utf-8")).toBe("new\n");
+    expect(existsSync(path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_apply"))).toBe(false);
     expect(execFileSync("git", ["status", "--short"], { cwd: repo, encoding: "utf-8" })).toContain("?? feature.txt\n");
+    const diffRef = result.materializedDiff.status === "applied" ? result.materializedDiff.diffRef : "";
+    const diff = readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", diffRef), "utf-8");
+    expect(diff).toContain("feature.txt");
+    expect(diff).not.toContain("preexisting.txt");
   });
 
   it("records approval decisions", () => {

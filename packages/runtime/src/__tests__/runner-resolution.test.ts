@@ -24,6 +24,14 @@ const codingStep: Step = {
   status: "pending",
 };
 
+const planningStep: Step = {
+  ...codingStep,
+  type: "planning",
+  title: "Plan",
+  recommendedAgentRole: "planner",
+  recommendedModelCapability: "frontier",
+};
+
 const models: ModelEntry[] = [
   {
     id: "codex-cli-auto",
@@ -166,6 +174,16 @@ describe("runner resolution", () => {
 
     expect(resolution.runnerAvailability).toEqual(["local-shell"]);
     expect(() => resolution.buildAdapter("api")).toThrow("has no adapter wiring yet");
+  });
+
+  it("keeps unknown runners behind local-shell for non-coding steps", () => {
+    const resolution = resolveRunner({
+      registryModels: models,
+      step: planningStep,
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
+    });
+
+    expect(resolution.runnerAvailability[0]).toBe("local-shell");
   });
 
   it("forces hermetic local-shell execution when stub access mode is selected", () => {

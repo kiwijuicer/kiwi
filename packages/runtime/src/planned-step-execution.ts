@@ -10,10 +10,12 @@ import {
   loadTaskGraph,
   remainingBudgetUsdEstimate,
   refreshRunStatusFromAttempts,
+  resolveRunArtifactPath,
 } from "@kiwi/core";
-import { ArtifactTypes, ContractValues, KiwiPolicy, ModelEntry, RunnerNames } from "@kiwi/contracts";
+import { ArtifactTypes, ContractValues, Initiative, KiwiPolicy, ModelEntry, RunnerNames, Step } from "@kiwi/contracts";
 import {
   applyDiffArtifactToSource,
+  createGitTreeSnapshot,
   createWorktreeSandbox,
   SandboxCommandPolicy,
   teardownWorktreeSandbox,
@@ -21,7 +23,7 @@ import {
 import { commandProfileForStep, commandProfileToExecutionPolicy, noopCommand } from "./operator-policy";
 import { createReviewEngineFromRegistry } from "./provider-review-engine";
 import { ResearcherProviderRegistry } from "./researcher-provider-registry";
-import { ResearcherStepRunner } from "./researcher-step-runner";
+import { LocalResearchStepRunner, ResearcherStepRunner } from "./researcher-step-runner";
 import { resolveRunner } from "./runner-resolution";
 import type { ExecutorSelection, RunnerResolution } from "./runner-registry";
 import { runRequiredGates } from "./required-gates";
@@ -29,6 +31,14 @@ import { scheduleStepAttempt } from "./scheduler-policy";
 import type { SchedulerDecision } from "./scheduler-policy";
 import { StepAttemptOrchestrator } from "./step-attempt-orchestrator";
 import type { StepAttemptRunner } from "./step-runner-types";
+
+function shouldUseProviderResearch(): boolean {
+  return process.env.KIWI_RESEARCHER_MODE === "provider";
+}
+
+function executionMode(): "direct" | "worktree" {
+  return process.env.KIWI_EXECUTION_ISOLATION === "worktree" ? "worktree" : "direct";
+}
 
 export interface ExecutePlannedStepInput {
   cwd: string;
@@ -44,6 +54,7 @@ export interface ExecutePlannedStepResult {
   runId: string;
   stepId: string;
   attemptId: string;
+  executionMode: "direct" | "worktree";
   status: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>["status"];
   nextAction: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>["nextAction"];
   runStatus: ReturnType<typeof refreshRunStatusFromAttempts>["status"];
@@ -88,6 +99,7 @@ function materializeAttemptDiff(params: {
   stepId: string;
   attemptId: string;
   repoPath: string;
+  directExecution: boolean;
   result: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>;
 }): AttemptDiffMaterialization {
   if (params.result.runnerStatus !== ContractValues.Completed) {
@@ -96,6 +108,27 @@ function materializeAttemptDiff(params: {
 
   const diffArtifact = params.result.artifactRefs.find((artifact) => artifact.type === ArtifactTypes.Diff);
   if (!diffArtifact) return { status: "skipped", reason: "attempt produced no diff artifact" };
+
+  if (params.directExecution) {
+    appendAuditEvent(params.cwd, {
+      eventType: "attempt_diff_applied",
+      runId: params.runId,
+      timestamp: new Date().toISOString(),
+      payload: {
+        stepId: params.stepId,
+        attemptId: params.attemptId,
+        diffRef: diffArtifact.ref,
+        targetPath: params.repoPath,
+        mode: "direct",
+      },
+    });
+    return {
+      status: "applied",
+      diffRef: diffArtifact.ref,
+      patchPath: resolveRunArtifactPath(params.runId, diffArtifact.ref, params.cwd),
+      targetPath: params.repoPath,
+    };
+  }
 
   const applied = applyDiffArtifactToSource({
     cwd: params.cwd,
@@ -128,7 +161,7 @@ function materializeAttemptDiff(params: {
     return { status: "skipped", reason: applied.reason };
   }
 
-  const failed = { status: "failed" as const, ...base, reason: applied.reason ?? "git apply failed" };
+  const failed = { status: ContractValues.Failed, ...base, reason: applied.reason ?? "git apply failed" };
   appendAuditEvent(params.cwd, {
     eventType: "attempt_diff_apply_failed",
     runId: params.runId,
@@ -155,6 +188,13 @@ function selectStepRunner(params: {
   isResearchStep: boolean;
   now: Date;
 }): { runnerAdapter: StepAttemptRunner<SandboxCommandPolicy>; selectedModelId: string | null } {
+  if (params.isResearchStep && !shouldUseProviderResearch()) {
+    return {
+      runnerAdapter: new LocalResearchStepRunner(params.policy),
+      selectedModelId: "local-researcher",
+    };
+  }
+
   const researcherSelection = params.isResearchStep
     ? new ResearcherProviderRegistry().select({ registryModels: params.registryModels })
     : null;
@@ -196,6 +236,97 @@ function selectStepRunner(params: {
   };
 }
 
+interface ExecutionTarget {
+  mode: "direct" | "worktree";
+  runId: string;
+  attemptId: string;
+  worktreePath: string;
+  sourcePath: string;
+  isolation: "direct" | "git-worktree" | "copy-folder";
+  diffBaseTree: string | null;
+}
+
+function createExecutionTarget(params: {
+  cwd: string;
+  runId: string;
+  attemptId: string;
+  repoPath: string;
+}): ExecutionTarget {
+  const mode = executionMode();
+  if (mode === "worktree") {
+    const sandbox = createWorktreeSandbox({
+      cwd: params.cwd,
+      runId: params.runId,
+      attemptId: params.attemptId,
+      sourcePath: params.repoPath,
+    });
+    return {
+      mode,
+      runId: params.runId,
+      attemptId: params.attemptId,
+      worktreePath: sandbox.worktreePath,
+      sourcePath: sandbox.sourcePath,
+      isolation: sandbox.isolation,
+      diffBaseTree: null,
+    };
+  }
+
+  return {
+    mode,
+    runId: params.runId,
+    attemptId: params.attemptId,
+    worktreePath: params.repoPath,
+    sourcePath: params.repoPath,
+    isolation: "direct",
+    diffBaseTree: createGitTreeSnapshot(params.repoPath),
+  };
+}
+
+function teardownExecutionTarget(params: { cwd: string; target: ExecutionTarget }): void {
+  if (params.target.isolation === "direct") return;
+  teardownWorktreeSandbox({
+    cwd: params.cwd,
+    runId: params.target.runId,
+    attemptId: params.target.attemptId,
+    sourcePath: params.target.sourcePath,
+    isolation: params.target.isolation,
+    worktreePath: params.target.worktreePath,
+  });
+}
+
+function scheduleCurrentStepAttempt(params: {
+  input: ExecutePlannedStepInput;
+  step: Step;
+  initiative: Initiative;
+  runnerResolution: RunnerResolution | null;
+  isResearchStep: boolean;
+  now: Date;
+}): SchedulerDecision {
+  const decision = scheduleStepAttempt({
+    cwd: params.input.cwd,
+    runId: params.input.runId,
+    step: params.step,
+    initiative: params.initiative,
+    budgetProfile: params.initiative.budgetProfile,
+    budgetRemainingUsdEstimate: remainingBudgetUsdEstimate({
+      cwd: params.input.cwd,
+      runId: params.input.runId,
+      budgetProfile: params.initiative.budgetProfile,
+    }),
+    blastRadius: params.initiative.riskProfile === "production" ? "high" : "low",
+    securitySensitivity: params.initiative.riskProfile === "production" ? "high" : "low",
+    contextSize: "small",
+    runnerAvailability: params.isResearchStep ? [RunnerNames.Api] : (params.runnerResolution?.runnerAvailability ?? []),
+    now: params.now,
+    ...(params.input.attemptId ? { attemptId: params.input.attemptId } : {}),
+  });
+  if (decision.status !== "scheduled") {
+    throw new Error(`Step could not be scheduled: ${decision.blockedReason ?? "unknown"}`);
+  }
+  if (!decision.runner) throw new Error("Scheduler selected no runner");
+  return decision;
+}
+
 export async function executePlannedStep(input: ExecutePlannedStepInput): Promise<ExecutePlannedStepResult> {
   const policy = loadPolicy(kiwiPolicyPath(input.cwd));
   const registry = loadRegistry(kiwiModelRegistryPath(input.cwd));
@@ -213,35 +344,21 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
   const now = input.now ?? new Date();
   const isResearchStep = step.type === "context_discovery";
   const runnerResolution = isResearchStep ? null : resolveRunner({ registryModels: registry.models, step });
-  const decision = scheduleStepAttempt({
-    cwd: input.cwd,
-    runId: input.runId,
+  const decision = scheduleCurrentStepAttempt({
+    input,
     step,
     initiative,
-    budgetProfile: initiative.budgetProfile,
-    budgetRemainingUsdEstimate: remainingBudgetUsdEstimate({
-      cwd: input.cwd,
-      runId: input.runId,
-      budgetProfile: initiative.budgetProfile,
-    }),
-    blastRadius: initiative.riskProfile === "production" ? "high" : "low",
-    securitySensitivity: initiative.riskProfile === "production" ? "high" : "low",
-    contextSize: "small",
-    runnerAvailability: isResearchStep ? [RunnerNames.Api] : (runnerResolution?.runnerAvailability ?? []),
+    runnerResolution,
+    isResearchStep,
     now,
-    ...(input.attemptId ? { attemptId: input.attemptId } : {}),
   });
-  if (decision.status !== "scheduled") {
-    throw new Error(`Step could not be scheduled: ${decision.blockedReason ?? "unknown"}`);
-  }
-  if (!decision.runner) throw new Error("Scheduler selected no runner");
   const approval = loadApprovalDecision({ cwd: input.cwd, runId: input.runId, attemptId: decision.attemptId });
   const approved = input.approved ?? approval?.state === "auto";
-  const sandbox = createWorktreeSandbox({
+  const target = createExecutionTarget({
     cwd: input.cwd,
     runId: input.runId,
     attemptId: decision.attemptId,
-    sourcePath: repoPath,
+    repoPath,
   });
   const profile = commandProfileForStep(policy, step.type);
   const commandPolicy = commandProfileToExecutionPolicy(profile) as SandboxCommandPolicy;
@@ -272,7 +389,9 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
       schedulerDecision: decision,
       selectedModelId,
       runner: runnerAdapter,
-      worktreePath: sandbox.worktreePath,
+      worktreePath: target.worktreePath,
+      executionMode: target.mode,
+      diffBaseTree: target.diffBaseTree,
       stepPrompt: step.title,
       allowedTools: ["shell"],
       command,
@@ -284,7 +403,7 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
           runId: input.runId,
           stepId: input.stepId,
           attemptId: decision.attemptId,
-          worktreePath: sandbox.worktreePath,
+          worktreePath: target.worktreePath,
           policy,
           requiredGates: decision.requiredGates,
           approved,
@@ -303,9 +422,10 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
         stepId: input.stepId,
         attemptId: decision.attemptId,
         repoPath,
+        directExecution: target.mode === "direct",
         result,
       });
-      if (materializedDiff.status === "failed") {
+      if (materializedDiff.status === ContractValues.Failed) {
         throw new Error(`Attempt diff could not be applied to current codebase: ${materializedDiff.reason}`);
       }
     } catch (error) {
@@ -313,20 +433,14 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
       throw error;
     }
   } finally {
-    teardownWorktreeSandbox({
-      cwd: input.cwd,
-      runId: input.runId,
-      attemptId: decision.attemptId,
-      sourcePath: sandbox.sourcePath,
-      isolation: sandbox.isolation,
-      worktreePath: sandbox.worktreePath,
-    });
+    teardownExecutionTarget({ cwd: input.cwd, target });
   }
   const run = refreshRunStatusFromAttempts({ cwd: input.cwd, runId: input.runId, now: new Date() });
   return {
     runId: input.runId,
     stepId: input.stepId,
     attemptId: decision.attemptId,
+    executionMode: target.mode,
     status: result.status,
     nextAction: result.nextAction,
     runStatus: run.status,

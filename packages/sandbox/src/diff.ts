@@ -1,5 +1,16 @@
 import { execFile, execFileSync } from "child_process";
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
+import {
+  copyFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
+import os from "os";
 import path from "path";
 import { promisify } from "util";
 import { Artifact } from "@kiwi/contracts";
@@ -38,6 +49,29 @@ export async function captureGitDiffArtifact(params: {
   };
 }
 
+function gitEnvWithIndex(indexPath: string): NodeJS.ProcessEnv {
+  return { ...process.env, GIT_INDEX_FILE: indexPath };
+}
+
+export function createGitTreeSnapshot(worktreePath: string): string | null {
+  if (!existsSync(path.join(worktreePath, ".git"))) return null;
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "kiwi-git-index-"));
+  const indexPath = path.join(tempDir, "index");
+  try {
+    const sourceIndexPath = execFileSync("git", ["-C", worktreePath, "rev-parse", "--git-path", "index"], {
+      encoding: "utf-8",
+    }).trim();
+    if (existsSync(sourceIndexPath)) copyFileSync(sourceIndexPath, indexPath);
+    const env = gitEnvWithIndex(indexPath);
+    execFileSync("git", ["-C", worktreePath, "add", "-A", "--", "."], { env, stdio: "ignore" });
+    return execFileSync("git", ["-C", worktreePath, "write-tree"], { env, encoding: "utf-8" }).trim();
+  } catch {
+    return null;
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 function commandOutput(error: unknown, key: "stdout" | "stderr"): string {
   if (typeof error !== "object" || error === null) return "";
   const value = (error as { stdout?: unknown; stderr?: unknown })[key];
@@ -62,7 +96,11 @@ function listUntrackedFiles(worktreePath: string): string[] {
   return output
     .split(/\r?\n/)
     .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
+    .filter((entry) => entry.length > 0 && !shouldExcludeDiffPath(entry));
+}
+
+function shouldExcludeDiffPath(relativePath: string): boolean {
+  return relativePath.split("/").some((segment) => shouldExcludeWorkspaceEntry(segment));
 }
 
 function untrackedFileDiff(worktreePath: string, relativePath: string): string {
@@ -96,11 +134,14 @@ function captureGitDiffSync(params: {
   stepId: string;
   attemptId: string;
   worktreePath: string;
+  baseTree?: string | null;
 }): Artifact | null {
   if (!existsSync(path.join(params.worktreePath, ".git"))) return null;
   let diff = "";
   try {
-    diff = captureGitDiffTextSync(params.worktreePath);
+    diff = params.baseTree
+      ? captureGitDiffTextFromBaseTree(params.worktreePath, params.baseTree)
+      : captureGitDiffTextSync(params.worktreePath);
   } catch {
     return null;
   }
@@ -116,6 +157,14 @@ function captureGitDiffSync(params: {
   };
 }
 
+function captureGitDiffTextFromBaseTree(worktreePath: string, baseTree: string): string {
+  const afterTree = createGitTreeSnapshot(worktreePath);
+  if (!afterTree) return "";
+  return execFileSync("git", ["-C", worktreePath, "diff", "--no-color", "--binary", baseTree, afterTree], {
+    encoding: "utf-8",
+  });
+}
+
 export function captureDiffArtifact(params: {
   cwd: string;
   runId: string;
@@ -123,6 +172,7 @@ export function captureDiffArtifact(params: {
   attemptId: string;
   worktreePath: string;
   sourcePath?: string;
+  baseTree?: string | null;
 }): Artifact | null {
   if (existsSync(path.join(params.worktreePath, ".git"))) {
     const gitArtifact = captureGitDiffSync(params);
@@ -257,6 +307,10 @@ function gitApply(sourcePath: string, patchPath: string): void {
   execFileSync("git", ["-C", sourcePath, "apply", patchPath], { stdio: "pipe" });
 }
 
+function gitApplyReverseCheck(sourcePath: string, patchPath: string): void {
+  execFileSync("git", ["-C", sourcePath, "apply", "--reverse", "--check", patchPath], { stdio: "pipe" });
+}
+
 function gitApplyErrorMessage(error: unknown): string {
   if (typeof error === "object" && error !== null) {
     const maybe = error as { stderr?: unknown; stdout?: unknown };
@@ -288,6 +342,12 @@ export function applyDiffArtifactToSource(params: {
     gitApply(params.sourcePath, patchPath);
     return { applied: true, patchPath };
   } catch (error) {
+    try {
+      gitApplyReverseCheck(params.sourcePath, patchPath);
+      return { applied: true, patchPath, reason: "diff already applied" };
+    } catch {
+      // Return the original apply error; the reverse check is only a retry/idempotency probe.
+    }
     return { applied: false, patchPath, reason: gitApplyErrorMessage(error) };
   }
 }

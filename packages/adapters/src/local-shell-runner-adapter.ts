@@ -51,6 +51,7 @@ export class LocalShellRunnerAdapter implements RunnerAdapter {
       worktreePath: input.worktreePath,
     };
     if (input.repoPath) diffInput.sourcePath = input.repoPath;
+    if (input.diffBaseTree !== undefined) diffInput.baseTree = input.diffBaseTree;
     const diffArtifact = captureDiffArtifact(diffInput);
     const artifactRefs = diffArtifact ? [...output.artifactRefs, diffArtifact] : output.artifactRefs;
     const rawLogsRef = output.artifactRefs[0]?.ref ?? null;

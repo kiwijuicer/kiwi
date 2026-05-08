@@ -1,5 +1,5 @@
 import { execFileSync } from "child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
@@ -11,6 +11,7 @@ import {
   createWorktreeSandbox,
   executeSandboxCommand,
   readCommandOutputArtifact,
+  teardownWorktreeSandbox,
 } from "../index";
 
 const nodeBin = process.execPath;
@@ -247,6 +248,45 @@ describe("worktree sandbox command execution", () => {
     ).toBe(true);
   });
 
+  it("links root node_modules into git worktrees for local validation", () => {
+    const repo = cwd();
+    execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+    writeFileSync(path.join(repo, "README.md"), "ok\n", "utf-8");
+    writeFileSync(path.join(repo, ".gitignore"), "node_modules/\n", "utf-8");
+    mkdirSync(path.join(repo, "node_modules"), { recursive: true });
+    writeFileSync(path.join(repo, "node_modules", "marker.txt"), "deps\n", "utf-8");
+    execFileSync("git", ["add", "README.md", ".gitignore"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+
+    const sandbox = createWorktreeSandbox({
+      cwd: repo,
+      runId: "run_demo",
+      attemptId: "attempt_deps",
+    });
+
+    try {
+      const linkedNodeModules = path.join(sandbox.worktreePath, "node_modules");
+      expect(sandbox.isolation).toBe("git-worktree");
+      expect(lstatSync(linkedNodeModules).isSymbolicLink()).toBe(true);
+      expect(readFileSync(path.join(linkedNodeModules, "marker.txt"), "utf-8")).toBe("deps\n");
+      expect(
+        execFileSync("git", ["-C", sandbox.worktreePath, "status", "--short"], { encoding: "utf-8" }),
+      ).not.toContain("node_modules");
+    } finally {
+      teardownWorktreeSandbox({
+        cwd: repo,
+        runId: "run_demo",
+        attemptId: "attempt_deps",
+        sourcePath: sandbox.sourcePath,
+        isolation: sandbox.isolation,
+        worktreePath: sandbox.worktreePath,
+      });
+    }
+  });
+
   it("applies a captured git diff artifact to the source working tree without staging", () => {
     const repo = cwd();
     execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
@@ -275,6 +315,37 @@ describe("worktree sandbox command execution", () => {
     expect(result.applied).toBe(true);
     expect(readFileSync(path.join(repo, "feature.txt"), "utf-8")).toBe("new\n");
     expect(execFileSync("git", ["status", "--short"], { cwd: repo, encoding: "utf-8" })).toContain(" M feature.txt\n");
+  });
+
+  it("treats an already-applied diff artifact as applied", () => {
+    const repo = cwd();
+    execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+    writeFileSync(path.join(repo, "feature.txt"), "old\n", "utf-8");
+    execFileSync("git", ["add", "feature.txt"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+    writeFileSync(path.join(repo, "feature.txt"), "new\n", "utf-8");
+    const diffRef = "steps/step_001/attempt_already_applied/artifacts/diff.patch";
+    const diffPath = path.join(repo, ".kiwi", "runs", "run_demo", diffRef);
+    mkdirSync(path.dirname(diffPath), { recursive: true });
+    writeFileSync(
+      diffPath,
+      "diff --git a/feature.txt b/feature.txt\n--- a/feature.txt\n+++ b/feature.txt\n@@ -1 +1 @@\n-old\n+new\n",
+      "utf-8",
+    );
+
+    const result = applyDiffArtifactToSource({
+      cwd: repo,
+      runId: "run_demo",
+      diffRef,
+      sourcePath: repo,
+    });
+
+    expect(result.applied).toBe(true);
+    expect(result.reason).toBe("diff already applied");
+    expect(readFileSync(path.join(repo, "feature.txt"), "utf-8")).toBe("new\n");
   });
 
   it("captures and applies untracked files from a git worktree", () => {

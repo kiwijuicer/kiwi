@@ -1,5 +1,15 @@
 import { execFileSync } from "child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, symlinkSync } from "fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "fs";
 import path from "path";
 import { appendAuditEvent, resolveRunArtifactPath } from "./common";
 
@@ -39,6 +49,22 @@ function linkNodeModulesIfPresent(source: string, target: string): void {
   if (!existsSync(sourceNodeModules) || existsSync(targetNodeModules)) return;
   try {
     symlinkSync(sourceNodeModules, targetNodeModules, "dir");
+    excludeLinkedNodeModulesFromGitStatus(target);
+  } catch {
+    // Best-effort local validation convenience.
+  }
+}
+
+function excludeLinkedNodeModulesFromGitStatus(worktreePath: string): void {
+  if (!existsSync(path.join(worktreePath, ".git"))) return;
+  try {
+    const excludePath = execFileSync("git", ["-C", worktreePath, "rev-parse", "--git-path", "info/exclude"], {
+      encoding: "utf-8",
+    }).trim();
+    mkdirSync(path.dirname(excludePath), { recursive: true });
+    const existing = existsSync(excludePath) ? readFileSync(excludePath, "utf-8") : "";
+    if (existing.split(/\r?\n/).includes("node_modules")) return;
+    writeFileSync(excludePath, `${existing}${existing.endsWith("\n") || !existing ? "" : "\n"}node_modules\n`, "utf-8");
   } catch {
     // Best-effort local validation convenience.
   }
@@ -98,6 +124,7 @@ export function createWorktreeSandbox(params: CreateWorktreeSandboxOptions): Wor
       }
     }
     if (tryGitWorktreeAdd(sourcePath, worktreePath)) {
+      linkNodeModulesIfPresent(sourcePath, worktreePath);
       appendAuditEvent(params.cwd, {
         eventType: "worktree_created",
         runId: params.runId,

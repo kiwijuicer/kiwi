@@ -293,6 +293,11 @@ function priorityForStep(step: Step): RunnerName[] {
   return CODING_STEP_TYPES.has(step.type) ? CODING_RUNNER_PRIORITY : DEFAULT_RUNNER_PRIORITY;
 }
 
+function priorityIndex(priority: RunnerName[], runner: RunnerName): number {
+  const index = priority.indexOf(runner);
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
 export class RunnerRegistry {
   private readonly definitions: RunnerDefinition[];
 
@@ -316,7 +321,7 @@ export class RunnerRegistry {
     const runnerAvailability = details
       .filter((entry) => entry.available)
       .map((entry) => entry.runner)
-      .sort((a, b) => priority.indexOf(a) - priority.indexOf(b));
+      .sort((a, b) => priorityIndex(priority, a) - priorityIndex(priority, b));
     const requestedCapability = options.requestedCapability ?? options.step.recommendedModelCapability;
     const executorSelection = pickExecutorModel(options.registryModels, env, requestedCapability);
     const selectExecutorModel = (capability: ModelCapability): ExecutorSelection =>

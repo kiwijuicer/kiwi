@@ -29,7 +29,7 @@ function buildPrompt(input: RunnerExecutionInput): string {
       safety: {
         doNotCommit: true,
         doNotPush: true,
-        doNotModifyMainWorkspace: true,
+        doNotModifyMainWorkspace: input.executionMode !== "direct",
       },
     },
     null,
@@ -65,6 +65,7 @@ export class CodexCliRunnerAdapter implements RunnerAdapter {
       prompt: buildPrompt(input),
       timeoutMs: runnerTimeoutMs(input, this.timeoutMs),
       env,
+      sandbox: input.executionMode === "direct" ? ("danger-full-access" as const) : ("workspace-write" as const),
       ...(this.model ? { model: this.model } : {}),
     };
     const result = await this.cliRunner.run(invocation);

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import {
   AccessMode,
+  AccessModes,
   ArtifactSchema,
   ContractValues,
   GateResultSchema,
@@ -9,7 +10,13 @@ import {
   ModelEntry,
   RunnerNames,
 } from "@kiwi/contracts";
-import { ResearcherProvider, runResearcherProviderWithRetries } from "@kiwi/adapters";
+import {
+  ResearcherProvider,
+  ResearcherProviderInput,
+  ResearcherProviderOutput,
+  runResearcherProviderWithRetries,
+  StubResearcherProvider,
+} from "@kiwi/adapters";
 import { resolveRunArtifactPath, writeJsonSafely } from "@kiwi/core";
 import { artifact } from "./step-attempt-artifacts";
 import type { StepAttemptRunner, StepRunnerExecutionInput, StepRunnerExecutionOutput } from "./step-runner-types";
@@ -19,7 +26,9 @@ const RESEARCH_REPORT_REF = "plan/research-report.json";
 function readJsonIfObject(target: string): Record<string, unknown> {
   if (!existsSync(target)) return {};
   const parsed = JSON.parse(readFileSync(target, "utf-8")) as unknown;
-  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>)
+    : {};
 }
 
 function candidateFilesFromContextPackage(contextPackage: unknown): string[] {
@@ -66,6 +75,90 @@ function persistResearchArtifacts(params: {
   return { reportRef, inputRef, outputRef };
 }
 
+function buildResearcherInput(params: {
+  input: StepRunnerExecutionInput;
+  policy: KiwiPolicy;
+}): ResearcherProviderInput {
+  const initiative = readJsonIfObject(
+    resolveRunArtifactPath(params.input.runId, "initiative.json", params.input.workspacePath),
+  );
+  return {
+    runId: params.input.runId,
+    stepId: params.input.stepId,
+    initiative: InitiativeSchema.parse(initiative),
+    candidateFiles: candidateFilesFromContextPackage(params.input.contextPackage),
+    requestedAt: params.input.requestedAt ?? new Date().toISOString(),
+    policy: params.policy,
+  };
+}
+
+function runnerOutputFromResearch(params: {
+  input: StepRunnerExecutionInput;
+  output: ResearcherProviderOutput;
+  modelId: string | null;
+  accessMode?: AccessMode;
+}): StepRunnerExecutionOutput {
+  const refs = persistResearchArtifacts({
+    cwd: params.input.workspacePath,
+    runId: params.input.runId,
+    report: params.output.researchReport,
+    researcherInput: params.output.providerArtifacts?.researcherInput ?? {},
+    researcherOutput: params.output.providerArtifacts?.researcherOutput ?? {},
+  });
+  const createdAt = new Date().toISOString();
+  return {
+    status: ContractValues.Completed,
+    artifactRefs: [
+      artifact({ type: "summary", ref: refs.reportRef, createdAt }),
+      artifact({ type: "summary", ref: refs.inputRef, createdAt }),
+      artifact({ type: "summary", ref: refs.outputRef, createdAt }),
+    ].map((entry) => ArtifactSchema.parse(entry)),
+    rawLogsRef: refs.outputRef,
+    modelUsage: params.output.modelUsage,
+    modelId: params.modelId,
+    providerName: params.output.providerName,
+    ...(params.accessMode ? { accessMode: params.accessMode } : {}),
+    usagePrecision: "estimated",
+    estimatedCostUsd: params.output.cost.estimatedUsd,
+    gateResult: GateResultSchema.parse({
+      gateId: "gate_research_report_json",
+      gateType: "structured_review_json",
+      status: ContractValues.Pass,
+      evidenceRefs: [refs.reportRef],
+      reason: "ResearchReportSchema validated",
+    }),
+  };
+}
+
+export class LocalResearchStepRunner implements StepAttemptRunner {
+  readonly name = RunnerNames.Api;
+  private readonly provider = new StubResearcherProvider();
+
+  constructor(private readonly policy: KiwiPolicy) {}
+
+  async execute(input: StepRunnerExecutionInput): Promise<StepRunnerExecutionOutput> {
+    const output = await this.provider.research(buildResearcherInput({ input, policy: this.policy }));
+    const researcherOutput =
+      typeof output.providerArtifacts?.researcherOutput === "object" &&
+      output.providerArtifacts.researcherOutput !== null
+        ? output.providerArtifacts.researcherOutput
+        : {};
+    return runnerOutputFromResearch({
+      input,
+      output: {
+        ...output,
+        providerName: "local-research",
+        providerArtifacts: {
+          researcherInput: output.providerArtifacts?.researcherInput ?? {},
+          researcherOutput: { ...researcherOutput, mode: "local-first" },
+        },
+      },
+      modelId: "local-researcher",
+      accessMode: AccessModes.Local,
+    });
+  }
+}
+
 export class ResearcherStepRunner implements StepAttemptRunner {
   readonly name = RunnerNames.Api;
 
@@ -77,44 +170,15 @@ export class ResearcherStepRunner implements StepAttemptRunner {
   ) {}
 
   async execute(input: StepRunnerExecutionInput): Promise<StepRunnerExecutionOutput> {
-    const initiative = readJsonIfObject(resolveRunArtifactPath(input.runId, "initiative.json", input.workspacePath));
-    const output = await runResearcherProviderWithRetries(this.provider, {
-      runId: input.runId,
-      stepId: input.stepId,
-      initiative: InitiativeSchema.parse(initiative),
-      candidateFiles: candidateFilesFromContextPackage(input.contextPackage),
-      requestedAt: input.requestedAt ?? new Date().toISOString(),
-      policy: this.policy,
-    });
-    const refs = persistResearchArtifacts({
-      cwd: input.workspacePath,
-      runId: input.runId,
-      report: output.researchReport,
-      researcherInput: output.providerArtifacts?.researcherInput ?? {},
-      researcherOutput: output.providerArtifacts?.researcherOutput ?? {},
-    });
-    const createdAt = new Date().toISOString();
-    return {
-      status: ContractValues.Completed,
-      artifactRefs: [
-        artifact({ type: "summary", ref: refs.reportRef, createdAt }),
-        artifact({ type: "summary", ref: refs.inputRef, createdAt }),
-        artifact({ type: "summary", ref: refs.outputRef, createdAt }),
-      ].map((entry) => ArtifactSchema.parse(entry)),
-      rawLogsRef: refs.outputRef,
-      modelUsage: output.modelUsage,
+    const output = await runResearcherProviderWithRetries(
+      this.provider,
+      buildResearcherInput({ input, policy: this.policy }),
+    );
+    return runnerOutputFromResearch({
+      input,
+      output,
       modelId: this.model.id,
-      providerName: output.providerName,
       ...(this.accessMode ? { accessMode: this.accessMode } : {}),
-      usagePrecision: "estimated",
-      estimatedCostUsd: output.cost.estimatedUsd,
-      gateResult: GateResultSchema.parse({
-        gateId: "gate_research_report_json",
-        gateType: "structured_review_json",
-        status: ContractValues.Pass,
-        evidenceRefs: [refs.reportRef],
-        reason: "ResearchReportSchema validated",
-      }),
-    };
+    });
   }
 }

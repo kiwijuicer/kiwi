@@ -85,6 +85,22 @@ function commandOutputArtifact(input: StepRunnerExecutionInput): Artifact {
   };
 }
 
+function diffArtifact(input: StepRunnerExecutionInput): Artifact {
+  const ref = `steps/${input.stepId}/${input.attemptId}/artifacts/diff.patch`;
+  const target = path.join(input.workspacePath, ".kiwi", "runs", input.runId, ref);
+  mkdirSync(path.dirname(target), { recursive: true });
+  writeFileSync(
+    target,
+    "diff --git a/feature.txt b/feature.txt\n--- a/feature.txt\n+++ b/feature.txt\n@@ -0,0 +1 @@\n+safe sample\n",
+    "utf-8",
+  );
+  return {
+    type: "diff",
+    ref,
+    createdAt: "2026-05-04T06:00:01.000Z",
+  };
+}
+
 class SafeSampleRunner implements StepAttemptRunner {
   readonly name = "local-shell";
 
@@ -108,6 +124,16 @@ class SafeSampleRunner implements StepAttemptRunner {
         evidenceRefs: [outputArtifact.ref],
         reason: "Sample step passed",
       }),
+    };
+  }
+}
+
+class DiffSampleRunner extends SafeSampleRunner {
+  override async execute(input: StepRunnerExecutionInput): Promise<StepRunnerExecutionOutput> {
+    const output = await super.execute(input);
+    return {
+      ...output,
+      artifactRefs: [...output.artifactRefs, diffArtifact(input)],
     };
   }
 }
@@ -319,7 +345,7 @@ describe("step attempt orchestrator", () => {
       cwd: repo,
       step: fixtureStep(),
       schedulerDecision: decision,
-      runner: new SafeSampleRunner(),
+      runner: new DiffSampleRunner(),
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_review_error"),
       stepPrompt: "review failure sample",
       reviewEngine: new ThrowingReviewEngine(),
@@ -358,6 +384,26 @@ describe("step attempt orchestrator", () => {
       attemptId: "attempt_review_error",
       phase: "review",
     });
+  });
+
+  it("uses deterministic review when a completed runner produced no diff", async () => {
+    const repo = cwd();
+    const decision = schedule(repo, "attempt_no_diff_review");
+
+    const result = await new StepAttemptOrchestrator().execute({
+      cwd: repo,
+      step: fixtureStep(),
+      schedulerDecision: decision,
+      runner: new SafeSampleRunner(),
+      worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_no_diff_review"),
+      stepPrompt: "no diff sample",
+      reviewEngine: new ThrowingReviewEngine(),
+      now: new Date("2026-05-04T06:00:01.000Z"),
+    });
+
+    expect(result.status).toBe("completed");
+    expect(result.reviewVerdict.verdict).toBe("pass");
+    expect(result.error).toBeUndefined();
   });
 
   it("uses deterministic review when runner fails before provider review", async () => {

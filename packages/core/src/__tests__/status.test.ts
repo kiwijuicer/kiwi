@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { Initiative, TaskGraph } from "@kiwi/contracts";
 import { getRunStatusSummary } from "../status";
 import { savePlannedRun } from "../run-store";
+import { refreshRunStatusFromAttempts } from "../lifecycle/status";
 
 function fixtureInitiative(id: string, title: string): Initiative {
   return {
@@ -48,6 +49,53 @@ function fixtureTaskGraph(runId: string, initiativeId: string, planId: string): 
 }
 
 describe("run status summary", () => {
+  it("refreshes run status from the latest attempt for each step", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-core-status-retry-"));
+    const runId = "run_20260504_040000_retry";
+
+    savePlannedRun({
+      runId,
+      initiative: fixtureInitiative("init_20260504_040000_retry", "Feature Retry"),
+      taskGraph: fixtureTaskGraph(runId, "init_20260504_040000_retry", "plan_20260504_040000_retry"),
+      cwd,
+      now: new Date("2026-05-04T04:00:00.000Z"),
+    });
+
+    const attemptsDir = path.join(cwd, ".kiwi", "runs", runId, "steps", "step_001");
+    for (const [attemptId, status, startedAt] of [
+      ["attempt_failed", "failed", "2026-05-04T04:01:00.000Z"],
+      ["attempt_completed", "completed", "2026-05-04T04:02:00.000Z"],
+    ] as const) {
+      const attemptDir = path.join(attemptsDir, attemptId);
+      mkdirSync(attemptDir, { recursive: true });
+      writeFileSync(
+        path.join(attemptDir, "attempt.json"),
+        JSON.stringify({
+          attemptId,
+          stepId: "step_001",
+          runner: "local-shell",
+          agentRole: "executor",
+          modelCapability: "mid",
+          status,
+          contextPackageRef: `steps/step_001/${attemptId}/context-package.json`,
+          modelInvocationRefs: [],
+          artifacts: [],
+          startedAt,
+          completedAt: startedAt,
+        }),
+        "utf-8",
+      );
+    }
+
+    const run = refreshRunStatusFromAttempts({
+      cwd,
+      runId,
+      now: new Date("2026-05-04T04:03:00.000Z"),
+    });
+
+    expect(run.status).toBe("completed");
+  });
+
   it("returns detailed latest run entries", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-core-status-"));
 

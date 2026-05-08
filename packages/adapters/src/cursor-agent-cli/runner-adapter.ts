@@ -38,7 +38,7 @@ function buildPrompt(input: RunnerExecutionInput): string {
       safety: {
         doNotCommit: true,
         doNotPush: true,
-        doNotModifyMainWorkspace: true,
+        doNotModifyMainWorkspace: input.executionMode !== "direct",
       },
     },
     null,
