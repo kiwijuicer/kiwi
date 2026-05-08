@@ -13,10 +13,12 @@ routing:
   defaultAgentRole: executor
   defaultModelCapability: mid
   providerPreference:
-    planner: [claude-code-cli]
-    reviewer: [claude-code-cli, codex-cli]
+    planner: [codex-cli, claude-code-cli]
+    reviewer: [codex-cli, claude-code-cli]
     executor: [codex-cli, claude-code-cli, cursor-agent-cli]
-    researcher: [claude-code-cli, codex-cli]
+    researcher: [codex-cli, claude-code-cli]
+    security: [codex-cli, claude-code-cli]
+    rules: [codex-cli, claude-code-cli]
   stepTypeOverrides:
     planning:
       agentRole: planner
