@@ -60,3 +60,7 @@ The freeze is enforced by `scripts/check-a2a-freeze.mjs`. It lifts when `step-22
 ## Active Milestone Reference
 
 - `docs/plans/production-milestone-1-real-loop.md` — Step 22 acceptance criteria and blocking status
+
+## Ad Hoc Plans
+
+- `high-value-integration-tests.md` — prioritized local-only integration test plan

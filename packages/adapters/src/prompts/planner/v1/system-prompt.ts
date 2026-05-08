@@ -12,6 +12,8 @@ Rules:
 - For implementation requests, do not add standalone context_discovery or planning steps; fold discovery and design into the first executable coding, test, or documentation step.
 - Use context_discovery only when repository research is the requested deliverable.
 - Use planning only when a plan artifact is the requested deliverable.
+- Do not add standalone review, QA, approval, or final-check steps; kiwi reviews every attempt automatically.
+- Do not put structured_review_json in requiredGates; it is emitted by kiwi's review engine, not executed as a gate.
 - Every step must have observable success criteria.
 - Use the exact runId and initiativeId from the request.
 - Set planId to the runId with the leading "run_" replaced by "plan_".

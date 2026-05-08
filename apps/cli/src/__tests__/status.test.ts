@@ -116,8 +116,21 @@ describe("kiwi status", () => {
     spy.mockRestore();
   });
 
-  it("fails explicitly on corrupt or partial run folders", async () => {
+  it("prints valid runs and reports corrupt folders without failing", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-status-corrupt-"));
+    await runInit({}, cwd);
+    await runPlan(
+      "Ticket A",
+      {
+        allowStub: true,
+        env: { PATH: "/empty" },
+        now: new Date("2026-05-04T04:00:00.000Z"),
+        runIdSuffix: "a001",
+        initiativeIdSuffix: "a001",
+        planIdSuffix: "a001",
+      },
+      cwd,
+    );
     mkdirSync(path.join(cwd, ".kiwi", "runs", "run_20260504_040000_broken", "plan"), {
       recursive: true,
     });
@@ -134,6 +147,13 @@ describe("kiwi status", () => {
       "utf-8",
     );
 
-    await expect(runStatus(cwd)).rejects.toThrow("is corrupt");
+    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await runStatus(cwd);
+    const output = spy.mock.calls.flat().join("\n");
+    spy.mockRestore();
+
+    expect(output).toContain("run_20260504_060000_a001");
+    expect(output).toContain("corrupt runs skipped: 1");
+    expect(output).toContain("run_20260504_040000_broken");
   });
 });

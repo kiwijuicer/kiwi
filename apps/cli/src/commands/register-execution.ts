@@ -49,11 +49,10 @@ function registerRunCommand(program: Command, withWorkspaceOptions: WorkspaceOpt
     program
       .command("run <runId>")
       .description("Execute planned steps in order")
+      .allowExcessArguments(false)
       .option("--from-step <stepId>", "Start at a specific step")
-      .option(
-        "--max-concurrency <number>",
-        "Maximum parallel attempts when subplans are available",
-        (value) => Number.parseInt(value, 10),
+      .option("--max-concurrency <number>", "Maximum parallel attempts when subplans are available", (value) =>
+        Number.parseInt(value, 10),
       )
       .option("--max-cost <usd>", "Abort before execution if forecast exceeds this USD cap", (value) =>
         Number.parseFloat(value),

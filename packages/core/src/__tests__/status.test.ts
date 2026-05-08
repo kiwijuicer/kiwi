@@ -137,8 +137,19 @@ describe("run status summary", () => {
     expect(summary.latest[0]?.runId).toBe("run_20260504_040000_a001");
   });
 
-  it("fails explicitly for corrupt or partial run folders", () => {
+  it("skips corrupt or partial run folders in aggregate status", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-core-status-corrupt-"));
+    savePlannedRun({
+      runId: "run_20260504_040000_valid",
+      initiative: fixtureInitiative("init_20260504_040000_valid", "Feature Valid"),
+      taskGraph: fixtureTaskGraph(
+        "run_20260504_040000_valid",
+        "init_20260504_040000_valid",
+        "plan_20260504_040000_valid",
+      ),
+      cwd,
+      now: new Date("2026-05-04T04:01:00.000Z"),
+    });
     mkdirSync(path.join(cwd, ".kiwi", "runs", "run_20260504_040000_broken", "plan"), {
       recursive: true,
     });
@@ -155,7 +166,18 @@ describe("run status summary", () => {
       "utf-8",
     );
 
-    expect(() => getRunStatusSummary(cwd)).toThrow("is corrupt");
+    const summary = getRunStatusSummary(cwd);
+    expect(summary.total).toBe(2);
+    expect(summary.latest.map((entry) => entry.runId)).toEqual(["run_20260504_040000_valid"]);
+    expect(summary.corrupt).toEqual([
+      {
+        runId: "run_20260504_040000_broken",
+        error:
+          "Run run_20260504_040000_broken is corrupt: missing required artifact .kiwi/runs/run_20260504_040000_broken/initiative.json",
+      },
+    ]);
+
+    expect(() => getRunStatusSummary(cwd, "run_20260504_040000_broken")).toThrow("is corrupt");
 
     rmSync(path.join(cwd, ".kiwi"), { recursive: true, force: true });
   });

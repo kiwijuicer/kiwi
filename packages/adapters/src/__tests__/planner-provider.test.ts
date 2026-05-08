@@ -118,6 +118,46 @@ describe("planner provider", () => {
     expect(output.retry.records[1]?.status).toBe("valid");
   });
 
+  it("retries non-executable review steps before accepting a runnable graph", async () => {
+    let calls = 0;
+    const reviewStepGraph = (): TaskGraph => ({
+      ...validTaskGraph(),
+      steps: [
+        {
+          stepId: "step_001",
+          type: "review",
+          title: "Review plan quality",
+          dependsOn: [],
+          successCriteria: ["Structured review verdict is produced"],
+          requiredGates: ["structured_review_json"],
+          recommendedAgentRole: "reviewer",
+          recommendedModelCapability: "frontier",
+          status: "pending",
+        },
+      ],
+    });
+    const provider: PlannerProvider = {
+      name: "semantic-flaky-planner",
+      async plan(): Promise<PlannerProviderOutput> {
+        calls += 1;
+        return {
+          providerName: "semantic-flaky-planner",
+          taskGraph: calls === 1 ? reviewStepGraph() : validTaskGraph(),
+          modelUsage: { inputTokens: 0, outputTokens: 0 },
+          cost: { estimatedUsd: 0, currency: "USD" },
+        };
+      },
+    };
+
+    const output = await runPlannerProviderWithRetries(provider, input, { maxAttempts: 2 });
+
+    expect(output.attempts).toBe(2);
+    expect(output.retry.invalidAttempts).toBe(1);
+    expect(output.retry.records[0]?.validationError).toContain("standalone review steps");
+    expect(output.retry.records[0]?.validationError).toContain("structured_review_json");
+    expect(output.retry.records[1]?.status).toBe("valid");
+  });
+
   it("fails when provider output stays invalid", async () => {
     const provider: PlannerProvider = {
       name: "always-invalid",

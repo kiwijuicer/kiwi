@@ -140,6 +140,23 @@ export class PlannerProviderValidationError extends PlannerProviderError {
   }
 }
 
+function validateExecutableTaskGraph(taskGraph: TaskGraph): void {
+  const issues = taskGraph.steps.flatMap((step) => {
+    const stepIssues: string[] = [];
+    if (step.type === "review") {
+      stepIssues.push(`${step.stepId}: standalone review steps are redundant because kiwi reviews every attempt`);
+    }
+    if (step.requiredGates.includes("structured_review_json")) {
+      stepIssues.push(`${step.stepId}: structured_review_json is produced by the review engine, not a runnable gate`);
+    }
+    return stepIssues;
+  });
+
+  if (issues.length > 0) {
+    throw new Error(`TaskGraph is not executable by kiwi run: ${issues.join("; ")}`);
+  }
+}
+
 function maxAttemptsForProvider(provider: PlannerProvider, requestedMaxAttempts: number): number {
   if (provider.maxRepairAttempts === undefined) return requestedMaxAttempts;
   return Math.min(requestedMaxAttempts, provider.maxRepairAttempts + 1);
@@ -160,6 +177,7 @@ export async function runPlannerProviderWithRetries(
       repairContext && provider.repair ? await provider.repair(input, repairContext) : await provider.plan(input);
     try {
       const taskGraph = TaskGraphSchema.parse(output.taskGraph);
+      validateExecutableTaskGraph(taskGraph);
       records.push({
         attempt,
         providerName: output.providerName,

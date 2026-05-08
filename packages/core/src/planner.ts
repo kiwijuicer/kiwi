@@ -95,12 +95,6 @@ function inferStepType(title: string): StepType {
   if (/\b(publish|post|submit)\b.*\b(review|comment|finding)s?\b/.test(value)) {
     return "scm_review";
   }
-  if (/\breview|audit\b/.test(value)) {
-    return "review";
-  }
-  if (/\bvalidate|lint|typecheck|verify\b/.test(value)) {
-    return "validation";
-  }
   if (/\brule|agents\.md|policy\b/.test(value)) {
     return "rules_update";
   }
@@ -115,6 +109,12 @@ function inferStepType(title: string): StepType {
   }
   if (/\b(change|modify|update|implement|fix)\b/.test(value)) {
     return "code_modification";
+  }
+  if (/\b(validat(?:e|ion)|lint|typecheck|verify)\b/.test(value)) {
+    return "validation";
+  }
+  if (/\breview|audit\b/.test(value)) {
+    return "review";
   }
 
   return "coding";

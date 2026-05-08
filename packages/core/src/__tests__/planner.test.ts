@@ -66,6 +66,7 @@ describe("deterministic planner", () => {
         maxConcurrency: 1,
       },
     ]);
+    expect(graph.steps[4]?.type).toBe("validation");
     expect(graph.initiativeId).toBe(initiative.id);
     expect(graph.assumptions).toEqual([]);
     expect(graph.openQuestions).toEqual([]);

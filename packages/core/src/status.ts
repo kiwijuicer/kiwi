@@ -42,6 +42,11 @@ export interface RunStatusEntry {
   artifactPaths: RunArtifactPaths;
 }
 
+export interface CorruptRunStatusEntry {
+  runId: string;
+  error: string;
+}
+
 export interface RunStatusSummary {
   total: number;
   planned: number;
@@ -51,6 +56,7 @@ export interface RunStatusSummary {
   failed: number;
   cancelled: number;
   latest: RunStatusEntry[];
+  corrupt: CorruptRunStatusEntry[];
 }
 
 function artifactPathsFor(runId: string): RunArtifactPaths {
@@ -148,12 +154,20 @@ export function getRunStatusSummary(cwd: string, runId?: string): RunStatusSumma
   }
 
   const selectedRunIds = runId ? [runId] : runIds;
-  const entries = selectedRunIds
-    .map((id) => loadRunStatusEntry(id, cwd))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const entries: RunStatusEntry[] = [];
+  const corrupt: CorruptRunStatusEntry[] = [];
+  for (const id of selectedRunIds) {
+    try {
+      entries.push(loadRunStatusEntry(id, cwd));
+    } catch (error) {
+      if (runId || !(error instanceof RunCorruptError)) throw error;
+      corrupt.push({ runId: id, error: error.message });
+    }
+  }
+  entries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
   return {
-    total: entries.length,
+    total: entries.length + corrupt.length,
     planned: entries.filter((entry) => entry.status === "planned").length,
     running: entries.filter((entry) => entry.status === ContractValues.Running).length,
     needsApproval: entries.filter((entry) => entry.status === "needs_approval").length,
@@ -161,5 +175,6 @@ export function getRunStatusSummary(cwd: string, runId?: string): RunStatusSumma
     failed: entries.filter((entry) => entry.status === ContractValues.Failed).length,
     cancelled: entries.filter((entry) => entry.status === ContractValues.Cancelled).length,
     latest: entries.slice(0, 10),
+    corrupt,
   };
 }

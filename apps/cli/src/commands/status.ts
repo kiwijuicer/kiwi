@@ -1,5 +1,12 @@
 import chalk from "chalk";
-import { getRunStatusSummary, loadTaskGraph, RunArtifactPaths, RunAttemptStatusEntry, RunStatusEntry } from "@kiwi/core";
+import {
+  CorruptRunStatusEntry,
+  getRunStatusSummary,
+  loadTaskGraph,
+  RunArtifactPaths,
+  RunAttemptStatusEntry,
+  RunStatusEntry,
+} from "@kiwi/core";
 import { buildRunCompletionSummary } from "@kiwi/ops";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 import { formatSubPlanTreeLines } from "./subplan-tree";
@@ -42,6 +49,14 @@ function printArtifactPaths(paths: RunArtifactPaths): void {
   }
 }
 
+function printCorruptRuns(corrupt: CorruptRunStatusEntry[]): void {
+  if (corrupt.length === 0) return;
+  console.log(chalk.yellow(`corrupt runs skipped: ${corrupt.length}`));
+  for (const entry of corrupt) {
+    console.log(chalk.dim(`  ${entry.runId}: ${entry.error}`));
+  }
+}
+
 function printSubPlanTree(runId: string, cwd: string): void {
   const lines = formatSubPlanTreeLines(loadTaskGraph(runId, cwd), "    ");
   if (lines.length === 0) return;
@@ -79,13 +94,15 @@ export async function runStatus(cwd: string = process.cwd(), runId?: string, opt
 
   if (summary.latest.length === 0) {
     console.log(`runs: ${summary.total}`);
-    console.log(chalk.dim("no runs found"));
+    printCorruptRuns(summary.corrupt);
+    if (summary.corrupt.length === 0) console.log(chalk.dim("no runs found"));
     return;
   }
 
   if (!opts.verbose) {
     console.log("runId  status  cost  next-action");
     for (const entry of summary.latest) printCompactRunEntry(entry, workspace.workspacePath);
+    printCorruptRuns(summary.corrupt);
     return;
   }
 
@@ -99,7 +116,9 @@ export async function runStatus(cwd: string = process.cwd(), runId?: string, opt
   console.log(`completed: ${summary.completed}`);
   console.log(`failed: ${summary.failed}`);
   console.log(`cancelled: ${summary.cancelled}`);
+  console.log(`corrupt: ${summary.corrupt.length}`);
   console.log("");
   console.log(chalk.bold("latest runs:"));
   for (const entry of summary.latest) printRunEntry(entry, workspace.workspacePath);
+  printCorruptRuns(summary.corrupt);
 }
