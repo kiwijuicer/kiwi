@@ -165,6 +165,22 @@ describe("runner resolution", () => {
     expect(resolution.selectedExecutorModel?.id).toBe("claude-sonnet");
   });
 
+  it("does not fall back to stub executor models unless explicitly enabled", () => {
+    const resolution = resolveRunner({
+      registryModels: [executorModel("stub-strong", "strong", "stub")],
+      step: codingStep,
+      requestedCapability: "strong",
+      env: { PATH: "/empty" },
+    });
+
+    expect(resolution.executorSelection).toMatchObject({
+      requestedCapability: "strong",
+      selectedCapability: null,
+      reason: "no_model_available",
+    });
+    expect(resolution.selectedExecutorModel).toBeNull();
+  });
+
   it("falls back to a lower executor tier when no adequate model is available", () => {
     const resolution = resolveRunner({
       registryModels: [executorModel("codex-auto", "strong", "codex-cli")],

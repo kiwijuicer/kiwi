@@ -209,7 +209,7 @@ describe("provider registries", () => {
     ).toBe("cursor-agent-cli:default");
   });
 
-  it("selects mid researcher providers with stub fallback", () => {
+  it("does not select stub researcher providers by default", () => {
     const models: ModelEntry[] = [
       {
         id: "stub-mid",
@@ -222,6 +222,26 @@ describe("provider registries", () => {
     ];
 
     const selected = new ResearcherProviderRegistry().select({ registryModels: models, env: { PATH: "/empty" } });
+
+    expect(selected).toBeNull();
+  });
+
+  it("selects mid researcher providers when stub is explicitly enabled", () => {
+    const models: ModelEntry[] = [
+      {
+        id: "stub-mid",
+        provider: "stub",
+        capability: "mid",
+        roles: ["researcher"],
+        accessMode: "stub",
+        enabled: true,
+      },
+    ];
+
+    const selected = new ResearcherProviderRegistry().select({
+      registryModels: models,
+      env: { PATH: "/empty", KIWI_ALLOW_STUB: "1" },
+    });
 
     expect(selected?.model.id).toBe("stub-mid");
     expect(selected?.provider.name).toBe("stub-researcher");

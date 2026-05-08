@@ -3,54 +3,66 @@ version: "1"
 # `cheap` is documented as an alias of `mid` (Haiku) with a smaller context
 # budget; it is not a separate model entry.
 #
-# Each entry declares an `accessMode`. The runtime resolves the best
-# available access mode at invocation time, in this default order:
-#   1. `KIWI_FORCE_ACCESS_MODE` env (if set)
-#   2. claude-code-cli (if `claude` is on PATH)
+# Each entry declares an `accessMode`. Resolution priority at invocation:
+#   1. `KIWI_FORCE_ACCESS_MODE` env override
+#   2. claude-code-cli (uses local `claude` authentication)
 #   3. codex-cli / cursor-agent-cli (uses local CLI auth)
 #   4. cursor / jetbrains as IDE surfaces, plus local
-#   5. stub (only for tests/dev fixtures)
-#
-# Direct API entries are intentionally not part of the daily-use default.
-# Claude Code, Codex, and Cursor Agent reuse existing local CLI authentication.
+#   5. stub (tests only)
 models:
-  # Claude Code CLI access (preferred default — uses local `claude` auth)
-  - id: claude-code-cli-opus-4-6
+  # Claude Code CLI — preferred default, reuses local claude auth.
+  # `id` is Kiwi-local. Omit `providerModel` by default so the Claude CLI
+  # resolves its current configured/default model dynamically.
+  - id: claude-code-cli-frontier
     provider: anthropic
     capability: frontier
     roles: [planner, reviewer, security]
     accessMode: claude-code-cli
     enabled: true
-  - id: claude-code-cli-sonnet-4-6
+  - id: claude-code-cli-strong
     provider: anthropic
     capability: strong
     roles: [executor, reviewer, security]
     accessMode: claude-code-cli
     enabled: true
-  - id: claude-code-cli-haiku-4-5
+  - id: claude-code-cli-mid
     provider: anthropic
     capability: mid
     roles: [researcher, executor, rules]
     accessMode: claude-code-cli
     enabled: true
 
-  # Cursor Agent CLI access (uses local cursor-agent login; no direct provider API key)
+  # Cursor Agent CLI — uses local cursor-agent login, no direct provider API key
   - id: cursor-agent-auto
     provider: local
     capability: strong
-    roles: [executor]
+    roles: [planner, researcher, executor, reviewer]
+    accessMode: cursor-agent-cli
+    enabled: true
+  - id: cursor-agent-mid
+    provider: local
+    capability: mid
+    roles: [researcher, executor, reviewer]
     accessMode: cursor-agent-cli
     enabled: true
 
-  # Codex CLI access (uses local codex auth; no direct OpenAI API key)
+  # Codex CLI — uses local codex auth, no direct OpenAI API key
   - id: codex-cli-auto
     provider: local
     capability: strong
-    roles: [executor]
+    roles: [planner, researcher, executor, reviewer]
+    accessMode: codex-cli
+    enabled: true
+  - id: codex-cli-mid
+    provider: local
+    capability: mid
+    roles: [researcher, executor, reviewer]
     accessMode: codex-cli
     enabled: true
 
-  # Stub providers (tests/dev fixtures only — never used for real evidence)
+  # Stub providers — tests/dev fixtures only. CLI/MCP planning and execution
+  # ignore these unless explicitly enabled with --allow-stub, KIWI_ALLOW_STUB=1,
+  # or KIWI_FORCE_ACCESS_MODE=stub.
   - id: stub-cheap
     provider: stub
     capability: cheap

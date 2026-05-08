@@ -238,8 +238,9 @@ models:
     accessMode: codex-cli
     enabled: true
 
-  # Stub providers — tests/dev fixtures only. CLI/MCP planning ignores these
-  # unless explicitly enabled with --allow-stub or KIWI_ALLOW_STUB=1.
+  # Stub providers — tests/dev fixtures only. CLI/MCP planning and execution
+  # ignore these unless explicitly enabled with --allow-stub, KIWI_ALLOW_STUB=1,
+  # or KIWI_FORCE_ACCESS_MODE=stub.
   - id: stub-cheap
     provider: stub
     capability: cheap

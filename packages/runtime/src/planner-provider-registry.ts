@@ -59,6 +59,7 @@ export class PlannerProviderRegistry {
       selectEnabledModelByAccessMode({
         candidates,
         env,
+        allowStub,
         excludeStub: !allowStub,
         role: ContractValues.Planner,
         preferenceByRole: options.preferenceByRole,
@@ -66,6 +67,7 @@ export class PlannerProviderRegistry {
       selectEnabledModelByAccessMode({
         candidates: fallbackCandidates,
         env,
+        allowStub,
         excludeStub: !allowStub,
         role: ContractValues.Planner,
         preferenceByRole: options.preferenceByRole,

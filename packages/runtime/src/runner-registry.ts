@@ -20,6 +20,7 @@ import {
   AccessModeAvailability,
   accessModeOrderForRole,
   evaluateAccessModeAvailability,
+  stubAccessAllowed,
 } from "./access-mode-resolver";
 
 export interface RunnerResolutionOptions {
@@ -193,7 +194,7 @@ const CAPABILITY_ORDER: ModelCapability[] = [
 
 function isAccessAvailable(model: ModelEntry, env: Record<string, string | undefined>): boolean {
   if (env.KIWI_FORCE_ACCESS_MODE && model.accessMode !== env.KIWI_FORCE_ACCESS_MODE) return false;
-  if (model.accessMode === AccessModes.Stub) return true;
+  if (model.accessMode === AccessModes.Stub) return stubAccessAllowed(env);
   return evaluateAccessModeAvailability(model.accessMode, env).available;
 }
 
@@ -289,7 +290,7 @@ function pickExecutorModel(
     };
   }
 
-  const stubAvailable = !env.KIWI_FORCE_ACCESS_MODE || env.KIWI_FORCE_ACCESS_MODE === AccessModes.Stub;
+  const stubAvailable = stubAccessAllowed(env);
   const stub = stubAvailable ? preferStub(stubs, requested) : null;
   if (stub) {
     return {

@@ -61,10 +61,19 @@ describe("access mode resolver", () => {
     expect(result?.model.accessMode).toBe("anthropic-api");
   });
 
-  it("falls back to stub when no real provider is available", () => {
+  it("does not fall back to stub when no real provider is available by default", () => {
     const result = selectEnabledModelByAccessMode({
       candidates,
       env: { PATH: "/empty" },
+    });
+    expect(result).toBeNull();
+  });
+
+  it("allows stub only when explicitly enabled", () => {
+    const result = selectEnabledModelByAccessMode({
+      candidates,
+      env: { PATH: "/empty" },
+      allowStub: true,
     });
     expect(result?.model.accessMode).toBe("stub");
   });
