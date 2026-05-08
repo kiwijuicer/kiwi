@@ -45,6 +45,7 @@ import type {
   ModelUsageSummaryTotalsSchema,
   NetworkPolicySchema,
   PolicyRoutingOverrideSchema,
+  ProviderPreferenceSchema,
   PrDraftArtifactSchema,
   ProtocolEnvelopeKindSchema,
   ProtocolEnvelopeSchema,
@@ -167,6 +168,7 @@ export type A2ATrustedPeer = z.infer<typeof A2ATrustedPeerSchema>;
 export type A2AConfig = z.infer<typeof A2AConfigSchema>;
 export type KiwiConfig = z.infer<typeof KiwiConfigSchema>;
 export type PolicyRoutingOverride = z.infer<typeof PolicyRoutingOverrideSchema>;
+export type ProviderPreference = z.infer<typeof ProviderPreferenceSchema>;
 export type CommandProfile = z.infer<typeof CommandProfileSchema>;
 export type KiwiPolicy = z.infer<typeof KiwiPolicySchema>;
 export type ModelProvider = z.infer<typeof ModelProviderSchema>;

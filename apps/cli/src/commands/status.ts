@@ -1,10 +1,16 @@
 import chalk from "chalk";
 import { getRunStatusSummary, loadTaskGraph, RunArtifactPaths, RunAttemptStatusEntry, RunStatusEntry } from "@kiwi/core";
+import { buildRunCompletionSummary } from "@kiwi/ops";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 import { formatSubPlanTreeLines } from "./subplan-tree";
 
 interface StatusOptions extends CliWorkspaceOptions {
   json?: boolean;
+  verbose?: boolean;
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toFixed(2)}`;
 }
 
 function printAttemptStatuses(attempts: RunAttemptStatusEntry[]): void {
@@ -58,6 +64,11 @@ function printRunEntry(entry: RunStatusEntry, cwd: string): void {
   printArtifactPaths(entry.artifactPaths);
 }
 
+function printCompactRunEntry(entry: RunStatusEntry, cwd: string): void {
+  const summary = buildRunCompletionSummary({ cwd, runId: entry.runId });
+  console.log(`${entry.runId}  ${entry.status}  ${formatUsd(summary.totalEstimatedCostUsd)}  ${summary.nextAction}`);
+}
+
 export async function runStatus(cwd: string = process.cwd(), runId?: string, opts: StatusOptions = {}): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   const summary = getRunStatusSummary(workspace.workspacePath, runId);
@@ -66,11 +77,21 @@ export async function runStatus(cwd: string = process.cwd(), runId?: string, opt
     return;
   }
 
+  if (summary.latest.length === 0) {
+    console.log(`runs: ${summary.total}`);
+    console.log(chalk.dim("no runs found"));
+    return;
+  }
+
+  if (!opts.verbose) {
+    console.log("runId  status  cost  next-action");
+    for (const entry of summary.latest) printCompactRunEntry(entry, workspace.workspacePath);
+    return;
+  }
+
   console.log(chalk.bold("kiwi status"));
   console.log(`workspace: ${workspace.workspacePath}`);
-  if (runId) {
-    console.log(`selected_run: ${runId}`);
-  }
+  if (runId) console.log(`selected_run: ${runId}`);
   console.log(`runs: ${summary.total}`);
   console.log(`planned: ${summary.planned}`);
   console.log(`running: ${summary.running}`);
@@ -78,15 +99,7 @@ export async function runStatus(cwd: string = process.cwd(), runId?: string, opt
   console.log(`completed: ${summary.completed}`);
   console.log(`failed: ${summary.failed}`);
   console.log(`cancelled: ${summary.cancelled}`);
-
-  if (summary.latest.length === 0) {
-    console.log(chalk.dim("no runs found"));
-    return;
-  }
-
   console.log("");
   console.log(chalk.bold("latest runs:"));
-  for (const entry of summary.latest) {
-    printRunEntry(entry, workspace.workspacePath);
-  }
+  for (const entry of summary.latest) printRunEntry(entry, workspace.workspacePath);
 }

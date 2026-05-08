@@ -8,6 +8,7 @@ export * from "./status";
 export * from "./storage/json-io";
 export * from "./cost-ledger";
 export * from "./budget-policy";
+export * from "./cost-forecast";
 export * from "./model-invocations";
 export * from "./planner-run";
 export * from "./lifecycle";

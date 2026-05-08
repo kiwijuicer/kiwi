@@ -53,6 +53,9 @@ export interface RunRoutingExplanation {
   status: string;
   selectedCapability?: string;
   executorReason?: string;
+  modelId?: string | null;
+  providerName?: string | null;
+  accessMode?: string | null;
   runner?: string | null;
   requiredGates: string[];
   routingReason: string[];
@@ -198,6 +201,24 @@ function executorReasonByAttempt(cwd: string, runId: string): Map<string, string
   return reasons;
 }
 
+function executorSelectionByAttempt(
+  cwd: string,
+  runId: string,
+): Map<string, { modelId: string | null; providerName: string | null; accessMode: string | null }> {
+  const selections = new Map<string, { modelId: string | null; providerName: string | null; accessMode: string | null }>();
+  for (const event of readAuditEvents(cwd, runId)) {
+    if (String(event.eventType) !== "executor_model_selected") continue;
+    const attemptId = stringPayloadValue(event.payload, "attemptId");
+    if (!attemptId) continue;
+    selections.set(attemptId, {
+      modelId: typeof event.payload.modelId === "string" ? event.payload.modelId : null,
+      providerName: typeof event.payload.providerName === "string" ? event.payload.providerName : null,
+      accessMode: typeof event.payload.accessMode === "string" ? event.payload.accessMode : null,
+    });
+  }
+  return selections;
+}
+
 export function buildRunCompletionSummary(params: { cwd: string; runId: string; now?: Date }): RunCompletionSummary {
   const run = loadRunManifest(params.runId, params.cwd);
   const invocations = readModelInvocations(params.cwd, params.runId);
@@ -284,16 +305,19 @@ export function buildRunCompletionSummary(params: { cwd: string; runId: string; 
 export function buildRunExplanation(params: { cwd: string; runId: string; now?: Date }): RunExplanation {
   const attempts = listStepAttemptEvidence(params.cwd, params.runId);
   const executorReasons = executorReasonByAttempt(params.cwd, params.runId);
+  const executorSelections = executorSelectionByAttempt(params.cwd, params.runId);
   const routing = attempts
     .filter((entry) => entry.schedulerDecision)
     .map((entry) => {
       const executorReason = executorReasons.get(entry.attemptId);
+      const executorSelection = executorSelections.get(entry.attemptId);
       return {
         stepId: entry.stepId,
         attemptId: entry.attemptId,
         status: entry.schedulerDecision!.status,
         selectedCapability: entry.schedulerDecision!.modelCapability,
         ...(executorReason ? { executorReason } : {}),
+        ...(executorSelection ? executorSelection : {}),
         runner: entry.schedulerDecision!.runner,
         requiredGates: entry.schedulerDecision!.requiredGates,
         routingReason: entry.schedulerDecision!.routingReason,

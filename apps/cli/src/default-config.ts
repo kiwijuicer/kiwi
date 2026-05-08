@@ -23,6 +23,11 @@ commands:
 routing:
   defaultAgentRole: executor
   defaultModelCapability: mid
+  providerPreference:
+    planner: [claude-code-cli]
+    reviewer: [claude-code-cli, codex-cli]
+    executor: [codex-cli, claude-code-cli, cursor-agent-cli]
+    researcher: [claude-code-cli, codex-cli]
   stepTypeOverrides:
     planning:
       agentRole: planner
@@ -212,12 +217,24 @@ models:
     roles: [planner, researcher, executor, reviewer]
     accessMode: cursor-agent-cli
     enabled: true
+  - id: cursor-agent-mid
+    provider: local
+    capability: mid
+    roles: [researcher, executor, reviewer]
+    accessMode: cursor-agent-cli
+    enabled: true
 
   # Codex CLI — uses local codex auth, no direct OpenAI API key
   - id: codex-cli-auto
     provider: local
     capability: strong
     roles: [planner, researcher, executor, reviewer]
+    accessMode: codex-cli
+    enabled: true
+  - id: codex-cli-mid
+    provider: local
+    capability: mid
+    roles: [researcher, executor, reviewer]
     accessMode: codex-cli
     enabled: true
 

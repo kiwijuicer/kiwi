@@ -24,7 +24,13 @@ export class ReviewerProviderRegistry {
   select(options: ReviewerProviderRegistrySelectOptions): ReviewerProviderSelection | null {
     const env = options.env ?? process.env;
     const candidates = this.pickCandidates(options.registryModels, options.riskHigh ?? false);
-    const selected = selectEnabledModelByAccessMode({ candidates, env, excludeStub: true });
+    const selected = selectEnabledModelByAccessMode({
+      candidates,
+      env,
+      excludeStub: true,
+      role: ContractValues.Reviewer,
+      preferenceByRole: options.policy.routing.providerPreference,
+    });
     if (!selected) return null;
     return {
       model: selected.model,

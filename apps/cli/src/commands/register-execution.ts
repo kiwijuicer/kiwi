@@ -1,14 +1,109 @@
 import { Command } from "commander";
 import { runApprove } from "./approve";
 import { runAttempt } from "./attempt";
+import { runApply, runDiff } from "./diff";
 import { runEvidenceManifest } from "./evidence";
 import { runFinalize } from "./finalize";
 import { runOperatorSnapshot } from "./operator";
 import { runPublishPr } from "./publish";
 import { runRun } from "./run";
+import { runTail } from "./tail";
 import { addWorkspaceOptions, handleCommandError, WorkspaceOptionMerger } from "./register-common";
 
+function registerDiffApplyCommands(program: Command, withWorkspaceOptions: WorkspaceOptionMerger): void {
+  addWorkspaceOptions(
+    program
+      .command("diff <runId> [stepId]")
+      .description("Show persisted attempt patch stat and diff")
+      .option("--json", "Print JSON")
+      .option("--all", "Include all attempts instead of latest attempts"),
+  ).action(
+    (
+      runId: string,
+      stepId: string | undefined,
+      opts: { workspace?: string; repo?: string; json?: boolean; all?: boolean },
+    ) => {
+      runDiff(runId, stepId, withWorkspaceOptions(opts)).catch(handleCommandError);
+    },
+  );
+
+  addWorkspaceOptions(
+    program
+      .command("apply <runId> [stepId]")
+      .description("Apply a persisted worktree patch to the source repo")
+      .option("--force-unsafe", "Apply even when review verdict blocks it")
+      .option("--json", "Print JSON"),
+  ).action(
+    (
+      runId: string,
+      stepId: string | undefined,
+      opts: { workspace?: string; repo?: string; forceUnsafe?: boolean; json?: boolean },
+    ) => {
+      runApply(runId, stepId, withWorkspaceOptions(opts)).catch(handleCommandError);
+    },
+  );
+}
+
+function registerRunCommand(program: Command, withWorkspaceOptions: WorkspaceOptionMerger): void {
+  addWorkspaceOptions(
+    program
+      .command("run <runId>")
+      .description("Execute planned steps in order")
+      .option("--from-step <stepId>", "Start at a specific step")
+      .option(
+        "--max-concurrency <number>",
+        "Maximum parallel attempts when subplans are available",
+        (value) => Number.parseInt(value, 10),
+      )
+      .option("--max-cost <usd>", "Abort before execution if forecast exceeds this USD cap", (value) =>
+        Number.parseFloat(value),
+      )
+      .option("--command <command>", "Command to run for each step")
+      .option("--approved", "Treat approval-required policy checks as approved")
+      .option("--auto-fix", "On needs_changes verdict, inject a fix step and continue")
+      .option("--auto-replan", "On reject verdict, write a versioned plan and stop with a hint"),
+  ).action(
+    (
+      runId: string,
+      opts: {
+        fromStep?: string;
+        maxConcurrency?: number;
+        maxCost?: number;
+        command?: string;
+        approved?: boolean;
+        autoFix?: boolean;
+        autoReplan?: boolean;
+        workspace?: string;
+        repo?: string;
+      },
+    ) => {
+      runRun(runId, withWorkspaceOptions(opts)).catch(handleCommandError);
+    },
+  );
+}
+
+function registerTailCommand(program: Command, withWorkspaceOptions: WorkspaceOptionMerger): void {
+  addWorkspaceOptions(
+    program
+      .command("tail <runId>")
+      .description("Tail audit events for a run")
+      .option("--phase <phase>", "Filter by phase or event type")
+      .option("--since <time>", "Filter from ISO timestamp or relative duration like 10m")
+      .option("--no-follow", "Print current matching events and exit")
+      .option("--no-color", "Disable colored output"),
+  ).action(
+    (
+      runId: string,
+      opts: { phase?: string; since?: string; follow?: boolean; color?: boolean; workspace?: string; repo?: string },
+    ) => {
+      runTail(runId, withWorkspaceOptions({ ...opts, noColor: opts.color === false })).catch(handleCommandError);
+    },
+  );
+}
+
 export function registerExecutionCommands(program: Command, withWorkspaceOptions: WorkspaceOptionMerger): void {
+  registerDiffApplyCommands(program, withWorkspaceOptions);
+
   addWorkspaceOptions(
     program
       .command("attempt <runId> <stepId>")
@@ -25,37 +120,8 @@ export function registerExecutionCommands(program: Command, withWorkspaceOptions
     },
   );
 
-  addWorkspaceOptions(
-    program
-      .command("run <runId>")
-      .description("Execute planned steps in order")
-      .option("--from-step <stepId>", "Start at a specific step")
-      .option(
-        "--max-concurrency <number>",
-        "Maximum parallel attempts when subplans are available",
-        (value) => Number.parseInt(value, 10),
-      )
-      .option("--command <command>", "Command to run for each step")
-      .option("--approved", "Treat approval-required policy checks as approved")
-      .option("--auto-fix", "On needs_changes verdict, inject a fix step and continue")
-      .option("--auto-replan", "On reject verdict, write a versioned plan and stop with a hint"),
-  ).action(
-    (
-      runId: string,
-      opts: {
-        fromStep?: string;
-        maxConcurrency?: number;
-        command?: string;
-        approved?: boolean;
-        autoFix?: boolean;
-        autoReplan?: boolean;
-        workspace?: string;
-        repo?: string;
-      },
-    ) => {
-      runRun(runId, withWorkspaceOptions(opts)).catch(handleCommandError);
-    },
-  );
+  registerRunCommand(program, withWorkspaceOptions);
+  registerTailCommand(program, withWorkspaceOptions);
 
   addWorkspaceOptions(
     program

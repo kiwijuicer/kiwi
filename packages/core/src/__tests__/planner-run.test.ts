@@ -23,6 +23,7 @@ const policy: KiwiPolicy = {
   routing: {
     defaultAgentRole: "executor",
     defaultModelCapability: "mid",
+    providerPreference: {},
     stepTypeOverrides: {},
   },
   riskZones: { high: [] },

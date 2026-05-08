@@ -1,6 +1,8 @@
-import { existsSync, readFileSync } from "fs";
+import { Dirent, existsSync, readFileSync, readdirSync } from "fs";
+import path from "path";
 import {
   getRunStatusSummary,
+  listRunIds,
   listStepAttemptEvidence,
   loadInitiative,
   loadRunManifest,
@@ -18,7 +20,7 @@ interface McpResourceContent {
   mimeType?: string;
 }
 
-export const MCP_RESOURCES = [
+export const MCP_RESOURCE_TEMPLATES = [
   { uri: "kiwi://runs", name: "Runs" },
   { uri: "kiwi://runs/{runId}", name: "Run Status" },
   { uri: "kiwi://runs/{runId}/manifest", name: "Run Manifest" },
@@ -44,6 +46,46 @@ export const MCP_RESOURCES = [
   { uri: "kiwi://runs/{runId}/operator-snapshot", name: "Operator Snapshot" },
   { uri: "kiwi://runs/{runId}/artifacts/{artifactRef}", name: "Artifact" },
 ];
+
+function mimeTypeForRef(ref: string): string {
+  if (ref.endsWith(".json")) return "application/json";
+  if (ref.endsWith(".md") || ref.endsWith(".markdown")) return "text/markdown";
+  if (ref.endsWith(".patch") || ref.endsWith(".diff")) return "text/x-diff";
+  if (ref.endsWith(".html")) return "text/html";
+  return "text/plain";
+}
+
+function collectFiles(params: { cwd: string; runId: string; relativeDir: string }): Array<{ ref: string; name: string }> {
+  const root = resolveRunArtifactPath(params.runId, params.relativeDir, params.cwd);
+  if (!existsSync(root)) return [];
+  const files: Array<{ ref: string; name: string }> = [];
+  function walk(absDir: string, relDir: string): void {
+    for (const entry of readdirSync(absDir, { withFileTypes: true }) as Dirent[]) {
+      const ref = path.posix.join(relDir, entry.name);
+      const abs = path.join(absDir, entry.name);
+      if (entry.isDirectory()) {
+        walk(abs, ref);
+        continue;
+      }
+      if (entry.isFile()) files.push({ ref, name: ref });
+    }
+  }
+  walk(root, params.relativeDir);
+  return files;
+}
+
+export function listResources(cwd: string): Array<{ uri: string; name: string; mimeType?: string }> {
+  const dynamic = listRunIds(cwd).flatMap((runId) =>
+    ["plan", "steps", "final"].flatMap((relativeDir) =>
+      collectFiles({ cwd, runId, relativeDir }).map((file) => ({
+        uri: `kiwi://${runId}/${file.ref}`,
+        name: `${runId}/${file.name}`,
+        mimeType: mimeTypeForRef(file.ref),
+      })),
+    ),
+  );
+  return [...MCP_RESOURCE_TEMPLATES, ...dynamic];
+}
 
 function readJsonRunArtifact(runId: string, ref: string, cwd: string): unknown {
   const target = resolveRunArtifactPath(runId, ref, cwd);
@@ -80,6 +122,12 @@ const RUN_TEXT_RESOURCE_REFS: Record<string, { ref: string; mimeType: string }> 
   "final-summary": { ref: "final/final-summary.md", mimeType: "text/markdown" },
   "operator-snapshot": { ref: "operator/index.html", mimeType: "text/html" },
 };
+
+function readDirectRunFileResource(uri: string, runId: string, ref: string, cwd: string): McpResourceContent {
+  const target = resolveRunArtifactPath(runId, ref, cwd);
+  if (!existsSync(target)) throw new Error(`Artifact not found: ${ref}`);
+  return asContent(uri, readFileSync(target, "utf-8"), mimeTypeForRef(ref));
+}
 
 function readNamedRunResource(uri: string, runId: string, tail: string, cwd: string): McpResourceContent | null {
   if (!tail) return asContent(uri, getRunStatusSummary(cwd, runId), "application/json");
@@ -131,8 +179,16 @@ export function readResource(uri: string, cwd: string): McpResourceContent {
   const artifactMatch = tail.match(/^artifacts\/(.+)$/);
   if (artifactMatch?.[1]) {
     const ref = decodeURIComponent(artifactMatch[1]);
-    return asContent(uri, readTextRunArtifact(runId, ref, cwd), "text/plain");
+    return asContent(uri, readTextRunArtifact(runId, ref, cwd), mimeTypeForRef(ref));
   }
 
   throw new Error(`Unsupported resource URI: ${uri}`);
+}
+
+export function readMcpResource(uri: string, cwd: string): McpResourceContent {
+  const directMatch = uri.match(/^kiwi:\/\/(run_[^/]+)\/(.+)$/);
+  if (directMatch?.[1] && directMatch[2]) {
+    return readDirectRunFileResource(uri, directMatch[1], decodeURIComponent(directMatch[2]), cwd);
+  }
+  return readResource(uri, cwd);
 }

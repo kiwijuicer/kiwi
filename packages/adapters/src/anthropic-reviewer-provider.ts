@@ -108,6 +108,7 @@ function emptyPolicy(): KiwiPolicy {
     routing: {
       defaultAgentRole: ContractValues.Executor,
       defaultModelCapability: ContractValues.Mid,
+      providerPreference: {},
       stepTypeOverrides: {},
     },
     riskZones: { high: [] },

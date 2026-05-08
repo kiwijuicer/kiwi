@@ -6,7 +6,7 @@ import {
   ResearcherProvider,
   StubResearcherProvider,
 } from "@kiwi/adapters";
-import { AccessModes, ContractValues, ModelEntry } from "@kiwi/contracts";
+import { AccessModes, ContractValues, ModelEntry, ProviderPreference } from "@kiwi/contracts";
 import { selectEnabledModelByAccessMode } from "./access-mode-resolver";
 
 export interface ResearcherProviderSelection {
@@ -17,13 +17,19 @@ export interface ResearcherProviderSelection {
 export interface ResearcherProviderRegistrySelectOptions {
   registryModels: ModelEntry[];
   env?: Record<string, string | undefined>;
+  preferenceByRole?: ProviderPreference | undefined;
 }
 
 export class ResearcherProviderRegistry {
   select(options: ResearcherProviderRegistrySelectOptions): ResearcherProviderSelection | null {
     const env = options.env ?? process.env;
     const candidates = this.pickCandidates(options.registryModels);
-    const selected = selectEnabledModelByAccessMode({ candidates, env });
+    const selected = selectEnabledModelByAccessMode({
+      candidates,
+      env,
+      role: ContractValues.Researcher,
+      preferenceByRole: options.preferenceByRole,
+    });
     if (!selected) return null;
     return {
       model: selected.model,

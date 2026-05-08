@@ -18,6 +18,7 @@ export type AuditEventType =
   | "reviewer_failed"
   | "scheduler_routing_decided"
   | "scheduler_blocked"
+  | "provider_preference_applied"
   | "executor_model_selected"
   | "context_package_created"
   | "step_attempt_started"

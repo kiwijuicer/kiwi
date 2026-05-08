@@ -22,6 +22,7 @@ const policy: KiwiPolicy = {
   routing: {
     defaultAgentRole: "executor",
     defaultModelCapability: "mid",
+    providerPreference: {},
     stepTypeOverrides: {
       planning: {
         agentRole: "planner",

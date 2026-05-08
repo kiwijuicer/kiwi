@@ -446,6 +446,7 @@ describe("contracts schemas", () => {
       routing: {
         defaultAgentRole: "executor",
         defaultModelCapability: "mid",
+        providerPreference: {},
         stepTypeOverrides: {},
       },
       riskZones: { high: [] },

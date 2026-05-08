@@ -57,6 +57,15 @@ function sendJson(response: ServerResponse, statusCode: number, payload: unknown
   response.end(body);
 }
 
+function acceptsSse(request: IncomingMessage): boolean {
+  const accept = request.headers.accept;
+  return typeof accept === "string" && accept.includes("text/event-stream");
+}
+
+function writeSse(response: ServerResponse, payload: unknown): void {
+  response.write(`event: message\ndata: ${JSON.stringify(payload)}\n\n`);
+}
+
 function readRequestBody(request: IncomingMessage, maxBytes = 1024 * 1024): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -133,6 +142,20 @@ async function handleHttpMcpRequest(
       id: null,
       error: { code: -32700, message: parseMessage },
     });
+    return;
+  }
+
+  if (acceptsSse(request)) {
+    response.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+    });
+    const payload = await handleMcpMessage(message, cwd, {
+      sendNotification: (notification) => writeSse(response, notification),
+    });
+    if (payload !== undefined) writeSse(response, payload);
+    response.end();
     return;
   }
 

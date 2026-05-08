@@ -130,7 +130,20 @@ describe("MCP server", () => {
     const tools = await handleMcpRequest({ id: 2, method: "tools/list" }, setupRepo());
     expect(tools.error).toBeUndefined();
     expect(JSON.stringify(tools.result)).toContain("kiwi_plan");
+    expect(JSON.stringify(tools.result)).not.toContain("kiwi_a2a_receive");
     expect(JSON.stringify(tools.result)).toContain("inputSchema");
+  });
+
+  it("shows A2A tools only when KIWI_A2A_MCP is enabled", async () => {
+    const previous = process.env.KIWI_A2A_MCP;
+    process.env.KIWI_A2A_MCP = "1";
+    try {
+      const tools = await handleMcpRequest({ id: 1, method: "tools/list" }, setupRepo());
+      expect(JSON.stringify(tools.result)).toContain("kiwi_a2a_receive");
+    } finally {
+      if (previous === undefined) delete process.env.KIWI_A2A_MCP;
+      else process.env.KIWI_A2A_MCP = previous;
+    }
   });
 
   it("returns structured invalid params errors for malformed tool payloads", async () => {
@@ -217,8 +230,11 @@ describe("MCP server", () => {
       });
 
       expect(response.status).toBe(200);
-      expect(response.headers.get("content-type")).toContain("application/json");
-      const payload = (await response.json()) as { result: { protocolVersion: string; serverInfo: { name: string } } };
+      expect(response.headers.get("content-type")).toContain("text/event-stream");
+      const body = await response.text();
+      const payload = JSON.parse(body.match(/data: (.+)/)?.[1] ?? "{}") as {
+        result: { protocolVersion: string; serverInfo: { name: string } };
+      };
       expect(payload.result.protocolVersion).toBe("2025-03-26");
       expect(payload.result.serverInfo.name).toBe("kiwi");
     } finally {
@@ -237,7 +253,7 @@ describe("MCP server", () => {
       const response = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
         method: "POST",
         headers: {
-          accept: "application/json, text/event-stream",
+          accept: "application/json",
           "content-type": "application/json",
         },
         body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized", params: {} }),
@@ -467,6 +483,38 @@ describe("MCP server", () => {
 
     expect(planned.error).toBeUndefined();
     expect((toolJson(planned) as { runId: string }).runId).toMatch(/^run_/);
+  });
+
+  it("emits progress notifications for kiwi_plan and lists concrete run resources", async () => {
+    const cwd = setupRepo();
+    const notifications: unknown[] = [];
+    const planned = await handleMcpRequest(
+      {
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: { rawInput: "# Progress MCP\n\n## Plan", allowStub: true },
+        },
+      },
+      cwd,
+      { sendNotification: (notification) => notifications.push(notification) },
+    );
+    expect(planned.error).toBeUndefined();
+    const parsed = toolJson(planned) as { runId: string; estimatedCostUsd: number };
+    expect(parsed.estimatedCostUsd).toBeTypeOf("number");
+    expect(JSON.stringify(notifications)).toContain("notifications/progress");
+    expect(JSON.stringify(notifications)).toContain("phase=planner status=started");
+    expect(JSON.stringify(notifications)).toContain("phase=planner status=completed");
+
+    const resources = await handleMcpRequest({ id: 2, method: "resources/list" }, cwd);
+    expect(JSON.stringify(resources.result)).toContain(`kiwi://${parsed.runId}/plan/task-graph.json`);
+
+    const taskGraph = await handleMcpRequest(
+      { id: 3, method: "resources/read", params: { uri: `kiwi://${parsed.runId}/plan/task-graph.json` } },
+      cwd,
+    );
+    expect(JSON.stringify(taskGraph.result)).toContain("Progress MCP");
   });
 
   it("falls back from uninitialized workspacePath to initialized repoPath and prefers repoPath over repoId", async () => {

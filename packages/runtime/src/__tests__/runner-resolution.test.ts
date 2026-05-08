@@ -100,6 +100,21 @@ describe("runner resolution", () => {
     expect(resolution.selectedExecutorModel?.accessMode).toBe("codex-cli");
   });
 
+  it("uses executor provider preference for runner and model tie-breaks", () => {
+    const resolution = resolveRunner({
+      registryModels: [
+        executorModel("claude-sonnet", "strong", "claude-code-cli"),
+        executorModel("codex-auto", "strong", "codex-cli"),
+      ],
+      step: codingStep,
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
+      preferenceByRole: { executor: ["codex-cli", "claude-code-cli"] },
+    });
+
+    expect(resolution.runnerAvailability[0]).toBe("codex");
+    expect(resolution.selectedExecutorModel?.id).toBe("codex-auto");
+  });
+
   it("honors a cheap scheduler decision before choosing stronger executor models", () => {
     const resolution = resolveRunner({
       registryModels: [

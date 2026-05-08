@@ -11,11 +11,16 @@ import {
   ContractValues,
   ModelCapability,
   ModelEntry,
+  ProviderPreference,
   RunnerName,
   RunnerNames,
   Step,
 } from "@kiwi/contracts";
-import { AccessModeAvailability, evaluateAccessModeAvailability } from "./access-mode-resolver";
+import {
+  AccessModeAvailability,
+  accessModeOrderForRole,
+  evaluateAccessModeAvailability,
+} from "./access-mode-resolver";
 
 export interface RunnerResolutionOptions {
   registryModels: ModelEntry[];
@@ -26,6 +31,7 @@ export interface RunnerResolutionOptions {
    */
   requestedCapability?: ModelCapability;
   env?: Record<string, string | undefined>;
+  preferenceByRole?: ProviderPreference | undefined;
 }
 
 export type ExecutorSelectionReason =
@@ -191,10 +197,20 @@ function isAccessAvailable(model: ModelEntry, env: Record<string, string | undef
   return evaluateAccessModeAvailability(model.accessMode, env).available;
 }
 
-function preferAccessOrder(candidates: ModelEntry[], env: Record<string, string | undefined>): ModelEntry | null {
-  for (const accessMode of EXECUTOR_ACCESS_MODE_ORDER) {
-    const candidate = candidates.find((entry) => entry.accessMode === accessMode);
-    if (candidate && isAccessAvailable(candidate, env)) return candidate;
+function preferAccessOrder(params: {
+  candidates: ModelEntry[];
+  env: Record<string, string | undefined>;
+  preferenceByRole?: ProviderPreference | undefined;
+}): ModelEntry | null {
+  const order = accessModeOrderForRole({
+    env: params.env,
+    role: ContractValues.Executor,
+    preferenceByRole: params.preferenceByRole,
+    preferOrder: [...EXECUTOR_ACCESS_MODE_ORDER],
+  });
+  for (const accessMode of order) {
+    const candidate = params.candidates.find((entry) => entry.accessMode === accessMode);
+    if (candidate && isAccessAvailable(candidate, params.env)) return candidate;
   }
   return null;
 }
@@ -203,12 +219,14 @@ function preferCapabilityAndAccessOrder(params: {
   candidates: ModelEntry[];
   capabilities: ModelCapability[];
   env: Record<string, string | undefined>;
+  preferenceByRole?: ProviderPreference | undefined;
 }): ModelEntry | null {
   for (const capability of params.capabilities) {
-    const pick = preferAccessOrder(
-      params.candidates.filter((entry) => entry.capability === capability),
-      params.env,
-    );
+    const pick = preferAccessOrder({
+      candidates: params.candidates.filter((entry) => entry.capability === capability),
+      env: params.env,
+      preferenceByRole: params.preferenceByRole,
+    });
     if (pick) return pick;
   }
   return null;
@@ -234,6 +252,7 @@ function pickExecutorModel(
   models: ModelEntry[],
   env: Record<string, string | undefined>,
   requested: ModelCapability,
+  preferenceByRole?: ProviderPreference | undefined,
 ): ExecutorSelection {
   const enabled = models.filter((model) => model.enabled && model.roles.includes(ContractValues.Executor));
   if (enabled.length === 0) {
@@ -249,7 +268,7 @@ function pickExecutorModel(
   const stubs = enabled.filter((model) => model.accessMode === AccessModes.Stub);
 
   const atOrAbove = CAPABILITY_ORDER.filter((capability) => CAPABILITY_RANK[capability] >= requestedRank);
-  const adequatePick = preferCapabilityAndAccessOrder({ candidates: nonStub, capabilities: atOrAbove, env });
+  const adequatePick = preferCapabilityAndAccessOrder({ candidates: nonStub, capabilities: atOrAbove, env, preferenceByRole });
   if (adequatePick) {
     return {
       model: adequatePick,
@@ -260,7 +279,7 @@ function pickExecutorModel(
   }
 
   const below = CAPABILITY_ORDER.filter((capability) => CAPABILITY_RANK[capability] < requestedRank).reverse();
-  const lowerPick = preferCapabilityAndAccessOrder({ candidates: nonStub, capabilities: below, env });
+  const lowerPick = preferCapabilityAndAccessOrder({ candidates: nonStub, capabilities: below, env, preferenceByRole });
   if (lowerPick) {
     return {
       model: lowerPick,
@@ -289,8 +308,21 @@ function pickExecutorModel(
   };
 }
 
-function priorityForStep(step: Step): RunnerName[] {
-  return CODING_STEP_TYPES.has(step.type) ? CODING_RUNNER_PRIORITY : DEFAULT_RUNNER_PRIORITY;
+function runnerForAccessMode(accessMode: AccessMode): RunnerName | null {
+  if (accessMode === AccessModes.ClaudeCodeCli) return RunnerNames.ClaudeCode;
+  if (accessMode === AccessModes.CodexCli) return RunnerNames.Codex;
+  if (accessMode === AccessModes.CursorAgentCli) return RunnerNames.CursorAgent;
+  if (accessMode === AccessModes.Local || accessMode === AccessModes.Stub) return RunnerNames.LocalShell;
+  return null;
+}
+
+function priorityForStep(step: Step, preferenceByRole?: ProviderPreference | undefined): RunnerName[] {
+  const base = CODING_STEP_TYPES.has(step.type) ? CODING_RUNNER_PRIORITY : DEFAULT_RUNNER_PRIORITY;
+  const preferred = (preferenceByRole?.[ContractValues.Executor] ?? [])
+    .map((accessMode) => runnerForAccessMode(accessMode))
+    .filter((entry): entry is RunnerName => entry !== null);
+  if (preferred.length === 0) return base;
+  return [...preferred, ...base.filter((entry) => !preferred.includes(entry))];
 }
 
 function priorityIndex(priority: RunnerName[], runner: RunnerName): number {
@@ -317,15 +349,20 @@ export class RunnerRegistry {
         reason: `KIWI_FORCE_ACCESS_MODE=${env.KIWI_FORCE_ACCESS_MODE}`,
       };
     });
-    const priority = priorityForStep(options.step);
+    const priority = priorityForStep(options.step, options.preferenceByRole);
     const runnerAvailability = details
       .filter((entry) => entry.available)
       .map((entry) => entry.runner)
       .sort((a, b) => priorityIndex(priority, a) - priorityIndex(priority, b));
     const requestedCapability = options.requestedCapability ?? options.step.recommendedModelCapability;
-    const executorSelection = pickExecutorModel(options.registryModels, env, requestedCapability);
+    const executorSelection = pickExecutorModel(
+      options.registryModels,
+      env,
+      requestedCapability,
+      options.preferenceByRole,
+    );
     const selectExecutorModel = (capability: ModelCapability): ExecutorSelection =>
-      pickExecutorModel(options.registryModels, env, capability);
+      pickExecutorModel(options.registryModels, env, capability, options.preferenceByRole);
 
     return {
       runnerAvailability,

@@ -275,6 +275,21 @@ export class ProviderReviewEngine implements ReviewEngine {
         riskHigh: input.riskHigh ?? false,
       },
     });
+    if ((this.options.policy.routing.providerPreference.reviewer ?? []).length > 0) {
+      appendAuditEvent(this.options.cwd, {
+        eventType: "provider_preference_applied",
+        runId: input.runId,
+        timestamp: new Date().toISOString(),
+        payload: {
+          stepId: input.stepId,
+          attemptId: input.attemptId,
+          role: ContractValues.Reviewer,
+          selectedAccessMode: model.accessMode,
+          selectedModelId: model.id,
+          preference: this.options.policy.routing.providerPreference.reviewer ?? [],
+        },
+      });
+    }
 
     const validated = await runReviewerValidation({ options: this.options, input, reviewerInput, selected });
     appendReviewerSuccessEvidence({ options: this.options, input, model, validated });

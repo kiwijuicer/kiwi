@@ -46,6 +46,14 @@ export const ToolInputSchemas = {
     command: z.string().min(1).optional(),
     approved: z.boolean().optional(),
   }),
+  kiwi_diff: RunIdSchema.extend({
+    stepId: z.string().min(1).optional(),
+    all: z.boolean().optional(),
+  }),
+  kiwi_apply: RunIdSchema.extend({
+    stepId: z.string().min(1).optional(),
+    forceUnsafe: z.boolean().optional(),
+  }),
   kiwi_finalize: RunIdSchema,
   kiwi_cost: RunIdSchema,
   kiwi_explain: RunIdSchema,

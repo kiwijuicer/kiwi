@@ -21,10 +21,24 @@ export const KiwiConfigSchema = z.object({
   a2a: A2AConfigSchema.default({}),
 });
 
+export const ModelProviderSchema = enumFrom(MODEL_PROVIDER_VALUES);
+export const AccessModeSchema = enumFrom(ACCESS_MODE_VALUES);
+
 export const PolicyRoutingOverrideSchema = z.object({
   agentRole: AgentRoleSchema,
   modelCapability: ModelCapabilitySchema,
 });
+
+export const ProviderPreferenceSchema = z
+  .object({
+    planner: z.array(AccessModeSchema).optional(),
+    researcher: z.array(AccessModeSchema).optional(),
+    executor: z.array(AccessModeSchema).optional(),
+    reviewer: z.array(AccessModeSchema).optional(),
+    security: z.array(AccessModeSchema).optional(),
+    rules: z.array(AccessModeSchema).optional(),
+  })
+  .default({});
 
 export const CommandProfileSchema = z.object({
   allowedCommands: z.array(z.string().min(1)).default([]),
@@ -53,6 +67,7 @@ export const KiwiPolicySchema = z.object({
   routing: z.object({
     defaultAgentRole: AgentRoleSchema,
     defaultModelCapability: ModelCapabilitySchema,
+    providerPreference: ProviderPreferenceSchema,
     stepTypeOverrides: z.record(z.string(), PolicyRoutingOverrideSchema).default({}),
   }),
   riskZones: z.object({
@@ -64,9 +79,6 @@ export const KiwiPolicySchema = z.object({
   }),
   commandProfiles: z.record(z.string(), CommandProfileSchema).default({}),
 });
-
-export const ModelProviderSchema = enumFrom(MODEL_PROVIDER_VALUES);
-export const AccessModeSchema = enumFrom(ACCESS_MODE_VALUES);
 
 export function defaultAccessModeForProvider(
   provider: z.infer<typeof ModelProviderSchema>,
@@ -104,6 +116,7 @@ export type NetworkPolicy = z.infer<typeof NetworkPolicySchema>;
 export type UsagePrecision = z.infer<typeof UsagePrecisionSchema>;
 export type KiwiConfig = z.infer<typeof KiwiConfigSchema>;
 export type PolicyRoutingOverride = z.infer<typeof PolicyRoutingOverrideSchema>;
+export type ProviderPreference = z.infer<typeof ProviderPreferenceSchema>;
 export type CommandProfile = z.infer<typeof CommandProfileSchema>;
 export type KiwiPolicy = z.infer<typeof KiwiPolicySchema>;
 export type ModelProvider = z.infer<typeof ModelProviderSchema>;

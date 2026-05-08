@@ -14,7 +14,6 @@ import {
 } from "@kiwi/core";
 import { ArtifactTypes, ContractValues, Initiative, KiwiPolicy, ModelEntry, RunnerNames, Step } from "@kiwi/contracts";
 import {
-  applyDiffArtifactToSource,
   createGitTreeSnapshot,
   createWorktreeSandbox,
   SandboxCommandPolicy,
@@ -93,6 +92,33 @@ function auditExecutorModelSelected(params: {
   });
 }
 
+function auditProviderPreference(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  role: string;
+  selectedAccessMode: string | null;
+  selectedModelId: string | null;
+  preference: string[];
+  now: Date;
+}): void {
+  if (params.preference.length === 0) return;
+  appendAuditEvent(params.cwd, {
+    eventType: "provider_preference_applied",
+    runId: params.runId,
+    timestamp: params.now.toISOString(),
+    payload: {
+      stepId: params.stepId,
+      attemptId: params.attemptId,
+      role: params.role,
+      selectedAccessMode: params.selectedAccessMode,
+      selectedModelId: params.selectedModelId,
+      preference: params.preference,
+    },
+  });
+}
+
 function materializeAttemptDiff(params: {
   cwd: string;
   runId: string;
@@ -130,51 +156,10 @@ function materializeAttemptDiff(params: {
     };
   }
 
-  const applied = applyDiffArtifactToSource({
-    cwd: params.cwd,
-    runId: params.runId,
-    diffRef: diffArtifact.ref,
-    sourcePath: params.repoPath,
-  });
-  const base = {
-    diffRef: diffArtifact.ref,
-    patchPath: applied.patchPath,
-    targetPath: params.repoPath,
+  return {
+    status: "skipped",
+    reason: `diff persisted for review: ${diffArtifact.ref}`,
   };
-
-  if (applied.applied) {
-    appendAuditEvent(params.cwd, {
-      eventType: "attempt_diff_applied",
-      runId: params.runId,
-      timestamp: new Date().toISOString(),
-      payload: {
-        stepId: params.stepId,
-        attemptId: params.attemptId,
-        diffRef: diffArtifact.ref,
-        targetPath: params.repoPath,
-      },
-    });
-    return { status: "applied", ...base };
-  }
-
-  if (applied.reason?.startsWith("source path is not a git repository:")) {
-    return { status: "skipped", reason: applied.reason };
-  }
-
-  const failed = { status: ContractValues.Failed, ...base, reason: applied.reason ?? "git apply failed" };
-  appendAuditEvent(params.cwd, {
-    eventType: "attempt_diff_apply_failed",
-    runId: params.runId,
-    timestamp: new Date().toISOString(),
-    payload: {
-      stepId: params.stepId,
-      attemptId: params.attemptId,
-      diffRef: diffArtifact.ref,
-      targetPath: params.repoPath,
-      reason: failed.reason,
-    },
-  });
-  return failed;
 }
 
 function selectStepRunner(params: {
@@ -196,7 +181,10 @@ function selectStepRunner(params: {
   }
 
   const researcherSelection = params.isResearchStep
-    ? new ResearcherProviderRegistry().select({ registryModels: params.registryModels })
+    ? new ResearcherProviderRegistry().select({
+        registryModels: params.registryModels,
+        preferenceByRole: params.policy.routing.providerPreference,
+      })
     : null;
   if (params.isResearchStep && !researcherSelection) {
     throw new Error("No enabled researcher model with an available access mode found in .kiwi/model-registry.yaml");
@@ -211,6 +199,17 @@ function selectStepRunner(params: {
       attemptId: params.decision.attemptId,
       runner: params.decision.runner ?? RunnerNames.Api,
       selection: executorSelection,
+      now: params.now,
+    });
+    auditProviderPreference({
+      cwd: params.cwd,
+      runId: params.runId,
+      stepId: params.stepId,
+      attemptId: params.decision.attemptId,
+      role: ContractValues.Executor,
+      selectedAccessMode: executorSelection.model?.accessMode ?? null,
+      selectedModelId: executorSelection.model?.id ?? null,
+      preference: params.policy.routing.providerPreference.executor ?? [],
       now: params.now,
     });
   }
@@ -327,6 +326,20 @@ function scheduleCurrentStepAttempt(params: {
   return decision;
 }
 
+function resolveStepRunnerResolution(params: {
+  isResearchStep: boolean;
+  registryModels: ModelEntry[];
+  step: Step;
+  policy: KiwiPolicy;
+}): RunnerResolution | null {
+  if (params.isResearchStep) return null;
+  return resolveRunner({
+    registryModels: params.registryModels,
+    step: params.step,
+    preferenceByRole: params.policy.routing.providerPreference,
+  });
+}
+
 export async function executePlannedStep(input: ExecutePlannedStepInput): Promise<ExecutePlannedStepResult> {
   const policy = loadPolicy(kiwiPolicyPath(input.cwd));
   const registry = loadRegistry(kiwiModelRegistryPath(input.cwd));
@@ -343,7 +356,7 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
   });
   const now = input.now ?? new Date();
   const isResearchStep = step.type === "context_discovery";
-  const runnerResolution = isResearchStep ? null : resolveRunner({ registryModels: registry.models, step });
+  const runnerResolution = resolveStepRunnerResolution({ isResearchStep, registryModels: registry.models, step, policy });
   const decision = scheduleCurrentStepAttempt({
     input,
     step,

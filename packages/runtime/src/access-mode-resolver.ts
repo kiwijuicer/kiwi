@@ -1,5 +1,5 @@
 import { execFileSync } from "child_process";
-import { AccessMode, AccessModes, ModelEntry } from "@kiwi/contracts";
+import { AccessMode, AccessModes, AgentRole, ModelEntry, ProviderPreference } from "@kiwi/contracts";
 
 export interface AccessModeAvailability {
   accessMode: AccessMode;
@@ -161,10 +161,25 @@ export function preferredAccessModes(env: Record<string, string | undefined>): A
   return DEFAULT_PRIORITY;
 }
 
+export function accessModeOrderForRole(params: {
+  env: Record<string, string | undefined>;
+  role?: AgentRole | undefined;
+  preferenceByRole?: ProviderPreference | undefined;
+  preferOrder?: AccessMode[] | undefined;
+}): AccessMode[] {
+  const base = params.preferOrder ?? preferredAccessModes(params.env);
+  if (params.env.KIWI_FORCE_ACCESS_MODE) return base;
+  const preferred = params.role ? (params.preferenceByRole?.[params.role] ?? []) : [];
+  if (preferred.length === 0) return base;
+  return [...preferred, ...base.filter((entry) => !preferred.includes(entry))];
+}
+
 export interface SelectModelByAccessModeParams {
   candidates: ModelEntry[];
   env: Record<string, string | undefined>;
-  preferOrder?: AccessMode[];
+  preferOrder?: AccessMode[] | undefined;
+  preferenceByRole?: ProviderPreference | undefined;
+  role?: AgentRole | undefined;
   excludeStub?: boolean;
 }
 
@@ -174,7 +189,13 @@ export interface SelectedModel {
 }
 
 export function selectEnabledModelByAccessMode(params: SelectModelByAccessModeParams): SelectedModel | null {
-  const order = params.preferOrder ?? preferredAccessModes(params.env);
+  const orderParams: Parameters<typeof accessModeOrderForRole>[0] = {
+    env: params.env,
+  };
+  if (params.role) orderParams.role = params.role;
+  if (params.preferenceByRole) orderParams.preferenceByRole = params.preferenceByRole;
+  if (params.preferOrder) orderParams.preferOrder = params.preferOrder;
+  const order = accessModeOrderForRole(orderParams);
   const enabled = params.candidates.filter((entry) => entry.enabled);
   const filtered = params.excludeStub ? enabled.filter((entry) => entry.accessMode !== AccessModes.Stub) : enabled;
   for (const accessMode of order) {

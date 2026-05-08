@@ -55,8 +55,12 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
     });
 
   addWorkspaceOptions(
-    program.command("status [runId]").description("Show summary for stored runs").option("--json", "Print JSON"),
-  ).action((runId?: string, opts?: { workspace?: string; repo?: string; json?: boolean }) => {
+    program
+      .command("status [runId]")
+      .description("Show summary for stored runs")
+      .option("--json", "Print JSON")
+      .option("--verbose", "Show attempts, subplans, and artifact paths"),
+  ).action((runId?: string, opts?: { workspace?: string; repo?: string; json?: boolean; verbose?: boolean }) => {
     runStatus(process.cwd(), runId, withWorkspaceOptions(opts ?? {})).catch(handleCommandError);
   });
 

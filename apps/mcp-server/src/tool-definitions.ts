@@ -12,6 +12,18 @@ const RUN_ID_SCHEMA = {
 const NO_AUTO_COMMIT_NOTE =
   "Do not stage, commit, tag, or push unless the user explicitly requested that git operation.";
 
+const A2A_TOOL_NAMES = new Set([
+  "kiwi_a2a_receive",
+  "kiwi_a2a_config",
+  "kiwi_a2a_trust_add",
+  "kiwi_a2a_trust_list",
+  "kiwi_a2a_trust_remove",
+  "kiwi_a2a_publish",
+  "kiwi_a2a_sync",
+  "kiwi_a2a_inbox",
+  "kiwi_a2a_accept",
+]);
+
 export const TOOLS = [
   {
     name: "kiwi_plan",
@@ -77,6 +89,38 @@ export const TOOLS = [
         repoPath: { type: "string" },
       },
       required: ["runId", "stepId"],
+    },
+  },
+  {
+    name: "kiwi_diff",
+    description: "Read persisted attempt patch stat and diff",
+    inputSchema: {
+      type: "object",
+      properties: {
+        runId: { type: "string" },
+        stepId: { type: "string" },
+        all: { type: "boolean" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+      required: ["runId"],
+    },
+  },
+  {
+    name: "kiwi_apply",
+    description: `Apply a persisted worktree patch to the source repo. ${NO_AUTO_COMMIT_NOTE}`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        runId: { type: "string" },
+        stepId: { type: "string" },
+        forceUnsafe: { type: "boolean" },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+      required: ["runId"],
     },
   },
   { name: "kiwi_finalize", description: `Finalize a run. ${NO_AUTO_COMMIT_NOTE}`, inputSchema: RUN_ID_SCHEMA },
@@ -265,3 +309,8 @@ export const TOOLS = [
     },
   },
 ] as const;
+
+export function listTools(): typeof TOOLS {
+  if (process.env.KIWI_A2A_MCP === "1") return TOOLS;
+  return TOOLS.filter((tool) => !A2A_TOOL_NAMES.has(tool.name)) as unknown as typeof TOOLS;
+}

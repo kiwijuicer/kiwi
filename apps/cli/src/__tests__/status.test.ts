@@ -19,7 +19,33 @@ describe("kiwi status", () => {
     spy.mockRestore();
   });
 
-  it("prints detailed run summary with title, plan, step count, and artifact paths", async () => {
+  it("prints compact run summary by default", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-status-compact-"));
+    await runInit({}, cwd);
+    await runPlan(
+      "# Feature: Compact Status\n\n## Analyze\n## Implement",
+      {
+        allowStub: true,
+        env: { PATH: "/empty" },
+        now: new Date("2026-05-04T04:00:00.000Z"),
+        runIdSuffix: "s000",
+        initiativeIdSuffix: "s000",
+        planIdSuffix: "s000",
+      },
+      cwd,
+    );
+
+    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    await runStatus(cwd);
+    const output = spy.mock.calls.flat().join("\n");
+
+    expect(output).toContain("runId  status  cost  next-action");
+    expect(output).toContain("run_20260504_060000_s000  planned  $0.00  continue_or_finalize");
+    expect(output).not.toContain("artifacts:");
+    spy.mockRestore();
+  });
+
+  it("prints detailed run summary with title, plan, step count, and artifact paths behind verbose", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-status-details-"));
     await runInit({}, cwd);
     await runPlan(
@@ -36,7 +62,7 @@ describe("kiwi status", () => {
     );
 
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    await runStatus(cwd);
+    await runStatus(cwd, undefined, { verbose: true });
     const output = spy.mock.calls.flat().join("\n");
 
     expect(output).toContain("runs: 1");
@@ -84,8 +110,7 @@ describe("kiwi status", () => {
     await runStatus(cwd, "run_20260504_060001_b002");
     const output = spy.mock.calls.flat().join("\n");
 
-    expect(output).toContain("selected_run: run_20260504_060001_b002");
-    expect(output).toContain("runs: 1");
+    expect(output).toContain("runId  status  cost  next-action");
     expect(output).toContain("run_20260504_060001_b002");
     expect(output).not.toContain("run_20260504_060000_a001");
     spy.mockRestore();

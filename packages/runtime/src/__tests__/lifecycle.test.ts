@@ -132,7 +132,7 @@ function writeExecutionConfig(repo: string): void {
         lint: `${process.execPath} -e 0`,
         typecheck: `${process.execPath} -e 0`,
       },
-      routing: { defaultAgentRole: "executor", defaultModelCapability: "mid", stepTypeOverrides: {} },
+      routing: { defaultAgentRole: "executor", defaultModelCapability: "mid", providerPreference: {}, stepTypeOverrides: {} },
       riskZones: { high: [] },
       approvals: { requireFor: [], commandApprovalStates: {} },
       commandProfiles: {
@@ -185,7 +185,7 @@ const highRiskPolicy: KiwiPolicy = {
   version: "1",
   project: { name: "kiwi", language: "typescript", packageManager: "pnpm" },
   commands: { test: "node -e 0", lint: "node -e 0", typecheck: "node -e 0" },
-  routing: { defaultAgentRole: "executor", defaultModelCapability: "mid", stepTypeOverrides: {} },
+  routing: { defaultAgentRole: "executor", defaultModelCapability: "mid", providerPreference: {}, stepTypeOverrides: {} },
   riskZones: { high: ["src/auth/**"] },
   approvals: { requireFor: [], commandApprovalStates: {} },
   commandProfiles: {

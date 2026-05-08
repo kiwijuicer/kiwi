@@ -1,4 +1,5 @@
 export * from "./access-mode-resolver";
+export * from "./diff-workflow";
 export * from "./planned-step-execution";
 export * from "./lifecycle/finalize";
 export * from "./operator-policy";

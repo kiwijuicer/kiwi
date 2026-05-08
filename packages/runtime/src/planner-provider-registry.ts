@@ -6,7 +6,7 @@ import {
   PlannerProvider,
   StubPlannerProvider,
 } from "@kiwi/adapters";
-import { AccessModes, ContractValues, ModelEntry } from "@kiwi/contracts";
+import { AccessModes, ContractValues, ModelEntry, ProviderPreference } from "@kiwi/contracts";
 import { buildDeterministicTaskGraph } from "@kiwi/core";
 import { evaluateAccessModeAvailability, selectEnabledModelByAccessMode } from "./access-mode-resolver";
 
@@ -22,6 +22,7 @@ export interface ResolvePlannerProviderOptions {
   now?: () => Date;
   planIdSuffix?: string;
   allowStub?: boolean;
+  preferenceByRole?: ProviderPreference | undefined;
 }
 
 function stubAllowed(options: ResolvePlannerProviderOptions, env: Record<string, string | undefined>): boolean {
@@ -55,8 +56,20 @@ export class PlannerProviderRegistry {
     );
     const fallbackCandidates = options.registryModels.filter((model) => model.roles.includes(ContractValues.Planner));
     const selected =
-      selectEnabledModelByAccessMode({ candidates, env, excludeStub: !allowStub }) ??
-      selectEnabledModelByAccessMode({ candidates: fallbackCandidates, env, excludeStub: !allowStub });
+      selectEnabledModelByAccessMode({
+        candidates,
+        env,
+        excludeStub: !allowStub,
+        role: ContractValues.Planner,
+        preferenceByRole: options.preferenceByRole,
+      }) ??
+      selectEnabledModelByAccessMode({
+        candidates: fallbackCandidates,
+        env,
+        excludeStub: !allowStub,
+        role: ContractValues.Planner,
+        preferenceByRole: options.preferenceByRole,
+      });
 
     if (!selected) {
       throw new Error(

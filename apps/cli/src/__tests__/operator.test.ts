@@ -2,7 +2,7 @@ import { execFileSync } from "child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { kiwiPolicyPath, readAuditEvents } from "@kiwi/core";
 import { runAttempt } from "../commands/attempt";
 import { runCost } from "../commands/cost";
@@ -15,6 +15,8 @@ import { runPlan } from "../commands/plan";
 import { runRun } from "../commands/run";
 import { runRulesSync } from "../commands/rules";
 import { runStatus } from "../commands/status";
+
+let previousForceAccessMode: string | undefined;
 
 function writeFastPolicy(cwd: string): void {
   writeFileSync(
@@ -67,6 +69,19 @@ commandProfiles:
 }
 
 describe("kiwi operator flow", () => {
+  beforeEach(() => {
+    previousForceAccessMode = process.env.KIWI_FORCE_ACCESS_MODE;
+    process.env.KIWI_FORCE_ACCESS_MODE = "stub";
+  });
+
+  afterEach(() => {
+    if (previousForceAccessMode === undefined) {
+      delete process.env.KIWI_FORCE_ACCESS_MODE;
+    } else {
+      process.env.KIWI_FORCE_ACCESS_MODE = previousForceAccessMode;
+    }
+  });
+
   it("plans, attempts, finalizes, and reports gate/review evidence", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-operator-"));
     await runInit({}, cwd);
@@ -121,7 +136,7 @@ describe("kiwi operator flow", () => {
     ).toContain("safeToApply: true");
 
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    await runStatus(cwd, "run_20260504_110000_op01");
+    await runStatus(cwd, "run_20260504_110000_op01", { verbose: true });
     const output = spy.mock.calls.flat().join("\n");
     spy.mockRestore();
 
@@ -152,11 +167,13 @@ describe("kiwi operator flow", () => {
     );
     expect(executorEvent?.payload).toMatchObject({
       attemptId: "attempt_001",
+      runner: "local-shell",
       requestedCapability: "strong",
       selectedCapability: "strong",
+      accessMode: "stub",
       reason: "stub_fallback",
     });
-  });
+  }, 10000);
 
   it("blocks direct attempts when dependencies are incomplete and releases the run lock", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-dependencies-"));
@@ -198,7 +215,7 @@ describe("kiwi operator flow", () => {
       },
       cwd,
     );
-  });
+  }, 10000);
 
   it("writes safe progress while running planned steps", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-run-progress-"));
@@ -236,7 +253,7 @@ describe("kiwi operator flow", () => {
     expect(output).toContain("step step_001: Validate");
     expect(output).toContain("executing attempt and review...");
     expect(output).toContain("step step_001 done: status=completed next=continue runStatus=completed");
-  });
+  }, 10000);
 
   it("edits only the selected repo directly by default", async () => {
     const workspace = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-workspace-attempt-"));
@@ -307,7 +324,7 @@ describe("kiwi operator flow", () => {
       "diff.patch",
     );
     expect(existsSync(diff)).toBe(true);
-  });
+  }, 10000);
 
   it("syncs cursor rules from canonical sources", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-rules-"));

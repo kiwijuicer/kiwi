@@ -13,7 +13,7 @@ const policy: KiwiPolicy = {
   version: "1",
   project: { name: "kiwi", language: "typescript", packageManager: "pnpm" },
   commands: { test: "pnpm test", lint: "pnpm lint", typecheck: "pnpm typecheck" },
-  routing: { defaultAgentRole: "executor", defaultModelCapability: "strong", stepTypeOverrides: {} },
+  routing: { defaultAgentRole: "executor", defaultModelCapability: "strong", providerPreference: {}, stepTypeOverrides: {} },
   riskZones: { high: [] },
   approvals: { requireFor: [], commandApprovalStates: {} },
   commandProfiles: {},

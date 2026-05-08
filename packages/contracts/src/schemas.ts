@@ -161,6 +161,7 @@ export {
 export {
   KiwiConfigSchema,
   PolicyRoutingOverrideSchema,
+  ProviderPreferenceSchema,
   CommandProfileSchema,
   KiwiPolicySchema,
   defaultAccessModeForProvider,

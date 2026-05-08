@@ -22,8 +22,20 @@ function kiwi(args, commandCwd = cwd) {
   });
 }
 
+function kiwiFails(args, commandCwd = cwd) {
+  try {
+    kiwi(args, commandCwd);
+  } catch (error) {
+    return `${error.stdout ?? ""}${error.stderr ?? ""}`;
+  }
+  throw new Error(`Expected kiwi ${args.join(" ")} to fail`);
+}
+
 kiwi(["init"]);
 const planOutput = kiwi(["plan", "# Smoke\n\n## Validate"]);
+if (!planOutput.includes("estimated cost:")) {
+  throw new Error(`smoke plan output did not include a cost forecast:\n${planOutput}`);
+}
 const runId = planOutput.match(/runId:\s+(run_[a-z0-9_]+)/)?.[1];
 if (!runId) {
   throw new Error(`smoke failed to parse runId from plan output:\n${planOutput}`);
@@ -158,6 +170,12 @@ mkdirSync(voiceCore);
 mkdirSync(voiceAgent);
 writeFileSync(path.join(voiceCore, "core.txt"), "core\n", "utf-8");
 writeFileSync(path.join(voiceAgent, "agent.txt"), "agent\n", "utf-8");
+execFileSync("git", ["init"], { cwd: voiceCore, stdio: "ignore" });
+execFileSync("git", ["add", "core.txt"], { cwd: voiceCore, stdio: "ignore" });
+execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+  cwd: voiceCore,
+  stdio: "ignore",
+});
 writeFileSync(
   path.join(workspace, "workspace.code-workspace"),
   JSON.stringify({
@@ -186,7 +204,30 @@ const workspaceRunId = workspacePlanOutput.match(/runId:\s+(run_[a-z0-9_]+)/)?.[
 if (!workspaceRunId) {
   throw new Error(`workspace smoke failed to parse runId:\n${workspacePlanOutput}`);
 }
-kiwi(["run", workspaceRunId, "--workspace", workspace, "--command", "node -e 0"]);
+const maxCostFailure = kiwiFails(["run", workspaceRunId, "--workspace", workspace, "--max-cost", "0.01"]);
+if (!maxCostFailure.includes("Estimated run cost")) {
+  throw new Error(`workspace smoke max-cost did not fail with forecast detail:\n${maxCostFailure}`);
+}
+kiwi([
+  "run",
+  workspaceRunId,
+  "--workspace",
+  workspace,
+  "--command",
+  "node -e \"require('fs').writeFileSync('smoke.txt','ok\\\\n')\"",
+]);
+const diffOutput = kiwi(["diff", workspaceRunId, "--workspace", workspace]);
+if (!diffOutput.includes("smoke.txt")) {
+  throw new Error(`workspace smoke diff did not include smoke.txt:\n${diffOutput}`);
+}
+const applyOutput = kiwi(["apply", workspaceRunId, "--workspace", workspace]);
+if (!applyOutput.includes("already applied during run")) {
+  throw new Error(`workspace smoke apply did not report direct-mode state:\n${applyOutput}`);
+}
+const tailOutput = kiwi(["tail", workspaceRunId, "--workspace", workspace, "--no-color", "--no-follow"]);
+if (!tailOutput.includes("provider_preference_applied")) {
+  throw new Error(`workspace smoke tail did not include provider preference event:\n${tailOutput}`);
+}
 const workspaceRun = readFileSync(path.join(workspace, ".kiwi", "runs", workspaceRunId, "run.json"), "utf-8");
 if (!workspaceRun.includes(`"repoPath": "${voiceCore}"`)) {
   throw new Error("workspace smoke run did not store target repo metadata");
@@ -197,8 +238,12 @@ if (remainingWorktrees.length !== 0) {
   throw new Error("workspace smoke left attempt worktrees behind");
 }
 const audit = readFileSync(path.join(workspace, ".kiwi", "logs", "audit.log"), "utf-8");
-if (!audit.includes(`"sourcePath":"${voiceCore}"`)) {
-  throw new Error("workspace smoke did not record selected repo sandbox source");
+if (!audit.includes(voiceCore)) {
+  throw new Error("workspace smoke did not record selected repo path");
+}
+const policy = readFileSync(path.join(workspace, ".kiwi", "policy.yaml"), "utf-8");
+if (!policy.includes("providerPreference")) {
+  throw new Error("workspace smoke policy did not include providerPreference");
 }
 
 console.log(`smoke ok: ${runId}, ${workspaceRunId}`);

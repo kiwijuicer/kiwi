@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { AccessModes, ContractValues } from "@kiwi/contracts";
 import {
+  buildRunCostForecast,
   kiwiModelRegistryPath,
   kiwiPolicyPath,
   generateRunId,
@@ -66,6 +67,10 @@ function formatProgressLine(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toFixed(2)}`;
 }
 
 function createPlanProgressReporter(opts: {
@@ -152,6 +157,7 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
   const resolution = resolvePlannerProvider({
     registryModels: registry.models,
     now: () => now,
+    preferenceByRole: policy.routing.providerPreference,
     ...(opts.env ? { env: opts.env } : {}),
     ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
     ...(opts.allowStub ? { allowStub: opts.allowStub } : {}),
@@ -232,5 +238,18 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
   const plannerLine = `planner: ${planned.plannerModelId} (${planned.providerName})`;
   console.log(plannerModel.accessMode === AccessModes.Stub ? chalk.yellow(plannerLine) : chalk.dim(plannerLine));
   console.log(chalk.dim(`steps: ${planned.taskGraph.steps.length}`));
+  const forecast = buildRunCostForecast({
+    taskGraph: planned.taskGraph,
+    plannerCostUsd: planned.plannerOutput.cost.estimatedUsd,
+  });
+  console.log(
+    chalk.dim(
+      `estimated cost: ${formatUsd(forecast.estimatedCostUsd)} (planner ${formatUsd(
+        forecast.phaseCostsUsd.planner,
+      )} + execution ${formatUsd(forecast.phaseCostsUsd.execution)} + review ${formatUsd(
+        forecast.phaseCostsUsd.review,
+      )})`,
+    ),
+  );
   console.log(chalk.dim(`saved: .kiwi/runs/${planned.runId}/`));
 }

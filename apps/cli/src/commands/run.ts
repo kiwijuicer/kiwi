@@ -1,6 +1,13 @@
 import chalk from "chalk";
 import { ContractValues } from "@kiwi/contracts";
-import { getRunStatusSummary, loadTaskGraph, withRunLock } from "@kiwi/core";
+import {
+  buildRunCostForecast,
+  firstBudgetProfileForCost,
+  getRunStatusSummary,
+  loadPlannerCostReport,
+  loadTaskGraph,
+  withRunLock,
+} from "@kiwi/core";
 import { attemptReplan, ExecutePlannedStepResult, injectFixStep, loadReviewVerdict, runScheduledSubPlans } from "@kiwi/runtime";
 import { buildRunCompletionSummary } from "@kiwi/ops";
 import { runAttemptUnlocked, AttemptOptions } from "./attempt";
@@ -12,6 +19,7 @@ interface RunOptions extends AttemptOptions {
   maxConcurrency?: number;
   autoFix?: boolean;
   autoReplan?: boolean;
+  maxCost?: number;
   progress?: RunProgressOptions;
 }
 
@@ -81,6 +89,37 @@ function createRunProgressReporter(opts: RunProgressOptions | undefined): RunPro
       for (const stepId of active.keys()) stopStep(stepId);
     },
   };
+}
+
+function formatUsd(value: number): string {
+  return `$${value.toFixed(2)}`;
+}
+
+function plannerCostUsd(cwd: string, runId: string): number {
+  try {
+    return loadPlannerCostReport(cwd, runId).cost.estimatedUsd;
+  } catch {
+    return 0;
+  }
+}
+
+function assertWithinRunMaxCost(params: {
+  cwd: string;
+  runId: string;
+  taskGraph: ReturnType<typeof loadTaskGraph>;
+  maxCost?: number;
+}): void {
+  if (params.maxCost === undefined) return;
+  const forecast = buildRunCostForecast({
+    taskGraph: params.taskGraph,
+    plannerCostUsd: plannerCostUsd(params.cwd, params.runId),
+  });
+  if (forecast.estimatedCostUsd <= params.maxCost) return;
+  const profile = firstBudgetProfileForCost(forecast.estimatedCostUsd);
+  const hint = profile ? ` Re-plan with --budget-profile ${profile} if this run is intentional.` : "";
+  throw new Error(
+    `Estimated run cost ${formatUsd(forecast.estimatedCostUsd)} exceeds --max-cost ${formatUsd(params.maxCost)}.${hint}`,
+  );
 }
 
 /**
@@ -165,6 +204,9 @@ export async function runRun(runId: string, opts: RunOptions = {}, cwd: string =
   if (opts.maxConcurrency !== undefined && (!Number.isInteger(opts.maxConcurrency) || opts.maxConcurrency <= 0)) {
     throw new Error(`--max-concurrency must be a positive integer; received ${opts.maxConcurrency}`);
   }
+  if (opts.maxCost !== undefined && (!Number.isFinite(opts.maxCost) || opts.maxCost < 0)) {
+    throw new Error(`--max-cost must be a non-negative number; received ${opts.maxCost}`);
+  }
 
   const progress = createRunProgressReporter(opts.progress);
   const workspace = resolveCliWorkspace(opts, cwd, false);
@@ -183,6 +225,13 @@ export async function runRun(runId: string, opts: RunOptions = {}, cwd: string =
       },
       async () => {
         const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
+        const maxCostInput: Parameters<typeof assertWithinRunMaxCost>[0] = {
+          cwd: workspace.workspacePath,
+          runId,
+          taskGraph,
+        };
+        if (opts.maxCost !== undefined) maxCostInput.maxCost = opts.maxCost;
+        assertWithinRunMaxCost(maxCostInput);
         const titlesByStepId = new Map(taskGraph.steps.map((step) => [step.stepId, step.title]));
         progress.line(chalk.dim(`steps: ${taskGraph.steps.length}`));
         if (opts.fromStep) progress.line(chalk.dim(`fromStep: ${opts.fromStep}`));

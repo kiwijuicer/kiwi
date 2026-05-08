@@ -23,7 +23,7 @@ async function handleParsedMcpMessage(
   cwd: string,
   writeResponse: (payload: unknown) => void,
 ): Promise<void> {
-  const response = await handleMcpMessage(value, cwd);
+  const response = await handleMcpMessage(value, cwd, { sendNotification: writeResponse });
   if (response !== undefined) writeResponse(response);
 }
 
