@@ -4,6 +4,7 @@ import {
   getRunStatusSummary,
   loadTaskGraph,
   RunArtifactPaths,
+  RunEditedFileEntry,
   RunAttemptStatusEntry,
   RunStatusEntry,
 } from "@kiwi/core";
@@ -49,6 +50,56 @@ function printArtifactPaths(paths: RunArtifactPaths): void {
   }
 }
 
+function printStepDetails(entry: RunStatusEntry): void {
+  console.log(`  step_status:`);
+  for (const step of entry.steps) {
+    const attempt = step.latestAttemptId ? ` attempt:${step.latestAttemptId}` : "";
+    const files = step.editedFiles.length > 0 ? ` files:${step.editedFiles.join(",")}` : "";
+    console.log(`    ${step.stepId}  ${step.status}  ${step.title}${attempt}${files}`);
+  }
+  console.log(
+    `  completed_steps: ${
+      entry.completedSteps.length > 0 ? entry.completedSteps.map((step) => step.stepId).join(", ") : "none"
+    }`,
+  );
+  console.log(
+    `  remaining_steps: ${
+      entry.remainingSteps.length > 0
+        ? entry.remainingSteps.map((step) => `${step.stepId}:${step.status}`).join(", ")
+        : "none"
+    }`,
+  );
+}
+
+function printEditedFiles(files: RunEditedFileEntry[]): void {
+  console.log(`  edited_files:`);
+  if (files.length === 0) {
+    console.log(`    none`);
+    return;
+  }
+  for (const file of files) {
+    console.log(`    ${file.path}  ${file.stepId}/${file.attemptId}`);
+  }
+}
+
+function printActiveStepActivity(entry: RunStatusEntry): void {
+  console.log(`  active_activity:`);
+  if (entry.activeStepActivity.length === 0) {
+    console.log(`    none`);
+    return;
+  }
+  for (const activity of entry.activeStepActivity) {
+    const routing =
+      activity.routingReason && activity.routingReason.length > 0 ? ` routing:${activity.routingReason.join(",")}` : "";
+    const scheduler = activity.schedulerStatus ? ` scheduler:${activity.schedulerStatus}` : "";
+    console.log(
+      `    ${activity.stepId}/${activity.attemptId}  ${activity.status}  runner:${activity.runner}${scheduler}${routing}`,
+    );
+    console.log(`      started: ${activity.startedAt}`);
+    console.log(`      context: ${activity.contextPackageRef}`);
+  }
+}
+
 function printCorruptRuns(corrupt: CorruptRunStatusEntry[]): void {
   if (corrupt.length === 0) return;
   console.log(chalk.yellow(`corrupt runs skipped: ${corrupt.length}`));
@@ -67,7 +118,9 @@ function printSubPlanTree(runId: string, cwd: string): void {
 }
 
 function printRunEntry(entry: RunStatusEntry, cwd: string): void {
-  console.log(`${entry.runId}  ${entry.status}  ${entry.updatedAt}`);
+  console.log(`${entry.runId}  ${entry.currentStatus}  ${entry.updatedAt}`);
+  console.log(`  run_state: ${entry.currentStatus}`);
+  if (entry.currentStatus !== entry.status) console.log(`  manifest_status: ${entry.status}`);
   console.log(`  title: ${entry.initiativeTitle}`);
   if (entry.repoId || entry.repoPath) {
     console.log(`  repo: ${entry.repoId ?? "repo"}${entry.repoPath ? ` (${entry.repoPath})` : ""}`);
@@ -75,13 +128,18 @@ function printRunEntry(entry: RunStatusEntry, cwd: string): void {
   console.log(`  plan: ${entry.currentPlanId}`);
   console.log(`  steps: ${entry.stepCount}`);
   printSubPlanTree(entry.runId, cwd);
+  printStepDetails(entry);
+  printEditedFiles(entry.editedFiles);
+  printActiveStepActivity(entry);
   printAttemptStatuses(entry.attempts);
   printArtifactPaths(entry.artifactPaths);
 }
 
 function printCompactRunEntry(entry: RunStatusEntry, cwd: string): void {
   const summary = buildRunCompletionSummary({ cwd, runId: entry.runId });
-  console.log(`${entry.runId}  ${entry.status}  ${formatUsd(summary.totalEstimatedCostUsd)}  ${summary.nextAction}`);
+  console.log(
+    `${entry.runId}  ${entry.currentStatus}  ${formatUsd(summary.totalEstimatedCostUsd)}  ${summary.nextAction}`,
+  );
 }
 
 export async function runStatus(cwd: string = process.cwd(), runId?: string, opts: StatusOptions = {}): Promise<void> {

@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { Initiative, TaskGraph } from "@kiwi/contracts";
+import { Artifact, Initiative, TaskGraph } from "@kiwi/contracts";
 import { getRunStatusSummary } from "../status";
 import { savePlannedRun } from "../run-store";
 import { refreshRunStatusFromAttempts } from "../lifecycle/status";
@@ -46,6 +46,106 @@ function fixtureTaskGraph(runId: string, initiativeId: string, planId: string): 
       },
     ],
   };
+}
+
+function fixtureDetailedTaskGraph(runId: string, initiativeId: string, planId: string): TaskGraph {
+  return {
+    ...fixtureTaskGraph(runId, initiativeId, planId),
+    steps: [
+      {
+        stepId: "step_001",
+        type: "code_modification",
+        title: "Implement output",
+        dependsOn: [],
+        successCriteria: ["details shown"],
+        requiredGates: [],
+        recommendedAgentRole: "executor",
+        recommendedModelCapability: "strong",
+        status: "pending",
+      },
+      {
+        stepId: "step_002",
+        type: "test_creation",
+        title: "Cover output",
+        dependsOn: ["step_001"],
+        successCriteria: ["tests pass"],
+        requiredGates: ["tests"],
+        recommendedAgentRole: "executor",
+        recommendedModelCapability: "mid",
+        status: "pending",
+      },
+      {
+        stepId: "step_003",
+        type: "validation",
+        title: "Validate output",
+        dependsOn: ["step_002"],
+        successCriteria: ["checks pass"],
+        requiredGates: ["typecheck"],
+        recommendedAgentRole: "reviewer",
+        recommendedModelCapability: "strong",
+        status: "pending",
+      },
+    ],
+  };
+}
+
+function writeAttempt(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  status: string;
+  startedAt: string;
+  completedAt: string | null;
+  diff?: string;
+  scheduler?: boolean;
+}): void {
+  const attemptDir = path.join(params.cwd, ".kiwi", "runs", params.runId, "steps", params.stepId, params.attemptId);
+  const artifactsDir = path.join(attemptDir, "artifacts");
+  mkdirSync(artifactsDir, { recursive: true });
+  const artifacts: Artifact[] = [];
+  if (params.diff) {
+    const diffRef = `steps/${params.stepId}/${params.attemptId}/artifacts/diff.patch`;
+    writeFileSync(path.join(params.cwd, ".kiwi", "runs", params.runId, diffRef), params.diff, "utf-8");
+    artifacts.push({ type: "diff", ref: diffRef, createdAt: params.completedAt ?? params.startedAt });
+  }
+  writeFileSync(
+    path.join(attemptDir, "attempt.json"),
+    JSON.stringify({
+      attemptId: params.attemptId,
+      stepId: params.stepId,
+      runner: "local-shell",
+      agentRole: "executor",
+      modelCapability: "mid",
+      status: params.status,
+      contextPackageRef: `steps/${params.stepId}/${params.attemptId}/context-package.json`,
+      modelInvocationRefs: [],
+      artifacts,
+      startedAt: params.startedAt,
+      completedAt: params.completedAt,
+    }),
+    "utf-8",
+  );
+  if (params.scheduler) {
+    writeFileSync(
+      path.join(attemptDir, "scheduler-decision.json"),
+      JSON.stringify({
+        status: "scheduled",
+        runId: params.runId,
+        stepId: params.stepId,
+        attemptId: params.attemptId,
+        agentRole: "executor",
+        modelCapability: "mid",
+        runner: "local-shell",
+        contextLevel: "L0",
+        reviewDepth: "strong",
+        requiredGates: [],
+        routingReason: ["runner_selected:local-shell"],
+        contextPackageRef: `steps/${params.stepId}/${params.attemptId}/context-package.json`,
+      }),
+      "utf-8",
+    );
+  }
 }
 
 describe("run status summary", () => {
@@ -112,6 +212,81 @@ describe("run status summary", () => {
     expect(summary.latest[0]?.initiativeTitle).toBe("Feature A");
     expect(summary.latest[0]?.stepCount).toBe(1);
     expect(summary.latest[0]?.artifactPaths.taskGraph).toBe(".kiwi/runs/run_20260504_040000_a001/plan/task-graph.json");
+  });
+
+  it("derives step state, active activity, and edited files from run evidence", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-core-status-detail-"));
+    const runId = "run_20260504_040000_detail";
+
+    savePlannedRun({
+      runId,
+      initiative: fixtureInitiative("init_20260504_040000_detail", "Feature Detail"),
+      taskGraph: fixtureDetailedTaskGraph(runId, "init_20260504_040000_detail", "plan_20260504_040000_detail"),
+      cwd,
+      now: new Date("2026-05-04T04:00:00.000Z"),
+    });
+
+    writeAttempt({
+      cwd,
+      runId,
+      stepId: "step_001",
+      attemptId: "attempt_done",
+      status: "completed",
+      startedAt: "2026-05-04T04:01:00.000Z",
+      completedAt: "2026-05-04T04:02:00.000Z",
+      diff: [
+        "diff --git a/apps/cli/src/commands/status.ts b/apps/cli/src/commands/status.ts",
+        "--- a/apps/cli/src/commands/status.ts",
+        "+++ b/apps/cli/src/commands/status.ts",
+        "@@ -1 +1 @@",
+        "-old",
+        "+new",
+        "",
+      ].join("\n"),
+    });
+    writeAttempt({
+      cwd,
+      runId,
+      stepId: "step_002",
+      attemptId: "attempt_running",
+      status: "running",
+      startedAt: "2026-05-04T04:03:00.000Z",
+      completedAt: null,
+      scheduler: true,
+    });
+
+    const entry = getRunStatusSummary(cwd, runId).latest[0];
+
+    expect(entry?.status).toBe("planned");
+    expect(entry?.currentStatus).toBe("running");
+    expect(entry?.steps.map((step) => [step.stepId, step.status])).toEqual([
+      ["step_001", "completed"],
+      ["step_002", "running"],
+      ["step_003", "pending"],
+    ]);
+    expect(entry?.completedSteps.map((step) => step.stepId)).toEqual(["step_001"]);
+    expect(entry?.remainingSteps.map((step) => step.stepId)).toEqual(["step_002", "step_003"]);
+    expect(entry?.editedFiles).toEqual([
+      {
+        path: "apps/cli/src/commands/status.ts",
+        stepId: "step_001",
+        attemptId: "attempt_done",
+        diffRef: "steps/step_001/attempt_done/artifacts/diff.patch",
+      },
+    ]);
+    expect(entry?.activeStepActivity).toEqual([
+      {
+        stepId: "step_002",
+        title: "Cover output",
+        attemptId: "attempt_running",
+        status: "running",
+        runner: "local-shell",
+        startedAt: "2026-05-04T04:03:00.000Z",
+        contextPackageRef: "steps/step_002/attempt_running/context-package.json",
+        schedulerStatus: "scheduled",
+        routingReason: ["runner_selected:local-shell"],
+      },
+    ]);
   });
 
   it("supports selected run status", () => {
