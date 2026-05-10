@@ -52,6 +52,18 @@ export const CommandProfileSchema = z.object({
   maxOutputBytes: z.number().int().positive().default(65536),
 });
 
+export const ExecutionIsolationSchema = z.enum(["direct", "worktree"]);
+export const CodexSandboxSchema = z.enum(["read-only", "workspace-write", "danger-full-access"]);
+
+export const ExecutionDefaultsSchema = z.object({
+  owner: z.literal("kiwi-codex-cli").default("kiwi-codex-cli"),
+  isolation: ExecutionIsolationSchema.default("direct"),
+  sandbox: CodexSandboxSchema.default("workspace-write"),
+  forbidStaging: z.boolean().default(true),
+  forbidCommits: z.boolean().default(true),
+  forbidPushes: z.boolean().default(true),
+});
+
 export const KiwiPolicySchema = z.object({
   version: z.literal("1"),
   project: z.object({
@@ -78,6 +90,7 @@ export const KiwiPolicySchema = z.object({
     commandApprovalStates: z.record(z.string(), ApprovalStateSchema).default({}),
   }),
   commandProfiles: z.record(z.string(), CommandProfileSchema).default({}),
+  execution: ExecutionDefaultsSchema.optional(),
 });
 
 export function defaultAccessModeForProvider(
@@ -118,6 +131,9 @@ export type KiwiConfig = z.infer<typeof KiwiConfigSchema>;
 export type PolicyRoutingOverride = z.infer<typeof PolicyRoutingOverrideSchema>;
 export type ProviderPreference = z.infer<typeof ProviderPreferenceSchema>;
 export type CommandProfile = z.infer<typeof CommandProfileSchema>;
+export type ExecutionIsolation = z.infer<typeof ExecutionIsolationSchema>;
+export type CodexSandbox = z.infer<typeof CodexSandboxSchema>;
+export type ExecutionDefaults = z.infer<typeof ExecutionDefaultsSchema>;
 export type KiwiPolicy = z.infer<typeof KiwiPolicySchema>;
 export type ModelProvider = z.infer<typeof ModelProviderSchema>;
 export type AccessMode = z.infer<typeof AccessModeSchema>;

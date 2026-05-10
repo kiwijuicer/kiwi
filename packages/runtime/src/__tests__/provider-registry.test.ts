@@ -110,7 +110,8 @@ describe("provider registries", () => {
         enabled: true,
       },
       {
-        id: "codex-cli-auto",
+        id: "codex-cli-strong",
+        providerModel: "gpt-5.4",
         provider: "local",
         capability: "strong",
         roles: ["planner"],
@@ -124,8 +125,8 @@ describe("provider registries", () => {
       env: { KIWI_FAKE_BINARY_AVAILABLE: "1", KIWI_FORCE_ACCESS_MODE: "codex-cli" },
     });
 
-    expect(resolution.model.id).toBe("codex-cli-auto");
-    expect(resolution.provider.name).toBe("codex-cli:default");
+    expect(resolution.model.id).toBe("codex-cli-strong");
+    expect(resolution.provider.name).toBe("codex-cli:gpt-5.4");
   });
 
   it("can build a Cursor Agent CLI planner provider", () => {
@@ -175,7 +176,8 @@ describe("provider registries", () => {
   it("can build Codex and Cursor reviewer providers", () => {
     const models: ModelEntry[] = [
       {
-        id: "codex-cli-auto",
+        id: "codex-cli-strong",
+        providerModel: "gpt-5.4",
         provider: "local",
         capability: "strong",
         roles: ["reviewer"],
@@ -199,7 +201,7 @@ describe("provider registries", () => {
         policy,
         env: { KIWI_FAKE_BINARY_AVAILABLE: "1", KIWI_FORCE_ACCESS_MODE: "codex-cli" },
       })?.provider.name,
-    ).toBe("codex-cli:default");
+    ).toBe("codex-cli:gpt-5.4");
     expect(
       registry.select({
         registryModels: models,
@@ -250,7 +252,8 @@ describe("provider registries", () => {
   it("can build Codex and Cursor researcher providers", () => {
     const models: ModelEntry[] = [
       {
-        id: "codex-cli-auto",
+        id: "codex-cli-strong",
+        providerModel: "gpt-5.4",
         provider: "local",
         capability: "strong",
         roles: ["researcher"],
@@ -273,7 +276,7 @@ describe("provider registries", () => {
         registryModels: models,
         env: { KIWI_FAKE_BINARY_AVAILABLE: "1", KIWI_FORCE_ACCESS_MODE: "codex-cli" },
       })?.provider.name,
-    ).toBe("codex-cli:default");
+    ).toBe("codex-cli:gpt-5.4");
     expect(
       registry.select({
         registryModels: models,

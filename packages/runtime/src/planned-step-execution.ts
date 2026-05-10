@@ -9,10 +9,20 @@ import {
   loadRegistry,
   loadTaskGraph,
   remainingBudgetUsdEstimate,
+  estimateAttemptCostUsd,
   refreshRunStatusFromAttempts,
   resolveRunArtifactPath,
 } from "@kiwi/core";
-import { ArtifactTypes, ContractValues, Initiative, KiwiPolicy, ModelEntry, RunnerNames, Step } from "@kiwi/contracts";
+import {
+  AccessModes,
+  ArtifactTypes,
+  ContractValues,
+  Initiative,
+  KiwiPolicy,
+  ModelEntry,
+  RunnerNames,
+  Step,
+} from "@kiwi/contracts";
 import {
   createGitTreeSnapshot,
   createWorktreeSandbox,
@@ -26,7 +36,7 @@ import { LocalResearchStepRunner, ResearcherStepRunner } from "./researcher-step
 import { resolveRunner } from "./runner-resolution";
 import type { ExecutorSelection, RunnerResolution } from "./runner-registry";
 import { runRequiredGates } from "./required-gates";
-import { scheduleStepAttempt } from "./scheduler-policy";
+import { previewStepAttempt, saveSchedulerDecision, scheduleStepAttempt } from "./scheduler-policy";
 import type { SchedulerDecision } from "./scheduler-policy";
 import { StepAttemptOrchestrator } from "./step-attempt-orchestrator";
 import type { StepAttemptRunner } from "./step-runner-types";
@@ -35,8 +45,18 @@ function shouldUseProviderResearch(): boolean {
   return process.env.KIWI_RESEARCHER_MODE === "provider";
 }
 
-function executionMode(): "direct" | "worktree" {
-  return process.env.KIWI_EXECUTION_ISOLATION === "worktree" ? "worktree" : "direct";
+function executionMode(policy: KiwiPolicy): "direct" | "worktree" {
+  if (process.env.KIWI_EXECUTION_ISOLATION === "worktree") return "worktree";
+  if (process.env.KIWI_EXECUTION_ISOLATION === "direct") return "direct";
+  return policy.execution?.isolation ?? "direct";
+}
+
+function executionOwner(policy: KiwiPolicy): "kiwi-codex-cli" {
+  return policy.execution?.owner ?? "kiwi-codex-cli";
+}
+
+function codexSandbox(policy: KiwiPolicy): "read-only" | "workspace-write" | "danger-full-access" {
+  return policy.execution?.sandbox ?? "workspace-write";
 }
 
 export interface ExecutePlannedStepInput {
@@ -172,11 +192,18 @@ function selectStepRunner(params: {
   runnerResolution: RunnerResolution | null;
   isResearchStep: boolean;
   now: Date;
-}): { runnerAdapter: StepAttemptRunner<SandboxCommandPolicy>; selectedModelId: string | null } {
+}): {
+  runnerAdapter: StepAttemptRunner<SandboxCommandPolicy>;
+  selectedModel: ModelEntry | null;
+  selectedModelId: string | null;
+  executorSelectionReason: string | null;
+} {
   if (params.isResearchStep && !shouldUseProviderResearch()) {
     return {
       runnerAdapter: new LocalResearchStepRunner(params.policy),
+      selectedModel: null,
       selectedModelId: "local-researcher",
+      executorSelectionReason: "local_researcher",
     };
   }
 
@@ -222,16 +249,30 @@ function selectStepRunner(params: {
         params.policy,
         researcherSelection.model.accessMode,
       ),
+      selectedModel: researcherSelection.model,
       selectedModelId: researcherSelection.model.id,
+      executorSelectionReason: "researcher_provider",
     };
   }
 
   if (!params.runnerResolution || !params.decision.runner) {
     throw new Error("Runner resolution is required for non-research steps");
   }
+  if (params.decision.runner === RunnerNames.Codex) {
+    if (!executorSelection?.model || executorSelection.model.accessMode !== AccessModes.CodexCli) {
+      throw new Error(
+        `Codex runner selected for ${params.stepId}, but no matching codex-cli model is available in .kiwi/model-registry.yaml`,
+      );
+    }
+    if (!executorSelection.model.providerModel) {
+      throw new Error(`Codex model '${executorSelection.model.id}' must define providerModel for enforced model switching`);
+    }
+  }
   return {
     runnerAdapter: params.runnerResolution.buildAdapter(params.decision.runner, executorSelection?.model),
+    selectedModel: executorSelection?.model ?? null,
     selectedModelId: executorSelection?.model?.id ?? null,
+    executorSelectionReason: executorSelection?.reason ?? null,
   };
 }
 
@@ -250,8 +291,9 @@ function createExecutionTarget(params: {
   runId: string;
   attemptId: string;
   repoPath: string;
+  mode: "direct" | "worktree";
 }): ExecutionTarget {
-  const mode = executionMode();
+  const mode = params.mode;
   if (mode === "worktree") {
     const sandbox = createWorktreeSandbox({
       cwd: params.cwd,
@@ -340,6 +382,198 @@ function resolveStepRunnerResolution(params: {
   });
 }
 
+function enrichSchedulerDecision(params: {
+  cwd: string;
+  decision: SchedulerDecision;
+  policy: KiwiPolicy;
+  selectedModel: ModelEntry | null;
+  selectedModelId: string | null;
+  executorSelectionReason: string | null;
+  isolation: "direct" | "worktree";
+}): SchedulerDecision {
+  const enriched: SchedulerDecision = {
+    ...params.decision,
+    selectedModelId: params.selectedModelId,
+    selectedProviderModel: params.selectedModel?.providerModel ?? null,
+    selectedAccessMode: params.selectedModel?.accessMode ?? null,
+    executorSelectionReason: params.executorSelectionReason,
+    estimatedAttemptCostUsd: estimateAttemptCostUsd({
+      modelId: params.selectedModelId,
+      capability: params.decision.modelCapability,
+      contextLevel: params.decision.contextLevel,
+    }),
+    executionOwner: executionOwner(params.policy),
+    executionIsolation: params.isolation,
+  };
+  saveSchedulerDecision(params.cwd, enriched);
+  return enriched;
+}
+
+export interface RunExecutionPreviewStep {
+  stepId: string;
+  title: string;
+  type: string;
+  status: SchedulerDecision["status"];
+  blockedReason?: string;
+  agentRole: string;
+  modelCapability: string;
+  runner: string | null;
+  selectedModelId: string | null;
+  selectedProviderModel: string | null;
+  selectedAccessMode: string | null;
+  executorSelectionReason: string | null;
+  estimatedAttemptCostUsd: number;
+  reviewDepth: string;
+  requiredGates: string[];
+  routingReason: string[];
+  contextLevel: string;
+  executionOwner: "kiwi-codex-cli";
+  executionIsolation: "direct" | "worktree";
+}
+
+export interface RunExecutionPreview {
+  runId: string;
+  executionOwner: "kiwi-codex-cli";
+  executionIsolation: "direct" | "worktree";
+  maxConcurrency: number;
+  subPlans: NonNullable<ReturnType<typeof loadTaskGraph>["subPlans"]>;
+  steps: RunExecutionPreviewStep[];
+}
+
+function previewSelection(params: {
+  decision: SchedulerDecision;
+  isResearchStep: boolean;
+  registryModels: ModelEntry[];
+  policy: KiwiPolicy;
+  runnerResolution: RunnerResolution | null;
+}): { selectedModel: ModelEntry | null; selectedModelId: string | null; reason: string | null } {
+  if (params.decision.status !== "scheduled") {
+    return { selectedModel: null, selectedModelId: null, reason: null };
+  }
+  if (params.isResearchStep && !shouldUseProviderResearch()) {
+    return { selectedModel: null, selectedModelId: "local-researcher", reason: "local_researcher" };
+  }
+  if (params.isResearchStep) {
+    const selected = new ResearcherProviderRegistry().select({
+      registryModels: params.registryModels,
+      preferenceByRole: params.policy.routing.providerPreference,
+    });
+    return {
+      selectedModel: selected?.model ?? null,
+      selectedModelId: selected?.model.id ?? null,
+      reason: selected ? "researcher_provider" : "no_model_available",
+    };
+  }
+  const selection = params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
+  return {
+    selectedModel: selection?.model ?? null,
+    selectedModelId: selection?.model?.id ?? null,
+    reason: selection?.reason ?? null,
+  };
+}
+
+function stepPreview(params: {
+  input: { cwd: string; runId: string; attemptId?: string; now?: Date };
+  step: Step;
+  initiative: Initiative;
+  registryModels: ModelEntry[];
+  policy: KiwiPolicy;
+  isolation: "direct" | "worktree";
+}): RunExecutionPreviewStep {
+  const isResearchStep = params.step.type === "context_discovery";
+  const runnerResolution = resolveStepRunnerResolution({
+    isResearchStep,
+    registryModels: params.registryModels,
+    step: params.step,
+    policy: params.policy,
+  });
+  const decision = previewStepAttempt({
+    cwd: params.input.cwd,
+    runId: params.input.runId,
+    step: params.step,
+    initiative: params.initiative,
+    budgetProfile: params.initiative.budgetProfile,
+    budgetRemainingUsdEstimate: remainingBudgetUsdEstimate({
+      cwd: params.input.cwd,
+      runId: params.input.runId,
+      budgetProfile: params.initiative.budgetProfile,
+    }),
+    blastRadius: params.initiative.riskProfile === "production" ? "high" : "low",
+    securitySensitivity: params.initiative.riskProfile === "production" ? "high" : "low",
+    contextSize: "small",
+    runnerAvailability: isResearchStep ? [RunnerNames.Api] : (runnerResolution?.runnerAvailability ?? []),
+    attemptId: params.input.attemptId ?? `attempt_preview_${params.step.stepId.replace("step_", "")}`,
+    ...(params.input.now ? { now: params.input.now } : {}),
+  });
+  const selection = previewSelection({
+    decision,
+    isResearchStep,
+    registryModels: params.registryModels,
+    policy: params.policy,
+    runnerResolution,
+  });
+  const estimatedAttemptCostUsd = estimateAttemptCostUsd({
+    modelId: selection.selectedModelId,
+    capability: decision.modelCapability,
+    contextLevel: decision.contextLevel,
+  });
+  const preview: RunExecutionPreviewStep = {
+    stepId: params.step.stepId,
+    title: params.step.title,
+    type: params.step.type,
+    status: decision.status,
+    agentRole: decision.agentRole,
+    modelCapability: decision.modelCapability,
+    runner: decision.runner,
+    selectedModelId: selection.selectedModelId,
+    selectedProviderModel: selection.selectedModel?.providerModel ?? null,
+    selectedAccessMode: selection.selectedModel?.accessMode ?? null,
+    executorSelectionReason: selection.reason,
+    estimatedAttemptCostUsd,
+    reviewDepth: decision.reviewDepth,
+    requiredGates: decision.requiredGates,
+    routingReason: decision.routingReason,
+    contextLevel: decision.contextLevel,
+    executionOwner: executionOwner(params.policy),
+    executionIsolation: params.isolation,
+  };
+  if (decision.blockedReason) preview.blockedReason = decision.blockedReason;
+  return preview;
+}
+
+export function buildRunExecutionPreview(params: {
+  cwd: string;
+  runId: string;
+  fromStep?: string;
+  maxConcurrency?: number;
+  now?: Date;
+}): RunExecutionPreview {
+  const policy = loadPolicy(kiwiPolicyPath(params.cwd));
+  const registry = loadRegistry(kiwiModelRegistryPath(params.cwd));
+  const initiative = loadInitiative(params.runId, params.cwd);
+  const taskGraph = loadTaskGraph(params.runId, params.cwd);
+  const startIndex = params.fromStep ? taskGraph.steps.findIndex((step) => step.stepId === params.fromStep) : 0;
+  if (startIndex < 0) throw new Error(`Step not found: ${params.fromStep}`);
+  const isolation = executionMode(policy);
+  return {
+    runId: params.runId,
+    executionOwner: executionOwner(policy),
+    executionIsolation: isolation,
+    maxConcurrency: params.maxConcurrency ?? 2,
+    subPlans: taskGraph.subPlans ?? [],
+    steps: taskGraph.steps.slice(startIndex).map((step) =>
+      stepPreview({
+        input: { cwd: params.cwd, runId: params.runId, ...(params.now ? { now: params.now } : {}) },
+        step,
+        initiative,
+        registryModels: registry.models,
+        policy,
+        isolation,
+      }),
+    ),
+  };
+}
+
 export async function executePlannedStep(input: ExecutePlannedStepInput): Promise<ExecutePlannedStepResult> {
   const policy = loadPolicy(kiwiPolicyPath(input.cwd));
   const registry = loadRegistry(kiwiModelRegistryPath(input.cwd));
@@ -367,21 +601,8 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
   });
   const approval = loadApprovalDecision({ cwd: input.cwd, runId: input.runId, attemptId: decision.attemptId });
   const approved = input.approved ?? approval?.state === "auto";
-  const target = createExecutionTarget({
-    cwd: input.cwd,
-    runId: input.runId,
-    attemptId: decision.attemptId,
-    repoPath,
-  });
-  const profile = commandProfileForStep(policy, step.type);
-  const commandPolicy = commandProfileToExecutionPolicy(profile) as SandboxCommandPolicy;
-  const command = input.command ?? noopCommand();
-  const reviewEngine = createReviewEngineFromRegistry({
-    cwd: input.cwd,
-    policy,
-    registryModels: registry.models,
-  });
-  const { runnerAdapter, selectedModelId } = selectStepRunner({
+  const selectedIsolation = executionMode(policy);
+  const { runnerAdapter, selectedModel, selectedModelId, executorSelectionReason } = selectStepRunner({
     cwd: input.cwd,
     runId: input.runId,
     stepId: input.stepId,
@@ -392,6 +613,30 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
     isResearchStep,
     now,
   });
+  const enrichedDecision = enrichSchedulerDecision({
+    cwd: input.cwd,
+    decision,
+    policy,
+    selectedModel,
+    selectedModelId,
+    executorSelectionReason,
+    isolation: selectedIsolation,
+  });
+  const target = createExecutionTarget({
+    cwd: input.cwd,
+    runId: input.runId,
+    attemptId: decision.attemptId,
+    repoPath,
+    mode: selectedIsolation,
+  });
+  const profile = commandProfileForStep(policy, step.type);
+  const commandPolicy = commandProfileToExecutionPolicy(profile) as SandboxCommandPolicy;
+  const command = input.command ?? noopCommand();
+  const reviewEngine = createReviewEngineFromRegistry({
+    cwd: input.cwd,
+    policy,
+    registryModels: registry.models,
+  });
   let result: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>;
   let materializedDiff: AttemptDiffMaterialization = { status: "skipped", reason: "attempt did not run" };
   try {
@@ -399,11 +644,12 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
       cwd: input.cwd,
       repoPath,
       step,
-      schedulerDecision: decision,
+      schedulerDecision: enrichedDecision,
       selectedModelId,
       runner: runnerAdapter,
       worktreePath: target.worktreePath,
       executionMode: target.mode,
+      codexSandbox: codexSandbox(policy),
       diffBaseTree: target.diffBaseTree,
       stepPrompt: step.title,
       allowedTools: ["shell"],
@@ -415,10 +661,10 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
           cwd: input.cwd,
           runId: input.runId,
           stepId: input.stepId,
-          attemptId: decision.attemptId,
+          attemptId: enrichedDecision.attemptId,
           worktreePath: target.worktreePath,
           policy,
-          requiredGates: decision.requiredGates,
+          requiredGates: enrichedDecision.requiredGates,
           approved,
           diffHash: params.diffHash,
           now,
@@ -433,7 +679,7 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
         cwd: input.cwd,
         runId: input.runId,
         stepId: input.stepId,
-        attemptId: decision.attemptId,
+        attemptId: enrichedDecision.attemptId,
         repoPath,
         directExecution: target.mode === "direct",
         result,
@@ -452,7 +698,7 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
   return {
     runId: input.runId,
     stepId: input.stepId,
-    attemptId: decision.attemptId,
+    attemptId: enrichedDecision.attemptId,
     executionMode: target.mode,
     status: result.status,
     nextAction: result.nextAction,

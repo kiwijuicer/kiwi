@@ -69,6 +69,11 @@ export interface RunActiveStepActivityEntry {
   contextPackageRef: string;
   schedulerStatus?: string;
   routingReason?: string[];
+  selectedModelId?: string | null;
+  selectedProviderModel?: string | null;
+  selectedAccessMode?: string | null;
+  estimatedAttemptCostUsd?: number;
+  executionIsolation?: string;
 }
 
 export interface RunStatusEntry {
@@ -277,6 +282,15 @@ function latestStepEntries(params: {
       if (latest.schedulerDecision) {
         activity.schedulerStatus = latest.schedulerDecision.status;
         activity.routingReason = latest.schedulerDecision.routingReason;
+        activity.selectedModelId = latest.schedulerDecision.selectedModelId ?? null;
+        activity.selectedProviderModel = latest.schedulerDecision.selectedProviderModel ?? null;
+        activity.selectedAccessMode = latest.schedulerDecision.selectedAccessMode ?? null;
+        if (latest.schedulerDecision.estimatedAttemptCostUsd !== undefined) {
+          activity.estimatedAttemptCostUsd = latest.schedulerDecision.estimatedAttemptCostUsd;
+        }
+        if (latest.schedulerDecision.executionIsolation) {
+          activity.executionIsolation = latest.schedulerDecision.executionIsolation;
+        }
       }
       activeStepActivity.push(activity);
     }

@@ -63,7 +63,7 @@ describe("model invocations", () => {
       agentRole: "executor",
       requestedCapability: "strong",
       selectedCapability: "strong",
-      modelId: "codex-cli-auto",
+      modelId: "codex-cli-strong",
       providerName: "local",
       runner: "codex",
       accessMode: "codex-cli",

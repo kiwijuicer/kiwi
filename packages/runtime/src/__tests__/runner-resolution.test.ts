@@ -34,7 +34,8 @@ const planningStep: Step = {
 
 const models: ModelEntry[] = [
   {
-    id: "codex-cli-auto",
+    id: "codex-cli-strong",
+    providerModel: "gpt-5.4",
     provider: "local",
     capability: "strong",
     roles: ["executor"],
@@ -56,7 +57,7 @@ function executorModel(
   capability: ModelEntry["capability"],
   accessMode: ModelEntry["accessMode"],
 ): ModelEntry {
-  return {
+  const entry: ModelEntry = {
     id,
     provider: accessMode === "stub" ? "stub" : "local",
     capability,
@@ -64,6 +65,8 @@ function executorModel(
     enabled: true,
     accessMode,
   };
+  if (accessMode === "codex-cli") entry.providerModel = capability === "frontier" ? "gpt-5.5" : "gpt-5.4";
+  return entry;
 }
 
 describe("runner resolution", () => {
@@ -104,7 +107,7 @@ describe("runner resolution", () => {
     const resolution = resolveRunner({
       registryModels: [
         executorModel("claude-sonnet", "strong", "claude-code-cli"),
-        executorModel("codex-auto", "strong", "codex-cli"),
+        executorModel("codex-strong", "strong", "codex-cli"),
       ],
       step: codingStep,
       env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
@@ -112,7 +115,7 @@ describe("runner resolution", () => {
     });
 
     expect(resolution.runnerAvailability[0]).toBe("codex");
-    expect(resolution.selectedExecutorModel?.id).toBe("codex-auto");
+    expect(resolution.selectedExecutorModel?.id).toBe("codex-strong");
   });
 
   it("honors a cheap scheduler decision before choosing stronger executor models", () => {
@@ -170,7 +173,7 @@ describe("runner resolution", () => {
       registryModels: [executorModel("stub-strong", "strong", "stub")],
       step: codingStep,
       requestedCapability: "strong",
-      env: { PATH: "/empty" },
+      env: { PATH: "/empty", KIWI_FAKE_BINARY_AVAILABLE: "1" },
     });
 
     expect(resolution.executorSelection).toMatchObject({
@@ -183,7 +186,7 @@ describe("runner resolution", () => {
 
   it("falls back to a lower executor tier when no adequate model is available", () => {
     const resolution = resolveRunner({
-      registryModels: [executorModel("codex-auto", "strong", "codex-cli")],
+      registryModels: [executorModel("codex-strong", "strong", "codex-cli")],
       step: codingStep,
       requestedCapability: "frontier",
       env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
@@ -200,21 +203,21 @@ describe("runner resolution", () => {
     const resolution = resolveRunner({
       registryModels: [],
       step: codingStep,
-      env: { PATH: "/empty" },
+      env: { PATH: "/empty", KIWI_FAKE_BINARY_AVAILABLE: "1" },
     });
 
     expect(resolution.runnerAvailability).toEqual(["local-shell"]);
     expect(() => resolution.buildAdapter("api")).toThrow("has no adapter wiring yet");
   });
 
-  it("keeps unknown runners behind local-shell for non-coding steps", () => {
+  it("prefers Codex for non-coding steps when a real Codex executor is available", () => {
     const resolution = resolveRunner({
       registryModels: models,
       step: planningStep,
       env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
     });
 
-    expect(resolution.runnerAvailability[0]).toBe("local-shell");
+    expect(resolution.runnerAvailability[0]).toBe("codex");
   });
 
   it("forces hermetic local-shell execution when stub access mode is selected", () => {
@@ -250,9 +253,9 @@ describe("runner resolution", () => {
     });
 
     const resolution = registry.resolve({
-      registryModels: [],
+      registryModels: [executorModel("codex-strong", "strong", "codex-cli")],
       step: codingStep,
-      env: { PATH: "/empty" },
+      env: { PATH: "/empty", KIWI_FAKE_BINARY_AVAILABLE: "1" },
     });
 
     expect(resolution.runnerAvailability).toEqual(["codex"]);

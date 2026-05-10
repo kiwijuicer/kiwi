@@ -14,6 +14,7 @@ import {
 import {
   executePlannedStep,
   applyRunDiff,
+  buildRunExecutionPreview,
   buildRunDiff,
   finalizeRun,
   resolvePlannerProvider,
@@ -31,6 +32,7 @@ import {
   buildRunCostForecast,
   kiwiModelRegistryPath,
   kiwiPolicyPath,
+  listStepAttemptEvidence,
   loadPolicy,
   loadRegistry,
   loadTaskGraph,
@@ -76,6 +78,24 @@ function stopHeartbeat(timer: NodeJS.Timeout | null): void {
   if (timer) clearInterval(timer);
 }
 
+type ProgressValue = string | number | boolean | null | undefined;
+
+function formatProgressValue(value: Exclude<ProgressValue, undefined>): string {
+  const raw = String(value);
+  return /^[A-Za-z0-9._:/@-]+$/.test(raw) ? raw : JSON.stringify(raw);
+}
+
+function progressLine(fields: Record<string, ProgressValue>): string {
+  return Object.entries(fields)
+    .filter((entry): entry is [string, Exclude<ProgressValue, undefined>] => entry[1] !== undefined)
+    .map(([key, value]) => `${key}=${formatProgressValue(value)}`)
+    .join(" ");
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 async function planTool(args: Record<string, unknown>, cwd: string, options: ToolCallOptions = {}): Promise<unknown> {
   const rawInput = String(args.ticket ?? args.rawInput ?? "");
   if (!rawInput) {
@@ -89,14 +109,23 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
   const policyPath = kiwiPolicyPath(workspace.workspacePath);
   const policy = loadPolicy(policyPath);
   const registry = loadRegistry(kiwiModelRegistryPath(workspace.workspacePath));
-  options.onProgress?.("phase=planner status=started", 0);
   const resolution = resolvePlannerProvider({
     registryModels: registry.models,
     now: () => now,
     preferenceByRole: policy.routing.providerPreference,
     ...(args.allowStub === true ? { allowStub: true } : {}),
   });
-  const heartbeat = startHeartbeat("still planning... 30s elapsed", options.onProgress);
+  options.onProgress?.(
+    progressLine({
+      phase: "planner",
+      status: "started",
+      model: resolution.model.id,
+      providerModel: resolution.model.providerModel ?? null,
+      provider: resolution.provider.name,
+    }),
+    0,
+  );
+  const heartbeat = startHeartbeat(progressLine({ phase: "planner", status: "running" }), options.onProgress);
   let planned: Awaited<ReturnType<typeof planRun>>;
   try {
     planned = await planRun({
@@ -116,7 +145,10 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
   } finally {
     stopHeartbeat(heartbeat);
   }
-  options.onProgress?.(`phase=planner status=completed runId=${planned.runId} steps=${planned.taskGraph.steps.length}`, 100);
+  options.onProgress?.(
+    progressLine({ phase: "planner", status: "completed", runId: planned.runId, steps: planned.taskGraph.steps.length }),
+    100,
+  );
   const costForecast = buildRunCostForecast({
     taskGraph: planned.taskGraph,
     plannerCostUsd: planned.plannerOutput.cost.estimatedUsd,
@@ -125,8 +157,19 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     runId: planned.runId,
     planId: planned.taskGraph.planId,
     steps: planned.taskGraph.steps.length,
+    plannerModelId: planned.plannerModelId,
+    plannerProviderName: planned.providerName,
+    plannerProviderModel: resolution.model.providerModel ?? null,
     estimatedCostUsd: costForecast.estimatedCostUsd,
     costForecast,
+    execution: {
+      owner: policy.execution?.owner ?? "kiwi-codex-cli",
+      isolation: policy.execution?.isolation ?? "direct",
+      sandbox: policy.execution?.sandbox ?? "workspace-write",
+      forbidStaging: policy.execution?.forbidStaging ?? true,
+      forbidCommits: policy.execution?.forbidCommits ?? true,
+      forbidPushes: policy.execution?.forbidPushes ?? true,
+    },
     workspacePath: planned.workspacePath,
     repoId: planned.repoId,
     repoPath: planned.repoPath,
@@ -141,6 +184,44 @@ interface RunStepToolResult {
   materializedDiff: unknown;
 }
 
+function emitPostAttemptProgress(params: {
+  workspacePath: string;
+  runId: string;
+  stepId: string;
+  attemptId: string;
+  options: ToolCallOptions;
+}): void {
+  if (!params.options.onProgress) return;
+  const evidence = listStepAttemptEvidence(params.workspacePath, params.runId).find(
+    (entry) => entry.stepId === params.stepId && entry.attemptId === params.attemptId,
+  );
+  if (!evidence) return;
+  for (const gate of evidence.gateResults) {
+    params.options.onProgress(
+      progressLine({
+        phase: "gate",
+        status: gate.status,
+        stepId: params.stepId,
+        attemptId: params.attemptId,
+        gate: gate.gateType,
+        reason: gate.reason,
+      }),
+    );
+  }
+  if (evidence.reviewVerdict) {
+    params.options.onProgress(
+      progressLine({
+        phase: "review",
+        status: "completed",
+        stepId: params.stepId,
+        attemptId: params.attemptId,
+        verdict: evidence.reviewVerdict.verdict,
+        safeToContinue: evidence.reviewVerdict.safeToContinue,
+      }),
+    );
+  }
+}
+
 function parseMaxConcurrency(args: Record<string, unknown>): number | undefined {
   if (typeof args.maxConcurrency === "number") return args.maxConcurrency;
   if (typeof args.maxConcurrency !== "string" || args.maxConcurrency.trim().length === 0) return undefined;
@@ -149,6 +230,23 @@ function parseMaxConcurrency(args: Record<string, unknown>): number | undefined 
     throw new Error(`kiwi_run maxConcurrency must be a positive integer; received ${args.maxConcurrency}`);
   }
   return parsed;
+}
+
+function previewRunTool(args: Record<string, unknown>, cwd: string): unknown {
+  const runId = String(args.runId ?? "");
+  if (!runId) throw new Error("kiwi_preview_run requires runId");
+  const workspace = workspaceArgs(args, cwd, false);
+  const fromStep = typeof args.fromStep === "string" ? args.fromStep : undefined;
+  const maxConcurrency = parseMaxConcurrency(args);
+  if (maxConcurrency !== undefined && (!Number.isInteger(maxConcurrency) || maxConcurrency <= 0)) {
+    throw new Error(`kiwi_preview_run maxConcurrency must be a positive integer; received ${maxConcurrency}`);
+  }
+  return buildRunExecutionPreview({
+    cwd: workspace.workspacePath,
+    runId,
+    ...(fromStep ? { fromStep } : {}),
+    ...(maxConcurrency !== undefined ? { maxConcurrency } : {}),
+  });
 }
 
 async function runStepToolUnlocked(
@@ -163,11 +261,45 @@ async function runStepToolUnlocked(
   if (typeof args.command === "string") input.command = splitCommandLine(args.command);
   if (args.approved === true) input.approved = true;
   if (typeof args.attemptId === "string") input.attemptId = args.attemptId;
-  options.onProgress?.(`step ${stepId}`, 0);
-  options.onProgress?.("executing attempt and review...");
-  const result = await executePlannedStep(input);
+  const preview = buildRunExecutionPreview({ cwd: workspacePath, runId }).steps.find((step) => step.stepId === stepId);
+  if (preview) {
+    options.onProgress?.(
+      progressLine({
+        phase: "routing",
+        status: "selected",
+        stepId,
+        model: preview.selectedModelId,
+        providerModel: preview.selectedProviderModel,
+        capability: preview.modelCapability,
+        runner: preview.runner,
+        isolation: preview.executionIsolation,
+        reason: preview.executorSelectionReason ?? preview.routingReason.join(","),
+      }),
+      0,
+    );
+  }
+  options.onProgress?.(progressLine({ phase: "step", status: "started", stepId }), 0);
+  options.onProgress?.(progressLine({ phase: "gate", status: "running", stepId }));
+  let result: Awaited<ReturnType<typeof executePlannedStep>>;
+  try {
+    result = await executePlannedStep(input);
+  } catch (error) {
+    options.onProgress?.(
+      progressLine({ phase: "step", status: "failed", stepId, error: errorMessage(error) }),
+      100,
+    );
+    throw error;
+  }
+  emitPostAttemptProgress({ workspacePath, runId, stepId, attemptId: result.attemptId, options });
   options.onProgress?.(
-    `step ${stepId} done: status=${result.status} next=${result.nextAction.type} runStatus=${result.runStatus}`,
+    progressLine({
+      phase: "step",
+      status: result.status,
+      stepId,
+      attemptId: result.attemptId,
+      next: result.nextAction.type,
+      runStatus: result.runStatus,
+    }),
     100,
   );
   return {
@@ -214,7 +346,7 @@ async function runTool(args: Record<string, unknown>, cwd: string, callOptions: 
     async () => {
       const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
       const steps: RunStepToolResult[] = [];
-      callOptions.onProgress?.(`Running run... runId=${runId}`, 0);
+      callOptions.onProgress?.(progressLine({ phase: "run", status: "started", runId }), 0);
 
       if (taskGraph.subPlans && taskGraph.subPlans.length > 1) {
         await runScheduledSubPlans<{ command?: string; approved?: boolean }>({
@@ -265,7 +397,10 @@ async function runTool(args: Record<string, unknown>, cwd: string, callOptions: 
       }
 
       const run = getRunStatusSummary(workspace.workspacePath, runId).latest[0];
-      callOptions.onProgress?.(`Run attempts completed runId=${runId}`, 100);
+      callOptions.onProgress?.(
+        progressLine({ phase: "run", status: run?.status ?? "missing", runId }),
+        100,
+      );
       return {
         runId,
         status: run?.status ?? "missing",
@@ -286,6 +421,8 @@ function callCoreTool(
   switch (name) {
     case "kiwi_status":
       return getRunStatusSummary(workspacePath, typeof args.runId === "string" ? args.runId : undefined);
+    case "kiwi_preview_run":
+      return previewRunTool(args, cwd);
     case "kiwi_run":
       return runTool(args, cwd, options);
     case "kiwi_run_step":

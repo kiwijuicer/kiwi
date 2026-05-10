@@ -211,7 +211,7 @@ describe("kiwi plan", () => {
 
     const output = lines.join("\n");
     expect(output).toContain(
-      "phase=planner status=started runId=run_20260504_140000_fail model=codex-cli-auto provider=codex-cli:default",
+      "phase=planner status=started runId=run_20260504_140000_fail model=codex-cli-frontier provider=codex-cli:gpt-5.5",
     );
     expect(output).toContain("phase=planner status=failed runId=run_20260504_140000_fail error=");
   });

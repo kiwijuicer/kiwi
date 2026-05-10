@@ -25,6 +25,7 @@ export interface RunnerExecutionInput {
   repoPath?: string;
   worktreePath: string;
   executionMode?: "direct" | "worktree";
+  codexSandbox?: "read-only" | "workspace-write" | "danger-full-access";
   diffBaseTree?: string | null;
   stepPrompt: string;
   contextPackage: unknown;

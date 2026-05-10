@@ -216,7 +216,7 @@ describe("runner adapters", () => {
     const runner = new FakeCodexRunner();
     const adapter = new CodexCliRunnerAdapter({
       binary: "codex",
-      model: "codex-cli-auto",
+      model: "gpt-5.4",
       cliRunner: runner,
       env: {
         PATH: "/bin",
@@ -245,6 +245,8 @@ describe("runner adapters", () => {
     expect(output.estimatedCostUsd).toBeNull();
     expect(output.artifactRefs.some((artifact) => artifact.type === "diff")).toBe(true);
     expect(runner.invocations[0]?.env?.SECRET_TOKEN).toBeUndefined();
+    expect(runner.invocations[0]?.model).toBe("gpt-5.4");
+    expect(runner.invocations[0]?.sandbox).toBe("workspace-write");
     expect(runner.invocations[0]?.prompt).toContain("doNotPush");
   });
 });

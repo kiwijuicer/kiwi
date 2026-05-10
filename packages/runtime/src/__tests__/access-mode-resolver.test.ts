@@ -83,10 +83,10 @@ describe("access mode resolver", () => {
     expect(order).toEqual(["anthropic-api"]);
   });
 
-  it("prioritizes local CLIs including cursor-agent before direct APIs", () => {
+  it("prioritizes Codex-first local CLIs before direct APIs", () => {
     expect(preferredAccessModes({}).slice(0, 5)).toEqual([
-      "claude-code-cli",
       "codex-cli",
+      "claude-code-cli",
       "cursor-agent-cli",
       "anthropic-api",
       "openai-api",

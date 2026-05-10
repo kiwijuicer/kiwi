@@ -259,10 +259,19 @@ describe("contracts schemas", () => {
       reviewDepth: "strong",
       requiredGates: ["tests"],
       routingReason: ["budget_constrained_downgrade"],
+      selectedModelId: "codex-cli-mid",
+      selectedProviderModel: "gpt-5.4-mini",
+      selectedAccessMode: "codex-cli",
+      executorSelectionReason: "exact_match",
+      estimatedAttemptCostUsd: 0.01,
+      executionOwner: "kiwi-codex-cli",
+      executionIsolation: "direct",
       budget: { profile: "tiny", softCapUsd: 0.25, hardCapUsd: 0.5, remainingUsdEstimate: 0.2 },
       contextPackageRef: "steps/step_001/attempt_001/context-package.json",
     });
     expect(scheduler.routingReason).toContain("budget_constrained_downgrade");
+    expect(scheduler.selectedProviderModel).toBe("gpt-5.4-mini");
+    expect(scheduler.executionIsolation).toBe("direct");
 
     const cost = FinalCostReportSchema.parse({
       schemaVersion: "1",
@@ -277,7 +286,7 @@ describe("contracts schemas", () => {
         {
           phase: "executor",
           selectedCapability: "strong",
-          modelId: "codex-cli-auto",
+          modelId: "codex-cli-strong",
           providerName: "local",
           runner: "codex",
           accessMode: "codex-cli",
@@ -451,6 +460,14 @@ describe("contracts schemas", () => {
       },
       riskZones: { high: [] },
       approvals: { requireFor: [] },
+      execution: {
+        owner: "kiwi-codex-cli",
+        isolation: "direct",
+        sandbox: "workspace-write",
+        forbidStaging: true,
+        forbidCommits: true,
+        forbidPushes: true,
+      },
     });
 
     const registry = ModelRegistrySchema.parse({
@@ -470,6 +487,7 @@ describe("contracts schemas", () => {
 
     expect(policy.version).toBe("1");
     expect(policy.commandProfiles.default).toBeUndefined();
+    expect(policy.execution?.sandbox).toBe("workspace-write");
     expect(registry.models[0]?.id).toBe("stub-mid");
     expect(registry.models[0]?.providerModel).toBe("stub-provider-mid");
   });

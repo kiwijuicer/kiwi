@@ -40,12 +40,17 @@ Cursor config for local Streamable HTTP:
 
 The HTTP transport binds to `127.0.0.1` by default and rejects non-local `Origin` headers unless explicitly allowed with `KIWI_MCP_ALLOWED_ORIGINS`.
 
+Codex-first execution uses the current repo working tree by default. Kiwi selects
+the concrete Codex CLI `providerModel` per step and passes it with `--model`;
+`KIWI_EXECUTION_ISOLATION=worktree` is the opt-in isolated mode.
+
 ## Tool API
 
 Core tools:
 
 - `kiwi_plan`: create a planned run.
 - `kiwi_status`: read run status.
+- `kiwi_preview_run`: preview step order, selected Codex models, cost, gates, and execution mode.
 - `kiwi_run`: execute planned steps in order.
 - `kiwi_run_step`: execute one planned step.
 - `kiwi_finalize`: write final verdict, summary, and cost report.
@@ -82,6 +87,18 @@ Use either `repoId` or `repoPath`. `repoId` maps to the names listed by `kiwi wo
     "workspacePath": "/Users/norberthanauer/Projects/voice",
     "repoId": "core",
     "ticket": "# Fix consent sync\n\n## Validate"
+  }
+}
+```
+
+Then:
+
+```json
+{
+  "name": "kiwi_preview_run",
+  "arguments": {
+    "workspacePath": "/Users/norberthanauer/Projects/voice",
+    "runId": "<run-id>"
   }
 }
 ```
@@ -136,7 +153,8 @@ For multi-repo work, start one server per workspace or set `KIWI_WORKSPACE` per 
 
 - A run lock protects mutating operations.
 - Direct Anthropic/OpenAI API keys are not required for daily use; local CLI auth is used for Claude, Codex, and Cursor Agent.
+- Direct execution captures a pre-step git tree snapshot and persists only the step diff as run evidence.
 - Bitbucket PR draft publishing uses local git auth only and does not store Bitbucket credentials.
 - A2A is disabled by default and only exchanges filesystem envelopes with explicitly trusted peers.
 - Remote patch artifacts are quarantined by the A2A runtime.
-- Step worktrees copy only the selected repo, not the whole workspace.
+- Step worktrees copy only the selected repo when `KIWI_EXECUTION_ISOLATION=worktree` is enabled.

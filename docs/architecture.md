@@ -81,17 +81,22 @@ Payload-Arten oder Trust-Regeln sind nicht in Scope.
 
 ## Model Tier Mapping
 
-Capability tiers in `.kiwi/model-registry.yaml` map to local CLI access modes by
-default. Direct provider API keys are not required for daily use.
-`cheap` remains an alias of `mid` for access mode mapping, but scheduler context
-level capping is capability-specific.
+Capability tiers in `.kiwi/model-registry.yaml` map to explicit Codex CLI
+models by default. Kiwi passes the selected `providerModel` to Codex CLI with
+`--model` for every planned step, so model switching is enforced by the runner
+instead of left to Codex defaults. Direct provider API keys are not required for
+daily use.
 
-| Capability | Default Local Access         | Notes                            |
-| ---------- | ---------------------------- | -------------------------------- |
-| frontier   | claude-code-cli opus         | planner, high-risk reviewer      |
-| strong     | claude-code-cli/codex/cursor | default coding, default reviewer |
-| mid        | claude-code-cli haiku        | tests, docs, rules, research     |
-| cheap      | mid with smaller context     | alias behavior, not API key path |
+| Capability | Default Local Access | Notes                            |
+| ---------- | -------------------- | -------------------------------- |
+| frontier   | codex-cli gpt-5.5    | planner, high-risk reviewer      |
+| strong     | codex-cli gpt-5.4    | default coding, default reviewer |
+| mid        | codex-cli gpt-5.4-mini | tests, docs, rules, research   |
+| cheap      | codex-cli gpt-5.4-mini | smaller context / lower-cost routes |
+
+Execution defaults to the current repo working tree with `workspace-write`
+sandboxing. `KIWI_EXECUTION_ISOLATION=worktree` keeps the old isolated worktree
+path as an explicit safety override.
 
 ## Prompt Cache Parity Note
 

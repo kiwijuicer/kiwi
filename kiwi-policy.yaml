@@ -74,6 +74,14 @@ approvals:
     production_config_change: required
     unrestricted_shell: blocked
 
+execution:
+  owner: kiwi-codex-cli
+  isolation: direct
+  sandbox: workspace-write
+  forbidStaging: true
+  forbidCommits: true
+  forbidPushes: true
+
 commandProfiles:
   default:
     allowedCommands: [node, pnpm]

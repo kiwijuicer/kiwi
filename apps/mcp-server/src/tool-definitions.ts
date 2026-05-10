@@ -75,6 +75,22 @@ export const TOOLS = [
     },
   },
   {
+    name: "kiwi_preview_run",
+    description: "Preview planned step order, model switching, cost, gates, and execution mode before running",
+    inputSchema: {
+      type: "object",
+      properties: {
+        runId: { type: "string" },
+        fromStep: { type: "string" },
+        maxConcurrency: { type: "integer", minimum: 1 },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+      required: ["runId"],
+    },
+  },
+  {
     name: "kiwi_run_step",
     description: `Execute a planned step through policy gates. ${NO_AUTO_COMMIT_NOTE}`,
     inputSchema: {

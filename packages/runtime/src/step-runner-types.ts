@@ -24,6 +24,7 @@ export interface StepRunnerExecutionInput<TCommandPolicy = unknown> {
   repoPath?: string;
   worktreePath: string;
   executionMode?: "direct" | "worktree";
+  codexSandbox?: "read-only" | "workspace-write" | "danger-full-access";
   diffBaseTree?: string | null;
   stepPrompt: string;
   contextPackage: unknown;
@@ -71,6 +72,7 @@ export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
   runner: StepAttemptRunner<TCommandPolicy>;
   worktreePath: string;
   executionMode?: "direct" | "worktree";
+  codexSandbox?: "read-only" | "workspace-write" | "danger-full-access";
   diffBaseTree?: string | null;
   stepPrompt: string;
   allowedTools?: string[];

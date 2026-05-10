@@ -17,10 +17,13 @@ import type {
   AuditEventSchema,
   BudgetProfileLimitSchema,
   BudgetProfileSchema,
+  CodexSandboxSchema,
   CommandProfileSchema,
   ContextLevelSchema,
   ContextPackageSchema,
   ContractsMetadataSchema,
+  ExecutionDefaultsSchema,
+  ExecutionIsolationSchema,
   EvidenceFileHashSchema,
   EvidenceManifestSchema,
   EvidenceSubjectSchema,
@@ -170,6 +173,9 @@ export type KiwiConfig = z.infer<typeof KiwiConfigSchema>;
 export type PolicyRoutingOverride = z.infer<typeof PolicyRoutingOverrideSchema>;
 export type ProviderPreference = z.infer<typeof ProviderPreferenceSchema>;
 export type CommandProfile = z.infer<typeof CommandProfileSchema>;
+export type ExecutionIsolation = z.infer<typeof ExecutionIsolationSchema>;
+export type CodexSandbox = z.infer<typeof CodexSandboxSchema>;
+export type ExecutionDefaults = z.infer<typeof ExecutionDefaultsSchema>;
 export type KiwiPolicy = z.infer<typeof KiwiPolicySchema>;
 export type ModelProvider = z.infer<typeof ModelProviderSchema>;
 export type ModelEntry = z.infer<typeof ModelEntrySchema>;

@@ -56,8 +56,11 @@ export class ReviewerProviderRegistry {
       });
     }
     if (model.accessMode === AccessModes.CodexCli) {
+      if (!model.providerModel) {
+        throw new Error(`Codex reviewer model '${model.id}' must define providerModel for enforced model switching`);
+      }
       return new CodexCliReviewerProvider({
-        ...(model.providerModel ? { model: model.providerModel } : {}),
+        model: model.providerModel,
         env,
         policy,
       });

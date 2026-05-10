@@ -142,8 +142,8 @@ export function evaluateAccessModeAvailability(
 }
 
 const DEFAULT_PRIORITY: AccessMode[] = [
-  AccessModes.ClaudeCodeCli,
   AccessModes.CodexCli,
+  AccessModes.ClaudeCodeCli,
   AccessModes.CursorAgentCli,
   AccessModes.AnthropicApi,
   AccessModes.OpenaiApi,

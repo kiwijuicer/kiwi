@@ -41,6 +41,10 @@ export const ToolInputSchemas = {
     command: z.string().min(1).optional(),
     approved: z.boolean().optional(),
   }),
+  kiwi_preview_run: RunIdSchema.extend({
+    fromStep: z.string().min(1).optional(),
+    maxConcurrency: z.number().int().positive().optional(),
+  }),
   kiwi_run_step: RunIdSchema.extend({
     stepId: z.string().min(1),
     command: z.string().min(1).optional(),

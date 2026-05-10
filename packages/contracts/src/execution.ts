@@ -26,6 +26,7 @@ import {
 } from "./common";
 import { ArtifactSchema } from "./domain";
 import { EvidenceSubjectSchema } from "./evidence";
+import { CodexSandboxSchema, ExecutionIsolationSchema } from "./policy";
 
 const InvocationAccessModeSchema = enumFrom(ACCESS_MODE_VALUES);
 
@@ -175,6 +176,13 @@ export const SchedulerDecisionSchema = z.object({
   reviewDepth: ModelCapabilitySchema,
   requiredGates: z.array(z.string()),
   routingReason: z.array(z.string().min(1)).default([]),
+  selectedModelId: z.union([z.string().min(1), z.null()]).optional(),
+  selectedProviderModel: z.union([z.string().min(1), z.null()]).optional(),
+  selectedAccessMode: z.union([InvocationAccessModeSchema, z.null()]).optional(),
+  executorSelectionReason: z.union([z.string().min(1), z.null()]).optional(),
+  estimatedAttemptCostUsd: z.number().min(0).optional(),
+  executionOwner: z.literal("kiwi-codex-cli").optional(),
+  executionIsolation: ExecutionIsolationSchema.optional(),
   budget: z
     .object({
       profile: BudgetProfileSchema,
@@ -200,6 +208,9 @@ export const RunnerExecutionInputSchema = z.object({
   workspacePath: z.string().min(1),
   repoPath: z.string().min(1).optional(),
   worktreePath: z.string().min(1),
+  executionMode: ExecutionIsolationSchema.optional(),
+  codexSandbox: CodexSandboxSchema.optional(),
+  diffBaseTree: z.union([z.string().min(1), z.null()]).optional(),
   stepPrompt: z.string(),
   contextPackage: z.unknown(),
   allowedTools: z.array(z.string()),

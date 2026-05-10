@@ -45,6 +45,16 @@ function formatPlannerAvailability(candidates: ModelEntry[], env: Record<string,
   return rows.length > 0 ? rows.join("\n") : "  - no enabled planner models";
 }
 
+function plannerPriority(model: ModelEntry): number {
+  if (model.capability === ContractValues.Frontier) return 0;
+  if (model.capability === ContractValues.Strong) return 1;
+  return 2;
+}
+
+function byPlannerCapability(a: ModelEntry, b: ModelEntry): number {
+  return plannerPriority(a) - plannerPriority(b);
+}
+
 export class PlannerProviderRegistry {
   resolve(options: ResolvePlannerProviderOptions): PlannerResolution {
     const env = options.env ?? process.env;
@@ -53,8 +63,10 @@ export class PlannerProviderRegistry {
       (model) =>
         model.roles.includes(ContractValues.Planner) &&
         (model.capability === ContractValues.Frontier || model.capability === ContractValues.Strong),
-    );
-    const fallbackCandidates = options.registryModels.filter((model) => model.roles.includes(ContractValues.Planner));
+    ).sort(byPlannerCapability);
+    const fallbackCandidates = options.registryModels
+      .filter((model) => model.roles.includes(ContractValues.Planner))
+      .sort(byPlannerCapability);
     const selected =
       selectEnabledModelByAccessMode({
         candidates,
@@ -106,8 +118,11 @@ export class PlannerProviderRegistry {
       });
     }
     if (model.accessMode === AccessModes.CodexCli) {
+      if (!model.providerModel) {
+        throw new Error(`Codex planner model '${model.id}' must define providerModel for enforced model switching`);
+      }
       return new CodexCliPlannerProvider({
-        ...(model.providerModel ? { model: model.providerModel } : {}),
+        model: model.providerModel,
         env,
       });
     }

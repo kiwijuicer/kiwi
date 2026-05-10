@@ -517,6 +517,82 @@ describe("MCP server", () => {
     expect(JSON.stringify(taskGraph.result)).toContain("Progress MCP");
   });
 
+  it("previews Codex model switching before running", async () => {
+    const cwd = setupRepo();
+    writeFileSync(
+      kiwiModelRegistryPath(cwd),
+      `version: "1"
+models:
+  - id: stub-frontier
+    provider: stub
+    capability: frontier
+    roles: [planner, reviewer]
+    accessMode: stub
+    enabled: true
+  - id: codex-cli-mid
+    providerModel: gpt-5.4-mini
+    provider: local
+    capability: mid
+    roles: [executor, reviewer, researcher, rules]
+    accessMode: codex-cli
+    enabled: true
+  - id: codex-cli-strong
+    providerModel: gpt-5.4
+    provider: local
+    capability: strong
+    roles: [executor, reviewer, planner, security, rules]
+    accessMode: codex-cli
+    enabled: true
+`,
+      "utf-8",
+    );
+    const previousFake = process.env.KIWI_FAKE_BINARY_AVAILABLE;
+    const previousForce = process.env.KIWI_FORCE_ACCESS_MODE;
+    process.env.KIWI_FAKE_BINARY_AVAILABLE = "1";
+    try {
+      const planned = await handleMcpRequest(
+        {
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "kiwi_plan",
+            arguments: { rawInput: "# Preview MCP\n\n## Implement\n## Validate", allowStub: true },
+          },
+        },
+        cwd,
+      );
+      expect(planned.error).toBeUndefined();
+      const runId = (toolJson(planned) as { runId: string }).runId;
+      process.env.KIWI_FORCE_ACCESS_MODE = "codex-cli";
+
+      const preview = await handleMcpRequest(
+        {
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "kiwi_preview_run",
+            arguments: { runId, maxConcurrency: 2 },
+          },
+        },
+        cwd,
+      );
+
+      expect(preview.error).toBeUndefined();
+      const parsed = toolJson(preview) as {
+        executionIsolation: string;
+        steps: Array<{ runner: string; selectedModelId: string; selectedProviderModel: string }>;
+      };
+      expect(parsed.executionIsolation).toBe("direct");
+      expect(parsed.steps.some((step) => step.runner === "codex")).toBe(true);
+      expect(parsed.steps.some((step) => step.selectedProviderModel === "gpt-5.4")).toBe(true);
+    } finally {
+      if (previousFake === undefined) delete process.env.KIWI_FAKE_BINARY_AVAILABLE;
+      else process.env.KIWI_FAKE_BINARY_AVAILABLE = previousFake;
+      if (previousForce === undefined) delete process.env.KIWI_FORCE_ACCESS_MODE;
+      else process.env.KIWI_FORCE_ACCESS_MODE = previousForce;
+    }
+  });
+
   it("falls back from uninitialized workspacePath to initialized repoPath and prefers repoPath over repoId", async () => {
     const workspaceRoot = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-workspace-root-"));
     const core = path.join(workspaceRoot, "voice-core");
@@ -595,6 +671,7 @@ describe("MCP server", () => {
     const parsed = JSON.parse(text) as { runId: string; repoPath: string };
     expect(parsed.repoPath).toBe(workspace.core);
 
+    const notifications: unknown[] = [];
     const run = await handleMcpRequest(
       {
         id: 2,
@@ -610,9 +687,16 @@ describe("MCP server", () => {
         },
       },
       os.tmpdir(),
+      { sendNotification: (notification) => notifications.push(notification) },
     );
     expect(run.error).toBeUndefined();
     expect(JSON.stringify(run.result)).toContain("completed");
+    const notificationText = JSON.stringify(notifications);
+    expect(notificationText).toContain("phase=run status=started");
+    expect(notificationText).toContain("phase=routing status=selected");
+    expect(notificationText).toContain("phase=step status=started");
+    expect(notificationText).toContain("phase=gate status=");
+    expect(notificationText).toContain("phase=review status=completed");
     const runParsed = toolJson(run) as { completionSummary: { totalEstimatedCostUsd: number; nextAction: string } };
     expect(runParsed.completionSummary.totalEstimatedCostUsd).toBe(0);
 

@@ -299,15 +299,17 @@ Minimum in `RunnerExecutionOutput`:
 - `modelUsage`
 - `error` (optional)
 
-### 7.2 Worktree-Regel
+### 7.2 Codex-first Direct Execution
 
-Keine direkte Aenderung am Haupt-Working-Tree durch Runner.
+MCP/Codex nutzt standardmaessig den aktuellen Repo-Working-Tree.
 
 Strategie:
 
-- Run besitzt einen isolierten Run-Worktree.
-- Jeder StepAttempt erzeugt Patch/Artifacts in diesem Run-Kontext.
-- Anwendung auf Main-Tree erst nach Gates und Freigabe.
+- Kiwi waehlt pro Step ein konkretes Codex CLI `providerModel` und startet Codex mit `--model`.
+- Vor jedem Step wird ein Git-Tree-Snapshot als Baseline erfasst.
+- Jeder StepAttempt persistiert nur den Diff gegen diese Baseline als Artifact.
+- Staging, Commits, Tags und Pushes bleiben ohne expliziten User-Auftrag verboten.
+- `KIWI_EXECUTION_ISOLATION=worktree` aktiviert den isolierten Worktree-Modus als Safety-Override.
 
 ---
 

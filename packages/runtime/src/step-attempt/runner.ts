@@ -80,6 +80,7 @@ function buildRunnerInput<TCommandPolicy>(
     workspacePath: input.cwd,
     worktreePath: input.worktreePath,
     executionMode: input.executionMode ?? "worktree",
+    codexSandbox: input.codexSandbox ?? "workspace-write",
     diffBaseTree: input.diffBaseTree ?? null,
     stepPrompt: input.stepPrompt,
     contextPackage,

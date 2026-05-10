@@ -54,12 +54,25 @@ export interface RunRoutingExplanation {
   selectedCapability?: string;
   executorReason?: string;
   modelId?: string | null;
+  providerModel?: string | null;
   providerName?: string | null;
   accessMode?: string | null;
   runner?: string | null;
+  estimatedAttemptCostUsd?: number;
+  executionOwner?: string;
+  executionIsolation?: string;
   requiredGates: string[];
   routingReason: string[];
 }
+
+type SchedulerDecisionWithModelMetadata = NonNullable<ReturnType<typeof listStepAttemptEvidence>[number]["schedulerDecision"]> & {
+  selectedModelId?: string | null;
+  selectedProviderModel?: string | null;
+  selectedAccessMode?: string | null;
+  estimatedAttemptCostUsd?: number;
+  executionOwner?: string;
+  executionIsolation?: string;
+};
 
 export interface RunGateExplanation {
   stepId: string;
@@ -309,18 +322,27 @@ export function buildRunExplanation(params: { cwd: string; runId: string; now?: 
   const routing = attempts
     .filter((entry) => entry.schedulerDecision)
     .map((entry) => {
+      const schedulerDecision = entry.schedulerDecision! as SchedulerDecisionWithModelMetadata;
       const executorReason = executorReasons.get(entry.attemptId);
       const executorSelection = executorSelections.get(entry.attemptId);
       return {
         stepId: entry.stepId,
         attemptId: entry.attemptId,
-        status: entry.schedulerDecision!.status,
-        selectedCapability: entry.schedulerDecision!.modelCapability,
+        status: schedulerDecision.status,
+        selectedCapability: schedulerDecision.modelCapability,
         ...(executorReason ? { executorReason } : {}),
         ...(executorSelection ? executorSelection : {}),
-        runner: entry.schedulerDecision!.runner,
-        requiredGates: entry.schedulerDecision!.requiredGates,
-        routingReason: entry.schedulerDecision!.routingReason,
+        modelId: schedulerDecision.selectedModelId ?? executorSelection?.modelId ?? null,
+        providerModel: schedulerDecision.selectedProviderModel ?? null,
+        accessMode: schedulerDecision.selectedAccessMode ?? executorSelection?.accessMode ?? null,
+        runner: schedulerDecision.runner,
+        ...(schedulerDecision.estimatedAttemptCostUsd !== undefined
+          ? { estimatedAttemptCostUsd: schedulerDecision.estimatedAttemptCostUsd }
+          : {}),
+        ...(schedulerDecision.executionOwner ? { executionOwner: schedulerDecision.executionOwner } : {}),
+        ...(schedulerDecision.executionIsolation ? { executionIsolation: schedulerDecision.executionIsolation } : {}),
+        requiredGates: schedulerDecision.requiredGates,
+        routingReason: schedulerDecision.routingReason,
       };
     });
   const gates = attempts.flatMap((entry) =>

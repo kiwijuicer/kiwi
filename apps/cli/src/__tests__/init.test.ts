@@ -166,6 +166,23 @@ models:
     expect(registry.models.length).toBeGreaterThan(0);
     expect(registry.models.some((model) => model.accessMode === "anthropic-api")).toBe(false);
     expect(registry.models.some((model) => model.accessMode === "codex-cli")).toBe(true);
+    expect(registry.models.filter((model) => model.accessMode === "codex-cli").map((model) => model.id)).toEqual([
+      "codex-cli-cheap",
+      "codex-cli-mid",
+      "codex-cli-strong",
+      "codex-cli-frontier",
+    ]);
+    expect(registry.models.filter((model) => model.accessMode === "codex-cli").every((model) => model.providerModel)).toBe(
+      true,
+    );
+    expect(policy.execution).toMatchObject({
+      owner: "kiwi-codex-cli",
+      isolation: "direct",
+      sandbox: "workspace-write",
+      forbidCommits: true,
+      forbidPushes: true,
+      forbidStaging: true,
+    });
   });
 
   it("initializes an explicit workspace root", async () => {

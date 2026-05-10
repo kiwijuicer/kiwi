@@ -91,18 +91,23 @@ export interface RunnerRegistryOptions {
 
 const CODING_STEP_TYPES = new Set(["coding", "code_creation", "code_modification", "refactoring"]);
 const EXECUTOR_ACCESS_MODE_ORDER = [
-  AccessModes.ClaudeCodeCli,
   AccessModes.CodexCli,
+  AccessModes.ClaudeCodeCli,
   AccessModes.CursorAgentCli,
   AccessModes.AnthropicApi,
 ] as const;
 const CODING_RUNNER_PRIORITY: RunnerName[] = [
-  RunnerNames.ClaudeCode,
   RunnerNames.Codex,
+  RunnerNames.ClaudeCode,
   RunnerNames.CursorAgent,
   RunnerNames.LocalShell,
 ];
-const DEFAULT_RUNNER_PRIORITY: RunnerName[] = [RunnerNames.LocalShell, RunnerNames.CursorAgent, RunnerNames.ClaudeCode];
+const DEFAULT_RUNNER_PRIORITY: RunnerName[] = [
+  RunnerNames.Codex,
+  RunnerNames.ClaudeCode,
+  RunnerNames.CursorAgent,
+  RunnerNames.LocalShell,
+];
 
 function forcedRunnerForAccessMode(accessMode: string | undefined): RunnerName | null {
   switch (accessMode) {
@@ -155,13 +160,18 @@ function defaultRunnerDefinitions(): RunnerDefinition[] {
       accessMode: AccessModes.CodexCli,
       availability: ({ env }) =>
         detailFromAccessMode(RunnerNames.Codex, evaluateAccessModeAvailability(AccessModes.CodexCli, env)),
-      buildAdapter: ({ env, selectedExecutorModel }) =>
-        new CodexCliRunnerAdapter({
-          ...(selectedExecutorModel?.accessMode === AccessModes.CodexCli && selectedExecutorModel.providerModel
-            ? { model: selectedExecutorModel.providerModel }
-            : {}),
+      buildAdapter: ({ env, selectedExecutorModel }) => {
+        if (!selectedExecutorModel || selectedExecutorModel.accessMode !== AccessModes.CodexCli) {
+          throw new Error("Codex runner requires a selected codex-cli model in .kiwi/model-registry.yaml");
+        }
+        if (!selectedExecutorModel.providerModel) {
+          throw new Error(`Codex model '${selectedExecutorModel.id}' must define providerModel for enforced model switching`);
+        }
+        return new CodexCliRunnerAdapter({
+          model: selectedExecutorModel.providerModel,
           env,
-        }),
+        });
+      },
     },
     {
       runner: RunnerNames.CursorAgent,
@@ -331,6 +341,20 @@ function priorityIndex(priority: RunnerName[], runner: RunnerName): number {
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }
 
+function hasExecutorModelForRunner(
+  detail: RunnerAvailabilityDetail,
+  models: ModelEntry[],
+  env: Record<string, string | undefined>,
+): boolean {
+  if (detail.runner === RunnerNames.LocalShell || detail.accessMode === "local-shell") return true;
+  return models.some((model) => {
+    if (!model.enabled || !model.roles.includes(ContractValues.Executor)) return false;
+    if (model.accessMode !== detail.accessMode) return false;
+    if (model.accessMode === AccessModes.CodexCli && !model.providerModel) return false;
+    return isAccessAvailable(model, env);
+  });
+}
+
 export class RunnerRegistry {
   private readonly definitions: RunnerDefinition[];
 
@@ -352,7 +376,7 @@ export class RunnerRegistry {
     });
     const priority = priorityForStep(options.step, options.preferenceByRole);
     const runnerAvailability = details
-      .filter((entry) => entry.available)
+      .filter((entry) => entry.available && hasExecutorModelForRunner(entry, options.registryModels, env))
       .map((entry) => entry.runner)
       .sort((a, b) => priorityIndex(priority, a) - priorityIndex(priority, b));
     const requestedCapability = options.requestedCapability ?? options.step.recommendedModelCapability;
@@ -369,7 +393,7 @@ export class RunnerRegistry {
       runnerAvailability,
       runnerAvailabilityDetails: details,
       buildAdapter: (runner, executorModel) =>
-        this.buildAdapter(runner, { env, selectedExecutorModel: executorModel ?? null }),
+        this.buildAdapter(runner, { env, selectedExecutorModel: executorModel ?? executorSelection.model }),
       selectedExecutorModel: executorSelection.model,
       executorSelection,
       selectExecutorModel,

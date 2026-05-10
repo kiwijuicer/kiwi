@@ -157,9 +157,9 @@ The demo run is reproducible on a second machine when:
 
 ## Limitations on the demo (not blockers for V1)
 
-- Pre-runner gates (typecheck/lint/test) currently validate the starting
-  state of the worktree. Post-runner re-execution against the modified
-  worktree is a follow-up (Step 19 hardening backlog).
+- Direct Codex execution is the default MCP path. Set
+  `KIWI_EXECUTION_ISOLATION=worktree` only when the demo should use isolated
+  worktrees instead of the current repo working tree.
 - Bitbucket PR draft creation is implemented as a contract; the live
   PR-publish flow uses the operator's local git auth to push a branch and
   writes a create-PR URL instead of storing Bitbucket API credentials.

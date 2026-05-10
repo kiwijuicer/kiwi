@@ -284,7 +284,7 @@ function saveAttemptAndContext(params: {
   return { attemptRef, contextRef };
 }
 
-function saveSchedulerDecision(cwd: string, decision: SchedulerDecision): string {
+export function saveSchedulerDecision(cwd: string, decision: SchedulerDecision): string {
   const relative = `steps/${decision.stepId}/${decision.attemptId}/scheduler-decision.json`;
   const target = resolveRunArtifactPath(decision.runId, relative, cwd);
   writeJsonSafely(target, SchedulerDecisionSchema.parse(decision));
@@ -499,4 +499,69 @@ export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
   const decision = schedulePreparedAttempt(input, prepared, prepared.runner);
   auditScheduled(input, prepared, decision);
   return decision;
+}
+
+export function previewStepAttempt(input: SchedulerInput): SchedulerDecision {
+  const prepared = prepareScheduling(input);
+
+  if (!prepared.riskHigh && input.budgetRemainingUsdEstimate !== null && input.budgetRemainingUsdEstimate <= 0) {
+    prepared.routingReason.push("budget_hard_cap_exhausted");
+    return {
+      status: ContractValues.Blocked,
+      runId: input.runId,
+      stepId: input.step.stepId,
+      attemptId: prepared.attemptId,
+      blockedReason: "budget_hard_cap_exhausted",
+      agentRole: prepared.agentRole,
+      modelCapability: prepared.modelCapability,
+      runner: prepared.runner,
+      contextLevel: prepared.contextLevel,
+      reviewDepth: prepared.reviewDepth,
+      requiredGates: prepared.requiredGates,
+      routingReason: prepared.routingReason,
+      budget: prepared.budget,
+      contextPackageRef: contextPackageRef(input.step.stepId, prepared.attemptId),
+    };
+  }
+
+  if (prepared.riskHigh && input.budgetRemainingUsdEstimate !== null && input.budgetRemainingUsdEstimate <= 0) {
+    prepared.routingReason.push("risk_over_budget_hard_cap_override");
+  }
+
+  if (!prepared.runner) {
+    prepared.routingReason.push("no_runner_available");
+    return {
+      status: ContractValues.Blocked,
+      runId: input.runId,
+      stepId: input.step.stepId,
+      attemptId: prepared.attemptId,
+      blockedReason: "no_runner_available",
+      agentRole: prepared.agentRole,
+      modelCapability: prepared.modelCapability,
+      runner: null,
+      contextLevel: prepared.contextLevel,
+      reviewDepth: prepared.reviewDepth,
+      requiredGates: prepared.requiredGates,
+      routingReason: prepared.routingReason,
+      budget: prepared.budget,
+      contextPackageRef: contextPackageRef(input.step.stepId, prepared.attemptId),
+    };
+  }
+
+  prepared.routingReason.push(`runner_selected:${prepared.runner}`);
+  return {
+    status: "scheduled",
+    runId: input.runId,
+    stepId: input.step.stepId,
+    attemptId: prepared.attemptId,
+    agentRole: prepared.agentRole,
+    modelCapability: prepared.modelCapability,
+    runner: prepared.runner,
+    contextLevel: prepared.contextLevel,
+    reviewDepth: prepared.reviewDepth,
+    requiredGates: prepared.requiredGates,
+    routingReason: prepared.routingReason,
+    budget: prepared.budget,
+    contextPackageRef: contextPackageRef(input.step.stepId, prepared.attemptId),
+  };
 }

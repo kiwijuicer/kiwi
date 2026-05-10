@@ -1,16 +1,44 @@
 version: "1"
-# Model registry. Capability tiers map to real models below.
-# `cheap` is documented as an alias of `mid` (Haiku) with a smaller context
-# budget; it is not a separate model entry.
+# Model registry. Capability tiers map to real Codex CLI models below.
 #
 # Each entry declares an `accessMode`. Resolution priority at invocation:
 #   1. `KIWI_FORCE_ACCESS_MODE` env override
-#   2. claude-code-cli (uses local `claude` authentication)
-#   3. codex-cli / cursor-agent-cli (uses local CLI auth)
+#   2. codex-cli (uses local `codex` authentication)
+#   3. claude-code-cli / cursor-agent-cli (uses local CLI auth)
 #   4. cursor / jetbrains as IDE surfaces, plus local
 #   5. stub (tests only)
 models:
-  # Claude Code CLI — preferred default, reuses local claude auth.
+  # Codex CLI — preferred default, uses local codex auth and explicit model switching.
+  - id: codex-cli-cheap
+    providerModel: gpt-5.4-mini
+    provider: local
+    capability: cheap
+    roles: [researcher, executor, reviewer, rules]
+    accessMode: codex-cli
+    enabled: true
+  - id: codex-cli-mid
+    providerModel: gpt-5.4-mini
+    provider: local
+    capability: mid
+    roles: [researcher, executor, reviewer, rules]
+    accessMode: codex-cli
+    enabled: true
+  - id: codex-cli-strong
+    providerModel: gpt-5.4
+    provider: local
+    capability: strong
+    roles: [planner, researcher, executor, reviewer, security, rules]
+    accessMode: codex-cli
+    enabled: true
+  - id: codex-cli-frontier
+    providerModel: gpt-5.5
+    provider: local
+    capability: frontier
+    roles: [planner, reviewer, security]
+    accessMode: codex-cli
+    enabled: true
+
+  # Claude Code CLI — fallback, reuses local claude auth.
   # `id` is Kiwi-local. Omit `providerModel` by default so the Claude CLI
   # resolves its current configured/default model dynamically.
   - id: claude-code-cli-frontier
@@ -44,20 +72,6 @@ models:
     capability: mid
     roles: [researcher, executor, reviewer]
     accessMode: cursor-agent-cli
-    enabled: true
-
-  # Codex CLI — uses local codex auth, no direct OpenAI API key
-  - id: codex-cli-auto
-    provider: local
-    capability: strong
-    roles: [planner, researcher, executor, reviewer, security, rules]
-    accessMode: codex-cli
-    enabled: true
-  - id: codex-cli-mid
-    provider: local
-    capability: mid
-    roles: [researcher, executor, reviewer, rules]
-    accessMode: codex-cli
     enabled: true
 
   # Stub providers — tests/dev fixtures only. CLI/MCP planning and execution

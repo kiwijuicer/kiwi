@@ -58,6 +58,7 @@ All assistants use the same MCP server. The assistant can call:
 
 - `kiwi_plan` to create a run.
 - `kiwi_status` to inspect runs.
+- `kiwi_preview_run` to inspect step order, model switching, costs, gates, and execution mode before running.
 - `kiwi_run` to execute all planned steps.
 - `kiwi_run_step` for advanced single-step execution.
 - `kiwi_finalize` to write final verdict and summary.
@@ -72,7 +73,7 @@ Use kiwi. Workspace: /Users/norberthanauer/Projects/voice. Repo: core.
 Plan this ticket, run the planned steps, then finalize and show me the evidence manifest path.
 ```
 
-No direct Anthropic/OpenAI API key is required for the standard flow. Kiwi uses local CLI logins for Claude, Codex, and Cursor Agent. Bitbucket PR publishing uses your existing git remote/auth to push a branch, then writes `final/pr-draft.json` and a Bitbucket create-PR URL.
+No direct Anthropic/OpenAI API key is required for the standard flow. Kiwi is Codex-first by default: each planned step is routed to a configured Codex CLI `providerModel`, passed with `--model`, and executed in the current repo working tree with `workspace-write` sandboxing. Set `KIWI_EXECUTION_ISOLATION=worktree` only when you explicitly want isolated worktree execution. Bitbucket PR publishing uses your existing git remote/auth to push a branch, then writes `final/pr-draft.json` and a Bitbucket create-PR URL.
 
 ## A2A
 

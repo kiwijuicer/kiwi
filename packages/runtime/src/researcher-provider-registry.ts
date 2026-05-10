@@ -48,8 +48,11 @@ export class ResearcherProviderRegistry {
       });
     }
     if (model.accessMode === AccessModes.CodexCli) {
+      if (!model.providerModel) {
+        throw new Error(`Codex researcher model '${model.id}' must define providerModel for enforced model switching`);
+      }
       return new CodexCliResearcherProvider({
-        ...(model.providerModel ? { model: model.providerModel } : {}),
+        model: model.providerModel,
         env,
       });
     }
