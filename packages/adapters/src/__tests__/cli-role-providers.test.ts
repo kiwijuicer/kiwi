@@ -202,7 +202,7 @@ describe("CLI reviewer providers", () => {
     expect(runner.invocations[0]?.systemPrompt).toContain("raw JSON ReviewVerdict");
   });
 
-  it("reviews through codex-cli with a read-only sandbox", async () => {
+  it("reviews through codex-cli with auto-review approvals", async () => {
     const runner = new FakeCodexRunner(reviewVerdict);
     const provider = new CodexCliReviewerProvider({
       runner,
@@ -215,7 +215,9 @@ describe("CLI reviewer providers", () => {
     expect(output.providerName).toBe("codex-cli:default");
     expect(output.reviewVerdict.verdict).toBe("pass");
     expect(output.modelUsage).toEqual({ inputTokens: 23, outputTokens: 8 });
-    expect(runner.invocations[0]?.sandbox).toBe("read-only");
+    expect(runner.invocations[0]?.sandbox).toBe("workspace-write");
+    expect(runner.invocations[0]?.approvalPolicy).toBe("on-request");
+    expect(runner.invocations[0]?.approvalsReviewer).toBe("auto_review");
     expect(runner.invocations[0]?.prompt).toContain("ReviewVerdict JSON schema");
     expect(runner.invocations[0]?.env?.SECRET_TOKEN).toBeUndefined();
   });
@@ -234,7 +236,7 @@ describe("CLI reviewer providers", () => {
 });
 
 describe("CLI researcher providers", () => {
-  it("researches through codex-cli with a read-only sandbox", async () => {
+  it("researches through codex-cli with auto-review approvals", async () => {
     const runner = new FakeCodexRunner(researchReport());
     const provider = new CodexCliResearcherProvider({ runner, env: { PATH: "/bin", SECRET_TOKEN: "hidden" } });
 
@@ -242,7 +244,9 @@ describe("CLI researcher providers", () => {
 
     expect(output.providerName).toBe("codex-cli:default");
     expect(output.researchReport.relevantFiles[0]?.path).toBe("apps/cli/src/index.ts");
-    expect(runner.invocations[0]?.sandbox).toBe("read-only");
+    expect(runner.invocations[0]?.sandbox).toBe("workspace-write");
+    expect(runner.invocations[0]?.approvalPolicy).toBe("on-request");
+    expect(runner.invocations[0]?.approvalsReviewer).toBe("auto_review");
     expect(runner.invocations[0]?.prompt).toContain("ResearchReport JSON schema");
     expect(runner.invocations[0]?.env?.SECRET_TOKEN).toBeUndefined();
   });

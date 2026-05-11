@@ -181,7 +181,7 @@ async function runSequentialSteps(params: {
       progress.stepFailed(stepId, error);
       throw error;
     }
-    const runStatus = getRunStatusSummary(cwd, runId).latest[0]?.status;
+    const runStatus = getRunStatusSummary(cwd, runId).latest[0]?.currentStatus;
     progress.stepDone(stepId, attemptResult, runStatus);
 
     if (runStatus === ContractValues.Failed || runStatus === "needs_approval") {
@@ -254,7 +254,7 @@ export async function runRun(runId: string, opts: RunOptions = {}, cwd: string =
               progress.stepStart(stepId, titlesByStepId.get(stepId));
               try {
                 const result = await runAttemptUnlocked(runId, stepId, options, workspace.workspacePath);
-                const runStatus = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.status;
+                const runStatus = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.currentStatus;
                 progress.stepDone(stepId, result, runStatus);
                 return result;
               } catch (error) {

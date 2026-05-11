@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { Artifact, Initiative, TaskGraph } from "@kiwi/contracts";
 import { getRunStatusSummary } from "../status";
 import { savePlannedRun } from "../run-store";
-import { refreshRunStatusFromAttempts } from "../lifecycle/status";
+import { refreshRunStatusFromAttempts, updateRunStatus } from "../lifecycle/status";
 
 function fixtureInitiative(id: string, title: string): Initiative {
   return {
@@ -148,6 +148,29 @@ function writeAttempt(params: {
   }
 }
 
+function writeFinalVerdict(params: { cwd: string; runId: string; safeToApply: boolean }): void {
+  const finalDir = path.join(params.cwd, ".kiwi", "runs", params.runId, "final");
+  mkdirSync(finalDir, { recursive: true });
+  writeFileSync(
+    path.join(finalDir, "final-verdict.json"),
+    JSON.stringify({
+      schemaVersion: "1",
+      runId: params.runId,
+      verdict: params.safeToApply ? "pass" : "needs_changes",
+      safeToApply: params.safeToApply,
+      completedStepIds: [],
+      failedStepIds: params.safeToApply ? [] : ["step_001"],
+      blockedStepIds: [],
+      missingStepIds: [],
+      gateResultRefs: [],
+      reviewReportRefs: [],
+      reason: params.safeToApply ? "All planned steps completed" : "Run needs changes",
+      createdAt: "2026-05-04T04:04:00.000Z",
+    }),
+    "utf-8",
+  );
+}
+
 describe("run status summary", () => {
   it("refreshes run status from the latest attempt for each step", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-core-status-retry-"));
@@ -285,8 +308,49 @@ describe("run status summary", () => {
         contextPackageRef: "steps/step_002/attempt_running/context-package.json",
         schedulerStatus: "scheduled",
         routingReason: ["runner_selected:local-shell"],
+        selectedAccessMode: null,
+        selectedModelId: null,
+        selectedProviderModel: null,
       },
     ]);
+  });
+
+  it("treats a final verdict as authoritative over stale running attempts", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-core-status-final-"));
+    const runId = "run_20260504_040000_final";
+
+    savePlannedRun({
+      runId,
+      initiative: fixtureInitiative("init_20260504_040000_final", "Feature Final"),
+      taskGraph: fixtureTaskGraph(runId, "init_20260504_040000_final", "plan_20260504_040000_final"),
+      cwd,
+      now: new Date("2026-05-04T04:00:00.000Z"),
+    });
+    updateRunStatus({
+      cwd,
+      runId,
+      status: "running",
+      now: new Date("2026-05-04T04:01:00.000Z"),
+    });
+    writeAttempt({
+      cwd,
+      runId,
+      stepId: "step_001",
+      attemptId: "attempt_running",
+      status: "running",
+      startedAt: "2026-05-04T04:02:00.000Z",
+      completedAt: null,
+    });
+    writeFinalVerdict({ cwd, runId, safeToApply: false });
+
+    const summary = getRunStatusSummary(cwd, runId);
+    const entry = summary.latest[0];
+
+    expect(summary.running).toBe(0);
+    expect(summary.failed).toBe(1);
+    expect(entry?.status).toBe("running");
+    expect(entry?.currentStatus).toBe("failed");
+    expect(entry?.artifactPaths.finalVerdict).toBe(`.kiwi/runs/${runId}/final/final-verdict.json`);
   });
 
   it("supports selected run status", () => {

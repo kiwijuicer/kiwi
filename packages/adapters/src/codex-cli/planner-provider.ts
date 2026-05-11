@@ -6,7 +6,14 @@ import {
   PlannerProviderOutput,
   PlannerProviderRepairContext,
 } from "../planner-provider";
-import { CodexCliRunner, DefaultCodexCliRunner, normalizeUsageFromCodex } from "./client";
+import {
+  CODEX_AUTO_REVIEW_APPROVAL_POLICY,
+  CODEX_AUTO_REVIEW_APPROVALS_REVIEWER,
+  CODEX_AUTO_REVIEW_SANDBOX,
+  CodexCliRunner,
+  DefaultCodexCliRunner,
+  normalizeUsageFromCodex,
+} from "./client";
 
 const DEFAULT_TIMEOUT_MS = 300_000;
 
@@ -71,7 +78,9 @@ export class CodexCliPlannerProvider implements PlannerProvider {
           binary: this.binary,
           cwd: this.cwd ?? input.initiative.repoPath,
           ...(this.model ? { model: this.model } : {}),
-          sandbox: "read-only",
+          sandbox: CODEX_AUTO_REVIEW_SANDBOX,
+          approvalPolicy: CODEX_AUTO_REVIEW_APPROVAL_POLICY,
+          approvalsReviewer: CODEX_AUTO_REVIEW_APPROVALS_REVIEWER,
           prompt,
           timeoutMs: this.timeoutMs,
           env,

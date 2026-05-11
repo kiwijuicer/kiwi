@@ -94,9 +94,12 @@ daily use.
 | mid        | codex-cli gpt-5.4-mini | tests, docs, rules, research   |
 | cheap      | codex-cli gpt-5.4-mini | smaller context / lower-cost routes |
 
-Execution defaults to the current repo working tree with `workspace-write`
-sandboxing. `KIWI_EXECUTION_ISOLATION=worktree` keeps the old isolated worktree
-path as an explicit safety override.
+Execution defaults to the current repo working tree with Codex CLI
+`workspace-write` sandboxing. Kiwi invokes Codex with
+`approval_policy="on-request"` and `approvals_reviewer="auto_review"`, so
+eligible approval requests are reviewed by Codex auto-review instead of bypassed.
+`KIWI_EXECUTION_ISOLATION=worktree` keeps the old isolated worktree path as an
+explicit safety override.
 
 ## Prompt Cache Parity Note
 

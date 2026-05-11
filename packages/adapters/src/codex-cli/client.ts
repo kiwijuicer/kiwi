@@ -1,10 +1,16 @@
 import { runSubprocess, SubprocessOutputChunk } from "../subprocess";
 
+export const CODEX_AUTO_REVIEW_APPROVAL_POLICY = "on-request" as const;
+export const CODEX_AUTO_REVIEW_APPROVALS_REVIEWER = "auto_review" as const;
+export const CODEX_AUTO_REVIEW_SANDBOX = "workspace-write" as const;
+
 export interface CodexCliInvocation {
   binary: string;
   cwd: string;
   model?: string;
   sandbox?: "read-only" | "workspace-write" | "danger-full-access";
+  approvalPolicy?: "untrusted" | "on-failure" | "on-request" | "never";
+  approvalsReviewer?: "user" | "auto_review" | "guardian_subagent";
   prompt: string;
   timeoutMs: number;
   env?: Record<string, string | undefined>;
@@ -44,17 +50,23 @@ function parseJsonLines(text: string): unknown[] {
     });
 }
 
-function buildArgs(invocation: CodexCliInvocation): string[] {
+export function buildCodexCliArgs(invocation: CodexCliInvocation): string[] {
   const args = [
     "exec",
     "--json",
     "--cd",
     invocation.cwd,
-    "--sandbox",
-    invocation.sandbox ?? "workspace-write",
     "--skip-git-repo-check",
     "--ephemeral",
   ];
+  args.push(
+    "--sandbox",
+    invocation.sandbox ?? CODEX_AUTO_REVIEW_SANDBOX,
+    "-c",
+    `approval_policy="${invocation.approvalPolicy ?? CODEX_AUTO_REVIEW_APPROVAL_POLICY}"`,
+    "-c",
+    `approvals_reviewer="${invocation.approvalsReviewer ?? CODEX_AUTO_REVIEW_APPROVALS_REVIEWER}"`,
+  );
   if (invocation.model) {
     args.push("--model", invocation.model);
   }
@@ -64,7 +76,7 @@ function buildArgs(invocation: CodexCliInvocation): string[] {
 
 export class DefaultCodexCliRunner implements CodexCliRunner {
   async run(invocation: CodexCliInvocation): Promise<CodexCliResult> {
-    const args = buildArgs(invocation);
+    const args = buildCodexCliArgs(invocation);
     const result = await runSubprocess({
       binary: invocation.binary,
       args,

@@ -139,6 +139,9 @@ describe("CLI planner providers", () => {
     expect(output.modelUsage).toEqual({ inputTokens: 13, outputTokens: 5 });
     expect(runner.invocations[0]?.prompt).toContain("TaskGraph JSON schema");
     expect(runner.invocations[0]?.env?.SECRET_TOKEN).toBeUndefined();
+    expect(runner.invocations[0]?.sandbox).toBe("workspace-write");
+    expect(runner.invocations[0]?.approvalPolicy).toBe("on-request");
+    expect(runner.invocations[0]?.approvalsReviewer).toBe("auto_review");
   });
 
   it("plans through cursor-agent JSON output", async () => {

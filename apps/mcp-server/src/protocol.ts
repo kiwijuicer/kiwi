@@ -1,6 +1,6 @@
 import { callTool, toolArguments } from "./tools";
 import { listTools } from "./tool-definitions";
-import { listResources, readMcpResource } from "./resources";
+import { listResources, listResourceTemplates, readMcpResource } from "./resources";
 import { asRecord, JsonRpcRequest, JsonRpcResponse, textContent } from "./json-rpc";
 import { ToolInputValidationError } from "./tool-input-schemas";
 
@@ -31,7 +31,10 @@ function progressTokenFor(request: JsonRpcRequest): string | number | null | und
   return request.id;
 }
 
-function progressSender(request: JsonRpcRequest, context: McpRequestContext | undefined): ((message: string, percent?: number) => void) | undefined {
+function progressSender(
+  request: JsonRpcRequest,
+  context: McpRequestContext | undefined,
+): ((message: string, percent?: number) => void) | undefined {
   if (!context?.sendNotification) return undefined;
   const token = progressTokenFor(request);
   return (message, percent) => {
@@ -72,6 +75,9 @@ export async function handleMcpRequest(
     if (request.method === "resources/list") {
       return { jsonrpc: "2.0", id, result: { resources: listResources(cwd) } };
     }
+    if (request.method === "resources/templates/list") {
+      return { jsonrpc: "2.0", id, result: { resourceTemplates: listResourceTemplates() } };
+    }
     if (request.method === "resources/read") {
       const params = asRecord(request.params);
       return { jsonrpc: "2.0", id, result: { contents: [readMcpResource(String(params.uri), cwd)] } };
@@ -82,12 +88,7 @@ export async function handleMcpRequest(
     if (request.method === "tools/call") {
       const params = asRecord(request.params);
       const onProgress = progressSender(request, context);
-      const result = await callTool(
-        String(params.name),
-        toolArguments(params),
-        cwd,
-        onProgress ? { onProgress } : {},
-      );
+      const result = await callTool(String(params.name), toolArguments(params), cwd, onProgress ? { onProgress } : {});
       return { jsonrpc: "2.0", id, result: textContent(result) };
     }
     return { jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${request.method}` } };

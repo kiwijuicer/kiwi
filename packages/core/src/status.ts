@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
-import { ContractValues, RunStatus, Step, StepType } from "@kiwi/contracts";
+import { ContractValues, FinalVerdictSchema, RunStatus, Step, StepType } from "@kiwi/contracts";
 import { RunCorruptError, RunNotFoundError } from "./errors";
 import { listRunIds, loadInitiative, loadRunManifest, loadTaskGraph, resolveRunArtifactPath } from "./run-store";
 import { latestAttemptByStep, listStepAttemptEvidence, StepAttemptEvidence } from "./lifecycle";
@@ -138,6 +138,20 @@ function finalArtifactPathsFor(runId: string, cwd: string): Partial<RunArtifactP
     }
   }
   return existing;
+}
+
+function finalRunStatusFor(runId: string, cwd: string): RunStatus | null {
+  const ref = "final/final-verdict.json";
+  const target = resolveRunArtifactPath(runId, ref, cwd);
+  if (!existsSync(target)) return null;
+
+  try {
+    const verdict = FinalVerdictSchema.parse(JSON.parse(readFileSync(target, "utf-8")) as unknown);
+    return verdict.safeToApply ? ContractValues.Completed : ContractValues.Failed;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new RunCorruptError(runId, `invalid final verdict ${ref}: ${message}`);
+  }
 }
 
 function gateStatusFor(entry: StepAttemptEvidence): "pass" | "fail" | "blocked" | "missing" {
@@ -303,10 +317,12 @@ function latestStepEntries(params: {
 
 function deriveCurrentRunStatus(params: {
   manifestStatus: RunStatus;
+  finalStatus: RunStatus | null;
   steps: Step[];
   latestAttempts: Map<string, StepAttemptEvidence>;
 }): RunStatus {
   if (params.manifestStatus === ContractValues.Cancelled) return params.manifestStatus;
+  if (params.finalStatus) return params.finalStatus;
   const attempts = Array.from(params.latestAttempts.values());
   if (attempts.length === 0) return params.manifestStatus;
   if (attempts.some((entry) => entry.attempt.status === ContractValues.Blocked)) return "needs_approval";
@@ -345,6 +361,7 @@ function loadRunStatusEntry(runId: string, cwd: string): RunStatusEntry {
   const taskGraph = loadTaskGraph(runId, cwd);
   const attempts = listStepAttemptEvidence(cwd, runId);
   const latestAttempts = latestAttemptByStep(attempts);
+  const finalStatus = finalRunStatusFor(runId, cwd);
   const stepDetails = latestStepEntries({
     cwd,
     runId,
@@ -357,6 +374,7 @@ function loadRunStatusEntry(runId: string, cwd: string): RunStatusEntry {
     status: run.status,
     currentStatus: deriveCurrentRunStatus({
       manifestStatus: run.status,
+      finalStatus,
       steps: taskGraph.steps,
       latestAttempts,
     }),

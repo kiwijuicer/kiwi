@@ -73,7 +73,7 @@ Use kiwi. Workspace: /Users/norberthanauer/Projects/voice. Repo: core.
 Plan this ticket, run the planned steps, then finalize and show me the evidence manifest path.
 ```
 
-No direct Anthropic/OpenAI API key is required for the standard flow. Kiwi is Codex-first by default: each planned step is routed to a configured Codex CLI `providerModel`, passed with `--model`, and executed in the current repo working tree with `workspace-write` sandboxing. Set `KIWI_EXECUTION_ISOLATION=worktree` only when you explicitly want isolated worktree execution. Bitbucket PR publishing uses your existing git remote/auth to push a branch, then writes `final/pr-draft.json` and a Bitbucket create-PR URL.
+No direct Anthropic/OpenAI API key is required for the standard flow. Kiwi is Codex-first by default: each planned step is routed to a configured Codex CLI `providerModel`, passed with `--model`, and executed in the current repo working tree with `workspace-write`, `approval_policy="on-request"`, and `approvals_reviewer="auto_review"`. Set `KIWI_EXECUTION_ISOLATION=worktree` only when you explicitly want isolated worktree execution. Bitbucket PR publishing uses your existing git remote/auth to push a branch, then writes `final/pr-draft.json` and a Bitbucket create-PR URL.
 
 ## A2A
 

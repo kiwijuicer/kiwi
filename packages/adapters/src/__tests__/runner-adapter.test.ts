@@ -3,7 +3,12 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { SandboxCommandPolicy } from "@kiwi/sandbox";
-import { CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../codex-cli/client";
+import {
+  buildCodexCliArgs,
+  CodexCliInvocation,
+  CodexCliResult,
+  CodexCliRunner,
+} from "../codex-cli/client";
 import { CodexCliRunnerAdapter } from "../codex-cli/runner-adapter";
 import { CursorAgentRunnerAdapter } from "../cursor-agent-cli/runner-adapter";
 import { CursorAgentCliInvocation, CursorAgentCliResult, CursorAgentCliRunner } from "../cursor-agent-cli/client";
@@ -84,6 +89,21 @@ function policy(overrides: Partial<SandboxCommandPolicy> = {}): SandboxCommandPo
 }
 
 describe("runner adapters", () => {
+  it("builds codex exec args with auto-review approvals by default", () => {
+    const args = buildCodexCliArgs({
+      binary: "codex",
+      cwd: "/tmp/repo",
+      prompt: "do it",
+      timeoutMs: 1000,
+    });
+
+    expect(args).toContain("--sandbox");
+    expect(args).toContain("workspace-write");
+    expect(args).toContain('approval_policy="on-request"');
+    expect(args).toContain('approvals_reviewer="auto_review"');
+    expect(args).not.toContain("--dangerously-bypass-approvals-and-sandbox");
+  });
+
   it("executes local-shell commands through the sandbox", async () => {
     const repo = cwd();
     const worktreePath = path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_001");
@@ -247,6 +267,8 @@ describe("runner adapters", () => {
     expect(runner.invocations[0]?.env?.SECRET_TOKEN).toBeUndefined();
     expect(runner.invocations[0]?.model).toBe("gpt-5.4");
     expect(runner.invocations[0]?.sandbox).toBe("workspace-write");
+    expect(runner.invocations[0]?.approvalPolicy).toBe("on-request");
+    expect(runner.invocations[0]?.approvalsReviewer).toBe("auto_review");
     expect(runner.invocations[0]?.prompt).toContain("doNotPush");
   });
 });

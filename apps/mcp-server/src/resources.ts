@@ -20,31 +20,58 @@ interface McpResourceContent {
   mimeType?: string;
 }
 
+interface McpResource {
+  uri: string;
+  name: string;
+  mimeType?: string;
+}
+
+interface McpResourceTemplate {
+  uriTemplate: string;
+  name: string;
+  mimeType?: string;
+}
+
 export const MCP_RESOURCE_TEMPLATES = [
-  { uri: "kiwi://runs", name: "Runs" },
-  { uri: "kiwi://runs/{runId}", name: "Run Status" },
-  { uri: "kiwi://runs/{runId}/manifest", name: "Run Manifest" },
-  { uri: "kiwi://runs/{runId}/initiative", name: "Initiative" },
-  { uri: "kiwi://runs/{runId}/task-graph", name: "TaskGraph" },
-  { uri: "kiwi://runs/{runId}/planner-input", name: "Planner Input" },
-  { uri: "kiwi://runs/{runId}/planner-output", name: "Planner Output" },
-  { uri: "kiwi://runs/{runId}/planner-cost", name: "Planner Cost" },
-  { uri: "kiwi://runs/{runId}/model-invocations", name: "Model Invocations" },
-  { uri: "kiwi://runs/{runId}/model-usage-summary", name: "Model Usage Summary" },
-  { uri: "kiwi://runs/{runId}/attempts", name: "Step Attempts" },
-  { uri: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}", name: "StepAttempt" },
-  { uri: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/gate-results", name: "Gate Results" },
-  { uri: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/review-verdict", name: "Review Verdict" },
-  { uri: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/attempt-summary", name: "Attempt Summary" },
-  { uri: "kiwi://runs/{runId}/final-verdict", name: "Final Verdict" },
-  { uri: "kiwi://runs/{runId}/final-cost-report", name: "Final Cost Report" },
-  { uri: "kiwi://runs/{runId}/final-summary", name: "Final Summary" },
-  { uri: "kiwi://runs/{runId}/pr-draft", name: "PR Draft" },
-  { uri: "kiwi://runs/{runId}/audit", name: "Audit Events" },
-  { uri: "kiwi://runs/{runId}/audit-snapshot", name: "Audit Snapshot" },
-  { uri: "kiwi://runs/{runId}/evidence-manifest", name: "Evidence Manifest" },
-  { uri: "kiwi://runs/{runId}/operator-snapshot", name: "Operator Snapshot" },
-  { uri: "kiwi://runs/{runId}/artifacts/{artifactRef}", name: "Artifact" },
+  { uriTemplate: "kiwi://runs/{runId}", name: "Run Status", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/manifest", name: "Run Manifest", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/initiative", name: "Initiative", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/task-graph", name: "TaskGraph", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/planner-input", name: "Planner Input", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/planner-output", name: "Planner Output", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/planner-cost", name: "Planner Cost", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/model-invocations", name: "Model Invocations", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/model-usage-summary", name: "Model Usage Summary", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/attempts", name: "Step Attempts", mimeType: "application/json" },
+  {
+    uriTemplate: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}",
+    name: "StepAttempt",
+    mimeType: "application/json",
+  },
+  {
+    uriTemplate: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/gate-results",
+    name: "Gate Results",
+    mimeType: "application/json",
+  },
+  {
+    uriTemplate: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/review-verdict",
+    name: "Review Verdict",
+    mimeType: "application/json",
+  },
+  {
+    uriTemplate: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/attempt-summary",
+    name: "Attempt Summary",
+    mimeType: "application/json",
+  },
+  { uriTemplate: "kiwi://runs/{runId}/final-verdict", name: "Final Verdict", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/final-cost-report", name: "Final Cost Report", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/final-summary", name: "Final Summary", mimeType: "text/markdown" },
+  { uriTemplate: "kiwi://runs/{runId}/pr-draft", name: "PR Draft", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/audit", name: "Audit Events", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/audit-snapshot", name: "Audit Snapshot", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/evidence-manifest", name: "Evidence Manifest", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/operator-snapshot", name: "Operator Snapshot", mimeType: "text/html" },
+  { uriTemplate: "kiwi://runs/{runId}/artifacts/{artifactRef}", name: "Artifact" },
 ];
 
 function mimeTypeForRef(ref: string): string {
@@ -55,7 +82,11 @@ function mimeTypeForRef(ref: string): string {
   return "text/plain";
 }
 
-function collectFiles(params: { cwd: string; runId: string; relativeDir: string }): Array<{ ref: string; name: string }> {
+function collectFiles(params: {
+  cwd: string;
+  runId: string;
+  relativeDir: string;
+}): Array<{ ref: string; name: string }> {
   const root = resolveRunArtifactPath(params.runId, params.relativeDir, params.cwd);
   if (!existsSync(root)) return [];
   const files: Array<{ ref: string; name: string }> = [];
@@ -74,7 +105,20 @@ function collectFiles(params: { cwd: string; runId: string; relativeDir: string 
   return files;
 }
 
-export function listResources(cwd: string): Array<{ uri: string; name: string; mimeType?: string }> {
+export function listResourceTemplates(): McpResourceTemplate[] {
+  return MCP_RESOURCE_TEMPLATES;
+}
+
+export function listResources(cwd: string): McpResource[] {
+  const runs = listRunIds(cwd);
+  const concreteRuns: McpResource[] = [
+    { uri: "kiwi://runs", name: "Runs", mimeType: "application/json" },
+    ...runs.map((runId) => ({
+      uri: `kiwi://runs/${runId}`,
+      name: `${runId} Status`,
+      mimeType: "application/json",
+    })),
+  ];
   const dynamic = listRunIds(cwd).flatMap((runId) =>
     ["plan", "steps", "final"].flatMap((relativeDir) =>
       collectFiles({ cwd, runId, relativeDir }).map((file) => ({
@@ -84,7 +128,7 @@ export function listResources(cwd: string): Array<{ uri: string; name: string; m
       })),
     ),
   );
-  return [...MCP_RESOURCE_TEMPLATES, ...dynamic];
+  return [...concreteRuns, ...dynamic];
 }
 
 function readJsonRunArtifact(runId: string, ref: string, cwd: string): unknown {

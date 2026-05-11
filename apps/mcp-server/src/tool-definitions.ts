@@ -24,6 +24,14 @@ const A2A_TOOL_NAMES = new Set([
   "kiwi_a2a_accept",
 ]);
 
+export function a2aMcpToolsEnabled(): boolean {
+  return process.env.KIWI_A2A_MCP === "1";
+}
+
+export function isA2AToolName(name: string): boolean {
+  return A2A_TOOL_NAMES.has(name);
+}
+
 export const TOOLS = [
   {
     name: "kiwi_plan",
@@ -327,6 +335,6 @@ export const TOOLS = [
 ] as const;
 
 export function listTools(): typeof TOOLS {
-  if (process.env.KIWI_A2A_MCP === "1") return TOOLS;
+  if (a2aMcpToolsEnabled()) return TOOLS;
   return TOOLS.filter((tool) => !A2A_TOOL_NAMES.has(tool.name)) as unknown as typeof TOOLS;
 }

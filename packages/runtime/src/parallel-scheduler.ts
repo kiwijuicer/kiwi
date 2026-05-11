@@ -215,7 +215,7 @@ function updateStoppedStatus<TAttemptOptions extends object>(
   state: SchedulerState<TAttemptOptions>,
   stepId: string,
 ): void {
-  const status = getRunStatusSummary(state.params.cwd, state.params.runId).latest[0]?.status;
+  const status = getRunStatusSummary(state.params.cwd, state.params.runId).latest[0]?.currentStatus;
   if ((status === ContractValues.Failed || status === "needs_approval") && state.stoppedStatus === undefined) {
     state.stoppedStatus = status;
     state.stoppedStepId = stepId;

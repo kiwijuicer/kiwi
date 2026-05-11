@@ -1,5 +1,12 @@
 import { AccessModes, RunnerName, RunnerNames } from "@kiwi/contracts";
-import { CodexCliRunner, DefaultCodexCliRunner, normalizeUsageFromCodex } from "./client";
+import {
+  CODEX_AUTO_REVIEW_APPROVAL_POLICY,
+  CODEX_AUTO_REVIEW_APPROVALS_REVIEWER,
+  CODEX_AUTO_REVIEW_SANDBOX,
+  CodexCliRunner,
+  DefaultCodexCliRunner,
+  normalizeUsageFromCodex,
+} from "./client";
 import { cliRunnerOutput, runnerTimeoutMs } from "../cli-runner-output";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../runner-adapter";
 import { buildRunnerEnv } from "../runner-env";
@@ -65,7 +72,9 @@ export class CodexCliRunnerAdapter implements RunnerAdapter {
       prompt: buildPrompt(input),
       timeoutMs: runnerTimeoutMs(input, this.timeoutMs),
       env,
-      sandbox: input.codexSandbox ?? ("workspace-write" as const),
+      sandbox: input.codexSandbox ?? CODEX_AUTO_REVIEW_SANDBOX,
+      approvalPolicy: CODEX_AUTO_REVIEW_APPROVAL_POLICY,
+      approvalsReviewer: CODEX_AUTO_REVIEW_APPROVALS_REVIEWER,
       ...(this.model ? { model: this.model } : {}),
     };
     const result = await this.cliRunner.run(invocation);

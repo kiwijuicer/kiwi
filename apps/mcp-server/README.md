@@ -66,6 +66,8 @@ Additional tools:
 - `kiwi_a2a_trust_add`, `kiwi_a2a_trust_list`, `kiwi_a2a_trust_remove`: manage trusted filesystem peers.
 - `kiwi_a2a_publish`, `kiwi_a2a_sync`, `kiwi_a2a_inbox`, `kiwi_a2a_accept`: exchange and materialize trusted A2A handoffs.
 
+A2A tools are exposed over MCP only when `KIWI_A2A_MCP=1`.
+
 Workspace-aware tools accept:
 
 ```json
@@ -132,6 +134,9 @@ Finalize and inspect:
 Resources expose the run store for the server workspace:
 
 - `kiwi://runs`
+
+Resource templates are exposed through `resources/templates/list`:
+
 - `kiwi://runs/{runId}`
 - `kiwi://runs/{runId}/manifest`
 - `kiwi://runs/{runId}/initiative`

@@ -32,7 +32,12 @@ function isAllowedOrigin(origin: string | undefined, allowedOrigins: string[]): 
 
   try {
     const parsed = new URL(origin);
-    return parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "::1";
+    return (
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "::1" ||
+      parsed.hostname === "[::1]"
+    );
   } catch {
     return false;
   }

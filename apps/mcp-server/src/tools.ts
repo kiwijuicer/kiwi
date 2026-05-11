@@ -41,6 +41,7 @@ import {
   withRunLock,
 } from "@kiwi/core";
 import { publishPrDraftTool } from "./publish-tool";
+import { a2aMcpToolsEnabled, isA2AToolName } from "./tool-definitions";
 import { validateToolArguments } from "./tool-input-schemas";
 import { workspaceArgs } from "./workspace";
 
@@ -146,7 +147,12 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     stopHeartbeat(heartbeat);
   }
   options.onProgress?.(
-    progressLine({ phase: "planner", status: "completed", runId: planned.runId, steps: planned.taskGraph.steps.length }),
+    progressLine({
+      phase: "planner",
+      status: "completed",
+      runId: planned.runId,
+      steps: planned.taskGraph.steps.length,
+    }),
     100,
   );
   const costForecast = buildRunCostForecast({
@@ -284,10 +290,7 @@ async function runStepToolUnlocked(
   try {
     result = await executePlannedStep(input);
   } catch (error) {
-    options.onProgress?.(
-      progressLine({ phase: "step", status: "failed", stepId, error: errorMessage(error) }),
-      100,
-    );
+    options.onProgress?.(progressLine({ phase: "step", status: "failed", stepId, error: errorMessage(error) }), 100);
     throw error;
   }
   emitPostAttemptProgress({ workspacePath, runId, stepId, attemptId: result.attemptId, options });
@@ -311,7 +314,11 @@ async function runStepToolUnlocked(
   };
 }
 
-async function runStepTool(args: Record<string, unknown>, cwd: string, options: ToolCallOptions = {}): Promise<unknown> {
+async function runStepTool(
+  args: Record<string, unknown>,
+  cwd: string,
+  options: ToolCallOptions = {},
+): Promise<unknown> {
   const runId = String(args.runId ?? "");
   const stepId = String(args.stepId ?? "");
   if (!runId || !stepId) throw new Error("kiwi_run_step requires runId and stepId");
@@ -327,7 +334,11 @@ async function runStepTool(args: Record<string, unknown>, cwd: string, options: 
   );
 }
 
-async function runTool(args: Record<string, unknown>, cwd: string, callOptions: ToolCallOptions = {}): Promise<unknown> {
+async function runTool(
+  args: Record<string, unknown>,
+  cwd: string,
+  callOptions: ToolCallOptions = {},
+): Promise<unknown> {
   const runId = String(args.runId ?? "");
   if (!runId) throw new Error("kiwi_run requires runId");
   const workspace = workspaceArgs(args, cwd, false);
@@ -391,19 +402,16 @@ async function runTool(args: Record<string, unknown>, cwd: string, callOptions: 
               callOptions,
             ),
           );
-          const status = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.status;
+          const status = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.currentStatus;
           if (status === ContractValues.Failed || status === "needs_approval") break;
         }
       }
 
       const run = getRunStatusSummary(workspace.workspacePath, runId).latest[0];
-      callOptions.onProgress?.(
-        progressLine({ phase: "run", status: run?.status ?? "missing", runId }),
-        100,
-      );
+      callOptions.onProgress?.(progressLine({ phase: "run", status: run?.currentStatus ?? "missing", runId }), 100);
       return {
         runId,
-        status: run?.status ?? "missing",
+        status: run?.currentStatus ?? "missing",
         steps,
         completionSummary: buildRunCompletionSummary({ cwd: workspace.workspacePath, runId }),
       };
@@ -585,6 +593,9 @@ export async function callTool(
   cwd: string,
   options: ToolCallOptions = {},
 ): Promise<unknown> {
+  if (isA2AToolName(name) && !a2aMcpToolsEnabled()) {
+    throw new Error(`Unknown tool: ${name}`);
+  }
   const validatedArgs = validateToolArguments(name, args);
   if (name === "kiwi_plan") return planTool(validatedArgs, cwd, options);
   const workspace = workspaceArgs(validatedArgs, cwd, false);
