@@ -68,6 +68,17 @@ commandProfiles:
   );
 }
 
+function initSafeGitRepo(cwd: string): void {
+  writeFileSync(path.join(cwd, ".gitignore"), ".kiwi/\n", "utf-8");
+  execFileSync("git", ["init"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["checkout", "-b", "feature/test"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["add", ".gitignore"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+    cwd,
+    stdio: "ignore",
+  });
+}
+
 describe("kiwi operator flow", () => {
   beforeEach(() => {
     previousForceAccessMode = process.env.KIWI_FORCE_ACCESS_MODE;
@@ -85,6 +96,7 @@ describe("kiwi operator flow", () => {
   it("plans, attempts, finalizes, and reports gate/review evidence", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-operator-"));
     await runInit({}, cwd);
+    initSafeGitRepo(cwd);
     writeFastPolicy(cwd);
     await runPlan(
       "# Feature: Operator\n\n## Validate",
@@ -178,6 +190,7 @@ describe("kiwi operator flow", () => {
   it("blocks direct attempts when dependencies are incomplete and releases the run lock", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-dependencies-"));
     await runInit({}, cwd);
+    initSafeGitRepo(cwd);
     writeFastPolicy(cwd);
     await runPlan(
       "# Feature: Dependencies\n\n## First\n\n## Second",
@@ -220,6 +233,7 @@ describe("kiwi operator flow", () => {
   it("writes safe progress while running planned steps", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-run-progress-"));
     await runInit({}, cwd);
+    initSafeGitRepo(cwd);
     writeFastPolicy(cwd);
     await runPlan(
       "# Feature: Run Progress\n\n## Validate",
@@ -264,6 +278,7 @@ describe("kiwi operator flow", () => {
     writeFileSync(path.join(core, "core.txt"), "core\n", "utf-8");
     writeFileSync(path.join(agent, "agent.txt"), "agent\n", "utf-8");
     execFileSync("git", ["init"], { cwd: core, stdio: "ignore" });
+    execFileSync("git", ["checkout", "-b", "feature/test"], { cwd: core, stdio: "ignore" });
     execFileSync("git", ["add", "core.txt"], { cwd: core, stdio: "ignore" });
     execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
       cwd: core,

@@ -27,7 +27,7 @@ flowchart TD
 - `apps/cli`
   - Kommandos: `init`, `plan`, `run`, `attempt`, `finalize`, `status`, `cost`, `doctor`,
     `evidence`, `explain`, `operator`, `publish`, `rules`, `run-summary`, `subplan-tree`,
-    `workspace`, `approve`, `a2a` (frozen)
+    `workspace`, `approve`
   - laedt Policy/Registry
   - loest Provider und Access Mode auf und delegiert an runtime
 - `packages/core`
@@ -71,13 +71,6 @@ flowchart TD
   Provider-spezifische Logik.
 - Contracts enthalten keine runtime side effects.
 - Provider-/Runner-Integrationen gehoeren in `packages/adapters`.
-
-## A2A Freeze
-
-Bis `docs/plans/step-22-end-to-end-real-run-demo.md` `Status: DONE` ist,
-bleibt A2A eingefroren. Erlaubt sind nur mechanische Move-/Import-Updates, die
-vom A2A-Freeze-Gate akzeptiert werden. Neue A2A-Kommandos, Runtime-Semantik,
-Payload-Arten oder Trust-Regeln sind nicht in Scope.
 
 ## Model Tier Mapping
 

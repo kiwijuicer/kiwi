@@ -12,12 +12,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@kiwi/a2a": "workspace:*",
     "@kiwi/adapters": "workspace:*",
     "@kiwi/contracts": "workspace:*",
     "@kiwi/core": "workspace:*",
     "@kiwi/ops": "workspace:*",
-    "@kiwi/runtime": "workspace:*"
+    "@kiwi/runtime": "workspace:*",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",

@@ -6,15 +6,6 @@ const WorkspaceSelectorSchema = z.object({
   repoPath: z.string().min(1).optional(),
 });
 
-const ProtocolEnvelopeKindValueSchema = z.enum([
-  "initiative",
-  "task_graph",
-  "step_attempt",
-  "gate_result",
-  "review_verdict",
-  "artifact",
-]);
-
 const RunIdSchema = WorkspaceSelectorSchema.extend({
   runId: z.string().min(1),
 });
@@ -76,42 +67,6 @@ export const ToolInputSchemas = {
     remote: z.string().min(1).optional(),
     targetBranch: z.string().min(1).optional(),
     branchName: z.string().min(1).optional(),
-  }),
-  kiwi_a2a_receive: WorkspaceSelectorSchema.extend({
-    envelope: z.unknown(),
-    loopback: z.boolean().optional(),
-    localAgentId: z.string().min(1).optional(),
-    trustedAgentIds: z.array(z.string().min(1)).optional(),
-  }),
-  kiwi_a2a_config: WorkspaceSelectorSchema.extend({
-    enabled: z.boolean().optional(),
-    localAgentId: z.string().min(1).optional(),
-  }),
-  kiwi_a2a_trust_add: WorkspaceSelectorSchema.extend({
-    agentId: z.string().min(1),
-    inboxPath: z.string().min(1),
-    allowRemotePatches: z.boolean().optional(),
-  }),
-  kiwi_a2a_trust_list: WorkspaceSelectorSchema,
-  kiwi_a2a_trust_remove: WorkspaceSelectorSchema.extend({
-    agentId: z.string().min(1),
-  }),
-  kiwi_a2a_publish: WorkspaceSelectorSchema.extend({
-    peerAgentId: z.string().min(1),
-    kind: ProtocolEnvelopeKindValueSchema,
-    runId: z.string().min(1).optional(),
-    stepId: z.string().min(1).optional(),
-    attemptId: z.string().min(1).optional(),
-    gateId: z.string().min(1).optional(),
-    artifactRef: z.string().min(1).optional(),
-    correlationId: z.string().min(1).optional(),
-    idempotencyKey: z.string().min(1).optional(),
-    payload: z.unknown().optional(),
-  }),
-  kiwi_a2a_sync: WorkspaceSelectorSchema,
-  kiwi_a2a_inbox: WorkspaceSelectorSchema,
-  kiwi_a2a_accept: WorkspaceSelectorSchema.extend({
-    messageId: z.string().min(1),
   }),
 } as const;
 

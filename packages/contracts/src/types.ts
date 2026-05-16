@@ -1,12 +1,5 @@
 import type { z } from "zod";
 import type {
-  A2AAttachmentDescriptorSchema,
-  A2AConfigSchema,
-  A2AMessageMetadataSchema,
-  A2ARuntimeDecisionSchema,
-  A2ARuntimeDecisionStatusSchema,
-  A2ARuntimeModeSchema,
-  A2ATrustedPeerSchema,
   AccessModeSchema,
   AgentRoleSchema,
   ApprovalDecisionSchema,
@@ -50,8 +43,6 @@ import type {
   PolicyRoutingOverrideSchema,
   ProviderPreferenceSchema,
   PrDraftArtifactSchema,
-  ProtocolEnvelopeKindSchema,
-  ProtocolEnvelopeSchema,
   ReviewIssueSchema,
   ReviewIssueSeveritySchema,
   ReviewVerdictSchema,
@@ -160,15 +151,6 @@ export type EvidenceFileHash = z.infer<typeof EvidenceFileHashSchema>;
 export type RunAuditSnapshot = z.infer<typeof RunAuditSnapshotSchema>;
 export type EvidenceManifest = z.infer<typeof EvidenceManifestSchema>;
 export type ApprovalDecision = z.infer<typeof ApprovalDecisionSchema>;
-export type A2AMessageMetadata = z.infer<typeof A2AMessageMetadataSchema>;
-export type A2AAttachmentDescriptor = z.infer<typeof A2AAttachmentDescriptorSchema>;
-export type ProtocolEnvelopeKind = z.infer<typeof ProtocolEnvelopeKindSchema>;
-export type ProtocolEnvelope = z.infer<typeof ProtocolEnvelopeSchema>;
-export type A2ARuntimeMode = z.infer<typeof A2ARuntimeModeSchema>;
-export type A2ARuntimeDecisionStatus = z.infer<typeof A2ARuntimeDecisionStatusSchema>;
-export type A2ARuntimeDecision = z.infer<typeof A2ARuntimeDecisionSchema>;
-export type A2ATrustedPeer = z.infer<typeof A2ATrustedPeerSchema>;
-export type A2AConfig = z.infer<typeof A2AConfigSchema>;
 export type KiwiConfig = z.infer<typeof KiwiConfigSchema>;
 export type PolicyRoutingOverride = z.infer<typeof PolicyRoutingOverrideSchema>;
 export type ProviderPreference = z.infer<typeof ProviderPreferenceSchema>;

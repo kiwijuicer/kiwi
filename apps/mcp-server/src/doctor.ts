@@ -95,10 +95,6 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
       policy: policy.status,
       registry: registry.status,
       executionMode,
-      a2a: {
-        enabled: config?.value?.a2a.enabled ?? false,
-        localAgentId: config?.value?.a2a.localAgentId ?? null,
-      },
       git: repoState,
       cliAvailability,
       safeToPlan,

@@ -13,12 +13,10 @@ import {
   UsagePrecisionSchema,
   enumFrom,
 } from "./common";
-import { A2AConfigSchema } from "./a2a";
 
 export const KiwiConfigSchema = z.object({
   version: z.literal("1"),
   initializedAt: IsoDateTimeSchema.optional(),
-  a2a: A2AConfigSchema.default({}),
 });
 
 export const ModelProviderSchema = enumFrom(MODEL_PROVIDER_VALUES);

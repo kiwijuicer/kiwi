@@ -120,17 +120,6 @@ function isLoopbackListenPermissionError(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "EPERM";
 }
 
-async function withA2AMcpTools<T>(run: () => Promise<T>): Promise<T> {
-  const previous = process.env.KIWI_A2A_MCP;
-  process.env.KIWI_A2A_MCP = "1";
-  try {
-    return await run();
-  } finally {
-    if (previous === undefined) delete process.env.KIWI_A2A_MCP;
-    else process.env.KIWI_A2A_MCP = previous;
-  }
-}
-
 async function startLoopbackHttpServer(
   cwd: string,
   skip: () => void,
@@ -157,7 +146,6 @@ describe("MCP server", () => {
     const tools = await handleMcpRequest({ id: 2, method: "tools/list" }, setupRepo());
     expect(tools.error).toBeUndefined();
     expect(JSON.stringify(tools.result)).toContain("kiwi_plan");
-    expect(JSON.stringify(tools.result)).not.toContain("kiwi_a2a_receive");
     expect(JSON.stringify(tools.result)).toContain("inputSchema");
     const listedTools = (tools.result as { tools: Array<{ name: string; annotations?: unknown }> }).tools;
     expect(listedTools.every((tool) => tool.annotations)).toBe(true);
@@ -180,41 +168,6 @@ describe("MCP server", () => {
     expect(JSON.stringify(templates.result)).toContain("resourceTemplates");
     expect(JSON.stringify(templates.result)).toContain("uriTemplate");
     expect(JSON.stringify(templates.result)).toContain("kiwi://runs/{runId}");
-  });
-
-  it("shows A2A tools only when KIWI_A2A_MCP is enabled", async () => {
-    const previous = process.env.KIWI_A2A_MCP;
-    process.env.KIWI_A2A_MCP = "1";
-    try {
-      const tools = await handleMcpRequest({ id: 1, method: "tools/list" }, setupRepo());
-      expect(JSON.stringify(tools.result)).toContain("kiwi_a2a_receive");
-    } finally {
-      if (previous === undefined) delete process.env.KIWI_A2A_MCP;
-      else process.env.KIWI_A2A_MCP = previous;
-    }
-  });
-
-  it("rejects hidden A2A tools when KIWI_A2A_MCP is disabled", async () => {
-    const previous = process.env.KIWI_A2A_MCP;
-    delete process.env.KIWI_A2A_MCP;
-    try {
-      const response = await handleMcpRequest(
-        {
-          id: 1,
-          method: "tools/call",
-          params: {
-            name: "kiwi_a2a_trust_list",
-            arguments: { workspacePath: setupRepo() },
-          },
-        },
-        os.tmpdir(),
-      );
-
-      expect(response.error?.message).toContain("Unknown tool: kiwi_a2a_trust_list");
-    } finally {
-      if (previous === undefined) delete process.env.KIWI_A2A_MCP;
-      else process.env.KIWI_A2A_MCP = previous;
-    }
   });
 
   it("returns structured invalid params errors for malformed tool payloads", async () => {
@@ -499,62 +452,6 @@ describe("MCP server", () => {
     expect(snapshotResource.error).toBeUndefined();
     expect(JSON.stringify(snapshotResource.result)).toContain("<!doctype html>");
 
-    const a2a = await withA2AMcpTools(() =>
-      handleMcpRequest(
-        {
-          id: 9,
-          method: "tools/call",
-          params: {
-            name: "kiwi_a2a_receive",
-            arguments: {
-              loopback: true,
-              trustedAgentIds: ["remote-agent"],
-              envelope: {
-                schemaVersion: "1",
-                protocol: "a2a-prep",
-                kind: "task_graph",
-                payload: {
-                  planId: "plan_mcp",
-                  runId: parsed.runId,
-                  initiativeId: "init_mcp",
-                  summary: "MCP A2A graph",
-                  steps: [
-                    {
-                      stepId: "step_001",
-                      type: "planning",
-                      title: "Plan",
-                      dependsOn: [],
-                      successCriteria: ["Done"],
-                      requiredGates: [],
-                      recommendedAgentRole: "planner",
-                      recommendedModelCapability: "frontier",
-                      status: "pending",
-                    },
-                  ],
-                  acceptanceCriteria: ["Done"],
-                  assumptions: [],
-                  openQuestions: [],
-                  riskScore: 2,
-                  complexityScore: 1,
-                  createdAt: "2026-05-04T12:00:00.000Z",
-                },
-                createdAt: "2026-05-04T12:00:00.000Z",
-                a2a: {
-                  messageId: "msg_mcp",
-                  correlationId: "corr_mcp",
-                  idempotencyKey: "idempotency-mcp",
-                  senderAgentId: "remote-agent",
-                  recipientAgentId: "kiwi-local",
-                },
-              },
-            },
-          },
-        },
-        cwd,
-      ),
-    );
-    expect(a2a.error).toBeUndefined();
-    expect(JSON.stringify(a2a.result)).toContain("accepted");
   });
 
   it("plans with object arguments and exposes model evidence resources", async () => {
@@ -912,145 +809,4 @@ models:
     );
   });
 
-  it("exposes filesystem A2A trust, publish, sync, inbox, and accept tools", async () => {
-    await withA2AMcpTools(async () => {
-      const a = setupRepo();
-      const b = setupRepo();
-      const enableA = await handleMcpRequest(
-        {
-          id: 1,
-          method: "tools/call",
-          params: {
-            name: "kiwi_a2a_config",
-            arguments: { workspacePath: a, enabled: true, localAgentId: "agent-a" },
-          },
-        },
-        os.tmpdir(),
-      );
-      const enableB = await handleMcpRequest(
-        {
-          id: 2,
-          method: "tools/call",
-          params: {
-            name: "kiwi_a2a_config",
-            arguments: { workspacePath: b, enabled: true, localAgentId: "agent-b" },
-          },
-        },
-        os.tmpdir(),
-      );
-      expect(enableA.error).toBeUndefined();
-      expect(enableB.error).toBeUndefined();
-
-      await handleMcpRequest(
-        {
-          id: 3,
-          method: "tools/call",
-          params: {
-            name: "kiwi_a2a_trust_add",
-            arguments: {
-              workspacePath: a,
-              agentId: "agent-b",
-              inboxPath: path.join(b, ".kiwi", "a2a", "transport", "incoming"),
-            },
-          },
-        },
-        os.tmpdir(),
-      );
-      await handleMcpRequest(
-        {
-          id: 4,
-          method: "tools/call",
-          params: {
-            name: "kiwi_a2a_trust_add",
-            arguments: {
-              workspacePath: b,
-              agentId: "agent-a",
-              inboxPath: path.join(a, ".kiwi", "a2a", "transport", "incoming"),
-            },
-          },
-        },
-        os.tmpdir(),
-      );
-      const peers = await handleMcpRequest(
-        {
-          id: 5,
-          method: "tools/call",
-          params: { name: "kiwi_a2a_trust_list", arguments: { workspacePath: a } },
-        },
-        os.tmpdir(),
-      );
-      expect(JSON.stringify(peers.result)).toContain("agent-b");
-
-      const planned = await handleMcpRequest(
-        {
-          id: 6,
-          method: "tools/call",
-          params: {
-            name: "kiwi_plan",
-            arguments: { workspacePath: a, ticket: "# MCP A2A\n\n## Implement", allowStub: true },
-          },
-        },
-        os.tmpdir(),
-      );
-      const plannedJson = toolJson(planned) as { runId: string };
-      const published = await handleMcpRequest(
-        {
-          id: 7,
-          method: "tools/call",
-          params: {
-            name: "kiwi_a2a_publish",
-            arguments: {
-              workspacePath: a,
-              peerAgentId: "agent-b",
-              kind: "initiative",
-              runId: plannedJson.runId,
-            },
-          },
-        },
-        os.tmpdir(),
-      );
-      expect(published.error).toBeUndefined();
-
-      await handleMcpRequest(
-        {
-          id: 8,
-          method: "tools/call",
-          params: { name: "kiwi_a2a_sync", arguments: { workspacePath: a } },
-        },
-        os.tmpdir(),
-      );
-      await handleMcpRequest(
-        {
-          id: 9,
-          method: "tools/call",
-          params: { name: "kiwi_a2a_sync", arguments: { workspacePath: b } },
-        },
-        os.tmpdir(),
-      );
-      const inbox = await handleMcpRequest(
-        {
-          id: 10,
-          method: "tools/call",
-          params: { name: "kiwi_a2a_inbox", arguments: { workspacePath: b } },
-        },
-        os.tmpdir(),
-      );
-      const inboxItems = toolJson(inbox) as Array<{ messageId: string; kind: string }>;
-      expect(inboxItems[0]?.kind).toBe("initiative");
-
-      const accepted = await handleMcpRequest(
-        {
-          id: 11,
-          method: "tools/call",
-          params: {
-            name: "kiwi_a2a_accept",
-            arguments: { workspacePath: b, messageId: inboxItems[0]?.messageId },
-          },
-        },
-        os.tmpdir(),
-      );
-      expect(accepted.error).toBeUndefined();
-      expect(JSON.stringify(accepted.result)).toContain("run_");
-    });
-  });
 });

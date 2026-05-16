@@ -5,7 +5,7 @@ export const ContractsSchemaVersionSchema = z.literal("1");
 export const ContractsSchemaEvolutionModeSchema = z.literal("breaking_allowed");
 export const enumFrom = <T extends readonly [string, ...string[]]>(values: T) => z.enum(values);
 
-export const INITIATIVE_SOURCE_VALUES = ["cli", "file", "mcp", "api", "a2a"] as const;
+export const INITIATIVE_SOURCE_VALUES = ["cli", "file", "mcp", "api"] as const;
 export const RISK_PROFILE_VALUES = ["local", "dev", "staging", "production"] as const;
 export const BUDGET_PROFILE_VALUES = ["tiny", "small", "normal", "large", "critical"] as const;
 export const AGENT_ROLE_VALUES = ["planner", "researcher", "executor", "reviewer", "security", "rules"] as const;
@@ -75,16 +75,6 @@ export const RUNNER_EXECUTION_STATUS_VALUES = [
   "timeout",
 ] as const;
 export const NEXT_ACTION_TYPE_VALUES = ["continue", "fix_step", "replan"] as const;
-export const PROTOCOL_ENVELOPE_KIND_VALUES = [
-  "initiative",
-  "task_graph",
-  "step_attempt",
-  "gate_result",
-  "review_verdict",
-  "artifact",
-] as const;
-export const A2A_RUNTIME_MODE_VALUES = ["disabled", "loopback", "filesystem"] as const;
-export const A2A_RUNTIME_DECISION_STATUS_VALUES = ["accepted", "blocked", "duplicate"] as const;
 export const MODEL_PROVIDER_VALUES = ["stub", "openai", "anthropic", "local"] as const;
 export const ACCESS_MODE_VALUES = [
   "anthropic-api",
@@ -104,7 +94,6 @@ export const InitiativeSources = {
   File: "file",
   Mcp: "mcp",
   Api: "api",
-  A2a: "a2a",
 } as const;
 
 export const RiskProfiles = {
@@ -290,27 +279,6 @@ export const NextActionTypes = {
   Continue: "continue",
   FixStep: "fix_step",
   Replan: "replan",
-} as const;
-
-export const ProtocolEnvelopeKinds = {
-  Initiative: "initiative",
-  TaskGraph: "task_graph",
-  StepAttempt: "step_attempt",
-  GateResult: "gate_result",
-  ReviewVerdict: "review_verdict",
-  Artifact: "artifact",
-} as const;
-
-export const A2ARuntimeModes = {
-  Disabled: "disabled",
-  Loopback: "loopback",
-  Filesystem: "filesystem",
-} as const;
-
-export const A2ARuntimeDecisionStatuses = {
-  Accepted: "accepted",
-  Blocked: "blocked",
-  Duplicate: "duplicate",
 } as const;
 
 export const ModelProviders = {

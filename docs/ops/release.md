@@ -15,7 +15,7 @@ This runs:
 - `pnpm format:check`
 - `pnpm lint` (`lint:eslint` + `lint:baseline`)
 - `pnpm lint:arch` (dependency-cruiser)
-- `pnpm code-health` (`lint:file-size`, `lint:a2a-freeze`, `lint:deadcode`, `lint:duplicates`)
+- `pnpm code-health` (`lint:file-size`, `lint:deadcode`, `lint:duplicates`)
 - `pnpm typecheck`
 - `pnpm test`
 - `pnpm build`
@@ -30,8 +30,6 @@ This runs:
 - `kiwi status`
 - `kiwi evidence manifest`
 - `kiwi operator snapshot`
-- gated A2A loopback receive with an explicit trusted sender
-- trusted filesystem A2A publish/sync/import and ReviewVerdict reply correlation between two local peers
 
 ## Packaging Notes
 

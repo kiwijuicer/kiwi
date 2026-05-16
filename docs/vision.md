@@ -37,7 +37,7 @@ Kernidee:
 ### 2.2 Non-Goals fuer den Start
 
 - Keine vollautomatische End-to-End-Entwicklung ohne Gates.
-- Kein A2A-System in MVP 1.
+- Kein Agent-zu-Agent-Interop-System in MVP 1.
 - Kein Multi-Tenant SaaS-Backend in MVP 1.
 - Kein Dashboard als Pflicht fuer MVP 1.
 
@@ -483,9 +483,9 @@ CLI ist der Startpunkt und bleibt Referenz fuer alle Flows.
 
 MCP ist Zugriffskanal, nicht Orchestrator.
 
-### 14.3 A2A (deutlich spaeter)
+### 14.3 Agent Interop (Future)
 
-A2A wird erst relevant, wenn interne Rollen stabil sind und ueber saubere contracts verfuegen.
+Agent-zu-Agent-Interop ist kein aktiver Scope. Eine spaetere Einfuehrung braucht eine neue ADR, explizite Contracts und lokale Gate-Semantik.
 
 ### 14.4 SCM Provider
 
@@ -575,7 +575,6 @@ Nicht enthalten:
 - runner execution
 - MCP server
 - dashboard/tui
-- a2a
 - automatische codeaenderungen
 
 ### 17.2 MVP 2
@@ -602,7 +601,7 @@ Nicht enthalten:
 - MCP server
 - rules sync
 - dashboard/tui
-- a2a preparation
+- agent interop ADR, falls ein konkreter Use Case existiert
 
 ---
 

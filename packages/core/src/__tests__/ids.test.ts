@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateA2AMessageId, generateInitiativeId, generatePlanId, generateRunId } from "../ids";
+import { generateInitiativeId, generatePlanId, generateRunId } from "../ids";
 
 describe("id generation", () => {
   it("uses Europe/Berlin local time for planned run ids in summer time", () => {
@@ -22,9 +22,4 @@ describe("id generation", () => {
     expect(generateRunId(now, { suffix: "test" })).toBe("run_20260505_003000_test");
   });
 
-  it("keeps A2A message ids on UTC time", () => {
-    const now = new Date("2026-05-04T12:00:00.000Z");
-
-    expect(generateA2AMessageId(now, { suffix: "test" })).toBe("msg_20260504_120000_test");
-  });
 });

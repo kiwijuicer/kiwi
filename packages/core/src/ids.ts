@@ -36,18 +36,6 @@ function localDateToken(now: Date, timeZone: string): string {
   );
 }
 
-function utcDateToken(now: Date = new Date()): string {
-  return (
-    `${now.getUTCFullYear()}` +
-    `${pad(now.getUTCMonth() + 1)}` +
-    `${pad(now.getUTCDate())}` +
-    `_` +
-    `${pad(now.getUTCHours())}` +
-    `${pad(now.getUTCMinutes())}` +
-    `${pad(now.getUTCSeconds())}`
-  );
-}
-
 function plannedRunDateToken(now: Date = new Date()): string {
   return localDateToken(now, PLANNED_RUN_TIME_ZONE);
 }
@@ -60,15 +48,6 @@ function idSuffix(options: IdGenerationOptions): string {
   return options.suffix ?? suffix(2);
 }
 
-function safeIdToken(value: string): string {
-  return (
-    value
-      .toLowerCase()
-      .replace(/[^a-z0-9_]/g, "_")
-      .replace(/^_+|_+$/g, "") || suffix(2)
-  );
-}
-
 export function generateInitiativeId(now: Date = new Date(), options: IdGenerationOptions = {}): string {
   return `init_${plannedRunDateToken(now)}_${idSuffix(options)}`;
 }
@@ -79,14 +58,6 @@ export function generateRunId(now: Date = new Date(), options: IdGenerationOptio
 
 export function generatePlanId(now: Date = new Date(), options: IdGenerationOptions = {}): string {
   return `plan_${plannedRunDateToken(now)}_${idSuffix(options)}`;
-}
-
-export function generateA2AMessageId(now: Date = new Date(), options: IdGenerationOptions = {}): string {
-  return `msg_${utcDateToken(now)}_${idSuffix(options)}`;
-}
-
-export function generateA2ACorrelationId(value: string): string {
-  return `corr_${safeIdToken(value)}`;
 }
 
 export function generateStepId(index: number): string {

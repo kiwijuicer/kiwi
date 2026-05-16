@@ -168,7 +168,6 @@ export default [
       "packages/contracts/src/execution.ts",
       "packages/contracts/src/policy.ts",
       "packages/contracts/src/scm.ts",
-      "packages/contracts/src/a2a.ts",
       "packages/contracts/src/evidence.ts",
     ],
     rules: {

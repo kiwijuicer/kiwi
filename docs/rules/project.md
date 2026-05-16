@@ -12,7 +12,6 @@ Build `kiwi` as a local-first control plane for AI-assisted coding work:
 ## Product Non-Goals
 
 - no autonomous end-to-end coding without gates
-- no A2A runtime in production (frozen until Step 22 is DONE)
 - no dashboard requirement
 - no multi-tenant backend
 

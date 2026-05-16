@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { registerA2ACommands } from "./commands/register-a2a";
 import { registerCoreCommands } from "./commands/register-core";
 import { registerExecutionCommands } from "./commands/register-execution";
 
@@ -33,6 +32,5 @@ function withGlobalWorkspaceOptions<T extends { workspace?: string; repo?: strin
 
 registerCoreCommands(program, withGlobalWorkspaceOptions);
 registerExecutionCommands(program, withGlobalWorkspaceOptions);
-registerA2ACommands(program, withGlobalWorkspaceOptions);
 
 program.parse();

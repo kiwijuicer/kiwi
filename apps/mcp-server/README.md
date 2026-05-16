@@ -70,12 +70,6 @@ Core tools:
 Additional tools:
 
 - `kiwi_request_approval`: record an approval decision.
-- `kiwi_a2a_receive`: validate and optionally accept a gated loopback A2A envelope.
-- `kiwi_a2a_config`: read or update local A2A identity/enabled state.
-- `kiwi_a2a_trust_add`, `kiwi_a2a_trust_list`, `kiwi_a2a_trust_remove`: manage trusted filesystem peers.
-- `kiwi_a2a_publish`, `kiwi_a2a_sync`, `kiwi_a2a_inbox`, `kiwi_a2a_accept`: exchange and materialize trusted A2A handoffs.
-
-A2A tools are exposed over MCP only when `KIWI_A2A_MCP=1`.
 
 Workspace-aware tools accept:
 
@@ -195,6 +189,4 @@ For multi-repo work, start one server per workspace or set `KIWI_WORKSPACE` per 
 - Direct Anthropic/OpenAI API keys are not required for daily use; local CLI auth is used for Claude, Codex, and Cursor Agent.
 - Direct execution captures a pre-step git tree snapshot and persists only the step diff as run evidence.
 - Bitbucket PR draft publishing uses local git auth only, requires a clean tree including untracked files, stages only expected diff files, and does not store Bitbucket credentials.
-- A2A is disabled by default and only exchanges filesystem envelopes with explicitly trusted peers.
-- Remote patch artifacts are quarantined by the A2A runtime.
 - Step worktrees copy only the selected repo when `KIWI_EXECUTION_ISOLATION=worktree` is enabled.

@@ -28,9 +28,6 @@ export {
   SCM_MUTATION_STATUS_VALUES,
   RUNNER_EXECUTION_STATUS_VALUES,
   NEXT_ACTION_TYPE_VALUES,
-  PROTOCOL_ENVELOPE_KIND_VALUES,
-  A2A_RUNTIME_MODE_VALUES,
-  A2A_RUNTIME_DECISION_STATUS_VALUES,
   MODEL_PROVIDER_VALUES,
   ACCESS_MODE_VALUES,
   USAGE_PRECISION_VALUES,
@@ -59,9 +56,6 @@ export {
   ScmMutationStatuses,
   RunnerExecutionStatuses,
   NextActionTypes,
-  ProtocolEnvelopeKinds,
-  A2ARuntimeModes,
-  A2ARuntimeDecisionStatuses,
   ModelProviders,
   AccessModes,
   ContractValues,
@@ -145,18 +139,6 @@ export {
   RunCompletionSummarySchema,
   ApprovalDecisionSchema,
 } from "./execution";
-
-export {
-  ProtocolEnvelopeKindSchema,
-  A2AAttachmentDescriptorSchema,
-  A2AMessageMetadataSchema,
-  ProtocolEnvelopeSchema,
-  A2ARuntimeModeSchema,
-  A2ARuntimeDecisionStatusSchema,
-  A2ARuntimeDecisionSchema,
-  A2ATrustedPeerSchema,
-  A2AConfigSchema,
-} from "./a2a";
 
 export {
   KiwiConfigSchema,

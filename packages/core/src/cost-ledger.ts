@@ -40,7 +40,6 @@ export type AuditEventType =
   | "pr_draft_published"
   | "mcp_preview_created"
   | "mcp_preview_consumed"
-  | "a2a_runtime_event"
   | "gate_command_executed"
   | "gate_command_blocked"
   | "diff_path_blocked"

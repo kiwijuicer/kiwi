@@ -8,7 +8,6 @@ export default defineConfig({
   sourcemap: true,
   noExternal: [
     "@kiwi/core",
-    "@kiwi/a2a",
     "@kiwi/ops",
     "@kiwi/contracts",
     "@kiwi/adapters",

@@ -45,26 +45,6 @@ const WORKSPACE_PROPERTIES = {
   repoPath: repoPathProperty,
 } as const;
 
-const A2A_TOOL_NAMES = new Set([
-  "kiwi_a2a_receive",
-  "kiwi_a2a_config",
-  "kiwi_a2a_trust_add",
-  "kiwi_a2a_trust_list",
-  "kiwi_a2a_trust_remove",
-  "kiwi_a2a_publish",
-  "kiwi_a2a_sync",
-  "kiwi_a2a_inbox",
-  "kiwi_a2a_accept",
-]);
-
-export function a2aMcpToolsEnabled(): boolean {
-  return process.env.KIWI_A2A_MCP === "1";
-}
-
-export function isA2AToolName(name: string): boolean {
-  return A2A_TOOL_NAMES.has(name);
-}
-
 const TOOL_SPECS = [
   {
     name: "kiwi_doctor",
@@ -267,143 +247,6 @@ const TOOL_SPECS = [
       required: ["runId"],
     },
   },
-  {
-    name: "kiwi_a2a_receive",
-    description: "WRITES_RUN_ARTIFACTS: Validate and optionally accept an A2A envelope into the local loopback inbox",
-    inputSchema: {
-      type: "object",
-      properties: {
-        envelope: { type: "object" },
-        loopback: { type: "boolean" },
-        localAgentId: { type: "string" },
-        trustedAgentIds: { type: "array", items: { type: "string" } },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["envelope"],
-    },
-  },
-  {
-    name: "kiwi_a2a_config",
-    description: "WRITES_RUN_ARTIFACTS: Read or update filesystem A2A config",
-    inputSchema: {
-      type: "object",
-      properties: {
-        enabled: { type: "boolean" },
-        localAgentId: { type: "string" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-    },
-  },
-  {
-    name: "kiwi_a2a_trust_add",
-    description: "WRITES_RUN_ARTIFACTS: Trust an A2A filesystem peer",
-    inputSchema: {
-      type: "object",
-      properties: {
-        agentId: { type: "string" },
-        inboxPath: { type: "string" },
-        allowRemotePatches: { type: "boolean" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["agentId", "inboxPath"],
-    },
-  },
-  {
-    name: "kiwi_a2a_trust_list",
-    description: "READ_ONLY: List trusted A2A filesystem peers",
-    inputSchema: {
-      type: "object",
-      properties: {
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-    },
-  },
-  {
-    name: "kiwi_a2a_trust_remove",
-    description: "WRITES_RUN_ARTIFACTS: Remove a trusted A2A filesystem peer",
-    inputSchema: {
-      type: "object",
-      properties: {
-        agentId: { type: "string" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["agentId"],
-    },
-  },
-  {
-    name: "kiwi_a2a_publish",
-    description: "WRITES_RUN_ARTIFACTS: Queue a canonical A2A envelope for a trusted peer",
-    inputSchema: {
-      type: "object",
-      properties: {
-        peerAgentId: { type: "string" },
-        kind: {
-          type: "string",
-          enum: ["initiative", "task_graph", "step_attempt", "gate_result", "review_verdict", "artifact"],
-        },
-        runId: { type: "string" },
-        stepId: { type: "string" },
-        attemptId: { type: "string" },
-        gateId: { type: "string" },
-        artifactRef: { type: "string" },
-        correlationId: { type: "string" },
-        idempotencyKey: { type: "string" },
-        payload: { type: "object" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["peerAgentId", "kind"],
-    },
-  },
-  {
-    name: "kiwi_a2a_sync",
-    description: "WRITES_RUN_ARTIFACTS: Deliver queued A2A envelopes and import incoming filesystem envelopes",
-    inputSchema: {
-      type: "object",
-      properties: {
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-    },
-  },
-  {
-    name: "kiwi_a2a_inbox",
-    description: "READ_ONLY: List accepted and quarantined A2A inbox items",
-    inputSchema: {
-      type: "object",
-      properties: {
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-    },
-  },
-  {
-    name: "kiwi_a2a_accept",
-    description: "WRITES_RUN_ARTIFACTS: Materialize an incoming A2A initiative handoff as a local run",
-    inputSchema: {
-      type: "object",
-      properties: {
-        messageId: { type: "string" },
-        workspacePath: { type: "string" },
-        repoId: { type: "string" },
-        repoPath: { type: "string" },
-      },
-      required: ["messageId"],
-    },
-  },
 ] as const;
 
 type ToolName = (typeof TOOL_SPECS)[number]["name"];
@@ -521,69 +364,6 @@ const TOOL_ANNOTATIONS: Record<ToolName, ToolAnnotations> = {
     idempotentHint: false,
     openWorldHint: true,
   },
-  kiwi_a2a_receive: {
-    title: "Receive kiwi A2A envelope",
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: false,
-  },
-  kiwi_a2a_config: {
-    title: "Configure kiwi A2A",
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: false,
-  },
-  kiwi_a2a_trust_add: {
-    title: "Trust kiwi A2A peer",
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: false,
-  },
-  kiwi_a2a_trust_list: {
-    title: "List kiwi A2A peers",
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: true,
-    openWorldHint: false,
-  },
-  kiwi_a2a_trust_remove: {
-    title: "Remove kiwi A2A peer trust",
-    readOnlyHint: false,
-    destructiveHint: true,
-    idempotentHint: false,
-    openWorldHint: false,
-  },
-  kiwi_a2a_publish: {
-    title: "Publish kiwi A2A envelope",
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: false,
-  },
-  kiwi_a2a_sync: {
-    title: "Sync kiwi A2A inbox",
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: false,
-  },
-  kiwi_a2a_inbox: {
-    title: "List kiwi A2A inbox",
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: true,
-    openWorldHint: false,
-  },
-  kiwi_a2a_accept: {
-    title: "Accept kiwi A2A handoff",
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: false,
-    openWorldHint: false,
-  },
 };
 
 export const TOOLS = TOOL_SPECS.map((tool) => ({
@@ -592,6 +372,5 @@ export const TOOLS = TOOL_SPECS.map((tool) => ({
 }));
 
 export function listTools(): typeof TOOLS {
-  if (a2aMcpToolsEnabled()) return TOOLS;
-  return TOOLS.filter((tool) => !A2A_TOOL_NAMES.has(tool.name)) as unknown as typeof TOOLS;
+  return TOOLS;
 }

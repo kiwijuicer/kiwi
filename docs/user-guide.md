@@ -4,7 +4,6 @@
 
 - CLI is the reference operator surface.
 - MCP is the IDE/assistant access channel over the same core behavior.
-- A2A is a gated handoff inbox. It is disabled by default and does not apply remote patches.
 
 `kiwi` stores every run under:
 
@@ -56,7 +55,7 @@ When running from inside a listed repo, `kiwi` selects that repo automatically. 
 
 All assistants use the same MCP server. The assistant can call:
 
-- `kiwi_doctor` to inspect workspace, repo, policy, git state, execution mode, A2A, and local CLI readiness.
+- `kiwi_doctor` to inspect workspace, repo, policy, git state, execution mode, and local CLI readiness.
 - `kiwi_plan` to create a run.
 - `kiwi_status` to inspect runs.
 - `kiwi_next` to get the exact next safe `recommendedToolCall`.
@@ -85,31 +84,6 @@ kiwi_doctor -> kiwi_plan -> kiwi_next -> kiwi_preview_run -> user confirm decisi
 
 No direct Anthropic/OpenAI API key is required for the standard flow. Kiwi is Codex-first by default: each planned step is routed to a configured Codex CLI `providerModel`, passed with `--model`, and executed in the current repo working tree with `workspace-write`, `approval_policy="on-request"`, and `approvals_reviewer="auto_review"`. MCP `kiwi_run` and `kiwi_run_step` require a fresh `previewToken`; use `kiwi_next` whenever the correct next tool is unclear. Action-required errors include `data.recovery.recommendedToolCall`. Use `kiwi_request_approval`, not `approved`, for approval-required attempts. Direct execution blocks on `main`/`master`, dirty tracked files, untracked non-Kiwi files, and non-git repos. Set `KIWI_EXECUTION_ISOLATION=worktree` for isolated execution. Bitbucket PR publishing uses your existing git remote/auth, requires a clean tree including untracked files, stages only expected diff files, then writes `final/pr-draft.json` and a Bitbucket create-PR URL.
 
-## A2A
+## Future Agent Interop
 
-A2A is disabled by default. For trusted local filesystem exchange between two `kiwi` workspaces:
-
-```bash
-kiwi a2a enable --local-agent agent-a --workspace /path/to/workspace-a
-kiwi a2a enable --local-agent agent-b --workspace /path/to/workspace-b
-kiwi a2a trust add agent-b --inbox-path /path/to/workspace-b/.kiwi/a2a/transport/incoming --workspace /path/to/workspace-a
-kiwi a2a trust add agent-a --inbox-path /path/to/workspace-a/.kiwi/a2a/transport/incoming --workspace /path/to/workspace-b
-kiwi a2a publish task_graph --peer agent-b --run-id <run-id> --workspace /path/to/workspace-a
-kiwi a2a sync --workspace /path/to/workspace-a
-kiwi a2a sync --workspace /path/to/workspace-b
-kiwi a2a inbox --workspace /path/to/workspace-b
-```
-
-Loopback validation is still available:
-
-```bash
-kiwi a2a receive ./a2a-envelope.json --loopback --trusted-agent remote-agent --workspace /path/to/workspace
-```
-
-Expected receive results:
-
-- trusted envelope: `accepted`
-- repeated idempotency key: `duplicate`
-- missing trust or disabled runtime: `blocked`
-
-Remote patch application remains blocked; patch and diff artifacts are quarantined until local apply gates exist.
+Agent-to-agent handoff is not active scope. Any future interop channel needs a new ADR, explicit contracts, and local gate semantics before implementation.

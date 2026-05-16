@@ -109,13 +109,12 @@ async function previewRun(cwd: string, runId: string): Promise<string> {
 }
 
 describe("MCP UX safety tools", () => {
-  it("lists doctor and next tools while keeping A2A hidden by default", async () => {
+  it("lists doctor and next tools", async () => {
     const tools = await handleMcpRequest({ id: 1, method: "tools/list" }, setupRepo());
     const payload = JSON.stringify(tools.result);
     expect(payload).toContain("kiwi_doctor");
     expect(payload).toContain("kiwi_next");
     expect(payload).toContain("READ_ONLY");
-    expect(payload).not.toContain("kiwi_a2a_receive");
   });
 
   it("returns doctor diagnostics for initialized, dirty, and missing workspaces", async () => {
