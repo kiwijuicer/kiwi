@@ -11,6 +11,15 @@ export interface McpBootstrapOptions {
 
 type BootstrapEnv = Record<string, string | undefined>;
 
+export interface McpServerBootstrapTransports {
+  startStdio(cwd: string): void;
+  startHttp(options: HttpMcpServerOptions): unknown;
+}
+
+export interface McpServerBootstrapConfig {
+  transports?: Partial<McpServerBootstrapTransports>;
+}
+
 function cliOption(argv: string[], name: string): string | undefined {
   const index = argv.indexOf(name);
 
@@ -59,13 +68,24 @@ export function resolveMcpBootstrapOptions(
 }
 
 export class McpServerBootstrap {
-  start(options: McpBootstrapOptions = resolveMcpBootstrapOptions()): void {
-    if (options.transport === McpTransportNames.Stdio) {
-      startMcpServer(options.cwd);
+  private readonly options: McpBootstrapOptions;
+  private readonly transports: McpServerBootstrapTransports;
+
+  constructor(options: McpBootstrapOptions, config: McpServerBootstrapConfig = {}) {
+    this.options = options;
+    this.transports = {
+      startStdio: config.transports?.startStdio ?? startMcpServer,
+      startHttp: config.transports?.startHttp ?? startHttpMcpServer,
+    };
+  }
+
+  start(): void {
+    if (this.options.transport === McpTransportNames.Stdio) {
+      this.transports.startStdio(this.options.cwd);
 
       return;
     }
 
-    startHttpMcpServer(options.http);
+    this.transports.startHttp(this.options.http);
   }
 }

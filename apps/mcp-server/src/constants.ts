@@ -1,3 +1,5 @@
+import { ContractValues } from "@kiwi/contracts";
+
 export const McpTransportNames = {
   Stdio: "stdio",
   Http: "http",
@@ -34,4 +36,3 @@ export const McpMutationScopes = {
 } as const;
 
 export type McpMutationScope = (typeof McpMutationScopes)[keyof typeof McpMutationScopes];
-import { ContractValues } from "@kiwi/contracts";

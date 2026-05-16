@@ -6,7 +6,13 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { kiwiModelRegistryPath, kiwiPolicyPath } from "@kiwi/core";
-import { createMcpMessageDrainer, handleMcpRequest, resolveMcpBootstrapOptions, startHttpMcpServer } from "../index";
+import {
+  createMcpMessageDrainer,
+  handleMcpRequest,
+  McpServerBootstrap,
+  resolveMcpBootstrapOptions,
+  startHttpMcpServer,
+} from "../index";
 
 function setupRepo(): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-"));
@@ -205,6 +211,40 @@ describe("MCP server", () => {
     expect(() => resolveMcpBootstrapOptions(["node", "index.js", "--transport", "nonsense"], {})).toThrow(
       "Unsupported MCP transport: nonsense",
     );
+  });
+
+  it("resolves bootstrap options in the constructor before starting stdio", () => {
+    const started: string[] = [];
+    const bootstrap = new McpServerBootstrap(
+      resolveMcpBootstrapOptions(["node", "index.js", "--workspace", "/repo"], {}),
+      {
+        transports: {
+          startStdio: (cwd) => started.push(cwd),
+        },
+      },
+    );
+
+    bootstrap.start();
+
+    expect(started).toEqual(["/repo"]);
+  });
+
+  it("starts HTTP from constructor-resolved bootstrap options", () => {
+    const started: unknown[] = [];
+    const bootstrap = new McpServerBootstrap(
+      resolveMcpBootstrapOptions(["node", "index.js", "--transport", "http", "--workspace", "/repo", "--port", "0"], {
+        KIWI_MCP_HTTP_TOKEN: "token",
+      }),
+      {
+        transports: {
+          startHttp: (options) => started.push(options),
+        },
+      },
+    );
+
+    bootstrap.start();
+
+    expect(started).toEqual([{ cwd: "/repo", port: 0, authToken: "token" }]);
   });
 
   it("initializes and lists tools", async () => {
