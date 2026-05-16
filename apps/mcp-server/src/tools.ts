@@ -38,6 +38,7 @@ import { createMcpPreviewToken, normalizePreviewInput, validateMcpPreviewToken }
 import { ToolActionRequiredError } from "./tool-errors";
 import { a2aMcpToolsEnabled, isA2AToolName } from "./tool-definitions";
 import { validateToolArguments } from "./tool-input-schemas";
+import { safeReadOnlyToolCalls, toolCall, type McpNextAction, mutationScope, workspaceToolArgs } from "./ux";
 import { workspaceArgs } from "./workspace";
 
 export function toolArguments(params: Record<string, unknown>): Record<string, unknown> {
@@ -90,6 +91,45 @@ function progressLine(fields: Record<string, ProgressValue>): string {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function previewConfirmationSummary(params: {
+  stepCount: number;
+  repoPath: string;
+  executionIsolation: string;
+  estimatedCostUsd: number;
+}): string {
+  return [
+    `Execute ${params.stepCount} planned step(s) in ${params.repoPath}.`,
+    `Execution mode: ${params.executionIsolation}.`,
+    `Estimated cost: $${params.estimatedCostUsd.toFixed(4)}.`,
+    "No staging, commit, tag, or push unless explicitly requested.",
+  ].join(" ");
+}
+
+function nextRunAction(params: {
+  workspacePath: string;
+  repoId?: string | null | undefined;
+  repoPath?: string | null | undefined;
+  runId: string;
+  previewToken: string;
+  fromStep?: string | undefined;
+  maxConcurrency?: number | undefined;
+}): McpNextAction {
+  return {
+    recommendedToolCall: toolCall("kiwi_run", {
+      ...workspaceToolArgs(params),
+      previewToken: params.previewToken,
+      ...(params.fromStep ? { fromStep: params.fromStep } : {}),
+      ...(params.maxConcurrency !== undefined && params.maxConcurrency !== 2
+        ? { maxConcurrency: params.maxConcurrency }
+        : {}),
+    }),
+    whyThisTool: "The previewToken is fresh for this run, repo state, policy, and execution options.",
+    requiresUserConfirmation: true,
+    expectedMutation: "MUTATES_WORKTREE",
+    expectedAfter: "Run execution starts and progress notifications describe routing, gates, review, and final state.",
+  };
 }
 
 async function planTool(args: Record<string, unknown>, cwd: string, options: ToolCallOptions = {}): Promise<unknown> {
@@ -157,16 +197,45 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     taskGraph: planned.taskGraph,
     plannerCostUsd: planned.plannerOutput.cost.estimatedUsd,
   });
+  const nextAction: McpNextAction = {
+    recommendedToolCall: toolCall("kiwi_preview_run", {
+      workspacePath: planned.workspacePath,
+      repoId: planned.repoId,
+      repoPath: planned.repoPath,
+      runId: planned.runId,
+    }),
+    whyThisTool: "Planning wrote run artifacts; preview is the required read-only step before any execution.",
+    requiresUserConfirmation: false,
+    expectedMutation: "READ_ONLY",
+    expectedAfter: "Show the preview decision card and ask the user before running.",
+  };
   return withOperatorCard(
     {
+      schemaVersion: "2",
+      kind: "planned_run",
       runId: planned.runId,
       planId: planned.taskGraph.planId,
-      steps: planned.taskGraph.steps.length,
-      plannerModelId: planned.plannerModelId,
-      plannerProviderName: planned.providerName,
-      plannerProviderModel: resolution.model.providerModel ?? null,
-      estimatedCostUsd: costForecast.estimatedCostUsd,
-      costForecast,
+      workspace: {
+        workspacePath: planned.workspacePath,
+        repoId: planned.repoId,
+        repoPath: planned.repoPath,
+      },
+      taskGraph: {
+        summary: planned.taskGraph.summary,
+        stepCount: planned.taskGraph.steps.length,
+        acceptanceCriteria: planned.taskGraph.acceptanceCriteria,
+        assumptions: planned.taskGraph.assumptions,
+        openQuestions: planned.taskGraph.openQuestions,
+      },
+      planner: {
+        modelId: planned.plannerModelId,
+        providerName: planned.providerName,
+        providerModel: resolution.model.providerModel ?? null,
+      },
+      cost: {
+        estimatedCostUsd: costForecast.estimatedCostUsd,
+        forecast: costForecast,
+      },
       execution: {
         owner: policy.execution?.owner ?? "kiwi-codex-cli",
         isolation: policy.execution?.isolation ?? "direct",
@@ -175,11 +244,20 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
         forbidCommits: policy.execution?.forbidCommits ?? true,
         forbidPushes: policy.execution?.forbidPushes ?? true,
       },
-      workspacePath: planned.workspacePath,
-      repoId: planned.repoId,
-      repoPath: planned.repoPath,
+      nextAction,
     },
-    { cwd: planned.workspacePath, runId: planned.runId },
+    {
+      cwd: planned.workspacePath,
+      runId: planned.runId,
+      lastAction: "kiwi_plan",
+      nextAction,
+      mutationScope: mutationScope({
+        riskLabel: "WRITES_RUN_ARTIFACTS",
+        workspacePath: planned.workspacePath,
+        repoPath: planned.repoPath,
+        executionMode: policy.execution?.isolation ?? "direct",
+      }),
+    },
   );
 }
 
@@ -197,6 +275,8 @@ function emitPostAttemptProgress(params: {
   stepId: string;
   attemptId: string;
   options: ToolCallOptions;
+  stepIndex?: number | undefined;
+  stepCount?: number | undefined;
 }): void {
   if (!params.options.onProgress) return;
   const evidence = listStepAttemptEvidence(params.workspacePath, params.runId).find(
@@ -212,6 +292,8 @@ function emitPostAttemptProgress(params: {
         attemptId: params.attemptId,
         gate: gate.gateType,
         reason: gate.reason,
+        stepIndex: params.stepIndex,
+        stepCount: params.stepCount,
       }),
     );
   }
@@ -224,6 +306,8 @@ function emitPostAttemptProgress(params: {
         attemptId: params.attemptId,
         verdict: evidence.reviewVerdict.verdict,
         safeToContinue: evidence.reviewVerdict.safeToContinue,
+        stepIndex: params.stepIndex,
+        stepCount: params.stepCount,
       }),
     );
   }
@@ -261,13 +345,91 @@ function previewRunTool(args: Record<string, unknown>, cwd: string): unknown {
     preview,
     previewInput,
   });
+  const estimatedCostUsd = preview.steps.reduce((sum, step) => sum + step.estimatedAttemptCostUsd, 0);
+  const nextAction = nextRunAction({
+    workspacePath: workspace.workspacePath,
+    repoId: workspace.repo?.id,
+    repoPath: workspace.repo?.path,
+    runId,
+    previewToken: token.token,
+    fromStep,
+    maxConcurrency: previewInput.maxConcurrency,
+  });
+  const runScope = mutationScope({
+    riskLabel: "MUTATES_WORKTREE",
+    workspacePath: workspace.workspacePath,
+    repoPath: token.repoPath,
+    executionMode: preview.executionIsolation,
+  });
+  const previewScope = mutationScope({
+    riskLabel: "WRITES_RUN_ARTIFACTS",
+    workspacePath: workspace.workspacePath,
+    repoPath: token.repoPath,
+    executionMode: preview.executionIsolation,
+  });
   return withOperatorCard(
     {
-      ...preview,
+      schemaVersion: "2",
+      kind: "run_execution_preview",
       previewToken: token.token,
       previewResource: `kiwi://runs/${runId}/previews/${token.token}`,
+      runId,
+      workspace: {
+        workspacePath: workspace.workspacePath,
+        repoId: workspace.repo?.id ?? null,
+        repoPath: token.repoPath,
+      },
+      decision: {
+        requiresUserConfirmation: true,
+        confirmationSummary: previewConfirmationSummary({
+          stepCount: preview.steps.length,
+          repoPath: token.repoPath,
+          executionIsolation: preview.executionIsolation,
+          estimatedCostUsd,
+        }),
+        nextAction,
+      },
+      execution: {
+        owner: preview.executionOwner,
+        isolation: preview.executionIsolation,
+        maxConcurrency: preview.maxConcurrency,
+        subPlans: preview.subPlans,
+        mutationScope: runScope,
+      },
+      cost: {
+        estimatedCostUsd,
+        currency: "USD",
+      },
+      steps: preview.steps.map((step, index) => ({
+        index: index + 1,
+        count: preview.steps.length,
+        stepId: step.stepId,
+        title: step.title,
+        type: step.type,
+        status: step.status,
+        blockedReason: step.blockedReason ?? null,
+        agentRole: step.agentRole,
+        modelCapability: step.modelCapability,
+        runner: step.runner,
+        selectedModelId: step.selectedModelId,
+        selectedProviderModel: step.selectedProviderModel,
+        selectedAccessMode: step.selectedAccessMode,
+        executorSelectionReason: step.executorSelectionReason,
+        estimatedAttemptCostUsd: step.estimatedAttemptCostUsd,
+        requiredGates: step.requiredGates,
+        routingReason: step.routingReason,
+        reviewDepth: step.reviewDepth,
+        contextLevel: step.contextLevel,
+      })),
+      safeAlternatives: safeReadOnlyToolCalls({ workspacePath: workspace.workspacePath, runId }),
     },
-    { cwd: workspace.workspacePath, runId },
+    {
+      cwd: workspace.workspacePath,
+      runId,
+      lastAction: "kiwi_preview_run",
+      nextAction,
+      mutationScope: previewScope,
+    },
   );
 }
 
@@ -275,6 +437,7 @@ async function runStepToolUnlocked(
   args: Record<string, unknown>,
   workspacePath: string,
   options: ToolCallOptions = {},
+  progressContext: { stepIndex?: number; stepCount?: number } = {},
 ): Promise<RunStepToolResult> {
   const runId = String(args.runId ?? "");
   const stepId = String(args.stepId ?? "");
@@ -295,23 +458,57 @@ async function runStepToolUnlocked(
         runner: preview.runner,
         isolation: preview.executionIsolation,
         reason: preview.executorSelectionReason ?? preview.routingReason.join(","),
+        stepIndex: progressContext.stepIndex,
+        stepCount: progressContext.stepCount,
       }),
       0,
     );
   }
-  options.onProgress?.(progressLine({ phase: "step", status: "started", stepId }), 0);
-  options.onProgress?.(progressLine({ phase: "gate", status: ContractValues.Running, stepId }));
+  options.onProgress?.(
+    progressLine({
+      phase: "step",
+      status: "started",
+      stepId,
+      stepIndex: progressContext.stepIndex,
+      stepCount: progressContext.stepCount,
+    }),
+    0,
+  );
+  options.onProgress?.(
+    progressLine({
+      phase: "gate",
+      status: ContractValues.Running,
+      stepId,
+      stepIndex: progressContext.stepIndex,
+      stepCount: progressContext.stepCount,
+    }),
+  );
   let result: Awaited<ReturnType<typeof executePlannedStep>>;
   try {
     result = await executePlannedStep(input);
   } catch (error) {
     options.onProgress?.(
-      progressLine({ phase: "step", status: ContractValues.Failed, stepId, error: errorMessage(error) }),
+      progressLine({
+        phase: "step",
+        status: ContractValues.Failed,
+        stepId,
+        stepIndex: progressContext.stepIndex,
+        stepCount: progressContext.stepCount,
+        error: errorMessage(error),
+      }),
       100,
     );
     throw error;
   }
-  emitPostAttemptProgress({ workspacePath, runId, stepId, attemptId: result.attemptId, options });
+  emitPostAttemptProgress({
+    workspacePath,
+    runId,
+    stepId,
+    attemptId: result.attemptId,
+    options,
+    stepIndex: progressContext.stepIndex,
+    stepCount: progressContext.stepCount,
+  });
   options.onProgress?.(
     progressLine({
       phase: "step",
@@ -320,6 +517,8 @@ async function runStepToolUnlocked(
       attemptId: result.attemptId,
       next: result.nextAction.type,
       runStatus: result.runStatus,
+      stepIndex: progressContext.stepIndex,
+      stepCount: progressContext.stepCount,
     }),
     100,
   );
@@ -355,8 +554,33 @@ async function runStepTool(
         previewToken: typeof args.previewToken === "string" ? args.previewToken : undefined,
         stepId,
       });
-      const result = await runStepToolUnlocked(args, workspace.workspacePath, options);
-      return withOperatorCard(result, { cwd: workspace.workspacePath, runId });
+      const result = await runStepToolUnlocked(args, workspace.workspacePath, options, { stepIndex: 1, stepCount: 1 });
+      return withOperatorCard(
+        {
+          schemaVersion: "2",
+          kind: "step_execution_result",
+          runId,
+          stepId,
+          attempt: {
+            attemptId: result.attemptId,
+            status: result.status,
+            nextAction: result.nextAction,
+          },
+          runStatus: result.runStatus,
+          materializedDiff: result.materializedDiff,
+        },
+        {
+          cwd: workspace.workspacePath,
+          runId,
+          lastAction: "kiwi_run_step",
+          mutationScope: mutationScope({
+            riskLabel: "MUTATES_WORKTREE",
+            workspacePath: workspace.workspacePath,
+            repoPath: workspace.repo?.path ?? null,
+            executionMode: null,
+          }),
+        },
+      );
     },
   );
 }
@@ -402,6 +626,7 @@ async function runTool(
             ...(typeof args.command === "string" ? { command: args.command } : {}),
           },
           runStep: async (_scheduledRunId, stepId, attemptOptions) => {
+            const stepIndex = steps.length + 1;
             steps.push(
               await runStepToolUnlocked(
                 {
@@ -413,6 +638,7 @@ async function runTool(
                 },
                 workspace.workspacePath,
                 callOptions,
+                { stepIndex, stepCount: taskGraph.steps.length },
               ),
             );
           },
@@ -421,7 +647,8 @@ async function runTool(
         const startIndex = fromStep ? taskGraph.steps.findIndex((step) => step.stepId === fromStep) : 0;
         if (startIndex < 0) throw new Error(`Step not found: ${fromStep}`);
 
-        for (const step of taskGraph.steps.slice(startIndex)) {
+        const selectedSteps = taskGraph.steps.slice(startIndex);
+        for (const [index, step] of selectedSteps.entries()) {
           steps.push(
             await runStepToolUnlocked(
               {
@@ -432,6 +659,7 @@ async function runTool(
               },
               workspace.workspacePath,
               callOptions,
+              { stepIndex: index + 1, stepCount: selectedSteps.length },
             ),
           );
           const status = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.currentStatus;
@@ -443,12 +671,24 @@ async function runTool(
       callOptions.onProgress?.(progressLine({ phase: "run", status: run?.currentStatus ?? "missing", runId }), 100);
       return withOperatorCard(
         {
+          schemaVersion: "2",
+          kind: "run_execution_result",
           runId,
           status: run?.currentStatus ?? "missing",
           steps,
-          completionSummary: buildRunCompletionSummary({ cwd: workspace.workspacePath, runId }),
+          summary: buildRunCompletionSummary({ cwd: workspace.workspacePath, runId }),
         },
-        { cwd: workspace.workspacePath, runId },
+        {
+          cwd: workspace.workspacePath,
+          runId,
+          lastAction: "kiwi_run",
+          mutationScope: mutationScope({
+            riskLabel: "MUTATES_WORKTREE",
+            workspacePath: workspace.workspacePath,
+            repoPath: workspace.repo?.path ?? null,
+            executionMode: null,
+          }),
+        },
       );
     },
   );
@@ -459,6 +699,7 @@ function callCoreTool(
   args: Record<string, unknown>,
   cwd: string,
   workspacePath: string,
+  repoPath: string | null,
   options: ToolCallOptions = {},
 ): Promise<unknown> | unknown | undefined {
   const runId = String(args.runId ?? "");
@@ -466,8 +707,11 @@ function callCoreTool(
     case "kiwi_status": {
       const status = getRunStatusSummary(workspacePath, typeof args.runId === "string" ? args.runId : undefined);
       return typeof args.runId === "string"
-        ? withOperatorCard(status, { cwd: workspacePath, runId: args.runId })
-        : status;
+        ? withOperatorCard(
+            { schemaVersion: "2", kind: "run_status", status },
+            { cwd: workspacePath, runId: args.runId, lastAction: "kiwi_status" },
+          )
+        : { schemaVersion: "2", kind: "run_status_list", status };
     }
     case "kiwi_preview_run":
       return previewRunTool(args, cwd);
@@ -477,29 +721,53 @@ function callCoreTool(
       return runStepTool(args, cwd, options);
     case "kiwi_diff":
       return withOperatorCard(
-        buildRunDiff({
-          cwd: workspacePath,
-          runId,
-          ...(typeof args.stepId === "string" ? { stepId: args.stepId } : {}),
-          ...(args.all === true ? { allAttempts: true } : {}),
-        }),
-        { cwd: workspacePath, runId },
+        {
+          schemaVersion: "2",
+          kind: "run_diff",
+          diff: buildRunDiff({
+            cwd: workspacePath,
+            runId,
+            ...(typeof args.stepId === "string" ? { stepId: args.stepId } : {}),
+            ...(args.all === true ? { allAttempts: true } : {}),
+          }),
+        },
+        { cwd: workspacePath, runId, lastAction: "kiwi_diff" },
       );
     case "kiwi_apply": {
       if (args.forceUnsafe === true && process.env.KIWI_MCP_HIGH_RISK_TOOLS !== "1") {
         throw new ToolActionRequiredError("kiwi_apply forceUnsafe is disabled over MCP", {
-          nextTool: "kiwi_diff",
-          reason: "set KIWI_MCP_HIGH_RISK_TOOLS=1 to expose forceUnsafe patch apply",
+          category: "blocked",
+          recovery: {
+            reason: "set KIWI_MCP_HIGH_RISK_TOOLS=1 to enable forceUnsafe patch apply",
+            recommendedToolCall: toolCall("kiwi_diff", { workspacePath, runId }),
+            safeAlternatives: safeReadOnlyToolCalls({ workspacePath, runId }),
+            userMessage:
+              "Unsafe patch application is disabled for MCP. Inspect the diff or restart with the explicit high-risk flag.",
+          },
         });
       }
       return withOperatorCard(
-        applyRunDiff({
+        {
+          schemaVersion: "2",
+          kind: "patch_apply_result",
+          apply: applyRunDiff({
+            cwd: workspacePath,
+            runId,
+            ...(typeof args.stepId === "string" ? { stepId: args.stepId } : {}),
+            ...(args.forceUnsafe === true ? { forceUnsafe: true } : {}),
+          }),
+        },
+        {
           cwd: workspacePath,
           runId,
-          ...(typeof args.stepId === "string" ? { stepId: args.stepId } : {}),
-          ...(args.forceUnsafe === true ? { forceUnsafe: true } : {}),
-        }),
-        { cwd: workspacePath, runId },
+          lastAction: "kiwi_apply",
+          mutationScope: mutationScope({
+            riskLabel: "APPLIES_PATCH",
+            workspacePath,
+            repoPath,
+            executionMode: null,
+          }),
+        },
       );
     }
     case "kiwi_finalize":
@@ -509,22 +777,46 @@ function callCoreTool(
         options.onProgress?.(`finalize completed runId=${runId}`, 100);
         return withOperatorCard(
           {
+            schemaVersion: "2",
+            kind: "run_finalization_result",
             ...finalized,
-            completionSummary: buildRunCompletionSummary({ cwd: workspacePath, runId }),
+            summary: buildRunCompletionSummary({ cwd: workspacePath, runId }),
           },
-          { cwd: workspacePath, runId },
+          {
+            cwd: workspacePath,
+            runId,
+            lastAction: "kiwi_finalize",
+            mutationScope: mutationScope({
+              riskLabel: "WRITES_RUN_ARTIFACTS",
+              workspacePath,
+              repoPath,
+              executionMode: null,
+            }),
+          },
         );
       });
     case "kiwi_cost":
-      return withOperatorCard(buildRunCompletionSummary({ cwd: workspacePath, runId }), {
-        cwd: workspacePath,
-        runId,
-      });
+      return withOperatorCard(
+        { schemaVersion: "2", kind: "run_cost", summary: buildRunCompletionSummary({ cwd: workspacePath, runId }) },
+        {
+          cwd: workspacePath,
+          runId,
+          lastAction: "kiwi_cost",
+        },
+      );
     case "kiwi_explain":
-      return withOperatorCard(buildRunExplanation({ cwd: workspacePath, runId }), {
-        cwd: workspacePath,
-        runId,
-      });
+      return withOperatorCard(
+        {
+          schemaVersion: "2",
+          kind: "run_explanation",
+          explanation: buildRunExplanation({ cwd: workspacePath, runId }),
+        },
+        {
+          cwd: workspacePath,
+          runId,
+          lastAction: "kiwi_explain",
+        },
+      );
     case "kiwi_next":
       return nextTool(args, cwd);
     case "kiwi_request_approval":
@@ -536,36 +828,91 @@ function callCoreTool(
         },
         () =>
           withOperatorCard(
-            recordApprovalDecision({
+            {
+              schemaVersion: "2",
+              kind: "approval_result",
+              approval: recordApprovalDecision({
+                cwd: workspacePath,
+                runId,
+                attemptId: String(args.attemptId ?? ""),
+                reason: String(args.reason ?? "Approved through MCP"),
+                approvedBy: String(args.approvedBy ?? "mcp-operator"),
+              }),
+            },
+            {
               cwd: workspacePath,
               runId,
-              attemptId: String(args.attemptId ?? ""),
-              reason: String(args.reason ?? "Approved through MCP"),
-              approvedBy: String(args.approvedBy ?? "mcp-operator"),
-            }),
-            { cwd: workspacePath, runId },
+              lastAction: "kiwi_request_approval",
+              mutationScope: mutationScope({
+                riskLabel: "WRITES_RUN_ARTIFACTS",
+                workspacePath,
+                repoPath,
+                executionMode: null,
+              }),
+            },
           ),
       );
     case "kiwi_evidence_manifest":
       return withRunLock({ cwd: workspacePath, runId, operation: "mcp_evidence_manifest" }, () =>
-        withOperatorCard(writeEvidenceManifest({ cwd: workspacePath, runId }), {
-          cwd: workspacePath,
-          runId,
-        }),
+        withOperatorCard(
+          {
+            schemaVersion: "2",
+            kind: "evidence_manifest_result",
+            manifest: writeEvidenceManifest({ cwd: workspacePath, runId }),
+          },
+          {
+            cwd: workspacePath,
+            runId,
+            lastAction: "kiwi_evidence_manifest",
+            mutationScope: mutationScope({
+              riskLabel: "WRITES_RUN_ARTIFACTS",
+              workspacePath,
+              repoPath,
+              executionMode: null,
+            }),
+          },
+        ),
       );
     case "kiwi_operator_snapshot":
       return withRunLock({ cwd: workspacePath, runId, operation: "mcp_operator_snapshot" }, () =>
-        withOperatorCard(writeOperatorSnapshot({ cwd: workspacePath, runId }), {
-          cwd: workspacePath,
-          runId,
-        }),
+        withOperatorCard(
+          {
+            schemaVersion: "2",
+            kind: "operator_snapshot_result",
+            snapshot: writeOperatorSnapshot({ cwd: workspacePath, runId }),
+          },
+          {
+            cwd: workspacePath,
+            runId,
+            lastAction: "kiwi_operator_snapshot",
+            mutationScope: mutationScope({
+              riskLabel: "WRITES_RUN_ARTIFACTS",
+              workspacePath,
+              repoPath,
+              executionMode: null,
+            }),
+          },
+        ),
       );
     case "kiwi_publish_pr_draft":
       options.onProgress?.(`publish pr draft started runId=${runId}`, 0);
       return Promise.resolve(publishPrDraftTool(args, workspacePath)).then((result) => {
         options.onProgress?.(`publish pr draft completed runId=${runId}`, 100);
         const payload = typeof result === "object" && result !== null && !Array.isArray(result) ? result : { result };
-        return withOperatorCard(payload, { cwd: workspacePath, runId });
+        return withOperatorCard(
+          { schemaVersion: "2", kind: "pr_draft_publish_result", publish: payload },
+          {
+            cwd: workspacePath,
+            runId,
+            lastAction: "kiwi_publish_pr_draft",
+            mutationScope: mutationScope({
+              riskLabel: "PUSHES_BRANCH",
+              workspacePath,
+              repoPath,
+              executionMode: null,
+            }),
+          },
+        );
       });
     default:
       return undefined;
@@ -586,7 +933,7 @@ export async function callTool(
   if (name === "kiwi_plan") return planTool(validatedArgs, cwd, options);
   const workspace = workspaceArgs(validatedArgs, cwd, false);
   const workspacePath = workspace.workspacePath;
-  const coreResult = callCoreTool(name, validatedArgs, cwd, workspacePath, options);
+  const coreResult = callCoreTool(name, validatedArgs, cwd, workspacePath, workspace.repo?.path ?? null, options);
   if (coreResult !== undefined) return coreResult;
   const a2aResult = callA2ATool(name, validatedArgs, cwd, workspacePath);
   if (a2aResult !== undefined) return a2aResult;

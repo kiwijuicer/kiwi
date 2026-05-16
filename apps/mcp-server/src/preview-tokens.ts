@@ -13,6 +13,7 @@ import {
 import { RunExecutionPreview } from "@kiwi/runtime";
 import { readRepoState } from "./repo-state";
 import { ToolActionRequiredError } from "./tool-errors";
+import { safeReadOnlyToolCalls, toolCall } from "./ux";
 
 export interface McpPreviewInput {
   fromStep: string | null;
@@ -56,8 +57,13 @@ export function normalizePreviewInput(args: {
 function previewPath(cwd: string, runId: string, token: string): string {
   if (!/^preview_[a-f0-9_]+$/.test(token)) {
     throw new ToolActionRequiredError("Invalid previewToken", {
-      nextTool: "kiwi_preview_run",
-      reason: "preview token format is invalid",
+      category: "action_required",
+      recovery: {
+        reason: "preview token format is invalid",
+        recommendedToolCall: toolCall("kiwi_preview_run", { workspacePath: cwd, runId }),
+        safeAlternatives: safeReadOnlyToolCalls({ workspacePath: cwd, runId }),
+        userMessage: "The preview token is malformed. Create a new preview before running.",
+      },
     });
   }
   return resolveRunArtifactPath(runId, `previews/${token}.json`, cwd);
@@ -129,17 +135,27 @@ function loadPreviewRecord(cwd: string, runId: string, token: string): McpPrevie
   const target = previewPath(cwd, runId, token);
   if (!existsSync(target)) {
     throw new ToolActionRequiredError("kiwi_run requires a valid previewToken from kiwi_preview_run", {
-      nextTool: "kiwi_preview_run",
-      reason: "preview token was not found",
+      category: "action_required",
+      recovery: {
+        reason: "preview token was not found",
+        recommendedToolCall: toolCall("kiwi_preview_run", { workspacePath: cwd, runId }),
+        safeAlternatives: safeReadOnlyToolCalls({ workspacePath: cwd, runId }),
+        userMessage: "The preview token was not found. Create a new preview before running.",
+      },
     });
   }
   return readJson(target) as McpPreviewTokenRecord;
 }
 
-function rejectStale(reason: string): never {
-  throw new ToolActionRequiredError(`Stale previewToken: ${reason}`, {
-    nextTool: "kiwi_preview_run",
-    reason,
+function rejectStale(params: { cwd: string; runId: string; reason: string }): never {
+  throw new ToolActionRequiredError(`Stale previewToken: ${params.reason}`, {
+    category: "stale_preview",
+    recovery: {
+      reason: params.reason,
+      recommendedToolCall: toolCall("kiwi_preview_run", { workspacePath: params.cwd, runId: params.runId }),
+      safeAlternatives: safeReadOnlyToolCalls({ workspacePath: params.cwd, runId: params.runId }),
+      userMessage: "The run changed since preview. Create and confirm a fresh preview before running.",
+    },
   });
 }
 
@@ -152,25 +168,40 @@ export function validateMcpPreviewToken(params: {
 }): McpPreviewTokenRecord {
   if (!params.previewToken) {
     throw new ToolActionRequiredError("kiwi_run requires previewToken from kiwi_preview_run before MCP mutation", {
-      nextTool: "kiwi_preview_run",
-      reason: "mutating MCP calls require a fresh preview",
+      category: "action_required",
+      recovery: {
+        reason: "mutating MCP calls require a fresh preview",
+        recommendedToolCall: toolCall("kiwi_preview_run", { workspacePath: params.cwd, runId: params.runId }),
+        safeAlternatives: safeReadOnlyToolCalls({ workspacePath: params.cwd, runId: params.runId }),
+        userMessage: "Preview this run and ask the user to confirm before calling a mutating tool.",
+      },
     });
   }
   const record = loadPreviewRecord(params.cwd, params.runId, params.previewToken);
-  if (record.runId !== params.runId) rejectStale("preview token belongs to a different run");
+  if (record.runId !== params.runId)
+    rejectStale({ cwd: params.cwd, runId: params.runId, reason: "preview token belongs to a different run" });
   const current = fingerprintState(params.cwd, params.runId);
   const currentHash = stateHash(current.fingerprints, record.previewInput);
-  if (currentHash !== record.stateHash) rejectStale("TaskGraph, policy, HEAD, or dirty state changed");
+  if (currentHash !== record.stateHash)
+    rejectStale({ cwd: params.cwd, runId: params.runId, reason: "TaskGraph, policy, HEAD, or dirty state changed" });
   if (params.previewInput) {
     if (
       record.previewInput.fromStep !== params.previewInput.fromStep ||
       record.previewInput.maxConcurrency !== params.previewInput.maxConcurrency
     ) {
-      rejectStale("fromStep or maxConcurrency differs from the preview");
+      rejectStale({
+        cwd: params.cwd,
+        runId: params.runId,
+        reason: "fromStep or maxConcurrency differs from the preview",
+      });
     }
   }
   if (params.stepId && !record.previewStepIds.includes(params.stepId)) {
-    rejectStale(`step ${params.stepId} was not included in the preview`);
+    rejectStale({
+      cwd: params.cwd,
+      runId: params.runId,
+      reason: `step ${params.stepId} was not included in the preview`,
+    });
   }
   appendAuditEvent(params.cwd, {
     eventType: "mcp_preview_consumed",

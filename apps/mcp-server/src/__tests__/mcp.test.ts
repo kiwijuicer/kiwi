@@ -143,6 +143,13 @@ describe("MCP server", () => {
     expect(JSON.stringify(tools.result)).toContain("kiwi_plan");
     expect(JSON.stringify(tools.result)).not.toContain("kiwi_a2a_receive");
     expect(JSON.stringify(tools.result)).toContain("inputSchema");
+    const listedTools = (tools.result as { tools: Array<{ name: string; annotations?: unknown }> }).tools;
+    expect(listedTools.every((tool) => tool.annotations)).toBe(true);
+    expect(listedTools.find((tool) => tool.name === "kiwi_next")?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    });
   });
 
   it("lists concrete resources separately from templates", async () => {
@@ -509,9 +516,12 @@ describe("MCP server", () => {
       cwd,
     );
     expect(planned.error).toBeUndefined();
-    const parsed = toolJson(planned) as { runId: string; workspacePath: string; repoPath: string };
-    expect(parsed.workspacePath).toBe(cwd);
-    expect(parsed.repoPath).toBe(cwd);
+    const parsed = toolJson(planned) as {
+      runId: string;
+      workspace: { workspacePath: string; repoPath: string };
+    };
+    expect(parsed.workspace.workspacePath).toBe(cwd);
+    expect(parsed.workspace.repoPath).toBe(cwd);
 
     const invocations = await handleMcpRequest(
       {
@@ -573,8 +583,8 @@ describe("MCP server", () => {
       { sendNotification: (notification) => notifications.push(notification) },
     );
     expect(planned.error).toBeUndefined();
-    const parsed = toolJson(planned) as { runId: string; estimatedCostUsd: number };
-    expect(parsed.estimatedCostUsd).toBeTypeOf("number");
+    const parsed = toolJson(planned) as { runId: string; cost: { estimatedCostUsd: number } };
+    expect(parsed.cost.estimatedCostUsd).toBeTypeOf("number");
     expect(JSON.stringify(notifications)).toContain("notifications/progress");
     expect(JSON.stringify(notifications)).toContain("phase=planner status=started");
     expect(JSON.stringify(notifications)).toContain("phase=planner status=completed");
@@ -651,11 +661,11 @@ models:
 
       expect(preview.error).toBeUndefined();
       const parsed = toolJson(preview) as {
-        executionIsolation: string;
+        execution: { isolation: string };
         previewToken: string;
         steps: Array<{ runner: string; selectedModelId: string; selectedProviderModel: string }>;
       };
-      expect(parsed.executionIsolation).toBe("direct");
+      expect(parsed.execution.isolation).toBe("direct");
       expect(parsed.previewToken).toMatch(/^preview_/);
       expect(parsed.steps.some((step) => step.runner === "codex")).toBe(true);
       expect(parsed.steps.some((step) => step.selectedProviderModel === "gpt-5.4")).toBe(true);
@@ -715,10 +725,12 @@ models:
       );
 
       expect(planned.error).toBeUndefined();
-      const parsed = toolJson(planned) as { workspacePath: string; repoId: string; repoPath: string };
-      expect(parsed.workspacePath).toBe(core);
-      expect(parsed.repoId).toBe("voice-core");
-      expect(parsed.repoPath).toBe(core);
+      const parsed = toolJson(planned) as {
+        workspace: { workspacePath: string; repoId: string; repoPath: string };
+      };
+      expect(parsed.workspace.workspacePath).toBe(core);
+      expect(parsed.workspace.repoId).toBe("voice-core");
+      expect(parsed.workspace.repoPath).toBe(core);
     }
   });
 
@@ -742,8 +754,8 @@ models:
     );
     expect(planned.error).toBeUndefined();
     const text = (planned.result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
-    const parsed = JSON.parse(text) as { runId: string; repoPath: string };
-    expect(parsed.repoPath).toBe(workspace.core);
+    const parsed = JSON.parse(text) as { runId: string; workspace: { repoPath: string } };
+    expect(parsed.workspace.repoPath).toBe(workspace.core);
     const preview = await handleMcpRequest(
       {
         id: 2,
@@ -788,8 +800,8 @@ models:
     expect(notificationText).toContain("phase=step status=started");
     expect(notificationText).toContain("phase=gate status=");
     expect(notificationText).toContain("phase=review status=completed");
-    const runParsed = toolJson(run) as { completionSummary: { totalEstimatedCostUsd: number; nextAction: string } };
-    expect(runParsed.completionSummary.totalEstimatedCostUsd).toBe(0);
+    const runParsed = toolJson(run) as { summary: { totalEstimatedCostUsd: number; nextAction: string } };
+    expect(runParsed.summary.totalEstimatedCostUsd).toBe(0);
 
     const worktrees = path.join(workspace.root, ".kiwi", "runs", parsed.runId, "worktrees");
     expect(existsSync(worktrees) ? readdirSync(worktrees) : []).toHaveLength(0);
@@ -809,7 +821,9 @@ models:
       os.tmpdir(),
     );
     expect(cost.error).toBeUndefined();
-    expect((toolJson(cost) as { phaseCostsUsd: { executor: number } }).phaseCostsUsd.executor).toBe(0);
+    expect(
+      (toolJson(cost) as { summary: { phaseCostsUsd: { executor: number } } }).summary.phaseCostsUsd.executor,
+    ).toBe(0);
 
     const explain = await handleMcpRequest(
       {
@@ -826,7 +840,9 @@ models:
       os.tmpdir(),
     );
     expect(explain.error).toBeUndefined();
-    expect((toolJson(explain) as { routing: unknown[] }).routing.length).toBeGreaterThan(0);
+    expect((toolJson(explain) as { explanation: { routing: unknown[] } }).explanation.routing.length).toBeGreaterThan(
+      0,
+    );
   });
 
   it("exposes filesystem A2A trust, publish, sync, inbox, and accept tools", async () => {

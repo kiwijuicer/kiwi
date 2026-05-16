@@ -51,8 +51,8 @@ Core tools:
 - `kiwi_doctor`: diagnose workspace/repo/config/git/client readiness.
 - `kiwi_plan`: create a planned run.
 - `kiwi_status`: read run status.
-- `kiwi_preview_run`: preview step order, selected Codex models, cost, gates, execution mode, and return a `previewToken`.
-- `kiwi_next`: recommend the next safe tool for a run.
+- `kiwi_next`: read-only router that returns one exact `recommendedToolCall`, why it is safe now, expected mutation, and safe alternatives.
+- `kiwi_preview_run`: return the execution decision card: step order, selected models/runners, cost, gates, execution mode, mutation scope, confirmation summary, and a fresh `previewToken`.
 - `kiwi_run`: execute planned steps in order with a fresh `previewToken`.
 - `kiwi_run_step`: execute one planned step with a fresh `previewToken`.
 - `kiwi_diff`: read persisted attempt patch stats and diff.
@@ -121,7 +121,7 @@ Then:
 }
 ```
 
-Confirm the preview with the user, then pass its `previewToken`:
+Read the preview `decision.confirmationSummary` to the user. If confirmed, call the returned `decision.nextAction.recommendedToolCall`:
 
 ```json
 {
@@ -174,8 +174,11 @@ For multi-repo work, start one server per workspace or set `KIWI_WORKSPACE` per 
 ## Safety
 
 - A run lock protects mutating operations.
+- Every tool definition includes MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) for client risk prompts.
+- `kiwi_next` is the default read-only router after every run-related tool, error, interruption, or uncertain state.
 - MCP `kiwi_run` and `kiwi_run_step` require a fresh `previewToken` from `kiwi_preview_run`.
 - Preview tokens bind to run id, TaskGraph hash, policy hash, repo HEAD, dirty state, `fromStep`, and `maxConcurrency`.
+- Action-required errors return `data.recovery.recommendedToolCall` instead of relying on the model to infer recovery.
 - `approved` is not accepted as an MCP run shortcut; use `kiwi_request_approval`.
 - `kiwi_apply forceUnsafe` is disabled over MCP unless `KIWI_MCP_HIGH_RISK_TOOLS=1`.
 - Tool descriptions carry risk labels: `READ_ONLY`, `WRITES_RUN_ARTIFACTS`, `MUTATES_WORKTREE`, `APPLIES_PATCH`, `PUSHES_BRANCH`.

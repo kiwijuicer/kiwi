@@ -32,13 +32,13 @@ Restart Cursor, then ask:
 
 ```text
 Use kiwi for workspace /Users/norberthanauer/Projects/voice and repo livekit-agent.
-Run kiwi_doctor, plan this change, preview it, and show the TaskGraph summary plus previewToken.
+Run kiwi_doctor, plan this change, call kiwi_next, preview it, and show the TaskGraph summary plus decision.confirmationSummary.
 ```
 
 Safe MCP flow:
 
 ```text
-kiwi_doctor -> kiwi_plan -> kiwi_preview_run -> user confirm -> kiwi_run -> kiwi_diff -> kiwi_finalize -> kiwi_evidence_manifest/operator_snapshot
+kiwi_doctor -> kiwi_plan -> kiwi_next -> kiwi_preview_run -> user confirm decision.confirmationSummary -> decision.nextAction.recommendedToolCall -> kiwi_next -> finalize/evidence/snapshot
 ```
 
 ## Global Config

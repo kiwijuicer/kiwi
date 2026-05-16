@@ -10,6 +10,7 @@ import {
 } from "@kiwi/core";
 import { evaluateAccessModeAvailability } from "@kiwi/runtime";
 import { readRepoState } from "./repo-state";
+import { toolCall, workspaceToolArgs } from "./ux";
 import { workspaceArgs } from "./workspace";
 
 interface FileStatus {
@@ -74,8 +75,19 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
       (!repoState ||
         executionMode !== "direct" ||
         (repoState.isGitRepo && !repoState.protectedBranch && repoState.dirtyFiles === 0));
+    const recommendedFirstToolCall = safeToPlan
+      ? toolCall(
+          "kiwi_plan",
+          workspaceToolArgs({
+            workspacePath: workspace.workspacePath,
+            repoId: workspace.repo?.id,
+            repoPath: workspace.repo?.path,
+          }),
+        )
+      : toolCall("kiwi_doctor", { workspacePath: workspace.workspacePath });
 
     return {
+      schemaVersion: "2",
       workspacePath: workspace.workspacePath,
       repos: workspace.repos,
       repo: workspace.repo ?? null,
@@ -93,14 +105,11 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
       safeToRun,
       warnings: Array.from(new Set(warnings)).sort(),
       nextFixes: Array.from(new Set(nextFixes)).sort(),
-      clientHints: {
-        codex: "Use kiwi_doctor, kiwi_plan, kiwi_preview_run, confirm, then kiwi_run.",
-        claude: "Use kiwi_doctor, kiwi_plan, kiwi_preview_run, confirm, then kiwi_run.",
-        cursor: "Use kiwi_doctor, kiwi_plan, kiwi_preview_run, confirm, then kiwi_run.",
-      },
+      recommendedFirstToolCall,
     };
   } catch (error) {
     return {
+      schemaVersion: "2",
       safeToPlan: false,
       safeToRun: false,
       warnings: ["workspace resolution failed"],

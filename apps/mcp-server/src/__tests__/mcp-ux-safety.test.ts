@@ -157,7 +157,12 @@ describe("MCP UX safety tools", () => {
     );
 
     expect(run.error?.code).toBe(-32010);
-    expect(JSON.stringify(run.error?.data)).toContain("kiwi_preview_run");
+    expect(run.error?.data).toMatchObject({
+      category: "action_required",
+      recovery: {
+        recommendedToolCall: { name: "kiwi_preview_run" },
+      },
+    });
   });
 
   it("rejects stale preview tokens after policy changes and recommends the next safe tool", async () => {
@@ -169,9 +174,11 @@ describe("MCP UX safety tools", () => {
       { id: 3, method: "tools/call", params: { name: "kiwi_next", arguments: { runId } } },
       cwd,
     );
-    const nextParsed = toolJson(next) as { primaryNextTool: string; previewToken: string };
-    expect(nextParsed.primaryNextTool).toBe("kiwi_run");
-    expect(nextParsed.previewToken).toBe(token);
+    const nextParsed = toolJson(next) as {
+      nextAction: { recommendedToolCall: { name: string; arguments: { previewToken: string } } };
+    };
+    expect(nextParsed.nextAction.recommendedToolCall.name).toBe("kiwi_run");
+    expect(nextParsed.nextAction.recommendedToolCall.arguments.previewToken).toBe(token);
 
     writeFileSync(kiwiPolicyPath(cwd), `${readFileSync(kiwiPolicyPath(cwd), "utf-8")}\n# changed\n`, "utf-8");
     const run = await handleMcpRequest(
@@ -185,6 +192,12 @@ describe("MCP UX safety tools", () => {
 
     expect(run.error?.code).toBe(-32010);
     expect(run.error?.message).toContain("Stale previewToken");
+    expect(run.error?.data).toMatchObject({
+      category: "stale_preview",
+      recovery: {
+        recommendedToolCall: { name: "kiwi_preview_run" },
+      },
+    });
   });
 
   it("keeps approval and forceUnsafe on explicit MCP paths", async () => {
@@ -212,6 +225,12 @@ describe("MCP UX safety tools", () => {
       cwd,
     );
     expect(apply.error?.code).toBe(-32010);
+    expect(apply.error?.data).toMatchObject({
+      category: "blocked",
+      recovery: {
+        recommendedToolCall: { name: "kiwi_diff" },
+      },
+    });
     expect(JSON.stringify(apply.error?.data)).toContain("KIWI_MCP_HIGH_RISK_TOOLS");
   });
 });

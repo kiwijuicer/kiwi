@@ -102,7 +102,14 @@ export async function handleMcpRequest(
           code: error.code,
           message: "Invalid params",
           data: {
+            category: "invalid_input",
             issues: error.issues,
+            recovery: {
+              reason: "tool arguments failed schema validation",
+              recommendedToolCall: null,
+              safeAlternatives: [],
+              userMessage: "Fix the highlighted tool arguments and retry the same tool.",
+            },
           },
         },
       };
