@@ -10,7 +10,7 @@ export function defaultServerCwd(): string {
   return process.env.KIWI_WORKSPACE ?? process.cwd();
 }
 
-export interface McpProgressNotification {
+interface McpProgressNotification {
   jsonrpc: "2.0";
   method: "notifications/progress";
   params: {
@@ -21,7 +21,7 @@ export interface McpProgressNotification {
   };
 }
 
-export interface McpRequestContext {
+interface McpRequestContext {
   sendNotification?: (notification: McpProgressNotification) => void;
 }
 

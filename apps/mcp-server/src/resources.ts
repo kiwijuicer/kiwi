@@ -32,7 +32,7 @@ interface McpResourceTemplate {
   mimeType?: string;
 }
 
-export const MCP_RESOURCE_TEMPLATES = [
+const MCP_RESOURCE_TEMPLATES = [
   { uriTemplate: "kiwi://runs/{runId}", name: "Run Status", mimeType: "application/json" },
   { uriTemplate: "kiwi://runs/{runId}/manifest", name: "Run Manifest", mimeType: "application/json" },
   { uriTemplate: "kiwi://runs/{runId}/initiative", name: "Initiative", mimeType: "application/json" },
@@ -274,7 +274,7 @@ function readAttemptResource(uri: string, runId: string, tail: string, cwd: stri
   return ref ? asContent(uri, readJsonRunArtifact(runId, ref, cwd), "application/json") : null;
 }
 
-export function readResource(uri: string, cwd: string): McpResourceContent {
+function readResource(uri: string, cwd: string): McpResourceContent {
   if (uri === "kiwi://runs") {
     return asContent(uri, getRunStatusSummary(cwd), "application/json");
   }

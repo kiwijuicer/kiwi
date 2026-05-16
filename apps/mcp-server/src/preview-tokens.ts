@@ -16,7 +16,7 @@ import { readRepoState } from "./repo-state";
 import { ToolActionRequiredError } from "./tool-errors";
 import { safeReadOnlyToolCalls, toolCall } from "./ux";
 
-export interface McpPreviewInput {
+interface McpPreviewInput {
   fromStep: string | null;
   maxConcurrency: number;
 }
@@ -30,7 +30,7 @@ interface McpPreviewFingerprints {
   dirtyStateHash: string;
 }
 
-export interface McpPreviewTokenRecord {
+interface McpPreviewTokenRecord {
   schemaVersion: "1";
   token: string;
   runId: string;

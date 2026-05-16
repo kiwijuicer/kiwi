@@ -14,7 +14,7 @@ const OptionalRunIdSchema = WorkspaceSelectorSchema.extend({
   runId: z.string().min(1).optional(),
 });
 
-export const ToolInputSchemas = {
+const ToolInputSchemas = {
   kiwi_doctor: WorkspaceSelectorSchema,
   kiwi_plan: WorkspaceSelectorSchema.extend({
     ticket: z.string().min(1).optional(),
@@ -70,7 +70,7 @@ export const ToolInputSchemas = {
   }),
 } as const;
 
-export type ToolSchemaName = keyof typeof ToolInputSchemas;
+type ToolSchemaName = keyof typeof ToolInputSchemas;
 
 export class ToolInputValidationError extends Error {
   readonly code = -32602 as const;

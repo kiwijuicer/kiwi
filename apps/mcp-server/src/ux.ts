@@ -1,5 +1,3 @@
-import path from "path";
-
 export type McpRiskLabel =
   | "READ_ONLY"
   | "WRITES_RUN_ARTIFACTS"
@@ -40,7 +38,7 @@ export interface McpRecovery {
   userMessage: string;
 }
 
-export function compactObject(input: Record<string, unknown>): Record<string, unknown> {
+function compactObject(input: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(input).filter((entry) => entry[1] !== undefined && entry[1] !== null));
 }
 
@@ -132,13 +130,4 @@ export function resourceLinks(runId: string): Array<{ name: string; uri: string 
 
 export function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values)).sort();
-}
-
-export function relativeRepoPath(repoPath: string | null, workspacePath: string): string | null {
-  if (!repoPath) {
-    return null;
-  }
-  const relative = path.relative(workspacePath, repoPath);
-
-  return relative && !relative.startsWith("..") ? relative : repoPath;
 }

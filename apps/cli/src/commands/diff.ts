@@ -1,7 +1,7 @@
 import { applyRunDiff, buildRunDiff, formatRunDiff } from "@kiwi/runtime";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface DiffOptions extends CliWorkspaceOptions {
+interface DiffOptions extends CliWorkspaceOptions {
   json?: boolean;
   all?: boolean;
 }
@@ -28,7 +28,7 @@ export async function runDiff(
   console.log(formatRunDiff(result));
 }
 
-export interface ApplyOptions extends CliWorkspaceOptions {
+interface ApplyOptions extends CliWorkspaceOptions {
   forceUnsafe?: boolean;
   json?: boolean;
 }

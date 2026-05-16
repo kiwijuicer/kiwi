@@ -1,6 +1,6 @@
 import type { McpRecovery } from "./ux";
 
-export interface ToolActionRequiredErrorData {
+interface ToolActionRequiredErrorData {
   category: "action_required" | "blocked" | "stale_preview";
   recovery: McpRecovery;
 }

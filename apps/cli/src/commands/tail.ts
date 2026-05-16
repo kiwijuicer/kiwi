@@ -3,7 +3,7 @@ import path from "path";
 import chalk from "chalk";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-export interface TailOptions extends CliWorkspaceOptions {
+interface TailOptions extends CliWorkspaceOptions {
   phase?: string;
   since?: string;
   noColor?: boolean;

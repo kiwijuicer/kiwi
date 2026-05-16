@@ -11,7 +11,7 @@ import {
   uniqueSorted,
 } from "./ux";
 
-export interface OperatorCard {
+interface OperatorCard {
   schemaVersion: "2";
   runId: string;
   workspacePath: string;
