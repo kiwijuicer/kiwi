@@ -5,6 +5,12 @@ import {
   AgentRoleSchema,
   ApprovalStateSchema,
   BudgetProfileSchema,
+  CODEX_SANDBOX_VALUES,
+  CodexSandboxes,
+  EXECUTION_ISOLATION_VALUES,
+  EXECUTION_OWNER_VALUES,
+  ExecutionIsolations,
+  ExecutionOwners,
   IsoDateTimeSchema,
   MODEL_PROVIDER_VALUES,
   ModelProviders,
@@ -50,13 +56,14 @@ export const CommandProfileSchema = z.object({
   maxOutputBytes: z.number().int().positive().default(65536),
 });
 
-export const ExecutionIsolationSchema = z.enum(["direct", "worktree"]);
-export const CodexSandboxSchema = z.enum(["read-only", "workspace-write", "danger-full-access"]);
+export const ExecutionIsolationSchema = enumFrom(EXECUTION_ISOLATION_VALUES);
+export const CodexSandboxSchema = enumFrom(CODEX_SANDBOX_VALUES);
+export const ExecutionOwnerSchema = enumFrom(EXECUTION_OWNER_VALUES);
 
 export const ExecutionDefaultsSchema = z.object({
-  owner: z.literal("kiwi-codex-cli").default("kiwi-codex-cli"),
-  isolation: ExecutionIsolationSchema.default("direct"),
-  sandbox: CodexSandboxSchema.default("workspace-write"),
+  owner: ExecutionOwnerSchema.default(ExecutionOwners.KiwiCodexCli),
+  isolation: ExecutionIsolationSchema.default(ExecutionIsolations.Direct),
+  sandbox: CodexSandboxSchema.default(CodexSandboxes.WorkspaceWrite),
   forbidStaging: z.boolean().default(true),
   forbidCommits: z.boolean().default(true),
   forbidPushes: z.boolean().default(true),
@@ -137,6 +144,7 @@ export type PolicyRoutingOverride = z.infer<typeof PolicyRoutingOverrideSchema>;
 export type ProviderPreference = z.infer<typeof ProviderPreferenceSchema>;
 export type CommandProfile = z.infer<typeof CommandProfileSchema>;
 export type ExecutionIsolation = z.infer<typeof ExecutionIsolationSchema>;
+export type ExecutionOwner = z.infer<typeof ExecutionOwnerSchema>;
 export type CodexSandbox = z.infer<typeof CodexSandboxSchema>;
 export type ExecutionDefaults = z.infer<typeof ExecutionDefaultsSchema>;
 export type KiwiPolicy = z.infer<typeof KiwiPolicySchema>;

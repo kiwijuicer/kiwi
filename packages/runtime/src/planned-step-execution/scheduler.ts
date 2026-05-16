@@ -1,61 +1,75 @@
 import { estimateAttemptCostUsd, remainingBudgetUsdEstimate } from "@kiwi/core";
-import { Initiative, KiwiPolicy, ModelEntry, RunnerNames, Step } from "@kiwi/contracts";
+import {
+  RiskProfiles,
+  RunnerNames,
+  SchedulerDecisionStatuses,
+  type Initiative,
+  type KiwiPolicy,
+  type ModelEntry,
+} from "@kiwi/contracts";
 import { previewStepAttempt, saveSchedulerDecision, scheduleStepAttempt } from "../scheduler-policy";
 import type { SchedulerDecision } from "../scheduler-policy";
-import type { RunnerResolution } from "../runner-registry";
-import type { ExecutePlannedStepInput, ExecutionMode } from "./types";
+import {
+  BlastRadii,
+  ContextSizes,
+  SecuritySensitivities,
+  type BlastRadius,
+  type ContextSize,
+  type SecuritySensitivity,
+} from "../scheduler-types";
 import { ExecutionPolicyResolver } from "./policy";
-
-interface SchedulerDecisionInputParams {
-  input: { cwd: string; runId: string };
-  step: Step;
-  initiative: Initiative;
-  runnerResolution: RunnerResolution | null;
-  isResearchStep: boolean;
-}
+import type { StepExecutionSession } from "./session";
+import type { ExecutionMode } from "./types";
 
 export class SchedulerDecisionService {
-  constructor(private readonly policyResolver = new ExecutionPolicyResolver()) {}
+  constructor(private readonly policyResolver: ExecutionPolicyResolver) {}
 
-  scheduleCurrentStepAttempt(params: {
-    input: ExecutePlannedStepInput;
-    step: Step;
-    initiative: Initiative;
-    runnerResolution: RunnerResolution | null;
-    isResearchStep: boolean;
-    now: Date;
-  }): SchedulerDecision {
+  schedule(session: StepExecutionSession): SchedulerDecision {
     const decision = scheduleStepAttempt({
-      ...this.decisionInput(params),
-      now: params.now,
-      ...(params.input.attemptId ? { attemptId: params.input.attemptId } : {}),
+      ...this.decisionInput(session),
+      now: session.now,
+      ...(session.input.attemptId ? { attemptId: session.input.attemptId } : {}),
     });
 
-    if (decision.status !== "scheduled") {
+    if (decision.status !== SchedulerDecisionStatuses.Scheduled) {
       throw new Error(`Step could not be scheduled: ${decision.blockedReason ?? "unknown"}`);
     }
     if (!decision.runner) {
       throw new Error("Scheduler selected no runner");
     }
+    session.setDecision(decision);
 
     return decision;
   }
 
-  previewStepDecision(params: {
-    input: { cwd: string; runId: string; attemptId: string; now?: Date };
-    step: Step;
-    initiative: Initiative;
-    runnerResolution: RunnerResolution | null;
-    isResearchStep: boolean;
-  }): SchedulerDecision {
+  previewStepDecision(session: StepExecutionSession): SchedulerDecision {
+    if (!session.input.attemptId) {
+      throw new Error("Preview scheduler decision requires an attempt id");
+    }
+
     return previewStepAttempt({
-      ...this.decisionInput(params),
-      attemptId: params.input.attemptId,
-      ...(params.input.now ? { now: params.input.now } : {}),
+      ...this.decisionInput(session),
+      attemptId: session.input.attemptId,
+      now: session.now,
     });
   }
 
-  enrich(params: {
+  enrich(session: StepExecutionSession, isolation: ExecutionMode): SchedulerDecision {
+    const enriched = this.enrichedDecision({
+      cwd: session.cwd,
+      decision: session.decision,
+      policy: session.context.policy,
+      selectedModel: session.runnerSelection.selectedModel,
+      selectedModelId: session.runnerSelection.selectedModelId,
+      executorSelectionReason: session.runnerSelection.executorSelectionReason,
+      isolation,
+    });
+    session.setEnrichedDecision(enriched);
+
+    return enriched;
+  }
+
+  private enrichedDecision(params: {
     cwd: string;
     decision: SchedulerDecision;
     policy: KiwiPolicy;
@@ -83,24 +97,40 @@ export class SchedulerDecisionService {
     return enriched;
   }
 
-  private decisionInput(params: SchedulerDecisionInputParams) {
+  private decisionInput(session: StepExecutionSession) {
+    const risk = this.riskFor(session.context.initiative);
+
     return {
-      cwd: params.input.cwd,
-      runId: params.input.runId,
-      step: params.step,
-      initiative: params.initiative,
-      budgetProfile: params.initiative.budgetProfile,
+      cwd: session.cwd,
+      runId: session.runId,
+      step: session.step,
+      initiative: session.context.initiative,
+      budgetProfile: session.context.initiative.budgetProfile,
       budgetRemainingUsdEstimate: remainingBudgetUsdEstimate({
-        cwd: params.input.cwd,
-        runId: params.input.runId,
-        budgetProfile: params.initiative.budgetProfile,
+        cwd: session.cwd,
+        runId: session.runId,
+        budgetProfile: session.context.initiative.budgetProfile,
       }),
-      blastRadius: params.initiative.riskProfile === "production" ? ("high" as const) : ("low" as const),
-      securitySensitivity: params.initiative.riskProfile === "production" ? ("high" as const) : ("low" as const),
-      contextSize: "small" as const,
-      runnerAvailability: params.isResearchStep
+      blastRadius: risk.blastRadius,
+      securitySensitivity: risk.securitySensitivity,
+      contextSize: ContextSizes.Small,
+      runnerAvailability: session.isResearchStep
         ? [RunnerNames.Api]
-        : (params.runnerResolution?.runnerAvailability ?? []),
+        : (session.runnerResolution?.runnerAvailability ?? []),
+    };
+  }
+
+  private riskFor(initiative: Initiative): {
+    blastRadius: BlastRadius;
+    securitySensitivity: SecuritySensitivity;
+    contextSize: ContextSize;
+  } {
+    const highRisk = initiative.riskProfile === RiskProfiles.Production;
+
+    return {
+      blastRadius: highRisk ? BlastRadii.High : BlastRadii.Low,
+      securitySensitivity: highRisk ? SecuritySensitivities.High : SecuritySensitivities.Low,
+      contextSize: ContextSizes.Small,
     };
   }
 }

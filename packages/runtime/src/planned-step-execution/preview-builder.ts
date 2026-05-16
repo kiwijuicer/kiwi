@@ -1,22 +1,25 @@
-import {
-  estimateAttemptCostUsd,
-  kiwiModelRegistryPath,
-  kiwiPolicyPath,
-  loadInitiative,
-  loadPolicy,
-  loadRegistry,
-  loadTaskGraph,
-} from "@kiwi/core";
-import { Initiative, KiwiPolicy, ModelEntry, Step } from "@kiwi/contracts";
+import { estimateAttemptCostUsd } from "@kiwi/core";
+import type { Step } from "@kiwi/contracts";
+import { ExecutionContextLoader } from "./context";
 import { ExecutionPolicyResolver } from "./policy";
 import { SchedulerDecisionService } from "./scheduler";
 import { StepRunnerSelector } from "./runner-selection";
-import type { ExecutionMode, RunExecutionPreview, RunExecutionPreviewStep } from "./types";
+import { StepExecutionSession } from "./session";
+import type { ExecutionRunContext } from "./context";
+import {
+  PREVIEW_ATTEMPT_ID_PREFIX,
+  type ExecutionMode,
+  type RunExecutionPreview,
+  type RunExecutionPreviewStep,
+} from "./types";
 
 export class RunExecutionPreviewBuilder {
-  private readonly policyResolver = new ExecutionPolicyResolver();
-  private readonly runnerSelector = new StepRunnerSelector(this.policyResolver);
-  private readonly schedulerDecisionService = new SchedulerDecisionService(this.policyResolver);
+  constructor(
+    private readonly contextLoader: ExecutionContextLoader,
+    private readonly policyResolver: ExecutionPolicyResolver,
+    private readonly runnerSelector: StepRunnerSelector,
+    private readonly schedulerDecisionService: SchedulerDecisionService,
+  ) {}
 
   build(params: {
     cwd: string;
@@ -25,74 +28,52 @@ export class RunExecutionPreviewBuilder {
     maxConcurrency?: number;
     now?: Date;
   }): RunExecutionPreview {
-    const policy = loadPolicy(kiwiPolicyPath(params.cwd));
-    const registry = loadRegistry(kiwiModelRegistryPath(params.cwd));
-    const initiative = loadInitiative(params.runId, params.cwd);
-    const taskGraph = loadTaskGraph(params.runId, params.cwd);
-    const startIndex = params.fromStep ? taskGraph.steps.findIndex((step) => step.stepId === params.fromStep) : 0;
+    const context = this.contextLoader.load(params);
+    const startIndex = params.fromStep
+      ? context.taskGraph.steps.findIndex((step) => step.stepId === params.fromStep)
+      : 0;
 
     if (startIndex < 0) {
       throw new Error(`Step not found: ${params.fromStep}`);
     }
-    const isolation = this.policyResolver.executionMode(policy);
+    const isolation = this.policyResolver.executionMode(context.policy);
 
     return {
-      runId: params.runId,
-      executionOwner: this.policyResolver.executionOwner(policy),
+      runId: context.runId,
+      executionOwner: this.policyResolver.executionOwner(context.policy),
       executionIsolation: isolation,
       maxConcurrency: params.maxConcurrency ?? 2,
-      subPlans: taskGraph.subPlans ?? [],
-      steps: taskGraph.steps.slice(startIndex).map((step) =>
-        this.stepPreview({
-          input: { cwd: params.cwd, runId: params.runId, ...(params.now ? { now: params.now } : {}) },
-          step,
-          initiative,
-          registryModels: registry.models,
-          policy,
-          isolation,
-        }),
-      ),
+      subPlans: context.taskGraph.subPlans ?? [],
+      steps: context.taskGraph.steps.slice(startIndex).map((step) => this.stepPreview(context, step, isolation)),
     };
   }
 
-  private stepPreview(params: {
-    input: { cwd: string; runId: string; now?: Date };
-    step: Step;
-    initiative: Initiative;
-    registryModels: ModelEntry[];
-    policy: KiwiPolicy;
-    isolation: ExecutionMode;
-  }): RunExecutionPreviewStep {
-    const isResearchStep = params.step.type === "context_discovery";
-    const runnerResolution = this.runnerSelector.resolveRunnerResolution({
-      isResearchStep,
-      registryModels: params.registryModels,
-      step: params.step,
-      policy: params.policy,
-    });
-    const decision = this.schedulerDecisionService.previewStepDecision({
-      input: {
-        cwd: params.input.cwd,
-        runId: params.input.runId,
-        attemptId: `attempt_preview_${params.step.stepId.replace("step_", "")}`,
-        ...(params.input.now ? { now: params.input.now } : {}),
+  private stepPreview(context: ExecutionRunContext, step: Step, isolation: ExecutionMode): RunExecutionPreviewStep {
+    const session = new StepExecutionSession(
+      {
+        cwd: context.cwd,
+        runId: context.runId,
+        stepId: step.stepId,
+        attemptId: `${PREVIEW_ATTEMPT_ID_PREFIX}${step.stepId.replace("step_", "")}`,
+        now: context.now,
       },
-      step: params.step,
-      initiative: params.initiative,
-      runnerResolution,
-      isResearchStep,
-    });
+      context,
+      step,
+    );
+    session.setRunnerResolution(this.runnerSelector.resolveRunnerResolution(session));
+    const decision = this.schedulerDecisionService.previewStepDecision(session);
+    session.setDecision(decision);
     const selection = this.runnerSelector.previewSelection({
       decision,
-      isResearchStep,
-      registryModels: params.registryModels,
-      policy: params.policy,
-      runnerResolution,
+      isResearchStep: session.isResearchStep,
+      registryModels: context.registry.models,
+      policy: context.policy,
+      runnerResolution: session.runnerResolution,
     });
     const preview: RunExecutionPreviewStep = {
-      stepId: params.step.stepId,
-      title: params.step.title,
-      type: params.step.type,
+      stepId: step.stepId,
+      title: step.title,
+      type: step.type,
       status: decision.status,
       agentRole: decision.agentRole,
       modelCapability: decision.modelCapability,
@@ -110,8 +91,8 @@ export class RunExecutionPreviewBuilder {
       requiredGates: decision.requiredGates,
       routingReason: decision.routingReason,
       contextLevel: decision.contextLevel,
-      executionOwner: this.policyResolver.executionOwner(params.policy),
-      executionIsolation: params.isolation,
+      executionOwner: this.policyResolver.executionOwner(context.policy),
+      executionIsolation: isolation,
     };
 
     if (decision.blockedReason) {

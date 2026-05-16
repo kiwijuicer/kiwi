@@ -26,7 +26,7 @@ import {
 } from "./common";
 import { ArtifactSchema } from "./domain";
 import { EvidenceSubjectSchema } from "./evidence";
-import { CodexSandboxSchema, ExecutionIsolationSchema } from "./policy";
+import { CodexSandboxSchema, ExecutionIsolationSchema, ExecutionOwnerSchema } from "./policy";
 
 const InvocationAccessModeSchema = enumFrom(ACCESS_MODE_VALUES);
 
@@ -181,7 +181,7 @@ export const SchedulerDecisionSchema = z.object({
   selectedAccessMode: z.union([InvocationAccessModeSchema, z.null()]).optional(),
   executorSelectionReason: z.union([z.string().min(1), z.null()]).optional(),
   estimatedAttemptCostUsd: z.number().min(0).optional(),
-  executionOwner: z.literal("kiwi-codex-cli").optional(),
+  executionOwner: ExecutionOwnerSchema.optional(),
   executionIsolation: ExecutionIsolationSchema.optional(),
   budget: z
     .object({

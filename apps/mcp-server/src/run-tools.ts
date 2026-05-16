@@ -3,9 +3,10 @@ import { getRunStatusSummary, listStepAttemptEvidence, loadInitiative, loadTaskG
 import { buildRunCompletionSummary } from "@kiwi/ops";
 import {
   assertDirectExecutionSafe,
-  buildRunExecutionPreview,
+  createRuntimeExecutionServices,
   DirectExecutionUnsafeError,
-  executePlannedStep,
+  type ExecutePlannedStepInput,
+  type ExecutePlannedStepResult,
   runScheduledSubPlans,
   splitCommandLine,
 } from "@kiwi/runtime";
@@ -15,6 +16,8 @@ import { ToolActionRequiredError } from "./tool-errors";
 import { errorMessage, previewConfirmationSummary, progressLine, type ToolCallOptions } from "./tool-helpers";
 import { mutationScope, safeReadOnlyToolCalls, toolCall, type McpNextAction, workspaceToolArgs } from "./ux";
 import { workspaceArgs } from "./workspace";
+
+const runtimeExecution = createRuntimeExecutionServices();
 
 interface RunStepToolResult {
   attemptId: string;
@@ -158,7 +161,7 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
     throw new Error(`kiwi_preview_run maxConcurrency must be a positive integer; received ${maxConcurrency}`);
   }
   const previewInput = normalizePreviewInput({ fromStep, maxConcurrency });
-  const preview = buildRunExecutionPreview({
+  const preview = runtimeExecution.previews.build({
     cwd: workspace.workspacePath,
     runId,
     ...(fromStep ? { fromStep } : {}),
@@ -280,7 +283,7 @@ async function runStepToolUnlocked(
   if (!runId || !stepId) {
     throw new Error("kiwi_run_step requires runId and stepId");
   }
-  const input: Parameters<typeof executePlannedStep>[0] = { cwd: workspacePath, runId, stepId };
+  const input: ExecutePlannedStepInput = { cwd: workspacePath, runId, stepId };
 
   if (typeof args.command === "string") {
     input.command = splitCommandLine(args.command);
@@ -288,7 +291,9 @@ async function runStepToolUnlocked(
   if (typeof args.attemptId === "string") {
     input.attemptId = args.attemptId;
   }
-  const preview = buildRunExecutionPreview({ cwd: workspacePath, runId }).steps.find((step) => step.stepId === stepId);
+  const preview = runtimeExecution.previews
+    .build({ cwd: workspacePath, runId })
+    .steps.find((step) => step.stepId === stepId);
 
   if (preview) {
     options.onProgress?.(
@@ -327,10 +332,10 @@ async function runStepToolUnlocked(
       stepCount: progressContext.stepCount,
     }),
   );
-  let result: Awaited<ReturnType<typeof executePlannedStep>>;
+  let result: ExecutePlannedStepResult;
 
   try {
-    result = await executePlannedStep(input);
+    result = await runtimeExecution.plannedSteps.execute(input);
   } catch (error) {
     options.onProgress?.(
       progressLine({

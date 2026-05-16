@@ -2,7 +2,7 @@
 
 ## Module Boundaries
 
-- `packages/contracts`: schemas, domain types, enums, shared interfaces.
+- `packages/contracts`: schemas, domain types, canonical value sets, shared interfaces.
 - `packages/core`: planning primitives, config/workspace resolution, run state, audit/model ledgers.
 - `packages/runtime`: execution orchestration, scheduler policy, quality gates, review engine, finalization.
 - `packages/adapters`: provider and runner integrations behind contracts.
@@ -43,3 +43,6 @@ Use only canonical terms from `docs/vision.md`:
 - Keep run persistence under `.kiwi/runs/<run-id>/`.
 - Keep orchestration state explicit and serializable.
 - Prefer additive evolution of schemas over breaking churn.
+- Treat apps as composition roots for app-specific services.
+- Packages should export service/factory entrypoints for cohesive workflows, with wrapper functions only for compatibility.
+- `packages/contracts` is the source of truth for serialized domain values; runtime packages should consume contract constants instead of repeating string literals.

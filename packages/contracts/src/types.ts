@@ -17,6 +17,7 @@ import type {
   ContractsMetadataSchema,
   ExecutionDefaultsSchema,
   ExecutionIsolationSchema,
+  ExecutionOwnerSchema,
   EvidenceFileHashSchema,
   EvidenceManifestSchema,
   EvidenceSubjectSchema,
@@ -156,6 +157,7 @@ export type PolicyRoutingOverride = z.infer<typeof PolicyRoutingOverrideSchema>;
 export type ProviderPreference = z.infer<typeof ProviderPreferenceSchema>;
 export type CommandProfile = z.infer<typeof CommandProfileSchema>;
 export type ExecutionIsolation = z.infer<typeof ExecutionIsolationSchema>;
+export type ExecutionOwner = z.infer<typeof ExecutionOwnerSchema>;
 export type CodexSandbox = z.infer<typeof CodexSandboxSchema>;
 export type ExecutionDefaults = z.infer<typeof ExecutionDefaultsSchema>;
 export type KiwiPolicy = z.infer<typeof KiwiPolicySchema>;

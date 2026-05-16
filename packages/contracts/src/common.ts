@@ -75,6 +75,9 @@ export const RUNNER_EXECUTION_STATUS_VALUES = [
   "timeout",
 ] as const;
 export const NEXT_ACTION_TYPE_VALUES = ["continue", "fix_step", "replan"] as const;
+export const EXECUTION_ISOLATION_VALUES = ["direct", "worktree"] as const;
+export const CODEX_SANDBOX_VALUES = ["read-only", "workspace-write", "danger-full-access"] as const;
+export const EXECUTION_OWNER_VALUES = ["kiwi-codex-cli"] as const;
 export const MODEL_PROVIDER_VALUES = ["stub", "openai", "anthropic", "local"] as const;
 export const ACCESS_MODE_VALUES = [
   "anthropic-api",
@@ -281,6 +284,21 @@ export const NextActionTypes = {
   Replan: "replan",
 } as const;
 
+export const ExecutionIsolations = {
+  Direct: "direct",
+  Worktree: "worktree",
+} as const;
+
+export const CodexSandboxes = {
+  ReadOnly: "read-only",
+  WorkspaceWrite: "workspace-write",
+  DangerFullAccess: "danger-full-access",
+} as const;
+
+export const ExecutionOwners = {
+  KiwiCodexCli: "kiwi-codex-cli",
+} as const;
+
 export const ModelProviders = {
   Stub: "stub",
   Openai: "openai",
@@ -328,6 +346,10 @@ export const ContractValues = {
   BitbucketCloud: ScmProviders.BitbucketCloud,
   Github: ScmProviders.Github,
   Local: ScmProviders.Local,
+  Direct: ExecutionIsolations.Direct,
+  Worktree: ExecutionIsolations.Worktree,
+  KiwiCodexCli: ExecutionOwners.KiwiCodexCli,
+  WorkspaceWrite: CodexSandboxes.WorkspaceWrite,
 } as const;
 
 export const ContractsMetadataSchema = z.object({

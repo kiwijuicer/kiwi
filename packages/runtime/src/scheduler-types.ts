@@ -1,18 +1,44 @@
-import {
+import type {
   AccessMode,
   BudgetProfile,
   BudgetProfileLimit,
+  ContextLevel,
+  ExecutionIsolation,
+  ExecutionOwner,
   Initiative,
   ModelCapability,
   RunnerName,
+  SchedulerDecisionStatus,
   Step,
 } from "@kiwi/contracts";
 
-export type ContextLevel = "L0" | "L1" | "L2" | "L3";
-export type BlastRadius = "low" | "medium" | "high";
-export type SecuritySensitivity = "low" | "medium" | "high";
-export type ContextSize = "small" | "medium" | "large";
-export type SchedulerDecisionStatus = "scheduled" | "blocked";
+export type { ContextLevel, SchedulerDecisionStatus } from "@kiwi/contracts";
+
+export const BLAST_RADIUS_VALUES = ["low", "medium", "high"] as const;
+export const SECURITY_SENSITIVITY_VALUES = ["low", "medium", "high"] as const;
+export const CONTEXT_SIZE_VALUES = ["small", "medium", "large"] as const;
+
+export const BlastRadii = {
+  Low: "low",
+  Medium: "medium",
+  High: "high",
+} as const;
+
+export const SecuritySensitivities = {
+  Low: "low",
+  Medium: "medium",
+  High: "high",
+} as const;
+
+export const ContextSizes = {
+  Small: "small",
+  Medium: "medium",
+  Large: "large",
+} as const;
+
+export type BlastRadius = (typeof BLAST_RADIUS_VALUES)[number];
+export type SecuritySensitivity = (typeof SECURITY_SENSITIVITY_VALUES)[number];
+export type ContextSize = (typeof CONTEXT_SIZE_VALUES)[number];
 
 export interface ContextPackage {
   runId: string;
@@ -75,8 +101,8 @@ export interface SchedulerDecision {
   selectedAccessMode?: AccessMode | null;
   executorSelectionReason?: string | null;
   estimatedAttemptCostUsd?: number;
-  executionOwner?: "kiwi-codex-cli";
-  executionIsolation?: "direct" | "worktree";
+  executionOwner?: ExecutionOwner;
+  executionIsolation?: ExecutionIsolation;
   budget?: BudgetProfileLimit & {
     remainingUsdEstimate: number | null;
   };

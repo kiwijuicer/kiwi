@@ -1,7 +1,14 @@
 import chalk from "chalk";
-import { ExecutePlannedStepResult, executePlannedStep, splitCommandLine } from "@kiwi/runtime";
+import {
+  AttemptDiffStatuses,
+  createRuntimeExecutionServices,
+  type ExecutePlannedStepResult,
+  splitCommandLine,
+} from "@kiwi/runtime";
 import { withRunLock } from "@kiwi/core";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
+
+const runtimeExecution = createRuntimeExecutionServices();
 
 export interface AttemptOptions extends CliWorkspaceOptions {
   command?: string;
@@ -16,7 +23,7 @@ export async function runAttemptUnlocked(
   opts: AttemptOptions = {},
   cwd: string = process.cwd(),
 ): Promise<ExecutePlannedStepResult> {
-  const result = await executePlannedStep({
+  const result = await runtimeExecution.plannedSteps.execute({
     cwd,
     runId,
     stepId,
@@ -34,7 +41,7 @@ export async function runAttemptUnlocked(
   console.log(chalk.dim(`status: ${result.status}`));
   console.log(chalk.dim(`nextAction: ${result.nextAction.type}`));
   console.log(chalk.dim(`runStatus: ${result.runStatus}`));
-  if (result.materializedDiff.status === "applied") {
+  if (result.materializedDiff.status === AttemptDiffStatuses.Applied) {
     console.log(chalk.dim(`appliedDiff: ${result.materializedDiff.diffRef}`));
   } else {
     console.log(chalk.dim(`appliedDiff: ${result.materializedDiff.status} (${result.materializedDiff.reason})`));

@@ -252,7 +252,7 @@ flowchart TD
 
 ### 6.1 Modulgrenzen
 
-- `packages/contracts`: Zod schemas, types, shared enums.
+- `packages/contracts`: Zod schemas, types, canonical value constants and domain value sets.
 - `packages/core`: orchestration, scheduling, planning flow, run store.
 - `packages/adapters`: provider + runner integration adapters.
 - `packages/sandbox`: worktree, process execution, permissions, secret filtering.

@@ -1,43 +1,41 @@
-import { AccessModes, ContractValues, KiwiPolicy, ModelEntry, RunnerNames, Step } from "@kiwi/contracts";
-import { LocalResearchStepRunner, ResearcherStepRunner } from "../researcher-step-runner";
+import {
+  AccessModes,
+  AgentRoles,
+  RunnerNames,
+  SchedulerDecisionStatuses,
+  type KiwiPolicy,
+  type ModelEntry,
+  type Step,
+} from "@kiwi/contracts";
 import { ResearcherProviderRegistry } from "../researcher-provider-registry";
+import { LocalResearchStepRunner, ResearcherStepRunner } from "../researcher-step-runner";
 import { resolveRunner } from "../runner-resolution";
 import type { RunnerResolution } from "../runner-registry";
 import type { SchedulerDecision } from "../scheduler-policy";
-import type { StepAttemptRunner } from "../step-runner-types";
-import type { SandboxCommandPolicy } from "@kiwi/sandbox";
 import { ExecutionAuditReporter } from "./audit";
 import { ExecutionPolicyResolver } from "./policy";
-
-export interface StepRunnerSelection {
-  runnerAdapter: StepAttemptRunner<SandboxCommandPolicy>;
-  selectedModel: ModelEntry | null;
-  selectedModelId: string | null;
-  executorSelectionReason: string | null;
-}
-
-interface StepPreviewSelection {
-  selectedModel: ModelEntry | null;
-  selectedModelId: string | null;
-  reason: string | null;
-}
+import type { StepExecutionSession } from "./session";
+import { ExecutorSelectionReasons, type StepPreviewSelection, type StepRunnerSelection } from "./types";
 
 export class StepRunnerSelector {
   constructor(
-    private readonly policyResolver = new ExecutionPolicyResolver(),
-    private readonly auditReporter = new ExecutionAuditReporter(),
+    private readonly policyResolver: ExecutionPolicyResolver,
+    private readonly auditReporter: ExecutionAuditReporter,
   ) {}
 
-  resolveRunnerResolution(params: {
-    isResearchStep: boolean;
-    registryModels: ModelEntry[];
-    step: Step;
-    policy: KiwiPolicy;
-  }): RunnerResolution | null {
-    if (params.isResearchStep) {
+  resolveRunnerResolution(session: StepExecutionSession): RunnerResolution | null {
+    if (session.isResearchStep) {
       return null;
     }
 
+    return this.resolveNonResearchRunner({
+      registryModels: session.context.registry.models,
+      step: session.step,
+      policy: session.context.policy,
+    });
+  }
+
+  resolveNonResearchRunner(params: { registryModels: ModelEntry[]; step: Step; policy: KiwiPolicy }): RunnerResolution {
     return resolveRunner({
       registryModels: params.registryModels,
       step: params.step,
@@ -45,7 +43,62 @@ export class StepRunnerSelector {
     });
   }
 
-  select(params: {
+  select(session: StepExecutionSession): StepRunnerSelection {
+    const selection = this.runnerSelection({
+      cwd: session.cwd,
+      runId: session.runId,
+      stepId: session.stepId,
+      decision: session.decision,
+      registryModels: session.context.registry.models,
+      policy: session.context.policy,
+      runnerResolution: session.runnerResolution,
+      isResearchStep: session.isResearchStep,
+      now: session.now,
+    });
+    session.setRunnerSelection(selection);
+
+    return selection;
+  }
+
+  previewSelection(params: {
+    decision: SchedulerDecision;
+    isResearchStep: boolean;
+    registryModels: ModelEntry[];
+    policy: KiwiPolicy;
+    runnerResolution: RunnerResolution | null;
+  }): StepPreviewSelection {
+    if (params.decision.status !== SchedulerDecisionStatuses.Scheduled) {
+      return { selectedModel: null, selectedModelId: null, reason: null };
+    }
+    if (params.isResearchStep && !this.policyResolver.useProviderResearch()) {
+      return {
+        selectedModel: null,
+        selectedModelId: "local-researcher",
+        reason: ExecutorSelectionReasons.LocalResearcher,
+      };
+    }
+    if (params.isResearchStep) {
+      const selected = new ResearcherProviderRegistry().select({
+        registryModels: params.registryModels,
+        preferenceByRole: params.policy.routing.providerPreference,
+      });
+
+      return {
+        selectedModel: selected?.model ?? null,
+        selectedModelId: selected?.model.id ?? null,
+        reason: selected ? ExecutorSelectionReasons.ResearcherProvider : ExecutorSelectionReasons.NoModelAvailable,
+      };
+    }
+    const selection = params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
+
+    return {
+      selectedModel: selection?.model ?? null,
+      selectedModelId: selection?.model?.id ?? null,
+      reason: selection?.reason ?? null,
+    };
+  }
+
+  private runnerSelection(params: {
     cwd: string;
     runId: string;
     stepId: string;
@@ -61,21 +114,10 @@ export class StepRunnerSelector {
         runnerAdapter: new LocalResearchStepRunner(params.policy),
         selectedModel: null,
         selectedModelId: "local-researcher",
-        executorSelectionReason: "local_researcher",
+        executorSelectionReason: ExecutorSelectionReasons.LocalResearcher,
       };
     }
-
-    const researcherSelection = params.isResearchStep
-      ? new ResearcherProviderRegistry().select({
-          registryModels: params.registryModels,
-          preferenceByRole: params.policy.routing.providerPreference,
-        })
-      : null;
-
-    if (params.isResearchStep && !researcherSelection) {
-      throw new Error("No enabled researcher model with an available access mode found in .kiwi/model-registry.yaml");
-    }
-
+    const researcherSelection = this.researcherSelection(params);
     const executorSelection = params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
 
     if (executorSelection) {
@@ -93,14 +135,13 @@ export class StepRunnerSelector {
         runId: params.runId,
         stepId: params.stepId,
         attemptId: params.decision.attemptId,
-        role: ContractValues.Executor,
+        role: AgentRoles.Executor,
         selectedAccessMode: executorSelection.model?.accessMode ?? null,
         selectedModelId: executorSelection.model?.id ?? null,
         preference: params.policy.routing.providerPreference.executor ?? [],
         now: params.now,
       });
     }
-
     if (params.isResearchStep && researcherSelection) {
       return {
         runnerAdapter: new ResearcherStepRunner(
@@ -111,65 +152,65 @@ export class StepRunnerSelector {
         ),
         selectedModel: researcherSelection.model,
         selectedModelId: researcherSelection.model.id,
-        executorSelectionReason: "researcher_provider",
+        executorSelectionReason: ExecutorSelectionReasons.ResearcherProvider,
       };
     }
 
+    return this.executorRunnerSelection(params, executorSelection?.model, executorSelection?.reason ?? null);
+  }
+
+  private researcherSelection(params: {
+    isResearchStep: boolean;
+    registryModels: ModelEntry[];
+    policy: KiwiPolicy;
+  }): ReturnType<ResearcherProviderRegistry["select"]> {
+    if (!params.isResearchStep) {
+      return null;
+    }
+    const selection = new ResearcherProviderRegistry().select({
+      registryModels: params.registryModels,
+      preferenceByRole: params.policy.routing.providerPreference,
+    });
+
+    if (!selection) {
+      throw new Error("No enabled researcher model with an available access mode found in .kiwi/model-registry.yaml");
+    }
+
+    return selection;
+  }
+
+  private executorRunnerSelection(
+    params: {
+      stepId: string;
+      decision: SchedulerDecision;
+      runnerResolution: RunnerResolution | null;
+    },
+    selectedModel: ModelEntry | null | undefined,
+    reason: string | null,
+  ): StepRunnerSelection {
     if (!params.runnerResolution || !params.decision.runner) {
       throw new Error("Runner resolution is required for non-research steps");
     }
     if (params.decision.runner === RunnerNames.Codex) {
-      if (!executorSelection?.model || executorSelection.model.accessMode !== AccessModes.CodexCli) {
-        throw new Error(
-          `Codex runner selected for ${params.stepId}, but no matching codex-cli model is available in .kiwi/model-registry.yaml`,
-        );
-      }
-      if (!executorSelection.model.providerModel) {
-        throw new Error(
-          `Codex model '${executorSelection.model.id}' must define providerModel for enforced model switching`,
-        );
-      }
+      this.assertCodexSelection(params.stepId, selectedModel ?? null);
     }
 
     return {
-      runnerAdapter: params.runnerResolution.buildAdapter(params.decision.runner, executorSelection?.model),
-      selectedModel: executorSelection?.model ?? null,
-      selectedModelId: executorSelection?.model?.id ?? null,
-      executorSelectionReason: executorSelection?.reason ?? null,
+      runnerAdapter: params.runnerResolution.buildAdapter(params.decision.runner, selectedModel),
+      selectedModel: selectedModel ?? null,
+      selectedModelId: selectedModel?.id ?? null,
+      executorSelectionReason: reason,
     };
   }
 
-  previewSelection(params: {
-    decision: SchedulerDecision;
-    isResearchStep: boolean;
-    registryModels: ModelEntry[];
-    policy: KiwiPolicy;
-    runnerResolution: RunnerResolution | null;
-  }): StepPreviewSelection {
-    if (params.decision.status !== "scheduled") {
-      return { selectedModel: null, selectedModelId: null, reason: null };
+  private assertCodexSelection(stepId: string, selectedModel: ModelEntry | null): void {
+    if (!selectedModel || selectedModel.accessMode !== AccessModes.CodexCli) {
+      throw new Error(
+        `Codex runner selected for ${stepId}, but no matching codex-cli model is available in .kiwi/model-registry.yaml`,
+      );
     }
-    if (params.isResearchStep && !this.policyResolver.useProviderResearch()) {
-      return { selectedModel: null, selectedModelId: "local-researcher", reason: "local_researcher" };
+    if (!selectedModel.providerModel) {
+      throw new Error(`Codex model '${selectedModel.id}' must define providerModel for enforced model switching`);
     }
-    if (params.isResearchStep) {
-      const selected = new ResearcherProviderRegistry().select({
-        registryModels: params.registryModels,
-        preferenceByRole: params.policy.routing.providerPreference,
-      });
-
-      return {
-        selectedModel: selected?.model ?? null,
-        selectedModelId: selected?.model.id ?? null,
-        reason: selected ? "researcher_provider" : "no_model_available",
-      };
-    }
-    const selection = params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
-
-    return {
-      selectedModel: selection?.model ?? null,
-      selectedModelId: selection?.model?.id ?? null,
-      reason: selection?.reason ?? null,
-    };
   }
 }

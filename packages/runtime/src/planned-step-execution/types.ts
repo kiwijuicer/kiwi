@@ -1,11 +1,38 @@
 import type { loadTaskGraph, refreshRunStatusFromAttempts } from "@kiwi/core";
+import { ContractValues } from "@kiwi/contracts";
+import type {
+  CodexSandbox,
+  ExecutionIsolation,
+  ExecutionOwner as ContractExecutionOwner,
+  ModelEntry,
+  SchedulerDecision,
+} from "@kiwi/contracts";
 import type { SandboxCommandPolicy } from "@kiwi/sandbox";
 import type { StepAttemptOrchestrator } from "../step-attempt-orchestrator";
+import type { StepAttemptRunner } from "../step-runner-types";
 
-export type ExecutionMode = "direct" | "worktree";
-export type ExecutionOwner = "kiwi-codex-cli";
-export type CodexSandboxMode = "read-only" | "workspace-write" | "danger-full-access";
+export type ExecutionMode = ExecutionIsolation;
+export type ExecutionOwner = ContractExecutionOwner;
+export type CodexSandboxMode = CodexSandbox;
 export type StepAttemptExecutionResult = Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>;
+
+export const AttemptDiffStatuses = {
+  Applied: "applied",
+  Skipped: "skipped",
+  Failed: ContractValues.Failed,
+} as const;
+
+export const ExecutionToolNames = {
+  Shell: "shell",
+} as const;
+
+export const ExecutorSelectionReasons = {
+  LocalResearcher: "local_researcher",
+  ResearcherProvider: "researcher_provider",
+  NoModelAvailable: "no_model_available",
+} as const;
+
+export const PREVIEW_ATTEMPT_ID_PREFIX = "attempt_preview_";
 
 export interface ExecutePlannedStepInput {
   cwd: string;
@@ -29,9 +56,15 @@ export interface ExecutePlannedStepResult {
 }
 
 export type AttemptDiffMaterialization =
-  | { status: "applied"; diffRef: string; patchPath: string; targetPath: string }
-  | { status: "skipped"; reason: string }
-  | { status: "failed"; diffRef: string; patchPath: string; targetPath: string; reason: string };
+  | { status: typeof AttemptDiffStatuses.Applied; diffRef: string; patchPath: string; targetPath: string }
+  | { status: typeof AttemptDiffStatuses.Skipped; reason: string }
+  | {
+      status: typeof AttemptDiffStatuses.Failed;
+      diffRef: string;
+      patchPath: string;
+      targetPath: string;
+      reason: string;
+    };
 
 export interface ExecutionTarget {
   mode: ExecutionMode;
@@ -47,7 +80,7 @@ export interface RunExecutionPreviewStep {
   stepId: string;
   title: string;
   type: string;
-  status: string;
+  status: SchedulerDecision["status"];
   blockedReason?: string;
   agentRole: string;
   modelCapability: string;
@@ -63,6 +96,24 @@ export interface RunExecutionPreviewStep {
   contextLevel: string;
   executionOwner: ExecutionOwner;
   executionIsolation: ExecutionMode;
+}
+
+export interface StepRunnerSelection {
+  runnerAdapter: StepAttemptRunner<SandboxCommandPolicy>;
+  selectedModel: ModelEntry | null;
+  selectedModelId: string | null;
+  executorSelectionReason: string | null;
+}
+
+export interface StepPreviewSelection {
+  selectedModel: ModelEntry | null;
+  selectedModelId: string | null;
+  reason: string | null;
+}
+
+export interface RunAttemptResult {
+  result: StepAttemptExecutionResult;
+  materializedDiff: AttemptDiffMaterialization;
 }
 
 export interface RunExecutionPreview {

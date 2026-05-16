@@ -1,11 +1,12 @@
-import { RunExecutionPreviewBuilder } from "./planned-step-execution/preview-builder";
-import { PlannedStepExecutionService } from "./planned-step-execution/service";
+import { createRuntimeExecutionServices } from "./planned-step-execution/factory";
 import type {
   ExecutePlannedStepInput,
   ExecutePlannedStepResult,
   RunExecutionPreview,
 } from "./planned-step-execution/types";
 
+export { createRuntimeExecutionServices, type RuntimeExecutionServices } from "./planned-step-execution/factory";
+export { AttemptDiffStatuses, ExecutionToolNames, ExecutorSelectionReasons } from "./planned-step-execution/types";
 export type {
   AttemptDiffMaterialization,
   ExecutePlannedStepInput,
@@ -14,6 +15,8 @@ export type {
   RunExecutionPreviewStep,
 } from "./planned-step-execution/types";
 
+const runtimeExecutionServices = createRuntimeExecutionServices();
+
 export function buildRunExecutionPreview(params: {
   cwd: string;
   runId: string;
@@ -21,9 +24,9 @@ export function buildRunExecutionPreview(params: {
   maxConcurrency?: number;
   now?: Date;
 }): RunExecutionPreview {
-  return new RunExecutionPreviewBuilder().build(params);
+  return runtimeExecutionServices.previews.build(params);
 }
 
 export async function executePlannedStep(input: ExecutePlannedStepInput): Promise<ExecutePlannedStepResult> {
-  return new PlannedStepExecutionService().execute(input);
+  return runtimeExecutionServices.plannedSteps.execute(input);
 }
