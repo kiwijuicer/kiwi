@@ -12,11 +12,15 @@ export interface HttpMcpServerOptions {
 }
 
 export function parsePort(value: string | undefined, fallback: number): number {
-  if (!value) return fallback;
+  if (!value) {
+    return fallback;
+  }
   const port = Number(value);
+
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error(`Invalid HTTP port: ${value}`);
   }
+
   return port;
 }
 
@@ -28,11 +32,16 @@ function allowedOriginsFromEnv(): string[] {
 }
 
 function isAllowedOrigin(origin: string | undefined, allowedOrigins: string[]): boolean {
-  if (!origin) return true;
-  if (allowedOrigins.includes(origin)) return true;
+  if (!origin) {
+    return true;
+  }
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
 
   try {
     const parsed = new URL(origin);
+
     return (
       parsed.hostname === "localhost" ||
       parsed.hostname === "127.0.0.1" ||
@@ -46,7 +55,10 @@ function isAllowedOrigin(origin: string | undefined, allowedOrigins: string[]): 
 
 function applyCorsHeaders(request: IncomingMessage, response: ServerResponse, allowedOrigins: string[]): void {
   const origin = request.headers.origin;
-  if (typeof origin !== "string" || !isAllowedOrigin(origin, allowedOrigins)) return;
+
+  if (typeof origin !== "string" || !isAllowedOrigin(origin, allowedOrigins)) {
+    return;
+  }
 
   response.setHeader("Access-Control-Allow-Origin", origin);
   response.setHeader("Vary", "Origin");
@@ -69,6 +81,7 @@ function sendJson(response: ServerResponse, statusCode: number, payload: unknown
 
 function acceptsSse(request: IncomingMessage): boolean {
   const accept = request.headers.accept;
+
   return typeof accept === "string" && accept.includes("text/event-stream");
 }
 
@@ -87,6 +100,7 @@ function readRequestBody(request: IncomingMessage, maxBytes = 1024 * 1024): Prom
       if (totalBytes > maxBytes) {
         reject(new Error("MCP HTTP request body is too large"));
         request.destroy();
+
         return;
       }
       chunks.push(data);
@@ -114,31 +128,37 @@ async function handleHttpMcpRequest(
   ) {
     response.writeHead(403);
     response.end();
+
     return;
   }
 
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
   if (url.pathname !== endpointPath) {
     response.writeHead(404);
     response.end();
+
     return;
   }
 
   if (request.method === "OPTIONS") {
     response.writeHead(204);
     response.end();
+
     return;
   }
 
   if (request.method === "GET") {
     response.writeHead(405, { allow: "POST, GET, OPTIONS" });
     response.end();
+
     return;
   }
 
   if (request.method !== "POST") {
     response.writeHead(405, { allow: "POST, GET, OPTIONS" });
     response.end();
+
     return;
   }
 
@@ -148,10 +168,12 @@ async function handleHttpMcpRequest(
       id: null,
       error: { code: -32001, message: "Unauthorized" },
     });
+
     return;
   }
 
   let message: unknown;
+
   try {
     message = JSON.parse((await readRequestBody(request)).toString("utf-8")) as unknown;
   } catch (error) {
@@ -162,6 +184,7 @@ async function handleHttpMcpRequest(
       id: null,
       error: { code: -32700, message: parseMessage },
     });
+
     return;
   }
 
@@ -174,15 +197,21 @@ async function handleHttpMcpRequest(
     const payload = await handleMcpMessage(message, cwd, {
       sendNotification: (notification) => writeSse(response, notification),
     });
-    if (payload !== undefined) writeSse(response, payload);
+
+    if (payload !== undefined) {
+      writeSse(response, payload);
+    }
     response.end();
+
     return;
   }
 
   const payload = await handleMcpMessage(message, cwd);
+
   if (payload === undefined) {
     response.writeHead(202);
     response.end();
+
     return;
   }
 
@@ -196,6 +225,7 @@ export function startHttpMcpServer(options: HttpMcpServerOptions = {}): Server {
   const endpointPath = options.path ?? process.env.KIWI_MCP_HTTP_PATH ?? "/mcp";
   const allowedOrigins = options.allowedOrigins ?? allowedOriginsFromEnv();
   const authToken = options.authToken ?? process.env.KIWI_MCP_HTTP_TOKEN;
+
   if (!authToken) {
     throw new Error("KIWI_MCP_HTTP_TOKEN is required for HTTP MCP transport");
   }
@@ -209,6 +239,7 @@ export function startHttpMcpServer(options: HttpMcpServerOptions = {}): Server {
           id: null,
           error: { code: -32000, message: "Internal server error" },
         });
+
         return;
       }
       response.end();
@@ -218,5 +249,6 @@ export function startHttpMcpServer(options: HttpMcpServerOptions = {}): Server {
   server.listen(port, host, () => {
     debugLog("http_server_start", { cwd, host, port, endpointPath });
   });
+
   return server;
 }

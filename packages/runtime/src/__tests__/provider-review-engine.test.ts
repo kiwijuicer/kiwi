@@ -107,6 +107,7 @@ describe("provider review engine audit", () => {
       async review() {
         calls += 1;
         const invalidVerdict = { verdict: "pass", safeToContinue: true };
+
         return {
           providerName: "stub-reviewer",
           reviewVerdict: invalidVerdict,

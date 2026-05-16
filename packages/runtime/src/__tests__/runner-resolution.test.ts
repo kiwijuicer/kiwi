@@ -65,7 +65,11 @@ function executorModel(
     enabled: true,
     accessMode,
   };
-  if (accessMode === "codex-cli") entry.providerModel = capability === "frontier" ? "gpt-5.5" : "gpt-5.4";
+
+  if (accessMode === "codex-cli") {
+    entry.providerModel = capability === "frontier" ? "gpt-5.5" : "gpt-5.4";
+  }
+
   return entry;
 }
 

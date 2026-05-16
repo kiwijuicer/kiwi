@@ -95,6 +95,7 @@ export function persistRunnerLogs(params: {
     stdout: redactValue(params.payload.stdout, secrets),
     stderr: redactValue(params.payload.stderr, secrets),
   });
+
   return {
     type: "command_output",
     ref,

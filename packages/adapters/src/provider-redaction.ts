@@ -41,13 +41,16 @@ function escapeRegExp(value: string): string {
 function redactKnownSecrets(text: string, secrets: string[]): { text: string; count: number } {
   let redacted = text;
   let count = 0;
+
   for (const secret of secrets) {
     const next = redacted.replace(new RegExp(escapeRegExp(secret), "g"), () => {
       count += 1;
+
       return REDACTED;
     });
     redacted = next;
   }
+
   return { text: redacted, count };
 }
 
@@ -56,12 +59,14 @@ function redactDetectedSecrets(text: string): { text: string; patterns: string[]
   const patterns: string[] = [];
   redacted = redacted.replace(SECRET_KEY_PATTERN, (_match, prefix: string) => {
     patterns.push("key_value");
+
     return `${prefix}${REDACTED}`;
   });
 
   for (const pattern of SECRET_VALUE_PATTERNS) {
     redacted = redacted.replace(pattern, () => {
       patterns.push(pattern.source);
+
       return REDACTED;
     });
   }
@@ -72,6 +77,7 @@ function redactDetectedSecrets(text: string): { text: string; patterns: string[]
 function redactText(text: string, secrets: string[]): { text: string; envCount: number; patterns: string[] } {
   const known = redactKnownSecrets(text, secrets);
   const detected = redactDetectedSecrets(known.text);
+
   return {
     text: detected.text,
     envCount: known.count,
@@ -81,10 +87,13 @@ function redactText(text: string, secrets: string[]): { text: string; envCount: 
 
 function redactUnknownValue(value: unknown, secrets: string[], summary: RedactionSummary, keyName?: string): unknown {
   if (typeof value === "string") {
-    if (keyName === "secretEnvNames") return REDACTED;
+    if (keyName === "secretEnvNames") {
+      return REDACTED;
+    }
     const redacted = redactText(value, secrets);
     summary.envSecretValuesRedacted += redacted.envCount;
     summary.detectedPatterns = unique([...summary.detectedPatterns, ...redacted.patterns]);
+
     return redacted.text;
   }
 
@@ -92,12 +101,16 @@ function redactUnknownValue(value: unknown, secrets: string[], summary: Redactio
     return value.map((entry) => redactUnknownValue(entry, secrets, summary, keyName));
   }
 
-  if (typeof value !== "object" || value === null) return value;
+  if (typeof value !== "object" || value === null) {
+    return value;
+  }
 
   const output: Record<string, unknown> = {};
+
   for (const [key, entry] of Object.entries(value)) {
     output[key] = redactUnknownValue(entry, secrets, summary, key);
   }
+
   return output;
 }
 

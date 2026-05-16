@@ -90,7 +90,10 @@ export function appendAuditEvent(cwd: string, event: AuditEvent): void {
 
 export function readAuditEvents(cwd: string, runId?: string): AuditEvent[] {
   const target = auditLogPath(cwd);
-  if (!existsSync(target)) return [];
+
+  if (!existsSync(target)) {
+    return [];
+  }
 
   const lines = readFileSync(target, "utf-8")
     .split("\n")
@@ -98,7 +101,11 @@ export function readAuditEvents(cwd: string, runId?: string): AuditEvent[] {
     .filter((line) => line.length > 0);
 
   const events = lines.map((line) => JSON.parse(line) as AuditEvent);
-  if (!runId) return events;
+
+  if (!runId) {
+    return events;
+  }
+
   return events.filter((event) => event.runId === runId);
 }
 
@@ -110,5 +117,6 @@ export function writePlannerCostReport(cwd: string, runId: string, report: Plann
 
 export function loadPlannerCostReport(cwd: string, runId: string): PlannerCostReport {
   const target = resolveRunArtifactPath(runId, "plan/cost-report.json", cwd);
+
   return JSON.parse(readFileSync(target, "utf-8")) as PlannerCostReport;
 }

@@ -32,6 +32,7 @@ export function readJsonOrThrow(target: string, missingMessage: string): unknown
   if (!existsSync(target)) {
     throw new Error(missingMessage);
   }
+
   return readJson(target);
 }
 

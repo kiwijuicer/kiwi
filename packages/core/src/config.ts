@@ -25,6 +25,7 @@ export function loadPolicy(path: string): KiwiPolicy {
 
   const raw = readFileSync(path, "utf-8");
   const parsed: unknown = load(raw);
+
   return KiwiPolicySchema.parse(parsed);
 }
 
@@ -35,6 +36,7 @@ export function loadRegistry(path: string): ModelRegistry {
 
   const raw = readFileSync(path, "utf-8");
   const parsed: unknown = load(raw);
+
   return ModelRegistrySchema.parse(parsed);
 }
 
@@ -52,11 +54,13 @@ export function loadKiwiConfig(configPath: string): KiwiConfig {
 
   const raw = readFileSync(configPath, "utf-8");
   const parsed: unknown = load(raw);
+
   return KiwiConfigSchema.parse(parsed);
 }
 
 export function saveKiwiConfig(configPath: string, config: KiwiConfig): KiwiConfig {
   const parsed = KiwiConfigSchema.parse(config);
   writeYamlSafely(configPath, parsed);
+
   return parsed;
 }

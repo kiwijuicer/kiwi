@@ -24,18 +24,24 @@ export interface AttemptReplanResult {
 function nextFixStepId(taskGraph: TaskGraph): string {
   const maxNum = taskGraph.steps.reduce((max, s) => {
     const m = s.stepId.match(/^step_(\d{3})$/);
+
     return m ? Math.max(max, parseInt(m[1]!, 10)) : max;
   }, 0);
+
   return generateStepId(maxNum); // generateStepId(n) → step_(n+1)
 }
 
 function nextReplanVersion(cwd: string, runId: string): number {
   const planDir = path.dirname(resolveRunArtifactPath(runId, "plan/task-graph.json", cwd));
-  if (!existsSync(planDir)) return 2;
+
+  if (!existsSync(planDir)) {
+    return 2;
+  }
   const versions = readdirSync(planDir)
     .map((f) => f.match(/^task-graph\.v(\d+)\.json$/))
     .filter(Boolean)
     .map((m) => parseInt(m![1]!, 10));
+
   return versions.length === 0 ? 2 : Math.max(...versions) + 1;
 }
 
@@ -46,6 +52,7 @@ function nextReplanVersion(cwd: string, runId: string): number {
 export function injectFixStep(input: ReplannerInput): InjectFixStepResult {
   const taskGraph = loadTaskGraph(input.runId, input.cwd);
   const focalIndex = taskGraph.steps.findIndex((s) => s.stepId === input.focalStepId);
+
   if (focalIndex < 0) {
     throw new Error(`Step not found in task graph: ${input.focalStepId}`);
   }

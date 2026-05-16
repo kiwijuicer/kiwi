@@ -8,7 +8,8 @@
 
 ## Code Style
 
-- Favor small pure functions over large classes.
+- Favor cohesive classes or objects over clusters of loose top-level functions when behavior belongs together.
+- Keep small pure helper functions when they are isolated, stateless, and not forming an implicit object.
 - Keep one clear responsibility per module.
 - Avoid duplicated branching logic; centralize shared decisions.
 - Use descriptive names over short abbreviations.

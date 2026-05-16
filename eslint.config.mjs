@@ -132,6 +132,18 @@ export default [
     }),
   ),
   {
+    files: [...sourceTsFiles, ...configTsFiles, ...jsFiles],
+    rules: {
+      curly: ["error", "all"],
+      "padding-line-between-statements": [
+        "warn",
+        { blankLine: "always", prev: "*", next: "return" },
+        { blankLine: "always", prev: ["const", "let", "var"], next: ["if", "for", "while", "switch", "try"] },
+        { blankLine: "any", prev: ["const", "let", "var"], next: ["const", "let", "var"] },
+      ],
+    },
+  },
+  {
     files: sourceTsFiles,
     plugins: {
       sonarjs,

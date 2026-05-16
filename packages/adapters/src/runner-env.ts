@@ -6,9 +6,13 @@ interface RunnerEnvPolicy {
 
 function stringEntries(env: Record<string, string | undefined>): Record<string, string> {
   const selected: Record<string, string> = {};
+
   for (const [key, value] of Object.entries(env)) {
-    if (typeof value === "string") selected[key] = value;
+    if (typeof value === "string") {
+      selected[key] = value;
+    }
   }
+
   return selected;
 }
 
@@ -26,9 +30,14 @@ export function buildRunnerEnv(params: {
     ...(params.extraAllowlist ?? []),
   ]);
   const selected: Record<string, string> = {};
+
   for (const key of allowlist) {
     const value = input[key] ?? source[key];
-    if (value !== undefined) selected[key] = value;
+
+    if (value !== undefined) {
+      selected[key] = value;
+    }
   }
+
   return selected;
 }

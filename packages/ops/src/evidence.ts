@@ -25,23 +25,33 @@ function shouldSkip(ref: string): boolean {
 }
 
 function listRunFiles(root: string, current: string = root): string[] {
-  if (!existsSync(current)) return [];
+  if (!existsSync(current)) {
+    return [];
+  }
   const files: string[] = [];
+
   for (const entry of readdirSync(current, { withFileTypes: true })) {
     const target = path.join(current, entry.name);
     const ref = normalizeRef(root, target);
-    if (shouldSkip(ref)) continue;
+
+    if (shouldSkip(ref)) {
+      continue;
+    }
     if (entry.isDirectory()) {
       files.push(...listRunFiles(root, target));
       continue;
     }
-    if (entry.isFile()) files.push(target);
+    if (entry.isFile()) {
+      files.push(target);
+    }
   }
+
   return files.sort((a, b) => normalizeRef(root, a).localeCompare(normalizeRef(root, b)));
 }
 
 function fileHash(root: string, target: string): EvidenceManifest["files"][number] {
   const bytes = readFileSync(target);
+
   return {
     ref: normalizeRef(root, target),
     sha256: createHash("sha256").update(bytes).digest("hex"),
@@ -74,6 +84,7 @@ export function writeRunAuditSnapshot(params: { cwd: string; runId: string; now?
       eventCount: events.length,
     },
   });
+
   return { snapshot, ref };
 }
 
@@ -110,6 +121,7 @@ export function writeEvidenceManifest(params: {
       fileCount: files.length,
     },
   });
+
   return {
     manifest,
     manifestRef,
@@ -120,5 +132,6 @@ export function writeEvidenceManifest(params: {
 
 export function loadEvidenceManifest(params: { cwd: string; runId: string }): EvidenceManifest {
   const target = resolveRunArtifactPath(params.runId, "final/evidence-manifest.json", params.cwd);
+
   return EvidenceManifestSchema.parse(JSON.parse(readFileSync(target, "utf-8")) as unknown);
 }

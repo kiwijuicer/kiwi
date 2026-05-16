@@ -66,6 +66,7 @@ function providerError(params: {
         : params.code === "provider_auth"
           ? ReviewerProviderSchedulerErrorCodes.ProviderAuth
           : ReviewerProviderSchedulerErrorCodes.ProviderNetwork;
+
   return new ReviewerProviderError({
     code: params.code,
     schedulerErrorCode,
@@ -77,7 +78,11 @@ function providerError(params: {
 
 function previousAttempts(context?: ReviewerProviderRepairContext): unknown[] {
   const artifact = context?.invalidProviderArtifacts?.reviewerInput;
-  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) return [];
+
+  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) {
+    return [];
+  }
+
   return artifact.attempts.filter((entry): entry is Record<string, unknown> => isRecord(entry));
 }
 
@@ -98,6 +103,7 @@ function buildPrompt(params: {
         })
       : buildReviewerUserEnvelope(params.input);
   const schema = JSON.stringify(reviewerToolDefinition().input_schema, null, 2);
+
   return redactForProvider(
     `${REVIEWER_JSON_SYSTEM_PROMPT}
 
@@ -125,6 +131,7 @@ export async function invokeCliReviewer(params: CliReviewerInvokeParams): Promis
   });
   const env = buildRunnerEnv({ sourceEnv: params.env, policy: params.policy.commandProfiles.default });
   const result = await params.run(redactedPrompt.redacted, env);
+
   if (!result.ok) {
     throw providerError({
       code: result.timedOut ? "provider_timeout" : "provider_network",
@@ -137,6 +144,7 @@ export async function invokeCliReviewer(params: CliReviewerInvokeParams): Promis
 
   const text = extractCliPlannerText(result.parsed, result.stdout);
   const reviewVerdict = extractTextJson(text);
+
   if (reviewVerdict === null) {
     throw providerError({
       code: "provider_schema_invalid",

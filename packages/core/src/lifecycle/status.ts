@@ -18,12 +18,14 @@ export function updateRunStatus(params: { cwd: string; runId: string; status: Ru
     timestamp: updated.updatedAt,
     payload: { status: params.status },
   });
+
   return updated;
 }
 
 export function refreshRunStatusFromAttempts(params: { cwd: string; runId: string; now?: Date }): RunManifest {
   const taskGraph = loadTaskGraph(params.runId, params.cwd);
   const attempts = Array.from(latestAttemptByStep(listStepAttemptEvidence(params.cwd, params.runId)).values());
+
   if (attempts.length === 0) {
     return updateRunStatus({ ...params, status: "planned" });
   }
@@ -42,6 +44,7 @@ export function refreshRunStatusFromAttempts(params: { cwd: string; runId: strin
     attempts.filter((entry) => entry.attempt.status === ContractValues.Completed).map((entry) => entry.stepId),
   );
   const allStepsCompleted = taskGraph.steps.every((step) => completedStepIds.has(step.stepId));
+
   return updateRunStatus({
     ...params,
     status: allStepsCompleted ? ContractValues.Completed : ContractValues.Running,

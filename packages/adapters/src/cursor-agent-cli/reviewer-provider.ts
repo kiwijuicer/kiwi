@@ -35,7 +35,9 @@ export class CursorAgentReviewerProvider implements ReviewerProvider {
 
   constructor(options: CursorAgentReviewerProviderOptions = {}) {
     this.binary = options.binary ?? process.env.KIWI_CURSOR_AGENT_BINARY ?? "cursor-agent";
-    if (options.cwd !== undefined) this.cwd = options.cwd;
+    if (options.cwd !== undefined) {
+      this.cwd = options.cwd;
+    }
     this.model = options.model;
     this.name = `cursor-agent-cli:${this.model ?? "default"}`;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;

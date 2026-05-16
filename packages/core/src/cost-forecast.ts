@@ -27,6 +27,7 @@ function reviewCapabilityFor(executionCapability: ModelCapability): ModelCapabil
   if (executionCapability === ContractValues.Frontier || executionCapability === ContractValues.Strong) {
     return ContractValues.Strong;
   }
+
   return ContractValues.Mid;
 }
 
@@ -43,6 +44,7 @@ export function buildRunCostForecast(params: { taskGraph: TaskGraph; plannerCost
       capability: reviewCapabilityFor(step.recommendedModelCapability),
       contextLevel: "L0",
     });
+
     return {
       stepId: step.stepId,
       title: step.title,
@@ -53,6 +55,7 @@ export function buildRunCostForecast(params: { taskGraph: TaskGraph; plannerCost
   });
   const execution = roundUsd(steps.reduce((total, step) => total + step.executionCostUsd, 0));
   const review = roundUsd(steps.reduce((total, step) => total + step.reviewCostUsd, 0));
+
   return {
     estimatedCostUsd: roundUsd(planner + execution + review),
     phaseCostsUsd: {
@@ -66,7 +69,10 @@ export function buildRunCostForecast(params: { taskGraph: TaskGraph; plannerCost
 
 export function firstBudgetProfileForCost(estimatedCostUsd: number): string | null {
   for (const [profile, limit] of Object.entries(BUDGET_PROFILE_LIMITS)) {
-    if (limit.hardCapUsd === null || limit.hardCapUsd >= estimatedCostUsd) return profile;
+    if (limit.hardCapUsd === null || limit.hardCapUsd >= estimatedCostUsd) {
+      return profile;
+    }
   }
+
   return null;
 }

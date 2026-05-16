@@ -22,18 +22,27 @@ function approvalRequiredFilesForAttempt(params: {
   evidence: ReturnType<typeof listStepAttemptEvidence>[number];
 }): string[] {
   const files = new Set<string>();
+
   for (const gate of params.evidence.gateResults) {
-    if (gate.gateType !== "forbidden_file_checks" || gate.status !== ContractValues.Blocked) continue;
+    if (gate.gateType !== "forbidden_file_checks" || gate.status !== ContractValues.Blocked) {
+      continue;
+    }
     for (const ref of gate.evidenceRefs) {
       const report = readJson(resolveRunArtifactPath(params.runId, ref, params.cwd)) as {
         approvalRequiredFiles?: unknown;
       };
-      if (!Array.isArray(report.approvalRequiredFiles)) continue;
+
+      if (!Array.isArray(report.approvalRequiredFiles)) {
+        continue;
+      }
       for (const file of report.approvalRequiredFiles) {
-        if (typeof file === "string" && file.length > 0) files.add(file);
+        if (typeof file === "string" && file.length > 0) {
+          files.add(file);
+        }
       }
     }
   }
+
   return Array.from(files).sort();
 }
 
@@ -45,8 +54,12 @@ function approvalInput(params: {
 }): Parameters<typeof recordApprovalDecision>[0] {
   const attempts = listStepAttemptEvidence(params.cwd, params.runId);
   const evidence = attempts.find((entry) => entry.attemptId === params.attemptId);
-  if (!evidence) throw new Error(`Cannot record approval: attempt not found: ${params.attemptId}`);
+
+  if (!evidence) {
+    throw new Error(`Cannot record approval: attempt not found: ${params.attemptId}`);
+  }
   const latestForStep = latestAttemptByStep(attempts).get(evidence.stepId);
+
   if (latestForStep?.attemptId !== params.attemptId) {
     throw new Error(
       `Cannot record approval: attempt ${params.attemptId} is not the latest attempt for ${evidence.stepId}`,
@@ -60,6 +73,7 @@ function approvalInput(params: {
     runId: params.runId,
     evidence,
   });
+
   if (approvalRequiredFiles.length === 0) {
     throw new Error(`Cannot record approval: attempt ${params.attemptId} has no approval-required file evidence`);
   }
@@ -71,8 +85,14 @@ function approvalInput(params: {
     approvalRequiredFiles,
     reason: params.opts.reason ?? "Approved by local operator",
   };
-  if (params.opts.approvedBy) input.approvedBy = params.opts.approvedBy;
-  if (params.opts.now) input.now = params.opts.now;
+
+  if (params.opts.approvedBy) {
+    input.approvedBy = params.opts.approvedBy;
+  }
+  if (params.opts.now) {
+    input.now = params.opts.now;
+  }
+
   return input;
 }
 

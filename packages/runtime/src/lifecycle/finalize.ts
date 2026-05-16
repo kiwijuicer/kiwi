@@ -54,8 +54,10 @@ function evidenceFailureReasons(params: {
 }): string[] {
   const failures: string[] = [];
   const required = requiredGateTypes(params.requiredGates);
+
   for (const gateType of required) {
     const gate = params.attempt.gateResults.find((entry) => entry.gateType === gateType);
+
     if (!gate) {
       failures.push(`missing gate ${gateType}`);
       continue;
@@ -77,13 +79,17 @@ function evidenceFailureReasons(params: {
     stepId: params.stepId,
     attemptId: params.attempt.attemptId,
   });
-  if (!diff) return failures;
+
+  if (!diff) {
+    return failures;
+  }
 
   if (params.attempt.reviewVerdict?.subject?.hash !== diff.diffHash) {
     failures.push("review verdict is not bound to current diff hash");
   }
   for (const gateType of required) {
     const gate = params.attempt.gateResults.find((entry) => entry.gateType === gateType);
+
     if (gate?.subject?.hash !== diff.diffHash) {
       failures.push(`gate ${gateType} is not bound to current diff hash`);
     }
@@ -115,6 +121,7 @@ function writeFinalSummary(params: {
     "",
   ];
   writeFileSync(resolveRunArtifactPath(params.runId, ref, params.cwd), lines.join("\n"), "utf-8");
+
   return ref;
 }
 
@@ -146,15 +153,26 @@ function collectFinalEvidence(params: {
 
   for (const step of params.steps) {
     const attempt = params.latest.get(step.stepId);
+
     if (!attempt) {
       summary.missingStepIds.push(step.stepId);
       continue;
     }
-    if (attempt.gateResultsRef) summary.gateResultRefs.push(attempt.gateResultsRef);
-    if (attempt.reviewReportRef) summary.reviewReportRefs.push(attempt.reviewReportRef);
-    if (attempt.attempt.status === ContractValues.Completed) summary.completedStepIds.push(step.stepId);
-    if (attempt.attempt.status === ContractValues.Failed) summary.failedStepIds.push(step.stepId);
-    if (attempt.attempt.status === ContractValues.Blocked) summary.blockedStepIds.push(step.stepId);
+    if (attempt.gateResultsRef) {
+      summary.gateResultRefs.push(attempt.gateResultsRef);
+    }
+    if (attempt.reviewReportRef) {
+      summary.reviewReportRefs.push(attempt.reviewReportRef);
+    }
+    if (attempt.attempt.status === ContractValues.Completed) {
+      summary.completedStepIds.push(step.stepId);
+    }
+    if (attempt.attempt.status === ContractValues.Failed) {
+      summary.failedStepIds.push(step.stepId);
+    }
+    if (attempt.attempt.status === ContractValues.Blocked) {
+      summary.blockedStepIds.push(step.stepId);
+    }
 
     const failures = evidenceFailureReasons({
       cwd: params.cwd,
@@ -163,8 +181,11 @@ function collectFinalEvidence(params: {
       attempt,
       requiredGates: attempt.schedulerDecision?.requiredGates ?? step.requiredGates,
     });
+
     if (failures.length > 0) {
-      if (!summary.failedStepIds.includes(step.stepId)) summary.failedStepIds.push(step.stepId);
+      if (!summary.failedStepIds.includes(step.stepId)) {
+        summary.failedStepIds.push(step.stepId);
+      }
       summary.evidenceFailures.push(`${step.stepId}: ${failures.join("; ")}`);
     }
   }

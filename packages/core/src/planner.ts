@@ -30,10 +30,17 @@ const DEFAULT_SEQUENCE: string[] = [
 
 function extractTitle(rawInput: string): string {
   const headingMatch = rawInput.match(/^#\s+(.+)$/m);
-  if (headingMatch?.[1]) return headingMatch[1].trim();
+
+  if (headingMatch?.[1]) {
+    return headingMatch[1].trim();
+  }
 
   const firstLine = rawInput.split("\n").find((line) => line.trim().length > 0);
-  if (!firstLine) return "Untitled initiative";
+
+  if (!firstLine) {
+    return "Untitled initiative";
+  }
+
   return firstLine.trim().slice(0, 120);
 }
 
@@ -52,6 +59,7 @@ function extractAcceptanceCriteria(rawInput: string): string[] {
 
   for (const line of lines) {
     const trimmed = line.trim();
+
     if (/^constraints?:/i.test(trimmed)) {
       inConstraints = true;
       continue;
@@ -62,10 +70,14 @@ function extractAcceptanceCriteria(rawInput: string): string[] {
       continue;
     }
 
-    if (inConstraints && trimmed.startsWith("#")) break;
+    if (inConstraints && trimmed.startsWith("#")) {
+      break;
+    }
   }
 
-  if (criteria.length > 0) return criteria;
+  if (criteria.length > 0) {
+    return criteria;
+  }
 
   return [
     "Existing behavior stays compatible",
@@ -155,6 +167,7 @@ function defaultRouting(stepType: StepType): RoutingChoice {
 
 function routedByPolicy(stepType: StepType, policy: KiwiPolicy): RoutingChoice {
   const override = policy.routing.stepTypeOverrides[stepType];
+
   if (override) {
     return {
       agentRole: override.agentRole,
@@ -244,8 +257,14 @@ function scoreRisk(rawInput: string): number {
 
 function scoreComplexity(stepCount: number, rawInput: string): number {
   let score = stepCount >= 6 ? 4 : 3;
-  if (rawInput.length < 300) score -= 1;
-  if (rawInput.length > 2000) score += 1;
+
+  if (rawInput.length < 300) {
+    score -= 1;
+  }
+  if (rawInput.length > 2000) {
+    score += 1;
+  }
+
   return Math.max(1, Math.min(5, score));
 }
 
@@ -261,6 +280,7 @@ function resolveRootSubPlanId(params: {
   if (params.previousWasRoot && params.currentRootSubPlanId) {
     return params.currentRootSubPlanId;
   }
+
   return createSubPlanId(params.subPlanCount);
 }
 
@@ -270,10 +290,15 @@ function resolveDependentSubPlanId(params: {
   subPlanCount: number;
 }): string {
   const firstDependency = params.step.dependsOn[0];
+
   if (firstDependency) {
     const existing = params.stepToSubPlan.get(firstDependency);
-    if (existing) return existing;
+
+    if (existing) {
+      return existing;
+    }
   }
+
   return createSubPlanId(params.subPlanCount);
 }
 
@@ -284,7 +309,10 @@ function ensureSubPlan(params: {
   title: string;
 }): SubPlan {
   const existing = params.byId.get(params.subPlanId);
-  if (existing) return existing;
+
+  if (existing) {
+    return existing;
+  }
   const created: SubPlan = {
     subPlanId: params.subPlanId,
     title: params.title,
@@ -294,6 +322,7 @@ function ensureSubPlan(params: {
   };
   params.subPlans.push(created);
   params.byId.set(created.subPlanId, created);
+
   return created;
 }
 
@@ -321,12 +350,19 @@ function assignSubPlanDependencies(params: {
 }): void {
   for (const subPlan of params.subPlans) {
     const dependsOn = new Set<string>();
+
     for (const stepId of subPlan.stepIds) {
       const step = params.stepsById.get(stepId);
-      if (!step) continue;
+
+      if (!step) {
+        continue;
+      }
       for (const dependencyStepId of step.dependsOn) {
         const dependencySubPlanId = params.stepToSubPlan.get(dependencyStepId);
-        if (!dependencySubPlanId || dependencySubPlanId === subPlan.subPlanId) continue;
+
+        if (!dependencySubPlanId || dependencySubPlanId === subPlan.subPlanId) {
+          continue;
+        }
         dependsOn.add(dependencySubPlanId);
       }
     }
@@ -374,6 +410,7 @@ export function deriveSubPlansFromSteps(steps: Step[]): SubPlan[] {
   }
 
   assignSubPlanDependencies({ subPlans, stepsById, stepToSubPlan });
+
   return subPlans;
 }
 
@@ -388,6 +425,7 @@ export function createInitiativeFromInput(params: {
 }): Initiative {
   const now = params.now ?? new Date();
   const idOptions = params.idSuffix ? { suffix: params.idSuffix } : {};
+
   return {
     id: generateInitiativeId(now, idOptions),
     title: extractTitle(params.rawInput),

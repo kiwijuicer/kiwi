@@ -39,6 +39,7 @@ export interface PublishPrDraftResult {
 function defaultGit(args: string[], cwd: string): GitCommandResult {
   try {
     const stdout = execFileSync("git", args, { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
+
     return { stdout, stderr: "" };
   } catch (error) {
     const typed = error as { stdout?: Buffer | string; stderr?: Buffer | string; message?: string };
@@ -67,6 +68,7 @@ function gitRaw(args: string[], cwd: string, runner: GitCommandRunner): string {
 function statusPath(line: string): string {
   const raw = line.length >= 3 && line[2] === " " ? line.slice(3) : line.replace(/^[ MADRCU?!]{1,2}\s+/, "");
   const renamed = raw.includes(" -> ") ? raw.split(" -> ").at(-1) : raw;
+
   return (renamed ?? raw).trim().replace(/^"|"$/g, "");
 }
 
@@ -86,8 +88,11 @@ function changedRepoFiles(repoPath: string, runner: GitCommandRunner): string[] 
 
 function ensureCleanWorkingTree(repoPath: string, runner: GitCommandRunner): void {
   const changed = changedRepoFiles(repoPath, runner);
+
   if (changed.length > 0) {
-    throw new Error(`target repo has local changes; publish PR draft requires a clean working tree: ${changed.join(", ")}`);
+    throw new Error(
+      `target repo has local changes; publish PR draft requires a clean working tree: ${changed.join(", ")}`,
+    );
   }
 }
 
@@ -98,8 +103,10 @@ function switchToPublishBranch(params: {
   runner: GitCommandRunner;
 }): void {
   const existingBranches = git(["branch", "--list", params.branchName], params.repoPath, params.runner);
+
   if (existingBranches.trim().length > 0) {
     git(["switch", params.branchName], params.repoPath, params.runner);
+
     return;
   }
 
@@ -113,34 +120,50 @@ function switchToPublishBranch(params: {
 
 function diffTouchedFiles(diffText: string): string[] {
   const files = new Set<string>();
+
   for (const line of diffText.split("\n")) {
-    if (line.startsWith("+++ b/")) files.add(line.slice("+++ b/".length));
-    if (line.startsWith("--- a/")) files.add(line.slice("--- a/".length));
+    if (line.startsWith("+++ b/")) {
+      files.add(line.slice("+++ b/".length));
+    }
+    if (line.startsWith("--- a/")) {
+      files.add(line.slice("--- a/".length));
+    }
   }
   files.delete("/dev/null");
+
   return Array.from(files).sort();
 }
 
 function latestDiffs(params: { cwd: string; runId: string }): Array<{ path: string; hash: string; files: string[] }> {
   const taskGraph = loadTaskGraph(params.runId, params.cwd);
   const diffs: Array<{ path: string; hash: string; files: string[] }> = [];
+
   for (const step of taskGraph.steps) {
     const stepDir = resolveRunArtifactPath(params.runId, `steps/${step.stepId}`, params.cwd);
-    if (!existsSync(stepDir)) continue;
+
+    if (!existsSync(stepDir)) {
+      continue;
+    }
     const attemptDirs = readdirSync(stepDir, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
     const attemptId = attemptDirs.at(-1);
-    if (!attemptId) continue;
+
+    if (!attemptId) {
+      continue;
+    }
     const diff = loadAttemptDiff({ cwd: params.cwd, runId: params.runId, stepId: step.stepId, attemptId });
-    if (diff)
+
+    if (diff) {
       diffs.push({
         path: resolveRunArtifactPath(params.runId, diff.diffPath, params.cwd),
         hash: diff.diffHash,
         files: diffTouchedFiles(diff.diff),
       });
+    }
   }
+
   return diffs;
 }
 
@@ -161,6 +184,7 @@ function ensureOnlyExpectedFilesChanged(params: {
   const expected = new Set(params.expectedFiles);
   const changed = changedRepoFiles(params.repoPath, params.runner);
   const unexpected = changed.filter((file) => !expected.has(file));
+
   if (unexpected.length > 0) {
     throw new Error(`patch application changed unexpected files: ${unexpected.join(", ")}`);
   }
@@ -169,6 +193,7 @@ function ensureOnlyExpectedFilesChanged(params: {
 function hasStagedChanges(repoPath: string, runner: GitCommandRunner): boolean {
   try {
     git(["diff", "--cached", "--quiet"], repoPath, runner);
+
     return false;
   } catch {
     return true;
@@ -186,11 +211,13 @@ export function publishPrDraft(params: PublishPrDraftParams): PublishPrDraftResu
   const initiative = loadInitiative(params.runId, params.cwd);
   const repoPath = run.repoPath ?? initiative.repoPath;
   const verdict = finalizeRun({ cwd: params.cwd, runId: params.runId, now }).verdict;
+
   if (!verdict.safeToApply) {
     throw new Error(`cannot publish PR draft because run is not safe to apply: ${verdict.reason}`);
   }
 
   const diffs = latestDiffs({ cwd: params.cwd, runId: params.runId });
+
   if (diffs.length === 0) {
     throw new Error("cannot publish PR draft without a diff artifact");
   }
@@ -200,6 +227,7 @@ export function publishPrDraft(params: PublishPrDraftParams): PublishPrDraftResu
   switchToPublishBranch({ repoPath, branchName, targetBranch, runner });
   applyDiffs({ repoPath, diffs, runner });
   const expectedFiles = Array.from(new Set(diffs.flatMap((diff) => diff.files))).sort();
+
   if (expectedFiles.length === 0) {
     throw new Error("cannot publish PR draft because diff artifacts contain no file paths");
   }

@@ -35,14 +35,19 @@ function selectedEnv(env: Record<string, string | undefined> | undefined): Recor
     return selectedEnv(process.env);
   }
   const out: Record<string, string> = {};
+
   for (const [key, value] of Object.entries(env)) {
-    if (typeof value === "string") out[key] = value;
+    if (typeof value === "string") {
+      out[key] = value;
+    }
   }
+
   return out;
 }
 
 export async function runSubprocess(invocation: SubprocessInvocation): Promise<SubprocessResult> {
   const startedAt = new Date();
+
   return await new Promise<SubprocessResult>((resolve) => {
     const child = spawn(invocation.binary, invocation.args, {
       cwd: invocation.cwd,
@@ -72,7 +77,9 @@ export async function runSubprocess(invocation: SubprocessInvocation): Promise<S
 
     child.on("error", (error) => {
       clearTimeout(timeout);
-      if (killTimer) clearTimeout(killTimer);
+      if (killTimer) {
+        clearTimeout(killTimer);
+      }
       const completedAt = new Date();
       resolve({
         ok: false,
@@ -90,7 +97,9 @@ export async function runSubprocess(invocation: SubprocessInvocation): Promise<S
 
     child.on("close", (exitCode) => {
       clearTimeout(timeout);
-      if (killTimer) clearTimeout(killTimer);
+      if (killTimer) {
+        clearTimeout(killTimer);
+      }
       const completedAt = new Date();
       resolve({
         ok: !timedOut && exitCode === 0,

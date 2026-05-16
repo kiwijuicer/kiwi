@@ -42,6 +42,7 @@ function providerError(params: {
 
 function buildCliResearchPrompt(redactedEnvelope: string): string {
   const schema = JSON.stringify(researchToolDefinition().input_schema, null, 2);
+
   return `You are kiwi's researcher agent. Return concise structured repository context only.
 
 Prompt version: ${RESEARCHER_PROMPT_VERSION}
@@ -63,6 +64,7 @@ export async function invokeCliResearcher(params: CliResearcherInvokeParams): Pr
     prompt,
     buildRunnerEnv({ sourceEnv: params.env, policy: params.input.policy.commandProfiles.default }),
   );
+
   if (!result.ok) {
     throw providerError({
       code: result.timedOut ? "provider_timeout" : "provider_network",
@@ -74,6 +76,7 @@ export async function invokeCliResearcher(params: CliResearcherInvokeParams): Pr
   }
   const text = extractCliPlannerText(result.parsed, result.stdout);
   const researchReport = extractTextJson(text);
+
   if (researchReport === null) {
     throw providerError({
       code: "provider_schema_invalid",
@@ -82,6 +85,7 @@ export async function invokeCliResearcher(params: CliResearcherInvokeParams): Pr
     });
   }
   const usage = params.normalizeUsage(result.parsed);
+
   return {
     providerName: params.providerName,
     researchReport,

@@ -99,6 +99,7 @@ describe("planner provider", () => {
       name: "flaky-planner",
       async plan(): Promise<PlannerProviderOutput> {
         calls += 1;
+
         return {
           providerName: "flaky-planner",
           taskGraph: calls === 1 ? { invalid: true } : validTaskGraph(),
@@ -140,6 +141,7 @@ describe("planner provider", () => {
       name: "semantic-flaky-planner",
       async plan(): Promise<PlannerProviderOutput> {
         calls += 1;
+
         return {
           providerName: "semantic-flaky-planner",
           taskGraph: calls === 1 ? reviewStepGraph() : validTaskGraph(),

@@ -38,9 +38,15 @@ export class LocalShellRunnerAdapter implements RunnerAdapter {
       },
     };
 
-    if (input.env) sandboxInput.env = input.env;
-    if (input.approved !== undefined) sandboxInput.approved = input.approved;
-    if (input.requestedAt) sandboxInput.now = new Date(input.requestedAt);
+    if (input.env) {
+      sandboxInput.env = input.env;
+    }
+    if (input.approved !== undefined) {
+      sandboxInput.approved = input.approved;
+    }
+    if (input.requestedAt) {
+      sandboxInput.now = new Date(input.requestedAt);
+    }
 
     const output = await executeSandboxCommand(sandboxInput);
     const diffInput: Parameters<typeof captureDiffArtifact>[0] = {
@@ -50,8 +56,13 @@ export class LocalShellRunnerAdapter implements RunnerAdapter {
       attemptId: input.attemptId,
       worktreePath: input.worktreePath,
     };
-    if (input.repoPath) diffInput.sourcePath = input.repoPath;
-    if (input.diffBaseTree !== undefined) diffInput.baseTree = input.diffBaseTree;
+
+    if (input.repoPath) {
+      diffInput.sourcePath = input.repoPath;
+    }
+    if (input.diffBaseTree !== undefined) {
+      diffInput.baseTree = input.diffBaseTree;
+    }
     const diffArtifact = captureDiffArtifact(diffInput);
     const artifactRefs = diffArtifact ? [...output.artifactRefs, diffArtifact] : output.artifactRefs;
     const rawLogsRef = output.artifactRefs[0]?.ref ?? null;

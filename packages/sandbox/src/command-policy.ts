@@ -41,15 +41,18 @@ const GIT_OPTIONS_WITH_VALUE = new Set([
 function resolveWithinWorktree(worktreePath: string, candidate: string): string {
   const base = path.resolve(worktreePath);
   const target = path.resolve(base, candidate);
+
   if (!(target === base || target.startsWith(`${base}${path.sep}`))) {
     throw new Error(`path escapes worktree: ${candidate}`);
   }
+
   return target;
 }
 
 function normalizePathForMatch(worktreePath: string, candidate: string): string {
   const base = path.resolve(worktreePath);
   const resolved = path.isAbsolute(candidate) ? path.resolve(candidate) : resolveWithinWorktree(base, candidate);
+
   return path.relative(base, resolved).replaceAll(path.sep, "/");
 }
 
@@ -58,6 +61,7 @@ function wildcardPatternToRegExp(pattern: string): RegExp {
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")
     .replace(/\*\*/g, ".*")
     .replace(/\*/g, "[^/]*");
+
   return new RegExp(`^${escaped}$`);
 }
 
@@ -67,35 +71,49 @@ function matchesPathPattern(pathValue: string, pattern: string): boolean {
 
 function commandTouchesPath(command: string[], worktreePath: string, patterns: string[]): boolean {
   return command.some((arg) => {
-    if (!arg.includes("/") && !arg.startsWith(".")) return false;
+    if (!arg.includes("/") && !arg.startsWith(".")) {
+      return false;
+    }
     const normalized = normalizePathForMatch(worktreePath, arg);
+
     return patterns.some((pattern) => matchesPathPattern(normalized, pattern));
   });
 }
 
 function commandAllowed(command: string[], allowedCommands: string[]): boolean {
   const executable = command[0];
-  if (!executable) return false;
+
+  if (!executable) {
+    return false;
+  }
   const commandText = command.join(" ");
+
   return allowedCommands.some((allowed) => executable === allowed || commandText.startsWith(`${allowed} `));
 }
 
 function usesNetwork(command: string[]): boolean {
   const executable = path.basename(command[0] ?? "");
+
   if (executable === "git") {
     const subcommand = command[1] ?? "";
+
     return ["clone", "fetch", "pull", "push", "submodule"].includes(subcommand);
   }
   if (["npm", "pnpm", "yarn"].includes(executable)) {
     const subcommand = command[1] ?? "";
+
     return ["add", "install", "update", "upgrade", "dlx", "create"].includes(subcommand);
   }
-  if (NETWORK_COMMANDS.has(executable)) return true;
+  if (NETWORK_COMMANDS.has(executable)) {
+    return true;
+  }
+
   return command.some((arg) => /^https?:\/\//i.test(arg));
 }
 
 function gitSubcommand(command: string[], gitIndex: number): string | null {
   let skipNext = false;
+
   for (const token of command.slice(gitIndex + 1)) {
     if (skipNext) {
       skipNext = false;
@@ -105,17 +123,26 @@ function gitSubcommand(command: string[], gitIndex: number): string | null {
       skipNext = true;
       continue;
     }
-    if (token.startsWith("--") && token.includes("=")) continue;
-    if (token.startsWith("-")) continue;
+    if (token.startsWith("--") && token.includes("=")) {
+      continue;
+    }
+    if (token.startsWith("-")) {
+      continue;
+    }
+
     return token;
   }
+
   return null;
 }
 
 function requiresExplicitGitMutationApproval(command: string[]): boolean {
   return command.some((token, index) => {
-    if (path.basename(token) !== "git") return false;
+    if (path.basename(token) !== "git") {
+      return false;
+    }
     const subcommand = gitSubcommand(command, index);
+
     return subcommand !== null && MUTATING_GIT_SUBCOMMANDS.has(subcommand);
   });
 }
@@ -155,7 +182,11 @@ export function evaluatePolicy(input: SandboxCommandInput): PolicyDecision {
 
   for (const check of checks) {
     const decision = check();
-    if (decision) return decision;
+
+    if (decision) {
+      return decision;
+    }
   }
+
   return { status: "allow", reason: "allowed" };
 }

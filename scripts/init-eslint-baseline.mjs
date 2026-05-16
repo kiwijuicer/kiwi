@@ -24,6 +24,7 @@ const hardIssues = [];
 for (const file of report) {
   const filePath = relativeReportPath(repoRoot, file.filePath);
   const source = file.source ?? "";
+
   for (const message of file.messages) {
     if (isHardEslintIssue(message)) {
       hardIssues.push({ file: filePath, ...message, ruleId: message.ruleId ?? "unknown" });

@@ -29,5 +29,6 @@ export function isHardEslintIssue(message) {
 export function eslintIssueKey(filePath, message, source) {
   const ruleId = message.ruleId ?? "unknown";
   const lineText = typeof message.line === "number" ? (source.split(/\r?\n/)[message.line - 1]?.trim() ?? "") : "";
+
   return [filePath, ruleId, message.severity, message.message, lineText].join("|");
 }

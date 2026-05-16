@@ -1,0 +1,819 @@
+{
+  "generatedAt": "2026-05-16T15:47:23.507Z",
+  "maxLooseTopLevelFunctions": 4,
+  "files": {
+    "apps/cli/src/commands/doctor.ts": {
+      "looseTopLevelFunctions": 6,
+      "cohesiveContainers": 0,
+      "functions": [
+        "printAccessModeProbes",
+        "printInitializedWorkspaceDiagnostics",
+        "printRegistryAccessModes",
+        "printRoleCounts",
+        "printRunnerRegistry",
+        "runDoctor"
+      ]
+    },
+    "apps/cli/src/commands/init.ts": {
+      "looseTopLevelFunctions": 22,
+      "cohesiveContainers": 0,
+      "functions": [
+        "desiredCodexMcpBlock",
+        "desiredJsonMcpServer",
+        "isRecord",
+        "kiwiRootCandidates",
+        "logConfigWrite",
+        "normalizeGitignoreLine",
+        "readJsonMcpConfig",
+        "resolveInstalledMcpBin",
+        "resolveKiwiRoot",
+        "resolveMcpServerLaunch",
+        "resolveMcpTargets",
+        "runInit",
+        "stableJson",
+        "tomlArray",
+        "tomlInlineTable",
+        "tomlString",
+        "upsertTomlTable",
+        "writeClaudeCodeMcpConfig",
+        "writeCodexMcpConfig",
+        "writeCursorMcpConfig",
+        "writeGitignoreEntries",
+        "writeJsonMcpConfig"
+      ]
+    },
+    "apps/cli/src/commands/plan.ts": {
+      "looseTopLevelFunctions": 8,
+      "cohesiveContainers": 0,
+      "functions": [
+        "createPlanProgressReporter",
+        "errorMessage",
+        "formatProgressLine",
+        "formatProgressValue",
+        "formatUsd",
+        "looksLikeTicketPath",
+        "resolveTicketInput",
+        "runPlan"
+      ]
+    },
+    "apps/cli/src/commands/run-summary.ts": {
+      "looseTopLevelFunctions": 6,
+      "cohesiveContainers": 0,
+      "functions": [
+        "formatUsd",
+        "printByModelCosts",
+        "printByStepCosts",
+        "printCostSummary",
+        "printRunCompletionSummary",
+        "printWarnings"
+      ]
+    },
+    "apps/cli/src/commands/run.ts": {
+      "looseTopLevelFunctions": 7,
+      "cohesiveContainers": 0,
+      "functions": [
+        "assertWithinRunMaxCost",
+        "createRunProgressReporter",
+        "formatUsd",
+        "plannerCostUsd",
+        "runRun",
+        "runSequentialSteps",
+        "tryAutoAction"
+      ]
+    },
+    "apps/cli/src/commands/status.ts": {
+      "looseTopLevelFunctions": 11,
+      "cohesiveContainers": 0,
+      "functions": [
+        "formatUsd",
+        "printActiveStepActivity",
+        "printArtifactPaths",
+        "printAttemptStatuses",
+        "printCompactRunEntry",
+        "printCorruptRuns",
+        "printEditedFiles",
+        "printRunEntry",
+        "printStepDetails",
+        "printSubPlanTree",
+        "runStatus"
+      ]
+    },
+    "apps/cli/src/commands/tail.ts": {
+      "looseTopLevelFunctions": 7,
+      "cohesiveContainers": 0,
+      "functions": ["auditPath", "formatEvent", "matches", "parseLine", "parseSince", "readNewLines", "runTail"]
+    },
+    "apps/mcp-server/src/core-tool-dispatch.ts": {
+      "looseTopLevelFunctions": 14,
+      "cohesiveContainers": 0,
+      "functions": [
+        "applyTool",
+        "approvalRequiredFilesForAttempt",
+        "approvalValidationError",
+        "callCoreTool",
+        "costTool",
+        "diffTool",
+        "evidenceManifestTool",
+        "explainTool",
+        "finalizeTool",
+        "operatorSnapshotTool",
+        "publishPrDraftMcpTool",
+        "recordMcpApproval",
+        "requestApprovalTool",
+        "statusTool"
+      ]
+    },
+    "apps/mcp-server/src/http.ts": {
+      "looseTopLevelFunctions": 11,
+      "cohesiveContainers": 0,
+      "functions": [
+        "acceptsSse",
+        "allowedOriginsFromEnv",
+        "applyCorsHeaders",
+        "handleHttpMcpRequest",
+        "isAllowedOrigin",
+        "isAuthorized",
+        "parsePort",
+        "readRequestBody",
+        "sendJson",
+        "startHttpMcpServer",
+        "writeSse"
+      ]
+    },
+    "apps/mcp-server/src/preview-tokens.ts": {
+      "looseTopLevelFunctions": 13,
+      "cohesiveContainers": 0,
+      "functions": [
+        "createMcpPreviewToken",
+        "fingerprintState",
+        "hashPolicy",
+        "hashRegistry",
+        "latestValidPreviewToken",
+        "loadPreviewRecord",
+        "normalizePreviewInput",
+        "previewDir",
+        "previewPath",
+        "rejectStale",
+        "sha256",
+        "stateHash",
+        "validateMcpPreviewToken"
+      ]
+    },
+    "apps/mcp-server/src/protocol.ts": {
+      "looseTopLevelFunctions": 6,
+      "cohesiveContainers": 0,
+      "functions": [
+        "defaultServerCwd",
+        "handleMcpMessage",
+        "handleMcpRequest",
+        "isJsonRpcRequest",
+        "progressSender",
+        "progressTokenFor"
+      ]
+    },
+    "apps/mcp-server/src/resources.ts": {
+      "looseTopLevelFunctions": 12,
+      "cohesiveContainers": 0,
+      "functions": [
+        "asContent",
+        "collectFiles",
+        "listResourceTemplates",
+        "listResources",
+        "mimeTypeForRef",
+        "readAttemptResource",
+        "readDirectRunFileResource",
+        "readJsonRunArtifact",
+        "readMcpResource",
+        "readNamedRunResource",
+        "readResource",
+        "readTextRunArtifact"
+      ]
+    },
+    "apps/mcp-server/src/run-tools.ts": {
+      "looseTopLevelFunctions": 8,
+      "cohesiveContainers": 0,
+      "functions": [
+        "assertMcpDirectExecutionSafe",
+        "emitPostAttemptProgress",
+        "nextRunAction",
+        "parseMaxConcurrency",
+        "previewRunTool",
+        "runStepTool",
+        "runStepToolUnlocked",
+        "runTool"
+      ]
+    },
+    "apps/mcp-server/src/stdio.ts": {
+      "looseTopLevelFunctions": 6,
+      "cohesiveContainers": 0,
+      "functions": [
+        "createMcpMessageDrainer",
+        "encodeStdioMessage",
+        "findHeaderSeparator",
+        "handleParsedMcpMessage",
+        "startMcpServer",
+        "startsWithContentLength"
+      ]
+    },
+    "apps/mcp-server/src/tool-helpers.ts": {
+      "looseTopLevelFunctions": 7,
+      "cohesiveContainers": 0,
+      "functions": [
+        "errorMessage",
+        "formatProgressValue",
+        "previewConfirmationSummary",
+        "progressLine",
+        "startHeartbeat",
+        "stopHeartbeat",
+        "toolArguments"
+      ]
+    },
+    "apps/mcp-server/src/ux.ts": {
+      "looseTopLevelFunctions": 9,
+      "cohesiveContainers": 0,
+      "functions": [
+        "compactObject",
+        "defaultNextAction",
+        "mutationScope",
+        "relativeRepoPath",
+        "resourceLinks",
+        "safeReadOnlyToolCalls",
+        "toolCall",
+        "uniqueSorted",
+        "workspaceToolArgs"
+      ]
+    },
+    "packages/adapters/src/anthropic-common.ts": {
+      "looseTopLevelFunctions": 11,
+      "cohesiveContainers": 0,
+      "functions": [
+        "apiKeyFromAnthropicEnv",
+        "assertAnthropicOk",
+        "createAnthropicTransport",
+        "estimateAnthropicCostUsd",
+        "extractAnthropicUsage",
+        "extractTextJson",
+        "isRecord",
+        "numeric",
+        "priceForModel",
+        "responseErrorMessage",
+        "responseErrorType"
+      ]
+    },
+    "packages/adapters/src/cli-planner-provider.ts": {
+      "looseTopLevelFunctions": 9,
+      "cohesiveContainers": 0,
+      "functions": [
+        "buildPrompt",
+        "collectTextCandidates",
+        "extractCliPlannerText",
+        "formatExternalCliFailure",
+        "invokeCliPlanner",
+        "mergeRedactionSummaries",
+        "previousAttempts",
+        "providerError",
+        "truncateCliDetail"
+      ]
+    },
+    "packages/adapters/src/cli-reviewer-provider.ts": {
+      "looseTopLevelFunctions": 5,
+      "cohesiveContainers": 0,
+      "functions": ["buildPrompt", "emptyReviewerPolicy", "invokeCliReviewer", "previousAttempts", "providerError"]
+    },
+    "packages/adapters/src/provider-redaction.ts": {
+      "looseTopLevelFunctions": 9,
+      "cohesiveContainers": 0,
+      "functions": [
+        "envSecretValues",
+        "escapeRegExp",
+        "redactDetectedSecrets",
+        "redactForProvider",
+        "redactKnownSecrets",
+        "redactText",
+        "redactUnknownValue",
+        "secretEnvNamesFromPolicy",
+        "unique"
+      ]
+    },
+    "packages/adapters/src/repo-context.ts": {
+      "looseTopLevelFunctions": 8,
+      "cohesiveContainers": 0,
+      "functions": [
+        "buildRepoContextEnvelope",
+        "compactToLimit",
+        "extractKeywords",
+        "grepHits",
+        "listFilePaths",
+        "readHead",
+        "renderRepoContext",
+        "runGit"
+      ]
+    },
+    "packages/core/src/budget-policy.ts": {
+      "looseTopLevelFunctions": 8,
+      "cohesiveContainers": 0,
+      "functions": [
+        "assertWithinBudgetEstimate",
+        "budgetLimitForProfile",
+        "budgetSoftCapExceeded",
+        "estimateAttemptCostUsd",
+        "estimatedSpentUsd",
+        "priceForModel",
+        "remainingBudgetAfterEstimatedCost",
+        "remainingBudgetUsdEstimate"
+      ]
+    },
+    "packages/core/src/config.ts": {
+      "looseTopLevelFunctions": 7,
+      "cohesiveContainers": 0,
+      "functions": [
+        "kiwiModelRegistryPath",
+        "kiwiPolicyPath",
+        "loadKiwiConfig",
+        "loadPolicy",
+        "loadRegistry",
+        "saveKiwiConfig",
+        "writeYamlSafely"
+      ]
+    },
+    "packages/core/src/cost-ledger.ts": {
+      "looseTopLevelFunctions": 5,
+      "cohesiveContainers": 0,
+      "functions": [
+        "appendAuditEvent",
+        "auditLogPath",
+        "loadPlannerCostReport",
+        "readAuditEvents",
+        "writePlannerCostReport"
+      ]
+    },
+    "packages/core/src/ids.ts": {
+      "looseTopLevelFunctions": 9,
+      "cohesiveContainers": 0,
+      "functions": [
+        "datePart",
+        "generateInitiativeId",
+        "generatePlanId",
+        "generateRunId",
+        "generateStepId",
+        "idSuffix",
+        "localDateToken",
+        "plannedRunDateToken",
+        "suffix"
+      ]
+    },
+    "packages/core/src/lifecycle/evidence-collection.ts": {
+      "looseTopLevelFunctions": 9,
+      "cohesiveContainers": 0,
+      "functions": [
+        "assertStepDependenciesCompleted",
+        "attemptEvidence",
+        "latestAttemptByStep",
+        "listStepAttemptEvidence",
+        "stepAttemptEvidence",
+        "tryReadAttemptSummary",
+        "tryReadGateResults",
+        "tryReadReview",
+        "tryReadSchedulerDecision"
+      ]
+    },
+    "packages/core/src/model-invocations.ts": {
+      "looseTopLevelFunctions": 9,
+      "cohesiveContainers": 0,
+      "functions": [
+        "addTotals",
+        "appendModelInvocation",
+        "buildFinalCostReportFromModelInvocations",
+        "emptyTotals",
+        "inferAccessMode",
+        "readModelInvocations",
+        "summarizeModelInvocations",
+        "uniqueInvocationModels",
+        "writeModelUsageSummary"
+      ]
+    },
+    "packages/core/src/planner-run.ts": {
+      "looseTopLevelFunctions": 11,
+      "cohesiveContainers": 0,
+      "functions": [
+        "appendPlannerFailureInvocation",
+        "appendPlannerRetryEvents",
+        "appendPlannerSuccessEvent",
+        "handlePlannerExecutionFailure",
+        "isPlannerValidationFailureEvidence",
+        "isRecord",
+        "persistPlannerRunArtifacts",
+        "planRun",
+        "plannerPromptVersion",
+        "plannerValidationFailureEvidence",
+        "selectPlannerModel"
+      ]
+    },
+    "packages/core/src/planner.ts": {
+      "looseTopLevelFunctions": 20,
+      "cohesiveContainers": 0,
+      "functions": [
+        "addStepToSubPlan",
+        "assignSubPlanDependencies",
+        "buildDeterministicTaskGraph",
+        "createInitiativeFromInput",
+        "createSubPlanId",
+        "defaultRouting",
+        "deriveSubPlansFromSteps",
+        "ensureSubPlan",
+        "extractAcceptanceCriteria",
+        "extractStepTitles",
+        "extractTitle",
+        "inferStepType",
+        "isCodeExecutionStep",
+        "requiredGates",
+        "resolveDependentSubPlanId",
+        "resolveRootSubPlanId",
+        "routedByPolicy",
+        "scoreComplexity",
+        "scoreRisk",
+        "stepSuccessCriteria"
+      ]
+    },
+    "packages/core/src/run-store.ts": {
+      "looseTopLevelFunctions": 13,
+      "cohesiveContainers": 0,
+      "functions": [
+        "assertSafeArtifactRelativePath",
+        "ensureRunLayout",
+        "isInitialized",
+        "listRunIds",
+        "listRunManifests",
+        "loadInitiative",
+        "loadRunManifest",
+        "loadTaskGraph",
+        "readJson",
+        "resolveRunArtifactPath",
+        "runDir",
+        "runsRoot",
+        "savePlannedRun"
+      ]
+    },
+    "packages/core/src/status.ts": {
+      "looseTopLevelFunctions": 14,
+      "cohesiveContainers": 0,
+      "functions": [
+        "addDiffPath",
+        "artifactPathsFor",
+        "assertRunFolderReadable",
+        "attemptStatusEntries",
+        "deriveCurrentRunStatus",
+        "editedFilesForAttempt",
+        "finalArtifactPathsFor",
+        "finalRunStatusFor",
+        "gateStatusFor",
+        "getRunStatusSummary",
+        "latestStepEntries",
+        "loadRunStatusEntry",
+        "normalizeDiffPath",
+        "parseDiffEditedFiles"
+      ]
+    },
+    "packages/core/src/workspace.ts": {
+      "looseTopLevelFunctions": 12,
+      "cohesiveContainers": 0,
+      "functions": [
+        "codeWorkspaceFiles",
+        "containsPath",
+        "dedupeRepos",
+        "discoverWorkspaceRepos",
+        "findKnownWorkspaceRoot",
+        "isDirectory",
+        "normalizeRepoId",
+        "parseCodeWorkspace",
+        "repoCandidatesMessage",
+        "resolveCurrentRepo",
+        "resolveRepoSelector",
+        "resolveWorkspace"
+      ]
+    },
+    "packages/ops/src/evidence.ts": {
+      "looseTopLevelFunctions": 8,
+      "cohesiveContainers": 0,
+      "functions": [
+        "fileHash",
+        "listRunFiles",
+        "loadEvidenceManifest",
+        "normalizeRef",
+        "runRoot",
+        "shouldSkip",
+        "writeEvidenceManifest",
+        "writeRunAuditSnapshot"
+      ]
+    },
+    "packages/ops/src/operator-surface.ts": {
+      "looseTopLevelFunctions": 5,
+      "cohesiveContainers": 0,
+      "functions": [
+        "escapeHtml",
+        "renderList",
+        "renderOperatorSnapshotHtml",
+        "writeOperatorSnapshot",
+        "writeTextSafely"
+      ]
+    },
+    "packages/ops/src/pr-draft.ts": {
+      "looseTopLevelFunctions": 15,
+      "cohesiveContainers": 0,
+      "functions": [
+        "applyDiffs",
+        "branchFromRunId",
+        "changedRepoFiles",
+        "defaultGit",
+        "diffTouchedFiles",
+        "ensureCleanWorkingTree",
+        "ensureOnlyExpectedFilesChanged",
+        "git",
+        "gitRaw",
+        "hasStagedChanges",
+        "isKiwiStatePath",
+        "latestDiffs",
+        "publishPrDraft",
+        "statusPath",
+        "switchToPublishBranch"
+      ]
+    },
+    "packages/ops/src/run-summary.ts": {
+      "looseTopLevelFunctions": 18,
+      "cohesiveContainers": 0,
+      "functions": [
+        "addPrecision",
+        "buildRunCompletionSummary",
+        "buildRunExplanation",
+        "compactLine",
+        "costModelLabel",
+        "costQualifier",
+        "emptyPrecisionCounts",
+        "emptyStepCosts",
+        "executorReasonByAttempt",
+        "executorSelectionByAttempt",
+        "formatUsd",
+        "inferAccessMode",
+        "modelLabel",
+        "nextAction",
+        "phaseSummary",
+        "readFinalVerdict",
+        "roundUsd",
+        "stringPayloadValue"
+      ]
+    },
+    "packages/runtime/src/access-mode-resolver.ts": {
+      "looseTopLevelFunctions": 10,
+      "cohesiveContainers": 0,
+      "functions": [
+        "accessModeOrderForRole",
+        "claudeCodeAuthAvailable",
+        "cursorAgentAuthAvailable",
+        "errorOutput",
+        "evaluateAccessModeAvailability",
+        "preferredAccessModes",
+        "selectEnabledModelByAccessMode",
+        "selectedProbeEnv",
+        "stubAccessAllowed",
+        "which"
+      ]
+    },
+    "packages/runtime/src/diff-workflow.ts": {
+      "looseTopLevelFunctions": 7,
+      "cohesiveContainers": 0,
+      "functions": [
+        "applyRunDiff",
+        "attemptApplyModes",
+        "blockedVerdict",
+        "buildRunDiff",
+        "formatRunDiff",
+        "patchStat",
+        "selectedAttempts"
+      ]
+    },
+    "packages/runtime/src/lifecycle/finalize.ts": {
+      "looseTopLevelFunctions": 5,
+      "cohesiveContainers": 0,
+      "functions": [
+        "collectFinalEvidence",
+        "evidenceFailureReasons",
+        "finalizeRun",
+        "requiredGateTypes",
+        "writeFinalSummary"
+      ]
+    },
+    "packages/runtime/src/operator-policy.ts": {
+      "looseTopLevelFunctions": 6,
+      "cohesiveContainers": 0,
+      "functions": [
+        "commandForGate",
+        "commandProfileForStep",
+        "commandProfileToExecutionPolicy",
+        "defaultProfile",
+        "noopCommand",
+        "splitCommandLine"
+      ]
+    },
+    "packages/runtime/src/planned-step-execution.ts": {
+      "looseTopLevelFunctions": 17,
+      "cohesiveContainers": 0,
+      "functions": [
+        "auditExecutorModelSelected",
+        "auditProviderPreference",
+        "buildRunExecutionPreview",
+        "codexSandbox",
+        "createExecutionTarget",
+        "enrichSchedulerDecision",
+        "executePlannedStep",
+        "executionMode",
+        "executionOwner",
+        "materializeAttemptDiff",
+        "previewSelection",
+        "resolveStepRunnerResolution",
+        "scheduleCurrentStepAttempt",
+        "selectStepRunner",
+        "shouldUseProviderResearch",
+        "stepPreview",
+        "teardownExecutionTarget"
+      ]
+    },
+    "packages/runtime/src/quality-gates.ts": {
+      "looseTopLevelFunctions": 12,
+      "cohesiveContainers": 0,
+      "functions": [
+        "createGateResult",
+        "evaluateForbiddenFiles",
+        "extractDiffFiles",
+        "loadGateResults",
+        "pathMatches",
+        "runForbiddenFileGate",
+        "runSecretsScanGate",
+        "saveGateResults",
+        "scanForSecrets",
+        "summarizeGateResults",
+        "wildcardPatternToRegExp",
+        "writeGateReport"
+      ]
+    },
+    "packages/runtime/src/scheduler-policy.ts": {
+      "looseTopLevelFunctions": 24,
+      "cohesiveContainers": 0,
+      "functions": [
+        "auditScheduled",
+        "blockScheduling",
+        "buildContextPackage",
+        "contextPackageRef",
+        "defaultAttemptId",
+        "determineAgentRole",
+        "determineContextLevel",
+        "determineModelCapability",
+        "determineRequiredGates",
+        "determineReviewDepth",
+        "determineRiskHigh",
+        "downgradeCapability",
+        "isCodeExecutionStep",
+        "loadContextPackage",
+        "loadSchedulerDecision",
+        "maxCapability",
+        "pickRunner",
+        "prepareScheduling",
+        "previewStepAttempt",
+        "sanitizeList",
+        "saveAttemptAndContext",
+        "saveSchedulerDecision",
+        "schedulePreparedAttempt",
+        "scheduleStepAttempt"
+      ]
+    },
+    "packages/runtime/src/step-attempt-artifacts.ts": {
+      "looseTopLevelFunctions": 7,
+      "cohesiveContainers": 0,
+      "functions": [
+        "artifact",
+        "attemptRef",
+        "dedupeArtifacts",
+        "loadStepAttempt",
+        "saveAttemptSummary",
+        "saveRunnerCostReport",
+        "saveStepAttempt"
+      ]
+    },
+    "packages/runtime/src/step-attempt/gates.ts": {
+      "looseTopLevelFunctions": 5,
+      "cohesiveContainers": 0,
+      "functions": [
+        "bindGateSubject",
+        "coordinateAttemptGates",
+        "enforceGateResultsBeforePositiveReview",
+        "mapRunnerStatusToAttemptStatus",
+        "policyGateResults"
+      ]
+    },
+    "packages/runtime/src/step-attempt/runner.ts": {
+      "looseTopLevelFunctions": 7,
+      "cohesiveContainers": 0,
+      "functions": [
+        "buildRunnerInput",
+        "ensureIsolatedWorktree",
+        "ensureRunnerMatchesDecision",
+        "ensureWorktreeIsNotSource",
+        "executeStepRunner",
+        "gateResultFromRunnerException",
+        "normalizeRunnerException"
+      ]
+    },
+    "packages/sandbox/src/command-artifacts.ts": {
+      "looseTopLevelFunctions": 9,
+      "cohesiveContainers": 0,
+      "functions": [
+        "artifactRef",
+        "auditPolicyDecision",
+        "blockedOutput",
+        "finishCommand",
+        "gateReason",
+        "gateResult",
+        "persistOutput",
+        "redact",
+        "resolveStatus"
+      ]
+    },
+    "packages/sandbox/src/command-policy.ts": {
+      "looseTopLevelFunctions": 12,
+      "cohesiveContainers": 0,
+      "functions": [
+        "approvalRequired",
+        "blocked",
+        "commandAllowed",
+        "commandTouchesPath",
+        "evaluatePolicy",
+        "gitSubcommand",
+        "matchesPathPattern",
+        "normalizePathForMatch",
+        "requiresExplicitGitMutationApproval",
+        "resolveWithinWorktree",
+        "usesNetwork",
+        "wildcardPatternToRegExp"
+      ]
+    },
+    "packages/sandbox/src/common.ts": {
+      "looseTopLevelFunctions": 6,
+      "cohesiveContainers": 0,
+      "functions": [
+        "appendAuditEvent",
+        "auditLogPath",
+        "resolveRunArtifactPath",
+        "runDir",
+        "runsRoot",
+        "writeJsonSafely"
+      ]
+    },
+    "packages/sandbox/src/diff.ts": {
+      "looseTopLevelFunctions": 24,
+      "cohesiveContainers": 0,
+      "functions": [
+        "applyDiffArtifactToSource",
+        "captureDiffArtifact",
+        "captureGitDiffArtifact",
+        "captureGitDiffSync",
+        "captureGitDiffText",
+        "captureGitDiffTextFromBaseTree",
+        "captureGitDiffTextSync",
+        "captureWorktreeDiffArtifact",
+        "commandOutput",
+        "createGitTreeSnapshot",
+        "execGitDiffWithExpectedDifference",
+        "gitApply",
+        "gitApplyCheck",
+        "gitApplyErrorMessage",
+        "gitApplyReverseCheck",
+        "gitEnvWithIndex",
+        "listComparableFiles",
+        "listUntrackedFiles",
+        "readCommandOutputArtifact",
+        "readTextIfReasonable",
+        "shouldExcludeDiffPath",
+        "shouldExcludeWorkspaceEntry",
+        "simplePatchForFile",
+        "untrackedFileDiff"
+      ]
+    },
+    "packages/sandbox/src/worktree.ts": {
+      "looseTopLevelFunctions": 12,
+      "cohesiveContainers": 0,
+      "functions": [
+        "copyWorkspaceIntoWorktree",
+        "createWorktreeSandbox",
+        "excludeLinkedNodeModulesFromGitStatus",
+        "isGitRepository",
+        "linkNodeModulesIfPresent",
+        "orphanWorktreeCandidate",
+        "reapOrphanCandidate",
+        "reapOrphanWorktrees",
+        "shouldExcludeWorkspaceEntry",
+        "teardownWorktreeSandbox",
+        "tryGitWorktreeAdd",
+        "tryGitWorktreeRemove"
+      ]
+    }
+  }
+}

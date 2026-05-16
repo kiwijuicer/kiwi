@@ -37,6 +37,7 @@ export interface ClaudeCodeCliRunner {
 
 function buildArgs(invocation: ClaudeCodeCliInvocation): string[] {
   const args: string[] = ["-p", invocation.prompt];
+
   if (invocation.outputFormat) {
     args.push("--output-format", invocation.outputFormat);
   }
@@ -55,6 +56,7 @@ function buildArgs(invocation: ClaudeCodeCliInvocation): string[] {
   if (invocation.extraArgs && invocation.extraArgs.length > 0) {
     args.push(...invocation.extraArgs);
   }
+
   return args;
 }
 
@@ -73,6 +75,7 @@ export class DefaultClaudeCodeCliRunner implements ClaudeCodeCliRunner {
       invocation.outputFormat === "json" || invocation.outputFormat === undefined
         ? extractTextJson(result.stdout)
         : null;
+
     return {
       ...result,
       parsed,
@@ -127,6 +130,7 @@ export function normalizeUsageFromCli(parsed: unknown): NormalizedClaudeCodeUsag
   const cacheRead = typeof usage.cache_read_input_tokens === "number" ? usage.cache_read_input_tokens : 0;
   const cacheWrite = typeof usage.cache_creation_input_tokens === "number" ? usage.cache_creation_input_tokens : 0;
   const totalCost = typeof parsed.total_cost_usd === "number" ? parsed.total_cost_usd : null;
+
   if (inputTokens === 0 && outputTokens === 0 && cacheRead === 0 && cacheWrite === 0 && totalCost === null) {
     return {
       precision: "unknown",
@@ -137,6 +141,7 @@ export function normalizeUsageFromCli(parsed: unknown): NormalizedClaudeCodeUsag
       estimatedCostUsd: null,
     };
   }
+
   return {
     precision: totalCost !== null ? "exact" : "estimated",
     inputTokens: inputTokens + cacheRead + cacheWrite,
@@ -151,12 +156,17 @@ export function extractCliResultText(parsed: unknown, fallback: string): string 
   if (isClaudeCodeJsonEnvelope(parsed) && typeof parsed.result === "string") {
     return parsed.result;
   }
+
   return fallback;
 }
 
 function truncateCliDetail(value: string, maxLength: number): string {
   const text = value.trim();
-  if (text.length <= maxLength) return text;
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
   return `${text.slice(0, maxLength - 1)}…`;
 }
 
@@ -167,5 +177,6 @@ export function formatCliFailure(
 ): string {
   const parsedText = extractCliResultText(result.parsed, "");
   const detail = truncateCliDetail(parsedText || result.stderr || result.stdout || "no CLI output", maxLength);
+
   return `${label} exited ${result.exitCode}: ${detail}`;
 }

@@ -28,10 +28,20 @@ export async function runPublishPr(
         cwd: workspace.workspacePath,
         runId,
       };
-      if (opts.remote) input.remote = opts.remote;
-      if (opts.targetBranch) input.targetBranch = opts.targetBranch;
-      if (opts.branchName) input.branchName = opts.branchName;
-      if (opts.now) input.now = opts.now;
+
+      if (opts.remote) {
+        input.remote = opts.remote;
+      }
+      if (opts.targetBranch) {
+        input.targetBranch = opts.targetBranch;
+      }
+      if (opts.branchName) {
+        input.branchName = opts.branchName;
+      }
+      if (opts.now) {
+        input.now = opts.now;
+      }
+
       return publishPrDraft(input);
     },
   );

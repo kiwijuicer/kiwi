@@ -24,8 +24,11 @@ import type { StepAttemptRunner, StepRunnerExecutionInput, StepRunnerExecutionOu
 const RESEARCH_REPORT_REF = "plan/research-report.json";
 
 function readJsonIfObject(target: string): Record<string, unknown> {
-  if (!existsSync(target)) return {};
+  if (!existsSync(target)) {
+    return {};
+  }
   const parsed = JSON.parse(readFileSync(target, "utf-8")) as unknown;
+
   return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
     ? (parsed as Record<string, unknown>)
     : {};
@@ -36,8 +39,12 @@ function candidateFilesFromContextPackage(contextPackage: unknown): string[] {
     typeof contextPackage === "object" && contextPackage !== null && "include" in contextPackage
       ? (contextPackage as { include?: unknown }).include
       : null;
-  if (typeof include !== "object" || include === null) return [];
+
+  if (typeof include !== "object" || include === null) {
+    return [];
+  }
   const record = include as Record<string, unknown>;
+
   return [
     ...arrayOfStrings(record.relevantFiles),
     ...arrayOfStrings(record.tests),
@@ -82,6 +89,7 @@ function buildResearcherInput(params: {
   const initiative = readJsonIfObject(
     resolveRunArtifactPath(params.input.runId, "initiative.json", params.input.workspacePath),
   );
+
   return {
     runId: params.input.runId,
     stepId: params.input.stepId,
@@ -106,6 +114,7 @@ function runnerOutputFromResearch(params: {
     researcherOutput: params.output.providerArtifacts?.researcherOutput ?? {},
   });
   const createdAt = new Date().toISOString();
+
   return {
     status: ContractValues.Completed,
     artifactRefs: [
@@ -143,6 +152,7 @@ export class LocalResearchStepRunner implements StepAttemptRunner {
       output.providerArtifacts.researcherOutput !== null
         ? output.providerArtifacts.researcherOutput
         : {};
+
     return runnerOutputFromResearch({
       input,
       output: {
@@ -174,6 +184,7 @@ export class ResearcherStepRunner implements StepAttemptRunner {
       this.provider,
       buildResearcherInput({ input, policy: this.policy }),
     );
+
     return runnerOutputFromResearch({
       input,
       output,

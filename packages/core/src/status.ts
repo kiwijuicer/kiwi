@@ -119,6 +119,7 @@ function artifactPathsFor(runId: string): RunArtifactPaths {
     initiative: `.kiwi/runs/${runId}/initiative.json`,
     taskGraph: `.kiwi/runs/${runId}/plan/task-graph.json`,
   };
+
   return paths;
 }
 
@@ -132,21 +133,27 @@ function finalArtifactPathsFor(runId: string, cwd: string): Partial<RunArtifactP
     operatorSnapshot: `.kiwi/runs/${runId}/operator/index.html`,
   };
   const existing: Partial<RunArtifactPaths> = {};
+
   for (const [key, relative] of Object.entries(candidates)) {
     if (existsSync(path.join(cwd, relative))) {
       existing[key as keyof RunArtifactPaths] = relative;
     }
   }
+
   return existing;
 }
 
 function finalRunStatusFor(runId: string, cwd: string): RunStatus | null {
   const ref = "final/final-verdict.json";
   const target = resolveRunArtifactPath(runId, ref, cwd);
-  if (!existsSync(target)) return null;
+
+  if (!existsSync(target)) {
+    return null;
+  }
 
   try {
     const verdict = FinalVerdictSchema.parse(JSON.parse(readFileSync(target, "utf-8")) as unknown);
+
     return verdict.safeToApply ? ContractValues.Completed : ContractValues.Failed;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -157,8 +164,14 @@ function finalRunStatusFor(runId: string, cwd: string): RunStatus | null {
 function gateStatusFor(entry: StepAttemptEvidence): "pass" | "fail" | "blocked" | "missing" {
   const blocked = entry.gateResults.some((gate) => gate.status === ContractValues.Blocked);
   const failed = entry.gateResults.some((gate) => gate.status === ContractValues.Fail);
-  if (blocked) return ContractValues.Blocked;
-  if (failed) return ContractValues.Fail;
+
+  if (blocked) {
+    return ContractValues.Blocked;
+  }
+  if (failed) {
+    return ContractValues.Fail;
+  }
+
   return entry.gateResults.length > 0 ? ContractValues.Pass : "missing";
 }
 
@@ -179,49 +192,74 @@ function attemptStatusEntries(attempts: StepAttemptEvidence[]): RunAttemptStatus
 
 function normalizeDiffPath(rawPath: string): string | null {
   const withoutMetadata = rawPath.trim().split(/\t/, 1)[0];
-  if (!withoutMetadata || withoutMetadata === "/dev/null") return null;
+
+  if (!withoutMetadata || withoutMetadata === "/dev/null") {
+    return null;
+  }
   const unquoted =
     withoutMetadata.startsWith('"') && withoutMetadata.endsWith('"')
       ? withoutMetadata.slice(1, -1).replace(/\\"/g, '"')
       : withoutMetadata;
+
   return unquoted.replace(/^[ab]\//, "");
 }
 
 function addDiffPath(paths: Set<string>, rawPath: string): void {
   const normalized = normalizeDiffPath(rawPath);
-  if (normalized) paths.add(normalized);
+
+  if (normalized) {
+    paths.add(normalized);
+  }
 }
 
 function parseDiffEditedFiles(patch: string): string[] {
   const paths = new Set<string>();
+
   for (const line of patch.split(/\r?\n/)) {
-    if (line.startsWith("--- ")) addDiffPath(paths, line.slice(4));
-    if (line.startsWith("+++ ")) addDiffPath(paths, line.slice(4));
+    if (line.startsWith("--- ")) {
+      addDiffPath(paths, line.slice(4));
+    }
+    if (line.startsWith("+++ ")) {
+      addDiffPath(paths, line.slice(4));
+    }
     if (line.startsWith("diff --git ") || line.startsWith("diff --kiwi ")) {
       const [, left, right] = line.match(/^diff --(?:git|kiwi)\s+(\S+)\s+(\S+)/) ?? [];
-      if (left) addDiffPath(paths, left);
-      if (right) addDiffPath(paths, right);
+
+      if (left) {
+        addDiffPath(paths, left);
+      }
+      if (right) {
+        addDiffPath(paths, right);
+      }
     }
   }
+
   return Array.from(paths).sort();
 }
 
 function editedFilesForAttempt(cwd: string, runId: string, attempt: StepAttemptEvidence): RunEditedFileEntry[] {
   return attempt.attempt.artifacts.flatMap((artifact): RunEditedFileEntry[] => {
-    if (artifact.type !== "diff") return [];
+    if (artifact.type !== "diff") {
+      return [];
+    }
     let target: string;
+
     try {
       target = resolveRunArtifactPath(runId, artifact.ref, cwd);
     } catch {
       return [];
     }
-    if (!existsSync(target)) return [];
+    if (!existsSync(target)) {
+      return [];
+    }
     let patch: string;
+
     try {
       patch = readFileSync(target, "utf-8");
     } catch {
       return [];
     }
+
     return parseDiffEditedFiles(patch).map((filePath) => ({
       path: filePath,
       stepId: attempt.stepId,
@@ -293,6 +331,7 @@ function latestStepEntries(params: {
         startedAt: latest.attempt.startedAt,
         contextPackageRef: latest.attempt.contextPackageRef,
       };
+
       if (latest.schedulerDecision) {
         activity.schedulerStatus = latest.schedulerDecision.status;
         activity.routingReason = latest.schedulerDecision.routingReason;
@@ -321,12 +360,23 @@ function deriveCurrentRunStatus(params: {
   steps: Step[];
   latestAttempts: Map<string, StepAttemptEvidence>;
 }): RunStatus {
-  if (params.manifestStatus === ContractValues.Cancelled) return params.manifestStatus;
-  if (params.finalStatus) return params.finalStatus;
+  if (params.manifestStatus === ContractValues.Cancelled) {
+    return params.manifestStatus;
+  }
+  if (params.finalStatus) {
+    return params.finalStatus;
+  }
   const attempts = Array.from(params.latestAttempts.values());
-  if (attempts.length === 0) return params.manifestStatus;
-  if (attempts.some((entry) => entry.attempt.status === ContractValues.Blocked)) return "needs_approval";
-  if (attempts.some((entry) => entry.attempt.status === ContractValues.Failed)) return ContractValues.Failed;
+
+  if (attempts.length === 0) {
+    return params.manifestStatus;
+  }
+  if (attempts.some((entry) => entry.attempt.status === ContractValues.Blocked)) {
+    return "needs_approval";
+  }
+  if (attempts.some((entry) => entry.attempt.status === ContractValues.Failed)) {
+    return ContractValues.Failed;
+  }
   if (
     attempts.some(
       (entry) => entry.attempt.status === ContractValues.Running || entry.attempt.status === ContractValues.Pending,
@@ -338,16 +388,24 @@ function deriveCurrentRunStatus(params: {
   const completedStepIds = new Set(
     attempts.filter((entry) => entry.attempt.status === ContractValues.Completed).map((entry) => entry.stepId),
   );
-  if (params.steps.every((step) => completedStepIds.has(step.stepId))) return ContractValues.Completed;
-  if (completedStepIds.size > 0) return ContractValues.Running;
+
+  if (params.steps.every((step) => completedStepIds.has(step.stepId))) {
+    return ContractValues.Completed;
+  }
+  if (completedStepIds.size > 0) {
+    return ContractValues.Running;
+  }
+
   return params.manifestStatus;
 }
 
 function assertRunFolderReadable(runId: string, cwd: string): void {
   const paths = artifactPathsFor(runId);
   const required = [paths.runManifest, paths.initiative, paths.taskGraph];
+
   for (const relative of required) {
     const absPath = path.join(cwd, relative);
+
     if (!existsSync(absPath)) {
       throw new RunCorruptError(runId, `missing required artifact ${relative}`);
     }
@@ -393,14 +451,23 @@ function loadRunStatusEntry(runId: string, cwd: string): RunStatusEntry {
       ...finalArtifactPathsFor(runId, cwd),
     },
   };
-  if (run.workspacePath) entry.workspacePath = run.workspacePath;
-  if (run.repoId) entry.repoId = run.repoId;
-  if (run.repoPath) entry.repoPath = run.repoPath;
+
+  if (run.workspacePath) {
+    entry.workspacePath = run.workspacePath;
+  }
+  if (run.repoId) {
+    entry.repoId = run.repoId;
+  }
+  if (run.repoPath) {
+    entry.repoPath = run.repoPath;
+  }
+
   return entry;
 }
 
 export function getRunStatusSummary(cwd: string, runId?: string): RunStatusSummary {
   const runIds = listRunIds(cwd);
+
   if (runId && !runIds.includes(runId)) {
     throw new RunNotFoundError(runId);
   }
@@ -408,11 +475,14 @@ export function getRunStatusSummary(cwd: string, runId?: string): RunStatusSumma
   const selectedRunIds = runId ? [runId] : runIds;
   const entries: RunStatusEntry[] = [];
   const corrupt: CorruptRunStatusEntry[] = [];
+
   for (const id of selectedRunIds) {
     try {
       entries.push(loadRunStatusEntry(id, cwd));
     } catch (error) {
-      if (runId || !(error instanceof RunCorruptError)) throw error;
+      if (runId || !(error instanceof RunCorruptError)) {
+        throw error;
+      }
       corrupt.push({ runId: id, error: error.message });
     }
   }

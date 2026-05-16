@@ -16,10 +16,15 @@ export function splitCommandLine(command: string): string[] {
   const parts: string[] = [];
   const pattern = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|(\S+)/g;
   let match: RegExpExecArray | null;
+
   while ((match = pattern.exec(command)) !== null) {
     const value = match[1] ?? match[2] ?? match[3];
-    if (value) parts.push(value.replace(/\\(["'])/g, "$1"));
+
+    if (value) {
+      parts.push(value.replace(/\\(["'])/g, "$1"));
+    }
   }
+
   return parts;
 }
 

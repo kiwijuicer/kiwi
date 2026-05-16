@@ -40,6 +40,7 @@ function git(repoPath: string, args: string[], trim = true): string | null {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "ignore"],
     });
+
     return trim ? stdout.trim() : stdout;
   } catch {
     return null;
@@ -49,6 +50,7 @@ function git(repoPath: string, args: string[], trim = true): string | null {
 function statusPath(line: string): string {
   const raw = line.length >= 3 && line[2] === " " ? line.slice(3) : line.replace(/^[ MADRCU?!]{1,2}\s+/, "");
   const renamed = raw.includes(" -> ") ? raw.split(" -> ").at(-1) : raw;
+
   return (renamed ?? raw).trim().replace(/^"|"$/g, "");
 }
 
@@ -65,17 +67,25 @@ function computeDirtyStateHash(repoPath: string, trackedDirtyFiles: string[], un
   }
   for (const filePath of untrackedFilePaths) {
     const target = path.join(repoPath, filePath);
-    if (!existsSync(target)) continue;
+
+    if (!existsSync(target)) {
+      continue;
+    }
     const stat = statSync(target);
-    if (!stat.isFile()) continue;
+
+    if (!stat.isFile()) {
+      continue;
+    }
     hash.update(filePath);
     hash.update(readFileSync(target));
   }
+
   return hash.digest("hex");
 }
 
 export function readExecutionRepoState(repoPath: string): ExecutionRepoState {
   const gitRoot = git(repoPath, ["rev-parse", "--show-toplevel"]);
+
   if (!gitRoot) {
     return {
       repoPath,
@@ -108,9 +118,16 @@ export function readExecutionRepoState(repoPath: string): ExecutionRepoState {
   const kiwiStateFiles = entries.map(statusPath).filter(isKiwiStatePath).length;
   const protectedBranch = branch === "main" || branch === "master";
   const warnings: string[] = [];
-  if (protectedBranch) warnings.push(`current branch is protected-looking: ${branch}`);
-  if (trackedDirtyFiles.length > 0) warnings.push(`repo has ${trackedDirtyFiles.length} tracked dirty file(s)`);
-  if (untrackedFilePaths.length > 0) warnings.push(`repo has ${untrackedFilePaths.length} untracked non-kiwi file(s)`);
+
+  if (protectedBranch) {
+    warnings.push(`current branch is protected-looking: ${branch}`);
+  }
+  if (trackedDirtyFiles.length > 0) {
+    warnings.push(`repo has ${trackedDirtyFiles.length} tracked dirty file(s)`);
+  }
+  if (untrackedFilePaths.length > 0) {
+    warnings.push(`repo has ${untrackedFilePaths.length} untracked non-kiwi file(s)`);
+  }
 
   return {
     repoPath,
@@ -130,20 +147,30 @@ export function readExecutionRepoState(repoPath: string): ExecutionRepoState {
 
 export function directExecutionUnsafeReasons(repoState: ExecutionRepoState): string[] {
   const reasons: string[] = [];
-  if (!repoState.isGitRepo) reasons.push("repo is not a git worktree");
-  if (repoState.protectedBranch) reasons.push(`current branch is protected-looking: ${repoState.branch}`);
+
+  if (!repoState.isGitRepo) {
+    reasons.push("repo is not a git worktree");
+  }
+  if (repoState.protectedBranch) {
+    reasons.push(`current branch is protected-looking: ${repoState.branch}`);
+  }
   if (repoState.trackedDirtyFiles.length > 0) {
     reasons.push(`tracked dirty files: ${repoState.trackedDirtyFiles.join(", ")}`);
   }
   if (repoState.untrackedFilePaths.length > 0) {
     reasons.push(`untracked non-kiwi files: ${repoState.untrackedFilePaths.join(", ")}`);
   }
+
   return reasons;
 }
 
 export function assertDirectExecutionSafe(repoPath: string): ExecutionRepoState {
   const repoState = readExecutionRepoState(repoPath);
   const reasons = directExecutionUnsafeReasons(repoState);
-  if (reasons.length > 0) throw new DirectExecutionUnsafeError(repoState, reasons);
+
+  if (reasons.length > 0) {
+    throw new DirectExecutionUnsafeError(repoState, reasons);
+  }
+
   return repoState;
 }

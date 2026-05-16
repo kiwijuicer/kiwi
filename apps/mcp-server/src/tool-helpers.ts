@@ -6,6 +6,7 @@ export interface ToolCallOptions {
 
 export function toolArguments(params: Record<string, unknown>): Record<string, unknown> {
   const rawArguments = params.arguments;
+
   if (typeof rawArguments === "object" && rawArguments !== null && !Array.isArray(rawArguments)) {
     return rawArguments as Record<string, unknown>;
   }
@@ -15,18 +16,24 @@ export function toolArguments(params: Record<string, unknown>): Record<string, u
 }
 
 export function startHeartbeat(message: string, onProgress: ToolCallOptions["onProgress"]): NodeJS.Timeout | null {
-  if (!onProgress) return null;
+  if (!onProgress) {
+    return null;
+  }
+
   return setInterval(() => onProgress(message), 30_000);
 }
 
 export function stopHeartbeat(timer: NodeJS.Timeout | null): void {
-  if (timer) clearInterval(timer);
+  if (timer) {
+    clearInterval(timer);
+  }
 }
 
 type ProgressValue = string | number | boolean | null | undefined;
 
 function formatProgressValue(value: Exclude<ProgressValue, undefined>): string {
   const raw = String(value);
+
   return /^[A-Za-z0-9._:/@-]+$/.test(raw) ? raw : JSON.stringify(raw);
 }
 

@@ -200,8 +200,11 @@ function extractTaskGraph(responseBody: unknown): unknown {
   }
 
   const textBlocks: string[] = [];
+
   for (const block of responseBody.content) {
-    if (!isRecord(block)) continue;
+    if (!isRecord(block)) {
+      continue;
+    }
     if (block.type === "tool_use" && block.name === PLANNER_TOOL_NAME) {
       return block.input;
     }
@@ -211,7 +214,10 @@ function extractTaskGraph(responseBody: unknown): unknown {
   }
 
   const parsedText = extractTextJson(textBlocks.join("\n"));
-  if (parsedText !== null) return parsedText;
+
+  if (parsedText !== null) {
+    return parsedText;
+  }
 
   throw providerError({
     code: "provider_schema_invalid",
@@ -222,7 +228,11 @@ function extractTaskGraph(responseBody: unknown): unknown {
 
 function previousAttempts(context?: PlannerProviderRepairContext): AnthropicPlannerAttemptArtifact[] {
   const artifact = context?.invalidProviderArtifacts?.plannerInput;
-  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) return [];
+
+  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) {
+    return [];
+  }
+
   return artifact.attempts.filter((entry): entry is AnthropicPlannerAttemptArtifact => isRecord(entry));
 }
 
@@ -344,6 +354,7 @@ export class AnthropicPlannerProvider implements PlannerProvider {
 
     const usage = extractAnthropicUsage(response.body);
     const taskGraph = extractTaskGraph(response.body);
+
     return {
       providerName: this.name,
       taskGraph,

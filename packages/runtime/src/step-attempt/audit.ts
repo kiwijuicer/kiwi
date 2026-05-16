@@ -30,7 +30,9 @@ export function auditDiffGatesExecuted(params: {
   diffHash: string | null;
   gateResults: GateResult[];
 }): void {
-  if (params.gateResults.length === 0) return;
+  if (params.gateResults.length === 0) {
+    return;
+  }
   appendAuditEvent(params.cwd, {
     eventType: "gate_command_executed",
     runId: params.runId,

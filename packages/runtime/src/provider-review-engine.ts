@@ -29,13 +29,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function reviewerPromptVersion(artifacts: { reviewerInput?: unknown; reviewerOutput?: unknown } | undefined): string {
   const reviewerInput = artifacts?.reviewerInput;
+
   if (isRecord(reviewerInput) && typeof reviewerInput.promptVersion === "string") {
     return reviewerInput.promptVersion;
   }
   const reviewerOutput = artifacts?.reviewerOutput;
+
   if (isRecord(reviewerOutput) && typeof reviewerOutput.promptVersion === "string") {
     return reviewerOutput.promptVersion;
   }
+
   return "unknown";
 }
 
@@ -53,7 +56,11 @@ function annotateInvalidReviewerOutput(output: unknown, evidence: ReviewerValida
     lastValidationError: evidence.lastValidationError ?? "unknown",
     records: evidence.records,
   };
-  if (isRecord(output)) return { ...output, validation };
+
+  if (isRecord(output)) {
+    return { ...output, validation };
+  }
+
   return { output, validation };
 }
 
@@ -65,7 +72,11 @@ function persistInvalidReviewerProviderArtifacts(params: {
   evidence: ReviewerValidationFailureEvidence;
 }): { reviewerInputRef: string; reviewerOutputRef: string } | null {
   const artifacts = params.evidence.lastProviderArtifacts;
-  if (!artifacts) return null;
+
+  if (!artifacts) {
+    return null;
+  }
+
   return persistReviewerProviderArtifacts({
     cwd: params.cwd,
     runId: params.runId,
@@ -87,7 +98,9 @@ function appendReviewerRetryEvents(params: {
   records: ReviewerValidationFailureEvidence["records"];
 }): void {
   for (const record of params.records) {
-    if (record.status !== "invalid") continue;
+    if (record.status !== "invalid") {
+      continue;
+    }
     appendAuditEvent(params.cwd, {
       eventType: "reviewer_retry",
       runId: params.runId,
@@ -108,6 +121,7 @@ function buildReviewerInput(input: ReviewInput): ReviewerProviderInput {
     throw new Error("ProviderReviewEngine requires a focal step in ReviewInput");
   }
   const fallbackDiff = emptyDiffEnvelope(input.stepId);
+
   return {
     runId: input.runId,
     stepId: input.stepId,
@@ -256,6 +270,7 @@ export class ProviderReviewEngine implements ReviewEngine {
       env,
       riskHigh: input.riskHigh ?? false,
     });
+
     if (!selected) {
       throw new Error("No reviewer model with an available access mode is enabled in .kiwi/model-registry.yaml");
     }
@@ -319,5 +334,6 @@ export function createReviewEngineFromRegistry(options: ProviderReviewEngineOpti
     policy: options.policy,
     env: options.env ?? process.env,
   });
+
   return hasReviewer ? new ProviderReviewEngine({ ...options, reviewerProviderRegistry: registry }) : null;
 }

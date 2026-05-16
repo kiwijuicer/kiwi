@@ -43,6 +43,7 @@ function expectMcpLaunchForWorkspace(
   if (server?.command?.endsWith("kiwi-mcp")) {
     expect(server.args).toEqual(["--workspace", cwd]);
     expect(server.env).toBeUndefined();
+
     return;
   }
   expect(server?.args?.join(" ")).toContain("mcp-server");
@@ -51,6 +52,7 @@ function expectMcpLaunchForWorkspace(
     expect(server.args).toContain("--workspace");
     expect(server.args).toContain(cwd);
     expect(server.env).toBeUndefined();
+
     return;
   }
   expect(server?.env).toEqual({ KIWI_WORKSPACE: cwd });
@@ -58,6 +60,7 @@ function expectMcpLaunchForWorkspace(
 
 async function withKiwiMcpBin(value: string | undefined, fn: () => Promise<void>): Promise<void> {
   const previous = process.env.KIWI_MCP_BIN;
+
   if (value === undefined) {
     delete process.env.KIWI_MCP_BIN;
   } else {

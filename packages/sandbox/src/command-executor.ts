@@ -19,6 +19,7 @@ export async function executeSandboxCommand(input: SandboxCommandInput): Promise
   auditPolicyDecision(input, startedAt, policyDecision);
   if (policyDecision.status === "allow") {
     mkdirSync(input.worktreePath, { recursive: true });
+
     return spawnSandboxCommand(input, startedAt);
   }
 

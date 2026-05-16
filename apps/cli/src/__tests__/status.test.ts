@@ -86,6 +86,7 @@ function writeStatusAttempt(params: {
   const artifactsDir = path.join(attemptDir, "artifacts");
   mkdirSync(artifactsDir, { recursive: true });
   const artifacts: Artifact[] = [];
+
   if (params.diff) {
     const diffRef = `steps/${params.stepId}/${params.attemptId}/artifacts/diff.patch`;
     writeFileSync(path.join(params.cwd, ".kiwi", "runs", params.runId, diffRef), params.diff, "utf-8");

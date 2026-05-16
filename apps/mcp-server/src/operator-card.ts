@@ -27,10 +27,16 @@ export interface OperatorCard {
 
 function changedFilesFromPatch(patch: string): string[] {
   const files: string[] = [];
+
   for (const line of patch.split("\n")) {
-    if (line.startsWith("+++ b/")) files.push(line.slice("+++ b/".length));
-    if (line.startsWith("--- a/")) files.push(line.slice("--- a/".length));
+    if (line.startsWith("+++ b/")) {
+      files.push(line.slice("+++ b/".length));
+    }
+    if (line.startsWith("--- a/")) {
+      files.push(line.slice("--- a/".length));
+    }
   }
+
   return uniqueSorted(files.filter((entry) => entry !== "/dev/null"));
 }
 
@@ -69,7 +75,10 @@ export function buildOperatorCard(params: {
   const executionMode = policy?.execution?.isolation ?? "direct";
   const repoState = readRepoState(repoPath);
   const changedFiles = changedFilesFromPatch(diff?.patch ?? "");
-  if (executionMode === "direct") warnings.push(...repoState.warnings);
+
+  if (executionMode === "direct") {
+    warnings.push(...repoState.warnings);
+  }
   if (!existsSync(resolveRunArtifactPath(params.runId, "final/final-verdict.json", params.cwd))) {
     warnings.push("final verdict is not written yet");
   }

@@ -8,6 +8,7 @@ import { readFileSync, rmSync, existsSync } from "fs";
 function makeTempDir(): string {
   const dir = path.join(os.tmpdir(), `kiwi-stream-test-${process.pid}-${Date.now()}`);
   mkdirSync(dir, { recursive: true });
+
   return dir;
 }
 

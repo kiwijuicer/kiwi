@@ -126,7 +126,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isPlannerValidationFailureEvidence(value: unknown): value is PlannerValidationFailureEvidence {
-  if (!isRecord(value)) return false;
+  if (!isRecord(value)) {
+    return false;
+  }
+
   return (
     typeof value.providerName === "string" &&
     typeof value.maxAttempts === "number" &&
@@ -136,19 +139,25 @@ function isPlannerValidationFailureEvidence(value: unknown): value is PlannerVal
 }
 
 function plannerValidationFailureEvidence(error: unknown): PlannerValidationFailureEvidence | null {
-  if (!isRecord(error)) return null;
+  if (!isRecord(error)) {
+    return null;
+  }
+
   return isPlannerValidationFailureEvidence(error.evidence) ? error.evidence : null;
 }
 
 function plannerPromptVersion(output: PlannerRunOutput): string {
   const plannerInputArtifact = output.providerArtifacts?.plannerInput;
+
   if (isRecord(plannerInputArtifact) && typeof plannerInputArtifact.promptVersion === "string") {
     return plannerInputArtifact.promptVersion;
   }
   const plannerOutputArtifact = output.providerArtifacts?.plannerOutput;
+
   if (isRecord(plannerOutputArtifact) && typeof plannerOutputArtifact.promptVersion === "string") {
     return plannerOutputArtifact.promptVersion;
   }
+
   return "unknown";
 }
 
@@ -187,7 +196,9 @@ function appendPlannerRetryEvents(params: {
   records: PlannerRetryRecord[];
 }): void {
   for (const record of params.records) {
-    if (record.status !== "invalid") continue;
+    if (record.status !== "invalid") {
+      continue;
+    }
     appendAuditEvent(params.workspacePath, {
       eventType: "planner_retry",
       runId: params.runId,
@@ -209,6 +220,7 @@ function handlePlannerExecutionFailure(params: {
   error: unknown;
 }): void {
   const evidence = plannerValidationFailureEvidence(params.error);
+
   if (evidence) {
     appendPlannerRetryEvents({
       workspacePath: params.workspacePath,
@@ -240,6 +252,7 @@ function handlePlannerExecutionFailure(params: {
       providerName: evidence.providerName,
       now: params.now,
     });
+
     return;
   }
 
@@ -392,6 +405,7 @@ export async function planRun(params: PlanRunParams): Promise<PlanRunResult> {
   });
 
   let plannerOutput: PlannerRunOutput;
+
   try {
     plannerOutput = await params.executePlanner(plannerInput, { maxAttempts });
   } catch (error) {
@@ -437,6 +451,7 @@ export async function planRun(params: PlanRunParams): Promise<PlanRunResult> {
   });
 
   let modelInvocationRef: string | undefined;
+
   if (params.persistRunArtifacts ?? true) {
     modelInvocationRef = persistPlannerRunArtifacts({
       planParams: params,

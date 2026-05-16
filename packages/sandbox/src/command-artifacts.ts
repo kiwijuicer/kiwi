@@ -52,6 +52,7 @@ function persistOutput(params: {
   const relativePath = `steps/${params.stepId}/${params.attemptId}/artifacts/command-output${suffix}.json`;
   const target = resolveRunArtifactPath(params.cwd, params.runId, relativePath);
   writeJsonSafely(target, params.payload);
+
   return relativePath;
 }
 
@@ -88,8 +89,14 @@ export function blockedOutput(
     reason: policyDecision.reason,
     evidenceRefs: [],
   };
-  if (input.gateId) blockedGateParams.gateId = input.gateId;
-  if (input.gateType) blockedGateParams.gateType = input.gateType;
+
+  if (input.gateId) {
+    blockedGateParams.gateId = input.gateId;
+  }
+  if (input.gateType) {
+    blockedGateParams.gateType = input.gateType;
+  }
+
   return {
     status: policyDecision.status,
     exitCode: null,
@@ -103,13 +110,21 @@ export function blockedOutput(
 }
 
 function resolveStatus(timedOut: boolean, exitCode: number | null): SandboxExecutionStatus {
-  if (timedOut) return RunnerExecutionStatuses.Timeout;
+  if (timedOut) {
+    return RunnerExecutionStatuses.Timeout;
+  }
+
   return exitCode === 0 ? ContractValues.Completed : ContractValues.Failed;
 }
 
 function gateReason(status: SandboxExecutionStatus): string {
-  if (status === ContractValues.Completed) return "Command completed successfully";
-  if (status === RunnerExecutionStatuses.Timeout) return "Command timed out";
+  if (status === ContractValues.Completed) {
+    return "Command completed successfully";
+  }
+  if (status === RunnerExecutionStatuses.Timeout) {
+    return "Command timed out";
+  }
+
   return "Command failed";
 }
 
@@ -147,8 +162,13 @@ export function finishCommand(params: {
     reason: gateReason(status),
     evidenceRefs: [outputRef],
   };
-  if (input.gateId) gateParams.gateId = input.gateId;
-  if (input.gateType) gateParams.gateType = input.gateType;
+
+  if (input.gateId) {
+    gateParams.gateId = input.gateId;
+  }
+  if (input.gateType) {
+    gateParams.gateType = input.gateType;
+  }
 
   appendAuditEvent(input.cwd, {
     eventType: status === RunnerExecutionStatuses.Timeout ? "sandbox_command_timeout" : "sandbox_command_completed",

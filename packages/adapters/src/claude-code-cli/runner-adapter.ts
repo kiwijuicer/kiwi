@@ -81,6 +81,7 @@ export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
     };
     const result = await this.cliRunner.run(invocation);
     const usage = normalizeUsageFromCli(result.parsed);
+
     return cliRunnerOutput({
       input,
       runnerName: this.name,

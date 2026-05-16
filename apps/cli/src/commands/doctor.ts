@@ -20,12 +20,16 @@ const DOCTOR_RUNNER_STEP: Step = {
 
 function printRegistryAccessModes(enabled: ModelEntry[], env: NodeJS.ProcessEnv): void {
   const enabledByMode = new Map<AccessMode, number>();
+
   for (const entry of enabled) {
     enabledByMode.set(entry.accessMode, (enabledByMode.get(entry.accessMode) ?? 0) + 1);
   }
   for (const accessMode of ACCESS_MODE_VALUES) {
     const count = enabledByMode.get(accessMode) ?? 0;
-    if (count === 0) continue;
+
+    if (count === 0) {
+      continue;
+    }
     const availability = evaluateAccessModeAvailability(accessMode, env);
     const status = availability.available ? chalk.green("available") : chalk.yellow("unavailable");
     const reasonText = accessMode === "stub" ? "tests/dev only; disabled for plan by default" : availability.reason;
@@ -43,6 +47,7 @@ function printRunnerRegistry(registryModels: ModelEntry[], env: NodeJS.ProcessEn
   const runners = runnerResolution.runnerAvailabilityDetails
     .map((entry) => {
       const status = entry.available ? "ok" : "unavailable";
+
       return entry.reason ? `${entry.runner}:${status} (${entry.reason})` : `${entry.runner}:${status}`;
     })
     .join(", ");

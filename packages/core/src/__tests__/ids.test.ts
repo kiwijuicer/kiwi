@@ -21,5 +21,4 @@ describe("id generation", () => {
 
     expect(generateRunId(now, { suffix: "test" })).toBe("run_20260505_003000_test");
   });
-
 });

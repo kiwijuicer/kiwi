@@ -131,11 +131,13 @@ describe("PR draft publishing", () => {
       }
       if (args[0] === "push") {
         pushed.push(args);
+
         return { stdout: "", stderr: "" };
       }
       if (args[0] === "remote" && args[1] === "get-url") {
         return { stdout: "git@bitbucket.org:voice/core.git\n", stderr: "" };
       }
+
       return { stdout: git(args, cwd), stderr: "" };
     };
 

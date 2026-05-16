@@ -52,6 +52,7 @@ function loadTaskGraphRaw(
   filename = "task-graph.json",
 ): ReturnType<typeof TaskGraphSchema.parse> {
   const raw = readFileSync(path.join(cwd, ".kiwi", "runs", runId, "plan", filename), "utf-8");
+
   return TaskGraphSchema.parse(JSON.parse(raw));
 }
 

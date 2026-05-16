@@ -125,8 +125,12 @@ export class ReviewerProviderError extends Error {
     this.code = params.code;
     this.schedulerErrorCode = params.schedulerErrorCode;
     this.retryable = params.retryable;
-    if (params.statusCode !== undefined) this.statusCode = params.statusCode;
-    if (params.cause !== undefined) this.cause = params.cause;
+    if (params.statusCode !== undefined) {
+      this.statusCode = params.statusCode;
+    }
+    if (params.cause !== undefined) {
+      this.cause = params.cause;
+    }
   }
 }
 
@@ -147,7 +151,10 @@ export class ReviewerProviderValidationError extends ReviewerProviderError {
 }
 
 function maxAttemptsForProvider(provider: ReviewerProvider, requestedMaxAttempts: number): number {
-  if (provider.maxRepairAttempts === undefined) return requestedMaxAttempts;
+  if (provider.maxRepairAttempts === undefined) {
+    return requestedMaxAttempts;
+  }
+
   return Math.min(requestedMaxAttempts, provider.maxRepairAttempts + 1);
 }
 
@@ -166,6 +173,7 @@ export async function runReviewerProviderWithRetries(
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const output =
       repairContext && provider.repair ? await provider.repair(input, repairContext) : await provider.review(input);
+
     try {
       const verdict = ReviewVerdictSchema.parse(output.reviewVerdict);
       records.push({
@@ -175,6 +183,7 @@ export async function runReviewerProviderWithRetries(
         modelUsage: output.modelUsage,
         cost: output.cost,
       });
+
       return {
         ...output,
         reviewVerdict: verdict,

@@ -9,8 +9,14 @@ function encodeStdioMessage(payload: unknown): string {
 function findHeaderSeparator(buffer: Buffer): { index: number; length: number } | null {
   const crlf = buffer.indexOf("\r\n\r\n");
   const lf = buffer.indexOf("\n\n");
-  if (crlf < 0 && lf < 0) return null;
-  if (crlf >= 0 && (lf < 0 || crlf <= lf)) return { index: crlf, length: 4 };
+
+  if (crlf < 0 && lf < 0) {
+    return null;
+  }
+  if (crlf >= 0 && (lf < 0 || crlf <= lf)) {
+    return { index: crlf, length: 4 };
+  }
+
   return { index: lf, length: 2 };
 }
 
@@ -24,7 +30,10 @@ async function handleParsedMcpMessage(
   writeResponse: (payload: unknown) => void,
 ): Promise<void> {
   const response = await handleMcpMessage(value, cwd, { sendNotification: writeResponse });
-  if (response !== undefined) writeResponse(response);
+
+  if (response !== undefined) {
+    writeResponse(response);
+  }
 }
 
 export function createMcpMessageDrainer(
@@ -43,29 +52,44 @@ export function createMcpMessageDrainer(
 
       if (startsWithContentLength(buffer)) {
         const separator = findHeaderSeparator(buffer);
-        if (!separator) return;
+
+        if (!separator) {
+          return;
+        }
 
         const header = buffer.subarray(0, separator.index).toString("ascii");
         const match = header.match(/Content-Length:\s*(\d+)/i);
-        if (!match?.[1]) return;
+
+        if (!match?.[1]) {
+          return;
+        }
 
         const length = Number(match[1]);
         const start = separator.index + separator.length;
         const end = start + length;
-        if (buffer.length < end) return;
+
+        if (buffer.length < end) {
+          return;
+        }
 
         body = buffer.subarray(start, end).toString("utf-8");
         buffer = buffer.subarray(end);
       } else {
         const newline = buffer.indexOf("\n");
-        if (newline < 0) return;
+
+        if (newline < 0) {
+          return;
+        }
 
         body = buffer.subarray(0, newline).toString("utf-8").replace(/\r$/, "");
         buffer = buffer.subarray(newline + 1);
-        if (body.length === 0) continue;
+        if (body.length === 0) {
+          continue;
+        }
       }
 
       let message: unknown;
+
       try {
         message = JSON.parse(body) as unknown;
       } catch {

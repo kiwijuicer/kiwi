@@ -79,6 +79,7 @@ export class CodexCliRunnerAdapter implements RunnerAdapter {
     };
     const result = await this.cliRunner.run(invocation);
     const usage = normalizeUsageFromCodex(result.parsed);
+
     return cliRunnerOutput({
       input,
       runnerName: this.name,

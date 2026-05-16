@@ -11,16 +11,24 @@ const offenders = [];
 
 function walk(dirPath) {
   for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
-    if (entry.name === "dist" || entry.name === "node_modules" || entry.name === ".kiwi") continue;
+    if (entry.name === "dist" || entry.name === "node_modules" || entry.name === ".kiwi") {
+      continue;
+    }
     const fullPath = path.join(dirPath, entry.name);
+
     if (entry.isDirectory()) {
       walk(fullPath);
       continue;
     }
-    if (!entry.isFile() || !entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts")) continue;
-    if (fullPath.includes(`${path.sep}__tests__${path.sep}`)) continue;
+    if (!entry.isFile() || !entry.name.endsWith(".ts") || entry.name.endsWith(".test.ts")) {
+      continue;
+    }
+    if (fullPath.includes(`${path.sep}__tests__${path.sep}`)) {
+      continue;
+    }
     const relativePath = path.relative(repoRoot, fullPath).replace(/\\/g, "/");
     const lines = readFileSync(fullPath, "utf-8").split(/\r?\n/).length;
+
     if (lines > 1000 && !allowOver1000.has(relativePath)) {
       offenders.push({ file: relativePath, lines });
     }

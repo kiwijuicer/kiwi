@@ -78,6 +78,7 @@ function commandOutputArtifact(input: StepRunnerExecutionInput): Artifact {
     }),
     "utf-8",
   );
+
   return {
     type: "command_output",
     ref,
@@ -94,6 +95,7 @@ function diffArtifact(input: StepRunnerExecutionInput): Artifact {
     "diff --git a/feature.txt b/feature.txt\n--- a/feature.txt\n+++ b/feature.txt\n@@ -0,0 +1 @@\n+safe sample\n",
     "utf-8",
   );
+
   return {
     type: "diff",
     ref,
@@ -131,6 +133,7 @@ class SafeSampleRunner implements StepAttemptRunner {
 class DiffSampleRunner extends SafeSampleRunner {
   override async execute(input: StepRunnerExecutionInput): Promise<StepRunnerExecutionOutput> {
     const output = await super.execute(input);
+
     return {
       ...output,
       artifactRefs: [...output.artifactRefs, diffArtifact(input)],
@@ -143,6 +146,7 @@ class FailingRunner implements StepAttemptRunner {
 
   async execute(input: StepRunnerExecutionInput): Promise<StepRunnerExecutionOutput> {
     const outputArtifact = commandOutputArtifact(input);
+
     return {
       status: "failed",
       artifactRefs: [outputArtifact],

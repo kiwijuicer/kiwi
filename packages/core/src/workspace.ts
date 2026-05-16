@@ -46,7 +46,10 @@ function normalizeRepoId(value: string): string {
 }
 
 function codeWorkspaceFiles(root: string): string[] {
-  if (!isDirectory(root)) return [];
+  if (!isDirectory(root)) {
+    return [];
+  }
+
   return readdirSync(root)
     .filter((entry) => entry.endsWith(".code-workspace"))
     .sort()
@@ -57,14 +60,22 @@ function parseCodeWorkspace(target: string): WorkspaceRepo[] {
   const parsed = JSON.parse(readFileSync(target, "utf-8")) as CodeWorkspaceFile;
   const folders = Array.isArray(parsed.folders) ? parsed.folders : [];
   const workspaceDir = path.dirname(target);
+
   return folders
     .map((entry): WorkspaceRepo | null => {
       const folder = entry as CodeWorkspaceFolder;
-      if (typeof folder.path !== "string" || folder.path.trim().length === 0) return null;
+
+      if (typeof folder.path !== "string" || folder.path.trim().length === 0) {
+        return null;
+      }
       const repoPath = path.resolve(workspaceDir, folder.path);
-      if (!isDirectory(repoPath)) return null;
+
+      if (!isDirectory(repoPath)) {
+        return null;
+      }
       const idSource =
         typeof folder.name === "string" && folder.name.trim().length > 0 ? folder.name : path.basename(repoPath);
+
       return {
         id: normalizeRepoId(idSource),
         path: repoPath,
@@ -77,9 +88,13 @@ function dedupeRepos(repos: WorkspaceRepo[]): WorkspaceRepo[] {
   const seenPaths = new Set<string>();
   const seenIds = new Map<string, number>();
   const result: WorkspaceRepo[] = [];
+
   for (const repo of repos) {
     const resolvedPath = path.resolve(repo.path);
-    if (seenPaths.has(resolvedPath)) continue;
+
+    if (seenPaths.has(resolvedPath)) {
+      continue;
+    }
     seenPaths.add(resolvedPath);
     const count = seenIds.get(repo.id) ?? 0;
     seenIds.set(repo.id, count + 1);
@@ -88,13 +103,18 @@ function dedupeRepos(repos: WorkspaceRepo[]): WorkspaceRepo[] {
       path: resolvedPath,
     });
   }
+
   return result;
 }
 
 export function discoverWorkspaceRepos(workspacePath: string): WorkspaceRepo[] {
   const root = path.resolve(workspacePath);
   const codeWorkspaceRepos = codeWorkspaceFiles(root).flatMap((target) => parseCodeWorkspace(target));
-  if (codeWorkspaceRepos.length > 0) return dedupeRepos(codeWorkspaceRepos);
+
+  if (codeWorkspaceRepos.length > 0) {
+    return dedupeRepos(codeWorkspaceRepos);
+  }
+
   return isDirectory(root)
     ? [
         {
@@ -107,17 +127,26 @@ export function discoverWorkspaceRepos(workspacePath: string): WorkspaceRepo[] {
 
 function findKnownWorkspaceRoot(cwd: string): string | null {
   let current = path.resolve(cwd);
+
   for (;;) {
-    if (codeWorkspaceFiles(current).length > 0) return current;
-    if (existsSync(path.join(current, ".kiwi", "config.yaml"))) return current;
+    if (codeWorkspaceFiles(current).length > 0) {
+      return current;
+    }
+    if (existsSync(path.join(current, ".kiwi", "config.yaml"))) {
+      return current;
+    }
     const parent = path.dirname(current);
-    if (parent === current) return null;
+
+    if (parent === current) {
+      return null;
+    }
     current = parent;
   }
 }
 
 function containsPath(parent: string, child: string): boolean {
   const relative = path.relative(path.resolve(parent), path.resolve(child));
+
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
@@ -128,20 +157,28 @@ function repoCandidatesMessage(repos: WorkspaceRepo[]): string {
 function resolveRepoSelector(selector: string, workspacePath: string, repos: WorkspaceRepo[]): WorkspaceRepo | null {
   const selectorPath = path.isAbsolute(selector) ? path.resolve(selector) : path.resolve(workspacePath, selector);
   const byId = repos.find((repo) => repo.id === selector);
-  if (byId) return byId;
+
+  if (byId) {
+    return byId;
+  }
   const byPath = repos.find((repo) => path.resolve(repo.path) === selectorPath);
-  if (byPath) return byPath;
+
+  if (byPath) {
+    return byPath;
+  }
   if (isDirectory(selectorPath)) {
     return {
       id: normalizeRepoId(path.basename(selectorPath)),
       path: selectorPath,
     };
   }
+
   return null;
 }
 
 function resolveCurrentRepo(cwd: string, repos: WorkspaceRepo[]): WorkspaceRepo | null {
   const matches = repos.filter((repo) => containsPath(repo.path, cwd)).sort((a, b) => b.path.length - a.path.length);
+
   return matches[0] ?? null;
 }
 
@@ -171,6 +208,10 @@ export function resolveWorkspace(input: WorkspaceResolveInput = {}): WorkspaceRe
     workspacePath,
     repos,
   };
-  if (repo) resolution.repo = repo;
+
+  if (repo) {
+    resolution.repo = repo;
+  }
+
   return resolution;
 }

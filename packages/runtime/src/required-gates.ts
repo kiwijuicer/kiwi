@@ -4,6 +4,7 @@ import { commandForGate, commandProfileForStep, commandProfileToExecutionPolicy 
 
 function safeGateType(value: string): GateType | null {
   const parsed = GateTypeSchema.safeParse(value);
+
   return parsed.success ? parsed.data : null;
 }
 
@@ -26,10 +27,18 @@ export async function runRequiredGates(params: {
 
   for (const gate of params.requiredGates) {
     const gateType = safeGateType(gate);
-    if (!gateType) continue;
-    if (gateType === "forbidden_file_checks" || gateType === "secrets_check") continue;
+
+    if (!gateType) {
+      continue;
+    }
+    if (gateType === "forbidden_file_checks" || gateType === "secrets_check") {
+      continue;
+    }
     const command = commandForGate(params.policy, gateType);
-    if (!command) continue;
+
+    if (!command) {
+      continue;
+    }
 
     const gateInput: Parameters<typeof executeSandboxCommand>[0] = {
       cwd: params.cwd,
@@ -44,7 +53,10 @@ export async function runRequiredGates(params: {
       gateType,
       artifactLabel: gateType,
     };
-    if (params.now) gateInput.now = params.now;
+
+    if (params.now) {
+      gateInput.now = params.now;
+    }
     const output = await executeSandboxCommand(gateInput);
     gateResults.push(
       params.diffHash

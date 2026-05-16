@@ -104,6 +104,7 @@ function writeAttempt(params: {
   const artifactsDir = path.join(attemptDir, "artifacts");
   mkdirSync(artifactsDir, { recursive: true });
   const artifacts: Artifact[] = [];
+
   if (params.diff) {
     const diffRef = `steps/${params.stepId}/${params.attemptId}/artifacts/diff.patch`;
     writeFileSync(path.join(params.cwd, ".kiwi", "runs", params.runId, diffRef), params.diff, "utf-8");
@@ -185,6 +186,7 @@ describe("run status summary", () => {
     });
 
     const attemptsDir = path.join(cwd, ".kiwi", "runs", runId, "steps", "step_001");
+
     for (const [attemptId, status, startedAt] of [
       ["attempt_failed", "failed", "2026-05-04T04:01:00.000Z"],
       ["attempt_completed", "completed", "2026-05-04T04:02:00.000Z"],

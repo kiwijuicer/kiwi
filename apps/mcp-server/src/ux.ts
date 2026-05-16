@@ -69,7 +69,11 @@ export function safeReadOnlyToolCalls(params: {
   repoPath?: string | null;
 }): RecommendedToolCall[] {
   const args = workspaceToolArgs(params);
-  if (!params.runId) return [toolCall("kiwi_doctor", args)];
+
+  if (!params.runId) {
+    return [toolCall("kiwi_doctor", args)];
+  }
+
   return [
     toolCall("kiwi_status", args),
     toolCall("kiwi_explain", args),
@@ -131,7 +135,10 @@ export function uniqueSorted(values: string[]): string[] {
 }
 
 export function relativeRepoPath(repoPath: string | null, workspacePath: string): string | null {
-  if (!repoPath) return null;
+  if (!repoPath) {
+    return null;
+  }
   const relative = path.relative(workspacePath, repoPath);
+
   return relative && !relative.startsWith("..") ? relative : repoPath;
 }

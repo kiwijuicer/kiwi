@@ -79,6 +79,7 @@ function providerError(params: {
         : params.code === "provider_auth"
           ? PlannerProviderSchedulerErrorCodes.ProviderAuth
           : PlannerProviderSchedulerErrorCodes.ProviderNetwork;
+
   return new PlannerProviderError({
     code: params.code,
     schedulerErrorCode,
@@ -90,7 +91,11 @@ function providerError(params: {
 
 function previousAttempts(context?: PlannerProviderRepairContext): unknown[] {
   const artifact = context?.invalidProviderArtifacts?.plannerInput;
-  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) return [];
+
+  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) {
+    return [];
+  }
+
   return artifact.attempts.filter((entry): entry is Record<string, unknown> => isRecord(entry));
 }
 
@@ -105,34 +110,52 @@ function mergeRedactionSummaries(...summaries: RedactionSummary[]): RedactionSum
 function collectTextCandidates(value: unknown, output: string[] = []): string[] {
   if (typeof value === "string") {
     output.push(value);
+
     return output;
   }
   if (Array.isArray(value)) {
-    for (const entry of value) collectTextCandidates(entry, output);
+    for (const entry of value) {
+      collectTextCandidates(entry, output);
+    }
+
     return output;
   }
-  if (!isRecord(value)) return output;
+  if (!isRecord(value)) {
+    return output;
+  }
 
   for (const key of ["result", "text", "output", "final_output", "message", "content"]) {
     const entry = value[key];
-    if (typeof entry === "string") output.push(entry);
-    else if (Array.isArray(entry) || isRecord(entry)) collectTextCandidates(entry, output);
+
+    if (typeof entry === "string") {
+      output.push(entry);
+    } else if (Array.isArray(entry) || isRecord(entry)) {
+      collectTextCandidates(entry, output);
+    }
   }
   for (const entry of Object.values(value)) {
-    if (Array.isArray(entry) || isRecord(entry)) collectTextCandidates(entry, output);
+    if (Array.isArray(entry) || isRecord(entry)) {
+      collectTextCandidates(entry, output);
+    }
   }
+
   return output;
 }
 
 export function extractCliPlannerText(parsed: unknown, fallback: string): string {
   const candidates = collectTextCandidates(parsed).filter((entry) => entry.trim().length > 0);
   const jsonCandidate = [...candidates].reverse().find((entry) => /"planId"|"steps"|"subPlans"/.test(entry));
+
   return jsonCandidate ?? candidates.at(-1) ?? fallback;
 }
 
 function truncateCliDetail(value: string, maxLength: number): string {
   const text = value.trim();
-  if (text.length <= maxLength) return text;
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
   return `${text.slice(0, maxLength - 1)}…`;
 }
 
@@ -143,6 +166,7 @@ export function formatExternalCliFailure(
 ): string {
   const parsedText = extractCliPlannerText(result.parsed, "");
   const detail = truncateCliDetail(parsedText || result.stderr || result.stdout || "no CLI output", maxLength);
+
   return `${label} exited ${result.exitCode}: ${detail}`;
 }
 
@@ -183,6 +207,7 @@ Planner request:
 ${redactedEnvelope.redacted}
 
 Return only a JSON TaskGraph; do not explain.`;
+
   return { prompt, redactedInput, redactedEnvelope, redactedRepoContext };
 }
 
@@ -195,6 +220,7 @@ export async function invokeCliPlanner(params: CliPlannerInvokeParams): Promise<
   });
   const env = buildRunnerEnv({ sourceEnv: params.env, policy: params.input.policy.commandProfiles.default });
   const result = await params.run(prompt, env);
+
   if (!result.ok) {
     throw providerError({
       code: result.timedOut ? "provider_timeout" : "provider_network",
@@ -207,6 +233,7 @@ export async function invokeCliPlanner(params: CliPlannerInvokeParams): Promise<
 
   const text = extractCliPlannerText(result.parsed, result.stdout);
   const taskGraph = extractTextJson(text);
+
   if (taskGraph === null) {
     throw providerError({
       code: "provider_schema_invalid",

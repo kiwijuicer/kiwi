@@ -64,6 +64,7 @@ export function buildCodexCliArgs(invocation: CodexCliInvocation): string[] {
     args.push("--model", invocation.model);
   }
   args.push(invocation.prompt);
+
   return args;
 }
 
@@ -78,6 +79,7 @@ export class DefaultCodexCliRunner implements CodexCliRunner {
       timeoutMs: invocation.timeoutMs,
       ...(invocation.onOutputChunk ? { onOutputChunk: invocation.onOutputChunk } : {}),
     });
+
     return {
       ...result,
       parsed: parseJsonLines(result.stdout),
@@ -90,12 +92,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function nestedRecords(value: unknown): Record<string, unknown>[] {
-  if (Array.isArray(value)) return value.flatMap(nestedRecords);
-  if (!isRecord(value)) return [];
-  const out = [value];
-  for (const nested of Object.values(value)) {
-    if (isRecord(nested) || Array.isArray(nested)) out.push(...nestedRecords(nested));
+  if (Array.isArray(value)) {
+    return value.flatMap(nestedRecords);
   }
+  if (!isRecord(value)) {
+    return [];
+  }
+  const out = [value];
+
+  for (const nested of Object.values(value)) {
+    if (isRecord(nested) || Array.isArray(nested)) {
+      out.push(...nestedRecords(nested));
+    }
+  }
+
   return out;
 }
 
@@ -110,17 +120,26 @@ export function normalizeUsageFromCodex(parsed: unknown): NormalizedCodexUsage {
   let inputTokens = 0;
   let outputTokens = 0;
   let estimatedCostUsd: number | null = null;
+
   for (const record of nestedRecords(parsed)) {
     const input = record.input_tokens ?? record.inputTokens ?? record.prompt_tokens ?? record.promptTokens;
     const output = record.output_tokens ?? record.outputTokens ?? record.completion_tokens ?? record.completionTokens;
     const cost = record.total_cost_usd ?? record.totalCostUsd ?? record.estimatedCostUsd;
-    if (typeof input === "number") inputTokens += input;
-    if (typeof output === "number") outputTokens += output;
-    if (typeof cost === "number") estimatedCostUsd = (estimatedCostUsd ?? 0) + cost;
+
+    if (typeof input === "number") {
+      inputTokens += input;
+    }
+    if (typeof output === "number") {
+      outputTokens += output;
+    }
+    if (typeof cost === "number") {
+      estimatedCostUsd = (estimatedCostUsd ?? 0) + cost;
+    }
   }
   if (inputTokens === 0 && outputTokens === 0 && estimatedCostUsd === null) {
     return { precision: "unknown", inputTokens: 0, outputTokens: 0, estimatedCostUsd: null };
   }
+
   return {
     precision: estimatedCostUsd === null ? "estimated" : "exact",
     inputTokens,

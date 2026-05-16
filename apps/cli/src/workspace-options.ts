@@ -14,7 +14,13 @@ export function resolveCliWorkspace(
     cwd,
     requireRepo,
   };
-  if (opts.workspace) input.workspacePath = opts.workspace;
-  if (opts.repo) input.repo = opts.repo;
+
+  if (opts.workspace) {
+    input.workspacePath = opts.workspace;
+  }
+  if (opts.repo) {
+    input.repo = opts.repo;
+  }
+
   return resolveWorkspace(input);
 }

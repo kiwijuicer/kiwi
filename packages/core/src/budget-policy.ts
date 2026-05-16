@@ -24,7 +24,11 @@ export function remainingBudgetUsdEstimate(params: {
   budgetProfile: BudgetProfile;
 }): number | null {
   const limit = budgetLimitForProfile(params.budgetProfile);
-  if (limit.hardCapUsd === null) return null;
+
+  if (limit.hardCapUsd === null) {
+    return null;
+  }
+
   return Math.max(0, limit.hardCapUsd - estimatedSpentUsd(params.cwd, params.runId));
 }
 
@@ -33,7 +37,11 @@ export function remainingBudgetAfterEstimatedCost(params: {
   estimatedCostUsd: number;
 }): number | null {
   const limit = budgetLimitForProfile(params.budgetProfile);
-  if (limit.hardCapUsd === null) return null;
+
+  if (limit.hardCapUsd === null) {
+    return null;
+  }
+
   return Math.max(0, limit.hardCapUsd - params.estimatedCostUsd);
 }
 
@@ -42,7 +50,11 @@ export function budgetSoftCapExceeded(params: {
   remainingUsdEstimate: number | null;
 }): boolean {
   const limit = budgetLimitForProfile(params.budgetProfile);
-  if (limit.hardCapUsd === null || params.remainingUsdEstimate === null) return false;
+
+  if (limit.hardCapUsd === null || params.remainingUsdEstimate === null) {
+    return false;
+  }
+
   return limit.hardCapUsd - params.remainingUsdEstimate >= limit.softCapUsd;
 }
 
@@ -87,6 +99,7 @@ function priceForModel(modelId: string): PricePerMillionTokens {
   if (modelId.includes("haiku")) {
     return { input: 0.25, output: 1.25 };
   }
+
   return { input: 3, output: 15 };
 }
 
@@ -100,6 +113,7 @@ export function estimateAttemptCostUsd(params: {
   const inputTokens = INPUT_TOKENS_BY_CONTEXT_LEVEL[params.contextLevel];
   const outputTokens = OUTPUT_TOKENS_BY_CAPABILITY[params.capability];
   const usd = (inputTokens * price.input + outputTokens * price.output) / 1_000_000;
+
   return Number(usd.toFixed(8));
 }
 
@@ -111,7 +125,9 @@ export function assertWithinBudgetEstimate(params: {
   contextLevel: ContextLevel;
   estimateAttemptCostUsdValue?: number;
 }): void {
-  if (params.remainingUsdEstimate === null) return;
+  if (params.remainingUsdEstimate === null) {
+    return;
+  }
   const estimate =
     params.estimateAttemptCostUsdValue ??
     estimateAttemptCostUsd({
@@ -119,7 +135,10 @@ export function assertWithinBudgetEstimate(params: {
       capability: params.modelCapability,
       contextLevel: params.contextLevel,
     });
-  if (params.remainingUsdEstimate >= estimate) return;
+
+  if (params.remainingUsdEstimate >= estimate) {
+    return;
+  }
 
   throw new BudgetExceededError({
     budgetProfile: params.budgetProfile,

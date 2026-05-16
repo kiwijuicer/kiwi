@@ -80,10 +80,19 @@ export const MCP_RESOURCE_TEMPLATES = [
 ];
 
 function mimeTypeForRef(ref: string): string {
-  if (ref.endsWith(".json")) return "application/json";
-  if (ref.endsWith(".md") || ref.endsWith(".markdown")) return "text/markdown";
-  if (ref.endsWith(".patch") || ref.endsWith(".diff")) return "text/x-diff";
-  if (ref.endsWith(".html")) return "text/html";
+  if (ref.endsWith(".json")) {
+    return "application/json";
+  }
+  if (ref.endsWith(".md") || ref.endsWith(".markdown")) {
+    return "text/markdown";
+  }
+  if (ref.endsWith(".patch") || ref.endsWith(".diff")) {
+    return "text/x-diff";
+  }
+  if (ref.endsWith(".html")) {
+    return "text/html";
+  }
+
   return "text/plain";
 }
 
@@ -93,20 +102,27 @@ function collectFiles(params: {
   relativeDir: string;
 }): Array<{ ref: string; name: string }> {
   const root = resolveRunArtifactPath(params.runId, params.relativeDir, params.cwd);
-  if (!existsSync(root)) return [];
+
+  if (!existsSync(root)) {
+    return [];
+  }
   const files: Array<{ ref: string; name: string }> = [];
   function walk(absDir: string, relDir: string): void {
     for (const entry of readdirSync(absDir, { withFileTypes: true }) as Dirent[]) {
       const ref = path.posix.join(relDir, entry.name);
       const abs = path.join(absDir, entry.name);
+
       if (entry.isDirectory()) {
         walk(abs, ref);
         continue;
       }
-      if (entry.isFile()) files.push({ ref, name: ref });
+      if (entry.isFile()) {
+        files.push({ ref, name: ref });
+      }
     }
   }
   walk(root, params.relativeDir);
+
   return files;
 }
 
@@ -133,18 +149,27 @@ export function listResources(cwd: string): McpResource[] {
       })),
     ),
   );
+
   return [...concreteRuns, ...dynamic];
 }
 
 function readJsonRunArtifact(runId: string, ref: string, cwd: string): unknown {
   const target = resolveRunArtifactPath(runId, ref, cwd);
-  if (!existsSync(target)) throw new Error(`Artifact not found: ${ref}`);
+
+  if (!existsSync(target)) {
+    throw new Error(`Artifact not found: ${ref}`);
+  }
+
   return JSON.parse(readFileSync(target, "utf-8")) as unknown;
 }
 
 function readTextRunArtifact(runId: string, ref: string, cwd: string): string {
   const target = resolveRunArtifactPath(runId, ref, cwd);
-  if (!existsSync(target)) throw new Error(`Artifact not found: ${ref}`);
+
+  if (!existsSync(target)) {
+    throw new Error(`Artifact not found: ${ref}`);
+  }
+
   return readFileSync(target, "utf-8");
 }
 
@@ -153,7 +178,11 @@ function asContent(uri: string, value: unknown, mimeType?: string): McpResourceC
     uri,
     text: typeof value === "string" ? value : JSON.stringify(value, null, 2),
   };
-  if (mimeType) content.mimeType = mimeType;
+
+  if (mimeType) {
+    content.mimeType = mimeType;
+  }
+
   return content;
 }
 
@@ -174,32 +203,63 @@ const RUN_TEXT_RESOURCE_REFS: Record<string, { ref: string; mimeType: string }> 
 
 function readDirectRunFileResource(uri: string, runId: string, ref: string, cwd: string): McpResourceContent {
   const target = resolveRunArtifactPath(runId, ref, cwd);
-  if (!existsSync(target)) throw new Error(`Artifact not found: ${ref}`);
+
+  if (!existsSync(target)) {
+    throw new Error(`Artifact not found: ${ref}`);
+  }
+
   return asContent(uri, readFileSync(target, "utf-8"), mimeTypeForRef(ref));
 }
 
 function readNamedRunResource(uri: string, runId: string, tail: string, cwd: string): McpResourceContent | null {
-  if (!tail) return asContent(uri, getRunStatusSummary(cwd, runId), "application/json");
-  if (tail === "manifest") return asContent(uri, loadRunManifest(runId, cwd), "application/json");
-  if (tail === "initiative") return asContent(uri, loadInitiative(runId, cwd), "application/json");
-  if (tail === "task-graph") return asContent(uri, loadTaskGraph(runId, cwd), "application/json");
-  if (tail === "model-invocations") return asContent(uri, readModelInvocations(cwd, runId), "application/json");
-  if (tail === "model-usage-summary")
+  if (!tail) {
+    return asContent(uri, getRunStatusSummary(cwd, runId), "application/json");
+  }
+  if (tail === "manifest") {
+    return asContent(uri, loadRunManifest(runId, cwd), "application/json");
+  }
+  if (tail === "initiative") {
+    return asContent(uri, loadInitiative(runId, cwd), "application/json");
+  }
+  if (tail === "task-graph") {
+    return asContent(uri, loadTaskGraph(runId, cwd), "application/json");
+  }
+  if (tail === "model-invocations") {
+    return asContent(uri, readModelInvocations(cwd, runId), "application/json");
+  }
+  if (tail === "model-usage-summary") {
     return asContent(uri, summarizeModelInvocations({ cwd, runId }), "application/json");
-  if (tail === "attempts") return asContent(uri, listStepAttemptEvidence(cwd, runId), "application/json");
-  if (tail === "audit") return asContent(uri, readAuditEvents(cwd, runId), "application/json");
-  if (tail === "evidence-manifest") return asContent(uri, loadEvidenceManifest({ cwd, runId }), "application/json");
+  }
+  if (tail === "attempts") {
+    return asContent(uri, listStepAttemptEvidence(cwd, runId), "application/json");
+  }
+  if (tail === "audit") {
+    return asContent(uri, readAuditEvents(cwd, runId), "application/json");
+  }
+  if (tail === "evidence-manifest") {
+    return asContent(uri, loadEvidenceManifest({ cwd, runId }), "application/json");
+  }
 
   const jsonRef = RUN_JSON_RESOURCE_REFS[tail];
-  if (jsonRef) return asContent(uri, readJsonRunArtifact(runId, jsonRef, cwd), "application/json");
+
+  if (jsonRef) {
+    return asContent(uri, readJsonRunArtifact(runId, jsonRef, cwd), "application/json");
+  }
   const textRef = RUN_TEXT_RESOURCE_REFS[tail];
-  if (textRef) return asContent(uri, readTextRunArtifact(runId, textRef.ref, cwd), textRef.mimeType);
+
+  if (textRef) {
+    return asContent(uri, readTextRunArtifact(runId, textRef.ref, cwd), textRef.mimeType);
+  }
+
   return null;
 }
 
 function readAttemptResource(uri: string, runId: string, tail: string, cwd: string): McpResourceContent | null {
   const attemptMatch = tail.match(/^attempts\/([^/]+)\/([^/]+)(?:\/(.+))?$/);
-  if (!attemptMatch?.[1] || !attemptMatch[2]) return null;
+
+  if (!attemptMatch?.[1] || !attemptMatch[2]) {
+    return null;
+  }
   const stepId = attemptMatch[1];
   const attemptId = attemptMatch[2];
   const section = attemptMatch[3] ?? "";
@@ -210,22 +270,35 @@ function readAttemptResource(uri: string, runId: string, tail: string, cwd: stri
     "attempt-summary": `steps/${stepId}/${attemptId}/artifacts/attempt-summary.json`,
   };
   const ref = refs[section];
+
   return ref ? asContent(uri, readJsonRunArtifact(runId, ref, cwd), "application/json") : null;
 }
 
 export function readResource(uri: string, cwd: string): McpResourceContent {
-  if (uri === "kiwi://runs") return asContent(uri, getRunStatusSummary(cwd), "application/json");
+  if (uri === "kiwi://runs") {
+    return asContent(uri, getRunStatusSummary(cwd), "application/json");
+  }
   const runMatch = uri.match(/^kiwi:\/\/runs\/([^/]+)(?:\/(.+))?$/);
   const runId = runMatch?.[1];
   const tail = runMatch?.[2] ?? "";
-  if (!runId) throw new Error(`Unsupported resource URI: ${uri}`);
+
+  if (!runId) {
+    throw new Error(`Unsupported resource URI: ${uri}`);
+  }
 
   const named = readNamedRunResource(uri, runId, tail, cwd);
-  if (named) return named;
+
+  if (named) {
+    return named;
+  }
   const attempt = readAttemptResource(uri, runId, tail, cwd);
-  if (attempt) return attempt;
+
+  if (attempt) {
+    return attempt;
+  }
 
   const previewMatch = tail.match(/^previews\/([^/]+)$/);
+
   if (previewMatch?.[1]) {
     return asContent(
       uri,
@@ -235,8 +308,10 @@ export function readResource(uri: string, cwd: string): McpResourceContent {
   }
 
   const artifactMatch = tail.match(/^artifacts\/(.+)$/);
+
   if (artifactMatch?.[1]) {
     const ref = decodeURIComponent(artifactMatch[1]);
+
     return asContent(uri, readTextRunArtifact(runId, ref, cwd), mimeTypeForRef(ref));
   }
 
@@ -245,8 +320,10 @@ export function readResource(uri: string, cwd: string): McpResourceContent {
 
 export function readMcpResource(uri: string, cwd: string): McpResourceContent {
   const directMatch = uri.match(/^kiwi:\/\/(run_[^/]+)\/(.+)$/);
+
   if (directMatch?.[1] && directMatch[2]) {
     return readDirectRunFileResource(uri, directMatch[1], decodeURIComponent(directMatch[2]), cwd);
   }
+
   return readResource(uri, cwd);
 }

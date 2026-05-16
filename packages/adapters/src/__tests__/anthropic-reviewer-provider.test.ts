@@ -106,6 +106,7 @@ describe("AnthropicReviewerProvider", () => {
     let captured: AnthropicReviewerHttpRequest | undefined;
     const transport: AnthropicReviewerTransport = async (request) => {
       captured = request;
+
       return { ok: true, status: 200, body: anthropicResponse(passingVerdict()) };
     };
     const provider = new AnthropicReviewerProvider({
@@ -133,6 +134,7 @@ describe("AnthropicReviewerProvider", () => {
     const requests: AnthropicReviewerHttpRequest[] = [];
     const transport: AnthropicReviewerTransport = async (request) => {
       requests.push(request);
+
       return {
         ok: true,
         status: 200,
@@ -160,6 +162,7 @@ describe("AnthropicReviewerProvider", () => {
     let captured: AnthropicReviewerHttpRequest | undefined;
     const transport: AnthropicReviewerTransport = async (request) => {
       captured = request;
+
       return { ok: true, status: 200, body: anthropicResponse(verdict) };
     };
     const provider = new AnthropicReviewerProvider({

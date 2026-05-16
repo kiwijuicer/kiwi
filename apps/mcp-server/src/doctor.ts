@@ -34,6 +34,7 @@ function configStatus<T>(pathValue: string, load: () => T): { status: FileStatus
 export function doctorTool(args: Record<string, unknown>, cwd: string): unknown {
   const warnings: string[] = [];
   const nextFixes: string[] = [];
+
   try {
     const workspace = workspaceArgs(args, cwd, false);
     const initialized = isInitialized(workspace.workspacePath);
@@ -48,6 +49,7 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
       : null;
     const repoPath = workspace.repo?.path ?? null;
     const repoState = repoPath ? readRepoState(repoPath) : null;
+
     if (!initialized) {
       warnings.push("workspace is not initialized");
       nextFixes.push("Run kiwi init for this workspace.");
@@ -56,13 +58,22 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
       warnings.push("repo is ambiguous or missing");
       nextFixes.push("Pass repoId or repoPath.");
     }
-    if (!policy.status.loaded) nextFixes.push("Fix or create .kiwi/policy.yaml.");
-    if (!registry.status.loaded) nextFixes.push("Fix or create .kiwi/model-registry.yaml.");
+    if (!policy.status.loaded) {
+      nextFixes.push("Fix or create .kiwi/policy.yaml.");
+    }
+    if (!registry.status.loaded) {
+      nextFixes.push("Fix or create .kiwi/model-registry.yaml.");
+    }
     const executionMode = policy.value?.execution?.isolation ?? "direct";
+
     if (executionMode === "direct" && repoState) {
       warnings.push(...repoState.warnings);
-      if (repoState.protectedBranch) nextFixes.push("Switch away from main/master before direct execution.");
-      if (repoState.dirtyFiles > 0) nextFixes.push("Commit/stash changes or use worktree isolation before running.");
+      if (repoState.protectedBranch) {
+        nextFixes.push("Switch away from main/master before direct execution.");
+      }
+      if (repoState.dirtyFiles > 0) {
+        nextFixes.push("Commit/stash changes or use worktree isolation before running.");
+      }
     }
     const cliAvailability = [
       { client: "codex", ...evaluateAccessModeAvailability(AccessModes.CodexCli, process.env) },
@@ -92,6 +103,7 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
       repos: workspace.repos,
       repo: workspace.repo ?? null,
       initialized,
+      config: config?.status ?? null,
       policy: policy.status,
       registry: registry.status,
       executionMode,

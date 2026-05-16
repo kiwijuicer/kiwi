@@ -92,16 +92,22 @@ function numeric(value: unknown): number {
 }
 
 function responseErrorMessage(body: unknown): string {
-  if (!isRecord(body)) return "Anthropic API request failed";
+  if (!isRecord(body)) {
+    return "Anthropic API request failed";
+  }
   const error = isRecord(body.error) ? body.error : body;
   const type = typeof error.type === "string" ? error.type : "unknown";
   const message = typeof error.message === "string" ? error.message : "Anthropic API request failed";
+
   return `${type}: ${message}`;
 }
 
 function responseErrorType(body: unknown): string {
-  if (!isRecord(body)) return "";
+  if (!isRecord(body)) {
+    return "";
+  }
   const error = isRecord(body.error) ? body.error : body;
+
   return typeof error.type === "string" ? error.type.toLowerCase() : "";
 }
 
@@ -112,6 +118,7 @@ export function createAnthropicTransport<TBody, TError extends Error>(
   return async (request) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), request.timeoutMs);
+
     try {
       const response = await fetch(request.endpoint, {
         method: "POST",
@@ -121,6 +128,7 @@ export function createAnthropicTransport<TBody, TError extends Error>(
       });
       const body = (await response.json().catch(() => null)) as unknown;
       const requestId = response.headers.get("request-id") ?? undefined;
+
       return {
         ok: response.ok,
         status: response.status,
@@ -152,10 +160,13 @@ export function assertAnthropicOk<TError extends Error>(
   response: AnthropicHttpResponse,
   providerError: AnthropicProviderErrorFactory<TError>,
 ): void {
-  if (response.ok) return;
+  if (response.ok) {
+    return;
+  }
 
   const message = responseErrorMessage(response.body);
   const errorType = responseErrorType(response.body);
+
   if (response.status === 401 || response.status === 403) {
     throw providerError({ code: "provider_auth", message, retryable: false, statusCode: response.status });
   }
@@ -191,6 +202,7 @@ export function extractAnthropicUsage(responseBody: unknown): NormalizedAnthropi
   const cacheReadTokens = numeric(usage.cache_read_input_tokens);
   const baseInputTokens = numeric(usage.input_tokens);
   const outputTokens = numeric(usage.output_tokens);
+
   return {
     inputTokens: baseInputTokens + cacheWriteTokens + cacheReadTokens,
     outputTokens,
@@ -213,6 +225,7 @@ function priceForModel(model: string): PricePerMillionTokens {
   if (model.includes("haiku")) {
     return { input: 0.25, output: 1.25, cacheWrite: 0.3, cacheRead: 0.03 };
   }
+
   return { input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.3 };
 }
 
@@ -224,17 +237,24 @@ export function estimateAnthropicCostUsd(model: string, usage: NormalizedAnthrop
       usage.cacheReadTokens * price.cacheRead +
       usage.outputTokens * price.output) /
     1_000_000;
+
   return Number(cost.toFixed(8));
 }
 
 export function extractTextJson(text: string): unknown | null {
   const trimmed = text.trim();
-  if (!trimmed) return null;
+
+  if (!trimmed) {
+    return null;
+  }
   try {
     return JSON.parse(trimmed) as unknown;
   } catch {
     const match = trimmed.match(/\{[\s\S]*\}/);
-    if (!match) return null;
+
+    if (!match) {
+      return null;
+    }
     try {
       return JSON.parse(match[0]) as unknown;
     } catch {

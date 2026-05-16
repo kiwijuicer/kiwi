@@ -162,6 +162,7 @@ function buildPrompt(params: {
     userEnvelope: params.userEnvelope,
   });
   const redacted = redactForProvider(baseRequest, params.policy, params.env);
+
   return { request: redacted.redacted, redaction: redacted.summary };
 }
 
@@ -180,8 +181,11 @@ function extractReviewVerdict(responseBody: unknown): unknown {
   }
 
   const textBlocks: string[] = [];
+
   for (const block of responseBody.content) {
-    if (!isRecord(block)) continue;
+    if (!isRecord(block)) {
+      continue;
+    }
     if (block.type === "tool_use" && block.name === REVIEWER_TOOL_NAME) {
       return block.input;
     }
@@ -191,7 +195,10 @@ function extractReviewVerdict(responseBody: unknown): unknown {
   }
 
   const parsedText = extractTextJson(textBlocks.join("\n"));
-  if (parsedText !== null) return parsedText;
+
+  if (parsedText !== null) {
+    return parsedText;
+  }
 
   throw providerError({
     code: "provider_schema_invalid",
@@ -202,7 +209,11 @@ function extractReviewVerdict(responseBody: unknown): unknown {
 
 function previousAttempts(context?: ReviewerProviderRepairContext): AnthropicReviewerAttemptArtifact[] {
   const artifact = context?.invalidProviderArtifacts?.reviewerInput;
-  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) return [];
+
+  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) {
+    return [];
+  }
+
   return artifact.attempts.filter((entry): entry is AnthropicReviewerAttemptArtifact => isRecord(entry));
 }
 
@@ -227,6 +238,7 @@ function buildProviderArtifacts(params: {
       redaction: params.prompt.redaction,
     },
   ];
+
   return {
     reviewerInput: {
       promptVersion: REVIEWER_PROMPT_VERSION,
@@ -324,6 +336,7 @@ export class AnthropicReviewerProvider implements ReviewerProvider {
 
     const usage = extractAnthropicUsage(response.body);
     const reviewVerdict = extractReviewVerdict(response.body);
+
     return {
       providerName: this.name,
       reviewVerdict,

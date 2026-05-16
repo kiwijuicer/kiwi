@@ -169,6 +169,7 @@ function defaultRunnerDefinitions(): RunnerDefinition[] {
             `Codex model '${selectedExecutorModel.id}' must define providerModel for enforced model switching`,
           );
         }
+
         return new CodexCliRunnerAdapter({
           model: selectedExecutorModel.providerModel,
           env,
@@ -205,8 +206,13 @@ const CAPABILITY_ORDER: ModelCapability[] = [
 ];
 
 function isAccessAvailable(model: ModelEntry, env: Record<string, string | undefined>): boolean {
-  if (env.KIWI_FORCE_ACCESS_MODE && model.accessMode !== env.KIWI_FORCE_ACCESS_MODE) return false;
-  if (model.accessMode === AccessModes.Stub) return stubAccessAllowed(env);
+  if (env.KIWI_FORCE_ACCESS_MODE && model.accessMode !== env.KIWI_FORCE_ACCESS_MODE) {
+    return false;
+  }
+  if (model.accessMode === AccessModes.Stub) {
+    return stubAccessAllowed(env);
+  }
+
   return evaluateAccessModeAvailability(model.accessMode, env).available;
 }
 
@@ -221,10 +227,15 @@ function preferAccessOrder(params: {
     preferenceByRole: params.preferenceByRole,
     preferOrder: [...EXECUTOR_ACCESS_MODE_ORDER],
   });
+
   for (const accessMode of order) {
     const candidate = params.candidates.find((entry) => entry.accessMode === accessMode);
-    if (candidate && isAccessAvailable(candidate, params.env)) return candidate;
+
+    if (candidate && isAccessAvailable(candidate, params.env)) {
+      return candidate;
+    }
   }
+
   return null;
 }
 
@@ -240,8 +251,12 @@ function preferCapabilityAndAccessOrder(params: {
       env: params.env,
       preferenceByRole: params.preferenceByRole,
     });
-    if (pick) return pick;
+
+    if (pick) {
+      return pick;
+    }
   }
+
   return null;
 }
 
@@ -249,10 +264,15 @@ function preferStub(candidates: ModelEntry[], requested: ModelCapability): Model
   const requestedRank = CAPABILITY_RANK[requested];
   const atOrAbove = CAPABILITY_ORDER.filter((capability) => CAPABILITY_RANK[capability] >= requestedRank);
   const below = CAPABILITY_ORDER.filter((capability) => CAPABILITY_RANK[capability] < requestedRank).reverse();
+
   for (const capability of [...atOrAbove, ...below]) {
     const pick = candidates.find((entry) => entry.capability === capability);
-    if (pick) return pick;
+
+    if (pick) {
+      return pick;
+    }
   }
+
   return null;
 }
 
@@ -268,6 +288,7 @@ function pickExecutorModel(
   preferenceByRole?: ProviderPreference | undefined,
 ): ExecutorSelection {
   const enabled = models.filter((model) => model.enabled && model.roles.includes(ContractValues.Executor));
+
   if (enabled.length === 0) {
     return {
       model: null,
@@ -287,6 +308,7 @@ function pickExecutorModel(
     env,
     preferenceByRole,
   });
+
   if (adequatePick) {
     return {
       model: adequatePick,
@@ -298,6 +320,7 @@ function pickExecutorModel(
 
   const below = CAPABILITY_ORDER.filter((capability) => CAPABILITY_RANK[capability] < requestedRank).reverse();
   const lowerPick = preferCapabilityAndAccessOrder({ candidates: nonStub, capabilities: below, env, preferenceByRole });
+
   if (lowerPick) {
     return {
       model: lowerPick,
@@ -309,6 +332,7 @@ function pickExecutorModel(
 
   const stubAvailable = stubAccessAllowed(env);
   const stub = stubAvailable ? preferStub(stubs, requested) : null;
+
   if (stub) {
     return {
       model: stub,
@@ -327,10 +351,19 @@ function pickExecutorModel(
 }
 
 function runnerForAccessMode(accessMode: AccessMode): RunnerName | null {
-  if (accessMode === AccessModes.ClaudeCodeCli) return RunnerNames.ClaudeCode;
-  if (accessMode === AccessModes.CodexCli) return RunnerNames.Codex;
-  if (accessMode === AccessModes.CursorAgentCli) return RunnerNames.CursorAgent;
-  if (accessMode === AccessModes.Local || accessMode === AccessModes.Stub) return RunnerNames.LocalShell;
+  if (accessMode === AccessModes.ClaudeCodeCli) {
+    return RunnerNames.ClaudeCode;
+  }
+  if (accessMode === AccessModes.CodexCli) {
+    return RunnerNames.Codex;
+  }
+  if (accessMode === AccessModes.CursorAgentCli) {
+    return RunnerNames.CursorAgent;
+  }
+  if (accessMode === AccessModes.Local || accessMode === AccessModes.Stub) {
+    return RunnerNames.LocalShell;
+  }
+
   return null;
 }
 
@@ -339,12 +372,17 @@ function priorityForStep(step: Step, preferenceByRole?: ProviderPreference | und
   const preferred = (preferenceByRole?.[ContractValues.Executor] ?? [])
     .map((accessMode) => runnerForAccessMode(accessMode))
     .filter((entry): entry is RunnerName => entry !== null);
-  if (preferred.length === 0) return base;
+
+  if (preferred.length === 0) {
+    return base;
+  }
+
   return [...preferred, ...base.filter((entry) => !preferred.includes(entry))];
 }
 
 function priorityIndex(priority: RunnerName[], runner: RunnerName): number {
   const index = priority.indexOf(runner);
+
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }
 
@@ -353,11 +391,21 @@ function hasExecutorModelForRunner(
   models: ModelEntry[],
   env: Record<string, string | undefined>,
 ): boolean {
-  if (detail.runner === RunnerNames.LocalShell || detail.accessMode === "local-shell") return true;
+  if (detail.runner === RunnerNames.LocalShell || detail.accessMode === "local-shell") {
+    return true;
+  }
+
   return models.some((model) => {
-    if (!model.enabled || !model.roles.includes(ContractValues.Executor)) return false;
-    if (model.accessMode !== detail.accessMode) return false;
-    if (model.accessMode === AccessModes.CodexCli && !model.providerModel) return false;
+    if (!model.enabled || !model.roles.includes(ContractValues.Executor)) {
+      return false;
+    }
+    if (model.accessMode !== detail.accessMode) {
+      return false;
+    }
+    if (model.accessMode === AccessModes.CodexCli && !model.providerModel) {
+      return false;
+    }
+
     return isAccessAvailable(model, env);
   });
 }
@@ -373,7 +421,10 @@ export class RunnerRegistry {
     const env = options.env ?? process.env;
     const forcedRunner = forcedRunnerForAccessMode(env.KIWI_FORCE_ACCESS_MODE);
     const details = this.definitions.map((definition) => {
-      if (!forcedRunner || definition.runner === forcedRunner) return definition.availability({ env });
+      if (!forcedRunner || definition.runner === forcedRunner) {
+        return definition.availability({ env });
+      }
+
       return {
         runner: definition.runner,
         accessMode: definition.accessMode,
@@ -409,9 +460,11 @@ export class RunnerRegistry {
 
   buildAdapter(runner: RunnerName, context: RunnerBuildContext): RunnerAdapter {
     const definition = this.definitions.find((entry) => entry.runner === runner);
+
     if (!definition) {
       throw new Error(`Runner '${runner}' has no adapter wiring yet.`);
     }
+
     return definition.buildAdapter(context);
   }
 }

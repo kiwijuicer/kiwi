@@ -86,13 +86,19 @@ export function recordAttemptModelCost(params: {
     estimatedCostUsd: params.runnerOutput.estimatedCostUsd ?? null,
     createdAt: params.completedAt,
   });
+
   return { modelInvocationRefs, costReportRef };
 }
 
 function invocationStatus(
   status: StepRunnerExecutionOutput["status"],
 ): typeof ContractValues.Completed | typeof ContractValues.Blocked | typeof ContractValues.Failed {
-  if (status === ContractValues.Completed) return ContractValues.Completed;
-  if (status === ContractValues.Blocked || status === "approval_required") return ContractValues.Blocked;
+  if (status === ContractValues.Completed) {
+    return ContractValues.Completed;
+  }
+  if (status === ContractValues.Blocked || status === "approval_required") {
+    return ContractValues.Blocked;
+  }
+
   return ContractValues.Failed;
 }

@@ -65,9 +65,11 @@ export function loadStepAttempt(params: {
 }): StepAttempt {
   const relativePath = attemptRef(params.stepId, params.attemptId);
   const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
+
   if (!existsSync(target)) {
     throw new Error(`step attempt not found: ${relativePath}`);
   }
+
   return StepAttemptSchema.parse(JSON.parse(readFileSync(target, "utf-8")));
 }
 
@@ -75,6 +77,7 @@ export function saveStepAttempt(params: { cwd: string; runId: string; attempt: S
   const relativePath = attemptRef(params.attempt.stepId, params.attempt.attemptId);
   const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
   writeJsonSafely(target, StepAttemptSchema.parse(params.attempt));
+
   return relativePath;
 }
 
@@ -89,19 +92,28 @@ export function artifact(params: {
     ref: params.ref,
     createdAt: params.createdAt,
   };
-  if (params.metadata) value.metadata = params.metadata;
+
+  if (params.metadata) {
+    value.metadata = params.metadata;
+  }
+
   return ArtifactSchema.parse(value);
 }
 
 export function dedupeArtifacts(artifacts: Artifact[]): Artifact[] {
   const seen = new Set<string>();
   const deduped: Artifact[] = [];
+
   for (const entry of artifacts.map((item) => ArtifactSchema.parse(item))) {
     const key = `${entry.type}:${entry.ref}`;
-    if (seen.has(key)) continue;
+
+    if (seen.has(key)) {
+      continue;
+    }
     seen.add(key);
     deduped.push(entry);
   }
+
   return deduped;
 }
 
@@ -142,6 +154,7 @@ export function saveRunnerCostReport(params: {
     createdAt: params.createdAt,
   };
   writeJsonSafely(target, report);
+
   return relativePath;
 }
 
@@ -155,5 +168,6 @@ export function saveAttemptSummary(params: {
   const relativePath = `steps/${params.stepId}/${params.attemptId}/artifacts/attempt-summary.json`;
   const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
   writeJsonSafely(target, params.summary);
+
   return relativePath;
 }

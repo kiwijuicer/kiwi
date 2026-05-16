@@ -76,10 +76,14 @@ export class CursorAgentRunnerAdapter implements RunnerAdapter {
       timeoutMs: runnerTimeoutMs(input, this.timeoutMs),
       env,
     };
-    if (this.model) invocation.model = this.model;
+
+    if (this.model) {
+      invocation.model = this.model;
+    }
 
     const result = await this.cliRunner.run(invocation);
     const usage = normalizeUsageFromCursorAgent(result.parsed);
+
     return cliRunnerOutput({
       input,
       runnerName: this.name,

@@ -86,6 +86,7 @@ class StubCliRunner implements ClaudeCodeCliRunner {
       result: typeof next.result === "string" ? next.result : JSON.stringify(next.result),
       total_cost_usd: next.cost,
     });
+
     return {
       ok: next.ok,
       exitCode: next.ok ? 0 : 1,

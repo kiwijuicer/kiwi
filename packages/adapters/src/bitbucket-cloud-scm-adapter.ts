@@ -91,7 +91,10 @@ export class BitbucketCloudScmAdapter implements ScmAdapter {
       close_source_branch: draft.closeSourceBranch,
       draft: draft.draft,
     };
-    if (draft.description) body.description = draft.description;
+
+    if (draft.description) {
+      body.description = draft.description;
+    }
     if (draft.destinationBranch) {
       body.destination = {
         branch: {
@@ -127,6 +130,7 @@ export class BitbucketCloudScmAdapter implements ScmAdapter {
           markup: "markdown",
         },
       };
+
       if (comment.filePath && comment.line) {
         commentBody.inline = {
           path: comment.filePath,
@@ -150,7 +154,10 @@ export class BitbucketCloudScmAdapter implements ScmAdapter {
           },
           pending: true,
         };
-        if (commentId) taskBody.comment = { id: Number(commentId) };
+
+        if (commentId) {
+          taskBody.comment = { id: Number(commentId) };
+        }
         responses.push(await this.createPullRequestTask(draft.repository, basePath, taskBody));
       }
     }
@@ -177,7 +184,10 @@ export class BitbucketCloudScmAdapter implements ScmAdapter {
     }
 
     const failed = responses.find((response) => !isSuccess(response.status));
-    if (failed) return this.result(failed, pullRequestId);
+
+    if (failed) {
+      return this.result(failed, pullRequestId);
+    }
 
     return this.result(responses[0]!, pullRequestId);
   }
@@ -216,6 +226,7 @@ export class BitbucketCloudScmAdapter implements ScmAdapter {
 
   private url(repository: ScmRepositoryRef, suffix: string): string {
     const repo = ScmRepositoryRefSchema.parse(repository);
+
     if (repo.provider !== ContractValues.BitbucketCloud) {
       throw new Error(`BitbucketCloudScmAdapter cannot publish to provider '${repo.provider}'`);
     }
@@ -226,6 +237,7 @@ export class BitbucketCloudScmAdapter implements ScmAdapter {
   private result(response: BitbucketCloudResponse, fallbackId?: string): ScmMutationResult {
     const body = responseBody(response);
     const id = responseId(response) ?? fallbackId;
+
     return ScmMutationResultSchema.parse({
       provider: this.provider,
       authMode: this.authMode,
@@ -243,9 +255,11 @@ export function parseBitbucketCloudRemote(remoteUrl: string): ScmRepositoryRef {
   const ssh = trimmed.match(/^git@bitbucket\.org:([^/]+)\/(.+)$/);
   const https = trimmed.match(/^https:\/\/(?:[^@/]+@)?bitbucket\.org\/([^/]+)\/(.+)$/);
   const match = ssh ?? https;
+
   if (!match?.[1] || !match[2]) {
     throw new Error(`remote is not a Bitbucket Cloud URL: ${remoteUrl}`);
   }
+
   return ScmRepositoryRefSchema.parse({
     provider: ContractValues.BitbucketCloud,
     workspace: match[1],
@@ -263,6 +277,7 @@ export function bitbucketCloudCreatePrUrl(params: {
   const repoSlug = encodeURIComponent(params.repository.repoSlug!);
   const source = encodeURIComponent(params.sourceBranch);
   const dest = encodeURIComponent(params.targetBranch);
+
   return `https://bitbucket.org/${workspace}/${repoSlug}/pull-requests/new?source=${source}&dest=${dest}`;
 }
 
@@ -282,12 +297,19 @@ function isSuccess(status: number): boolean {
 }
 
 function responseBody(response: BitbucketCloudResponse): BitbucketResponseBody {
-  if (typeof response.body !== "object" || response.body === null) return {};
+  if (typeof response.body !== "object" || response.body === null) {
+    return {};
+  }
+
   return response.body as BitbucketResponseBody;
 }
 
 function responseId(response: BitbucketCloudResponse): string | undefined {
   const id = responseBody(response).id;
-  if (typeof id === "number" || typeof id === "string") return String(id);
+
+  if (typeof id === "number" || typeof id === "string") {
+    return String(id);
+  }
+
   return undefined;
 }

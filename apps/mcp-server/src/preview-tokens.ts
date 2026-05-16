@@ -70,16 +70,19 @@ function previewPath(cwd: string, runId: string, token: string): string {
       },
     });
   }
+
   return resolveRunArtifactPath(runId, `previews/${token}.json`, cwd);
 }
 
 function hashPolicy(cwd: string): string {
   const target = kiwiPolicyPath(cwd);
+
   return existsSync(target) ? sha256(readFileSync(target, "utf-8")) : sha256("missing-policy");
 }
 
 function hashRegistry(cwd: string): string {
   const target = kiwiModelRegistryPath(cwd);
+
   return existsSync(target) ? sha256(readFileSync(target, "utf-8")) : sha256("missing-registry");
 }
 
@@ -87,6 +90,7 @@ function fingerprintState(cwd: string, runId: string): { repoPath: string; finge
   const initiative = loadInitiative(runId, cwd);
   const repoPath = initiative.repoPath || cwd;
   const repoState = readRepoState(repoPath);
+
   return {
     repoPath,
     fingerprints: {
@@ -140,11 +144,13 @@ export function createMcpPreviewToken(params: {
       stepIds: record.previewStepIds,
     },
   });
+
   return record;
 }
 
 function loadPreviewRecord(cwd: string, runId: string, token: string): McpPreviewTokenRecord {
   const target = previewPath(cwd, runId, token);
+
   if (!existsSync(target)) {
     throw new ToolActionRequiredError("kiwi_run requires a valid previewToken from kiwi_preview_run", {
       category: "action_required",
@@ -156,6 +162,7 @@ function loadPreviewRecord(cwd: string, runId: string, token: string): McpPrevie
       },
     });
   }
+
   return readJson(target) as McpPreviewTokenRecord;
 }
 
@@ -190,12 +197,16 @@ export function validateMcpPreviewToken(params: {
     });
   }
   const record = loadPreviewRecord(params.cwd, params.runId, params.previewToken);
-  if (record.runId !== params.runId)
+
+  if (record.runId !== params.runId) {
     rejectStale({ cwd: params.cwd, runId: params.runId, reason: "preview token belongs to a different run" });
+  }
   const current = fingerprintState(params.cwd, params.runId);
   const currentHash = stateHash(current.fingerprints, record.previewInput);
-  if (currentHash !== record.stateHash)
+
+  if (currentHash !== record.stateHash) {
     rejectStale({ cwd: params.cwd, runId: params.runId, reason: "TaskGraph, policy, HEAD, or dirty state changed" });
+  }
   if (params.previewInput) {
     if (
       record.previewInput.fromStep !== params.previewInput.fromStep ||
@@ -224,6 +235,7 @@ export function validateMcpPreviewToken(params: {
       stepId: params.stepId ?? null,
     },
   });
+
   return record;
 }
 
@@ -237,7 +249,10 @@ export function latestValidPreviewToken(params: {
   previewInput: McpPreviewInput;
 }): McpPreviewTokenRecord | null {
   const dir = previewDir(params.cwd, params.runId);
-  if (!existsSync(dir)) return null;
+
+  if (!existsSync(dir)) {
+    return null;
+  }
   const records = readdirSync(dir)
     .filter((entry) => entry.endsWith(".json"))
     .map((entry) => {
@@ -254,17 +269,22 @@ export function latestValidPreviewToken(params: {
     try {
       const current = fingerprintState(params.cwd, params.runId);
       const currentHash = stateHash(current.fingerprints, record.previewInput);
-      if (currentHash !== record.stateHash) continue;
+
+      if (currentHash !== record.stateHash) {
+        continue;
+      }
       if (
         record.previewInput.fromStep !== params.previewInput.fromStep ||
         record.previewInput.maxConcurrency !== params.previewInput.maxConcurrency
       ) {
         continue;
       }
+
       return record;
     } catch {
       return null;
     }
   }
+
   return null;
 }

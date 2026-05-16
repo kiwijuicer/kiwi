@@ -31,7 +31,11 @@ export class ReviewerProviderRegistry {
       role: ContractValues.Reviewer,
       preferenceByRole: options.policy.routing.providerPreference,
     });
-    if (!selected) return null;
+
+    if (!selected) {
+      return null;
+    }
+
     return {
       model: selected.model,
       provider: this.buildProvider(selected.model, env, options.policy),
@@ -59,6 +63,7 @@ export class ReviewerProviderRegistry {
       if (!model.providerModel) {
         throw new Error(`Codex reviewer model '${model.id}' must define providerModel for enforced model switching`);
       }
+
       return new CodexCliReviewerProvider({
         model: model.providerModel,
         env,
@@ -79,11 +84,21 @@ export class ReviewerProviderRegistry {
     const reviewers = models.filter((model) => model.roles.includes(ContractValues.Reviewer));
     const targetCapability = riskHigh ? ContractValues.Frontier : ContractValues.Strong;
     const exact = reviewers.filter((model) => model.capability === targetCapability);
-    if (exact.length > 0) return exact;
+
+    if (exact.length > 0) {
+      return exact;
+    }
     const frontier = reviewers.filter((model) => model.capability === ContractValues.Frontier);
-    if (frontier.length > 0) return frontier;
+
+    if (frontier.length > 0) {
+      return frontier;
+    }
     const strong = reviewers.filter((model) => model.capability === ContractValues.Strong);
-    if (strong.length > 0) return strong;
+
+    if (strong.length > 0) {
+      return strong;
+    }
+
     return reviewers;
   }
 }

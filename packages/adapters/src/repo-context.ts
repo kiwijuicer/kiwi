@@ -69,10 +69,17 @@ function runGit(repoPath: string, args: string[]): string {
 
 function readHead(repoPath: string, fileName: string): string | null {
   const target = path.join(repoPath, fileName);
-  if (!existsSync(target)) return null;
+
+  if (!existsSync(target)) {
+    return null;
+  }
   try {
     const stats = statSync(target);
-    if (!stats.isFile()) return null;
+
+    if (!stats.isFile()) {
+      return null;
+    }
+
     return readFileSync(target, "utf-8").split(/\r?\n/).slice(0, HEAD_LINE_LIMIT).join("\n").slice(0, HEAD_CHAR_LIMIT);
   } catch {
     return null;
@@ -82,52 +89,77 @@ function readHead(repoPath: string, fileName: string): string | null {
 function listFilePaths(repoPath: string): string[] {
   const entries: string[] = [];
   const visit = (directory: string, depth: number): void => {
-    if (depth > 3 || entries.length >= FILE_LIST_LIMIT) return;
+    if (depth > 3 || entries.length >= FILE_LIST_LIMIT) {
+      return;
+    }
     const children = readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+
     for (const child of children) {
-      if (IGNORED_NAMES.has(child.name)) continue;
+      if (IGNORED_NAMES.has(child.name)) {
+        continue;
+      }
       const absolute = path.join(directory, child.name);
       const relative = path.relative(repoPath, absolute);
       entries.push(child.isDirectory() ? `${relative}/` : relative);
-      if (child.isDirectory()) visit(absolute, depth + 1);
-      if (entries.length >= FILE_LIST_LIMIT) return;
+      if (child.isDirectory()) {
+        visit(absolute, depth + 1);
+      }
+      if (entries.length >= FILE_LIST_LIMIT) {
+        return;
+      }
     }
   };
   visit(repoPath, 1);
+
   return entries;
 }
 
 function extractKeywords(initiative: Pick<Initiative, "title" | "rawInput">): string[] {
   const text = `${initiative.title}\n${initiative.rawInput}`.toLowerCase();
   const tokens = text.match(/[\p{L}\p{N}_-]{3,}/gu) ?? [];
+
   return Array.from(new Set(tokens.filter((token) => !STOP_WORDS.has(token)))).slice(0, 12);
 }
 
 function grepHits(repoPath: string, keywords: string[]): RepoContextGrepHit[] {
-  if (keywords.length === 0) return [];
+  if (keywords.length === 0) {
+    return [];
+  }
   const args = ["grep", "-n", "-I", "--no-color", ...keywords.flatMap((keyword) => ["-e", keyword]), "--"];
   const output = runGit(repoPath, args);
   const hits: RepoContextGrepHit[] = [];
   const seenPaths = new Set<string>();
+
   for (const line of output.split(/\r?\n/)) {
-    if (!line.trim()) continue;
+    if (!line.trim()) {
+      continue;
+    }
     const match = line.match(/^([^:]+):(\d+):(.*)$/);
-    if (!match?.[1] || !match[2]) continue;
-    if (seenPaths.has(match[1])) continue;
+
+    if (!match?.[1] || !match[2]) {
+      continue;
+    }
+    if (seenPaths.has(match[1])) {
+      continue;
+    }
     seenPaths.add(match[1]);
     hits.push({
       path: match[1],
       line: Number.parseInt(match[2], 10),
       preview: (match[3] ?? "").trim().slice(0, 240),
     });
-    if (hits.length >= GREP_HIT_LIMIT) break;
+    if (hits.length >= GREP_HIT_LIMIT) {
+      break;
+    }
   }
+
   return hits;
 }
 
 function compactToLimit(context: RepoContextEnvelope): RepoContextEnvelope {
   const compacted: RepoContextEnvelope = { ...context, omittedFields: [...context.omittedFields] };
   const exceeds = () => renderRepoContext(compacted).length > compacted.maxChars;
+
   if (exceeds() && compacted.filePaths.length > 0) {
     compacted.filePaths = [];
     compacted.omittedFields.push("filePaths");
@@ -141,6 +173,7 @@ function compactToLimit(context: RepoContextEnvelope): RepoContextEnvelope {
     compacted.agentsHead = null;
     compacted.omittedFields.push("readmeHead", "agentsHead");
   }
+
   return compacted;
 }
 
@@ -150,6 +183,7 @@ export function buildRepoContextEnvelope(params: {
 }): RepoContextEnvelope {
   const maxChars = params.maxChars ?? DEFAULT_MAX_CHARS;
   const repoPath = params.initiative.repoPath;
+
   if (!existsSync(repoPath)) {
     return {
       repoPath,
@@ -179,6 +213,7 @@ export function buildRepoContextEnvelope(params: {
 
   try {
     const grepKeywords = extractKeywords(params.initiative);
+
     return compactToLimit({
       repoPath,
       status: "ok",

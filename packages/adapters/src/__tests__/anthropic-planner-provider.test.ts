@@ -118,6 +118,7 @@ describe("AnthropicPlannerProvider", () => {
     let captured: AnthropicPlannerHttpRequest | undefined;
     const transport: AnthropicPlannerTransport = async (request) => {
       captured = request;
+
       return { ok: true, status: 200, body: anthropicResponse(validTaskGraph()) };
     };
     const provider = new AnthropicPlannerProvider({
@@ -151,6 +152,7 @@ describe("AnthropicPlannerProvider", () => {
     const requests: AnthropicPlannerHttpRequest[] = [];
     const transport: AnthropicPlannerTransport = async (request) => {
       requests.push(request);
+
       return {
         ok: true,
         status: 200,

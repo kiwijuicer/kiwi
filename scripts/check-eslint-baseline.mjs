@@ -33,14 +33,18 @@ const newIssues = [];
 for (const file of report) {
   const filePath = relativeReportPath(repoRoot, file.filePath);
   const source = file.source ?? "";
+
   for (const message of file.messages) {
     if (isHardEslintIssue(message)) {
       hardIssues.push({ file: filePath, ...message, ruleId: message.ruleId ?? "unknown" });
       continue;
     }
-    if (ignoredRuleIds.has(message.ruleId)) continue;
+    if (ignoredRuleIds.has(message.ruleId)) {
+      continue;
+    }
 
     const key = eslintIssueKey(filePath, message, source);
+
     if (!baselineSet.has(key)) {
       newIssues.push({
         file: filePath,

@@ -12,6 +12,7 @@ function setupRepo(): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-"));
   writeKiwiConfig(cwd);
   initCleanGitRepo(cwd);
+
   return cwd;
 }
 
@@ -99,16 +100,19 @@ function setupWorkspace(): { root: string; core: string; agent: string } {
     stdio: "ignore",
   });
   execFileSync("git", ["commit", "-m", "workspace"], { cwd: root, stdio: "ignore" });
+
   return { root, core, agent };
 }
 
 function toolJson(response: Awaited<ReturnType<typeof handleMcpRequest>>): unknown {
   const text = (response.result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
+
   return JSON.parse(text) as unknown;
 }
 
 function framedMessage(value: unknown, separator = "\r\n\r\n"): Buffer {
   const body = JSON.stringify(value);
+
   return Buffer.from(`Content-Length: ${Buffer.byteLength(body, "utf-8")}${separator}${body}`, "utf-8");
 }
 
@@ -125,12 +129,15 @@ async function startLoopbackHttpServer(
   skip: () => void,
 ): Promise<ReturnType<typeof startHttpMcpServer> | null> {
   const server = startHttpMcpServer({ cwd, host: "127.0.0.1", port: 0, authToken: "test-token" });
+
   try {
     await once(server, "listening");
+
     return server;
   } catch (error) {
     if (isLoopbackListenPermissionError(error)) {
       skip();
+
       return null;
     }
     throw error;
@@ -235,7 +242,10 @@ describe("MCP server", () => {
 
   it("serves streamable HTTP POST requests", async ({ skip }) => {
     const server = await startLoopbackHttpServer(setupRepo(), skip);
-    if (!server) return;
+
+    if (!server) {
+      return;
+    }
 
     try {
       const address = server.address() as AddressInfo;
@@ -277,14 +287,20 @@ describe("MCP server", () => {
         "KIWI_MCP_HTTP_TOKEN is required",
       );
     } finally {
-      if (previousToken === undefined) delete process.env.KIWI_MCP_HTTP_TOKEN;
-      else process.env.KIWI_MCP_HTTP_TOKEN = previousToken;
+      if (previousToken === undefined) {
+        delete process.env.KIWI_MCP_HTTP_TOKEN;
+      } else {
+        process.env.KIWI_MCP_HTTP_TOKEN = previousToken;
+      }
     }
   });
 
   it("returns 202 for HTTP notification-only input", async ({ skip }) => {
     const server = await startLoopbackHttpServer(setupRepo(), skip);
-    if (!server) return;
+
+    if (!server) {
+      return;
+    }
 
     try {
       const address = server.address() as AddressInfo;
@@ -309,7 +325,10 @@ describe("MCP server", () => {
 
   it("allows IPv6 loopback Origin headers", async ({ skip }) => {
     const server = await startLoopbackHttpServer(setupRepo(), skip);
-    if (!server) return;
+
+    if (!server) {
+      return;
+    }
 
     try {
       const address = server.address() as AddressInfo;
@@ -332,7 +351,10 @@ describe("MCP server", () => {
 
   it("rejects unauthenticated HTTP POST requests", async ({ skip }) => {
     const server = await startLoopbackHttpServer(setupRepo(), skip);
-    if (!server) return;
+
+    if (!server) {
+      return;
+    }
 
     try {
       const address = server.address() as AddressInfo;
@@ -451,7 +473,6 @@ describe("MCP server", () => {
     );
     expect(snapshotResource.error).toBeUndefined();
     expect(JSON.stringify(snapshotResource.result)).toContain("<!doctype html>");
-
   });
 
   it("plans with object arguments and exposes model evidence resources", async () => {
@@ -634,10 +655,16 @@ models:
       expect(parsed.steps.some((step) => step.runner === "codex")).toBe(true);
       expect(parsed.steps.some((step) => step.selectedProviderModel === "gpt-5.4")).toBe(true);
     } finally {
-      if (previousFake === undefined) delete process.env.KIWI_FAKE_BINARY_AVAILABLE;
-      else process.env.KIWI_FAKE_BINARY_AVAILABLE = previousFake;
-      if (previousForce === undefined) delete process.env.KIWI_FORCE_ACCESS_MODE;
-      else process.env.KIWI_FORCE_ACCESS_MODE = previousForce;
+      if (previousFake === undefined) {
+        delete process.env.KIWI_FAKE_BINARY_AVAILABLE;
+      } else {
+        process.env.KIWI_FAKE_BINARY_AVAILABLE = previousFake;
+      }
+      if (previousForce === undefined) {
+        delete process.env.KIWI_FORCE_ACCESS_MODE;
+      } else {
+        process.env.KIWI_FORCE_ACCESS_MODE = previousForce;
+      }
     }
   });
 
@@ -808,5 +835,4 @@ models:
       0,
     );
   });
-
 });

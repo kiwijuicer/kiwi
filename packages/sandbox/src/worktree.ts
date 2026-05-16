@@ -27,15 +27,20 @@ function shouldExcludeWorkspaceEntry(entryName: string): boolean {
 function copyWorkspaceIntoWorktree(source: string, target: string): void {
   mkdirSync(target, { recursive: true });
   for (const entry of readdirSync(source, { withFileTypes: true })) {
-    if (shouldExcludeWorkspaceEntry(entry.name)) continue;
+    if (shouldExcludeWorkspaceEntry(entry.name)) {
+      continue;
+    }
 
     const sourcePath = path.join(source, entry.name);
     const targetPath = path.join(target, entry.name);
+
     if (entry.isDirectory()) {
       copyWorkspaceIntoWorktree(sourcePath, targetPath);
       continue;
     }
-    if (entry.isSymbolicLink()) continue;
+    if (entry.isSymbolicLink()) {
+      continue;
+    }
     if (entry.isFile()) {
       mkdirSync(path.dirname(targetPath), { recursive: true });
       copyFileSync(sourcePath, targetPath);
@@ -46,7 +51,10 @@ function copyWorkspaceIntoWorktree(source: string, target: string): void {
 function linkNodeModulesIfPresent(source: string, target: string): void {
   const sourceNodeModules = path.join(source, "node_modules");
   const targetNodeModules = path.join(target, "node_modules");
-  if (!existsSync(sourceNodeModules) || existsSync(targetNodeModules)) return;
+
+  if (!existsSync(sourceNodeModules) || existsSync(targetNodeModules)) {
+    return;
+  }
   try {
     symlinkSync(sourceNodeModules, targetNodeModules, "dir");
     excludeLinkedNodeModulesFromGitStatus(target);
@@ -56,14 +64,19 @@ function linkNodeModulesIfPresent(source: string, target: string): void {
 }
 
 function excludeLinkedNodeModulesFromGitStatus(worktreePath: string): void {
-  if (!existsSync(path.join(worktreePath, ".git"))) return;
+  if (!existsSync(path.join(worktreePath, ".git"))) {
+    return;
+  }
   try {
     const excludePath = execFileSync("git", ["-C", worktreePath, "rev-parse", "--git-path", "info/exclude"], {
       encoding: "utf-8",
     }).trim();
     mkdirSync(path.dirname(excludePath), { recursive: true });
     const existing = existsSync(excludePath) ? readFileSync(excludePath, "utf-8") : "";
-    if (existing.split(/\r?\n/).includes("node_modules")) return;
+
+    if (existing.split(/\r?\n/).includes("node_modules")) {
+      return;
+    }
     writeFileSync(excludePath, `${existing}${existing.endsWith("\n") || !existing ? "" : "\n"}node_modules\n`, "utf-8");
   } catch {
     // Best-effort local validation convenience.
@@ -79,6 +92,7 @@ function tryGitWorktreeAdd(sourcePath: string, worktreePath: string): boolean {
     execFileSync("git", ["-C", sourcePath, "worktree", "add", "--detach", worktreePath], {
       stdio: "ignore",
     });
+
     return true;
   } catch {
     return false;
@@ -90,6 +104,7 @@ function tryGitWorktreeRemove(sourcePath: string, worktreePath: string): boolean
     execFileSync("git", ["-C", sourcePath, "worktree", "remove", "--force", worktreePath], {
       stdio: "ignore",
     });
+
     return true;
   } catch {
     return false;
@@ -136,6 +151,7 @@ export function createWorktreeSandbox(params: CreateWorktreeSandboxOptions): Wor
           sourcePath,
         },
       });
+
       return {
         runId: params.runId,
         attemptId: params.attemptId,
@@ -163,6 +179,7 @@ export function createWorktreeSandbox(params: CreateWorktreeSandboxOptions): Wor
       sourcePath,
     },
   });
+
   return {
     runId: params.runId,
     attemptId: params.attemptId,
@@ -181,6 +198,7 @@ export function teardownWorktreeSandbox(params: {
   worktreePath: string;
 }): { removed: boolean } {
   let removed = false;
+
   if (params.isolation === "git-worktree" && isGitRepository(params.sourcePath)) {
     removed = tryGitWorktreeRemove(params.sourcePath, params.worktreePath);
   }
@@ -215,6 +233,7 @@ export function teardownWorktreeSandbox(params: {
       },
     });
   }
+
   return { removed };
 }
 
@@ -229,9 +248,14 @@ function orphanWorktreeCandidate(params: {
   worktreesBase: string;
   known: Set<string>;
 }): string | null {
-  if (!params.attemptDir.isDirectory()) return null;
-  if (params.known.has(params.attemptDir.name)) return null;
+  if (!params.attemptDir.isDirectory()) {
+    return null;
+  }
+  if (params.known.has(params.attemptDir.name)) {
+    return null;
+  }
   const candidate = path.join(params.worktreesBase, params.attemptDir.name);
+
   return statSync(candidate).isDirectory() ? candidate : null;
 }
 
@@ -243,6 +267,7 @@ function reapOrphanCandidate(params: {
   sourcePath?: string;
 }): boolean {
   const gitFile = path.join(params.candidate, ".git");
+
   if (existsSync(gitFile) && params.sourcePath && isGitRepository(params.sourcePath)) {
     tryGitWorktreeRemove(params.sourcePath, params.candidate);
   }
@@ -254,6 +279,7 @@ function reapOrphanCandidate(params: {
       timestamp: new Date().toISOString(),
       payload: { attemptId: params.attemptId, worktreePath: params.candidate },
     });
+
     return true;
   } catch {
     return false;
@@ -262,16 +288,28 @@ function reapOrphanCandidate(params: {
 
 export function reapOrphanWorktrees(options: OrphanReaperOptions): { reaped: string[] } {
   const runsBase = path.resolve(options.cwd, ".kiwi", "runs");
-  if (!existsSync(runsBase)) return { reaped: [] };
+
+  if (!existsSync(runsBase)) {
+    return { reaped: [] };
+  }
   const reaped: string[] = [];
   const known = new Set(options.knownAttemptIds ?? []);
+
   for (const runDir of readdirSync(runsBase, { withFileTypes: true })) {
-    if (!runDir.isDirectory()) continue;
+    if (!runDir.isDirectory()) {
+      continue;
+    }
     const worktreesBase = path.join(runsBase, runDir.name, "worktrees");
-    if (!existsSync(worktreesBase)) continue;
+
+    if (!existsSync(worktreesBase)) {
+      continue;
+    }
     for (const attemptDir of readdirSync(worktreesBase, { withFileTypes: true })) {
       const candidate = orphanWorktreeCandidate({ attemptDir, worktreesBase, known });
-      if (!candidate) continue;
+
+      if (!candidate) {
+        continue;
+      }
       const removed = reapOrphanCandidate({
         cwd: options.cwd,
         runId: runDir.name,
@@ -279,10 +317,12 @@ export function reapOrphanWorktrees(options: OrphanReaperOptions): { reaped: str
         candidate,
         ...(options.sourcePath ? { sourcePath: options.sourcePath } : {}),
       });
+
       if (removed) {
         reaped.push(candidate);
       }
     }
   }
+
   return { reaped };
 }

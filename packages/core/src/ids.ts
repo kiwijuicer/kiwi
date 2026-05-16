@@ -6,10 +6,6 @@ export interface IdGenerationOptions {
 
 const PLANNED_RUN_TIME_ZONE = "Europe/Berlin";
 
-function pad(value: number): string {
-  return value.toString().padStart(2, "0");
-}
-
 function datePart(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes): string {
   return parts.find((part) => part.type === type)?.value ?? "00";
 }
@@ -25,6 +21,7 @@ function localDateToken(now: Date, timeZone: string): string {
     second: "2-digit",
     hour12: false,
   }).formatToParts(now);
+
   return (
     `${datePart(parts, "year")}` +
     `${datePart(parts, "month")}` +

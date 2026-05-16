@@ -40,7 +40,11 @@ function tryReadGateResults(
 } {
   const ref = `steps/${stepId}/${attemptId}/gate-results.json`;
   const target = resolveRunArtifactPath(runId, ref, cwd);
-  if (!existsSync(target)) return { gateResults: [] };
+
+  if (!existsSync(target)) {
+    return { gateResults: [] };
+  }
+
   return {
     ref,
     gateResults: readJson(target) as GateResult[],
@@ -58,7 +62,11 @@ function tryReadReview(
 } {
   const ref = `steps/${stepId}/${attemptId}/artifacts/review-report.json`;
   const target = resolveRunArtifactPath(runId, ref, cwd);
-  if (!existsSync(target)) return {};
+
+  if (!existsSync(target)) {
+    return {};
+  }
+
   return {
     ref,
     reviewVerdict: ReviewVerdictSchema.parse(readJson(target)),
@@ -76,7 +84,10 @@ function tryReadAttemptSummary(
 } {
   const ref = `steps/${stepId}/${attemptId}/artifacts/attempt-summary.json`;
   const target = resolveRunArtifactPath(runId, ref, cwd);
-  if (!existsSync(target)) return {};
+
+  if (!existsSync(target)) {
+    return {};
+  }
   try {
     return {
       ref,
@@ -98,7 +109,10 @@ function tryReadSchedulerDecision(
 } {
   const ref = `steps/${stepId}/${attemptId}/scheduler-decision.json`;
   const target = resolveRunArtifactPath(runId, ref, cwd);
-  if (!existsSync(target)) return {};
+
+  if (!existsSync(target)) {
+    return {};
+  }
   try {
     return {
       ref,
@@ -127,46 +141,79 @@ function attemptEvidence(
     attempt,
     gateResults: gateEvidence.gateResults,
   };
-  if (gateEvidence.ref) entry.gateResultsRef = gateEvidence.ref;
-  if (reviewEvidence.ref) entry.reviewReportRef = reviewEvidence.ref;
-  if (reviewEvidence.reviewVerdict) entry.reviewVerdict = reviewEvidence.reviewVerdict;
-  if (summaryEvidence.ref) entry.summaryRef = summaryEvidence.ref;
-  if (summaryEvidence.summary) entry.summary = summaryEvidence.summary;
-  if (schedulerEvidence.ref) entry.schedulerDecisionRef = schedulerEvidence.ref;
-  if (schedulerEvidence.schedulerDecision) entry.schedulerDecision = schedulerEvidence.schedulerDecision;
+
+  if (gateEvidence.ref) {
+    entry.gateResultsRef = gateEvidence.ref;
+  }
+  if (reviewEvidence.ref) {
+    entry.reviewReportRef = reviewEvidence.ref;
+  }
+  if (reviewEvidence.reviewVerdict) {
+    entry.reviewVerdict = reviewEvidence.reviewVerdict;
+  }
+  if (summaryEvidence.ref) {
+    entry.summaryRef = summaryEvidence.ref;
+  }
+  if (summaryEvidence.summary) {
+    entry.summary = summaryEvidence.summary;
+  }
+  if (schedulerEvidence.ref) {
+    entry.schedulerDecisionRef = schedulerEvidence.ref;
+  }
+  if (schedulerEvidence.schedulerDecision) {
+    entry.schedulerDecision = schedulerEvidence.schedulerDecision;
+  }
+
   return entry;
 }
 
 function stepAttemptEvidence(cwd: string, runId: string, stepId: string, stepPath: string): StepAttemptEvidence[] {
   const entries: StepAttemptEvidence[] = [];
+
   for (const attemptEntry of readdirSync(stepPath, { withFileTypes: true })) {
-    if (!attemptEntry.isDirectory()) continue;
+    if (!attemptEntry.isDirectory()) {
+      continue;
+    }
     const attemptId = attemptEntry.name;
     const attemptPath = path.join(stepPath, attemptId, "attempt.json");
-    if (existsSync(attemptPath)) entries.push(attemptEvidence(cwd, runId, stepId, attemptId, attemptPath));
+
+    if (existsSync(attemptPath)) {
+      entries.push(attemptEvidence(cwd, runId, stepId, attemptId, attemptPath));
+    }
   }
+
   return entries;
 }
 
 export function listStepAttemptEvidence(cwd: string, runId: string): StepAttemptEvidence[] {
   const stepsRoot = resolveRunArtifactPath(runId, "steps", cwd);
-  if (!existsSync(stepsRoot)) return [];
+
+  if (!existsSync(stepsRoot)) {
+    return [];
+  }
 
   const entries = readdirSync(stepsRoot, { withFileTypes: true }).flatMap((stepEntry) => {
-    if (!stepEntry.isDirectory()) return [];
+    if (!stepEntry.isDirectory()) {
+      return [];
+    }
+
     return stepAttemptEvidence(cwd, runId, stepEntry.name, path.join(stepsRoot, stepEntry.name));
   });
+
   return entries.sort((a, b) => a.attempt.startedAt.localeCompare(b.attempt.startedAt));
 }
 
 export function latestAttemptByStep(attempts: StepAttemptEvidence[]): Map<string, StepAttemptEvidence> {
   const latest = new Map<string, StepAttemptEvidence>();
+
   for (const attempt of attempts) {
     const current = latest.get(attempt.stepId);
+
     if (!current || current.attempt.startedAt.localeCompare(attempt.attempt.startedAt) <= 0) {
       latest.set(attempt.stepId, attempt);
     }
   }
+
   return latest;
 }
 
@@ -176,11 +223,14 @@ export function assertStepDependenciesCompleted(params: {
   stepId: string;
   dependsOn: string[];
 }): void {
-  if (params.dependsOn.length === 0) return;
+  if (params.dependsOn.length === 0) {
+    return;
+  }
 
   const latest = latestAttemptByStep(listStepAttemptEvidence(params.cwd, params.runId));
   const incomplete = params.dependsOn.filter((stepId) => {
     const attempt = latest.get(stepId);
+
     return attempt?.attempt.status !== ContractValues.Completed;
   });
 

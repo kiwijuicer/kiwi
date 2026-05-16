@@ -19,14 +19,20 @@ function writeCursorRule(params: { sourcePath: string; targetPath: string; descr
 
 export async function runRulesSync(opts: RulesSyncOptions = {}, cwd: string = process.cwd()): Promise<void> {
   const target = opts.target ?? "cursor";
+
   if (target !== "cursor") {
     throw new Error(`Unsupported rules sync target: ${target}`);
   }
 
   const agentsPath = path.join(cwd, "AGENTS.md");
   const rulesDir = path.join(cwd, "docs", ContractValues.Rules);
-  if (!existsSync(agentsPath)) throw new Error("AGENTS.md not found");
-  if (!existsSync(rulesDir)) throw new Error("docs/rules not found");
+
+  if (!existsSync(agentsPath)) {
+    throw new Error("AGENTS.md not found");
+  }
+  if (!existsSync(rulesDir)) {
+    throw new Error("docs/rules not found");
+  }
 
   const cursorRulesDir = path.join(cwd, ".cursor", ContractValues.Rules);
   mkdirSync(cursorRulesDir, { recursive: true });
@@ -39,6 +45,7 @@ export async function runRulesSync(opts: RulesSyncOptions = {}, cwd: string = pr
   const ruleFiles = readdirSync(rulesDir)
     .filter((entry) => entry.endsWith(".md"))
     .sort();
+
   for (const fileName of ruleFiles) {
     writeCursorRule({
       sourcePath: path.join(rulesDir, fileName),

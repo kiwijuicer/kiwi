@@ -66,6 +66,7 @@ describe("planner run service", () => {
           policy: input.policy,
           now,
         });
+
         return {
           providerName: "stub-deterministic",
           taskGraph,

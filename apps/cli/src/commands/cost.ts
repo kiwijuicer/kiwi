@@ -11,9 +11,15 @@ interface CostOptions extends CliWorkspaceOptions {
 }
 
 function csvField(value: string | number | null): string {
-  if (value === null) return "";
+  if (value === null) {
+    return "";
+  }
   const text = String(value);
-  if (!/[",\n]/.test(text)) return text;
+
+  if (!/[",\n]/.test(text)) {
+    return text;
+  }
+
   return `"${text.replaceAll('"', '""')}"`;
 }
 
@@ -54,6 +60,7 @@ function writeCostCsv(params: { cwd: string; runId: string }): { ref: string; ro
     `${[header.join(","), ...rows].join("\n")}\n`,
     "utf-8",
   );
+
   return { ref, rows: invocations.length };
 }
 
@@ -69,9 +76,11 @@ export async function runCost(runId: string, opts: CostOptions = {}, cwd: string
   if (opts.json) {
     if (csv) {
       console.log(JSON.stringify({ ...summary, csvRef: csv.ref, csvRows: csv.rows }, null, 2));
+
       return;
     }
     console.log(JSON.stringify(summary, null, 2));
+
     return;
   }
 

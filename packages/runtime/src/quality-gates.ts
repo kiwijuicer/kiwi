@@ -37,6 +37,7 @@ export function createGateResult(params: CreateGateResultParams): GateResult {
     reason: params.reason,
     ...(params.subject ? { subject: params.subject } : {}),
   };
+
   return GateResultSchema.parse(result);
 }
 
@@ -86,6 +87,7 @@ export function saveGateResults(params: {
   const relativePath = `steps/${params.stepId}/${params.attemptId}/gate-results.json`;
   const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
   writeJsonSafely(target, validated);
+
   return relativePath;
 }
 
@@ -97,11 +99,13 @@ export function loadGateResults(params: {
 }): GateResult[] {
   const relativePath = `steps/${params.stepId}/${params.attemptId}/gate-results.json`;
   const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
+
   if (!existsSync(target)) {
     throw new Error(`gate results not found: ${relativePath}`);
   }
 
   const parsed = JSON.parse(readFileSync(target, "utf-8")) as unknown;
+
   return (parsed as unknown[]).map((entry) => GateResultSchema.parse(entry));
 }
 
@@ -114,14 +118,22 @@ const DIFF_FILE_REGEX = /^diff (?:--git|--kiwi) a\/(.+?) b\/(.+)$/;
 export function extractDiffFiles(diff: string): DiffFileInfo[] {
   const out: DiffFileInfo[] = [];
   const seen = new Set<string>();
+
   for (const line of diff.split("\n")) {
     const match = DIFF_FILE_REGEX.exec(line);
-    if (!match) continue;
+
+    if (!match) {
+      continue;
+    }
     const filePath = match[2] ?? match[1];
-    if (!filePath || seen.has(filePath)) continue;
+
+    if (!filePath || seen.has(filePath)) {
+      continue;
+    }
     seen.add(filePath);
     out.push({ filePath });
   }
+
   return out;
 }
 
@@ -130,6 +142,7 @@ function wildcardPatternToRegExp(pattern: string): RegExp {
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")
     .replace(/\*\*/g, ".*")
     .replace(/\*/g, "[^/]*");
+
   return new RegExp(`^${escaped}$`);
 }
 
@@ -158,18 +171,28 @@ export function evaluateForbiddenFiles(params: {
   const denied: string[] = [];
   const allDeniedPatterns = new Set<string>();
   const profile = params.policy.commandProfiles.coding ?? params.policy.commandProfiles.default;
+
   if (profile) {
-    for (const pattern of profile.deniedPaths) allDeniedPatterns.add(pattern);
+    for (const pattern of profile.deniedPaths) {
+      allDeniedPatterns.add(pattern);
+    }
   }
   const approvalPatterns = profile ? profile.approvalRequiredPaths : [];
   const highRiskPatterns = params.policy.riskZones.high;
 
   const blockedFiles: string[] = [];
   const approvalRequiredFiles: string[] = [];
+
   for (const file of files) {
-    if (pathMatches(file, [...allDeniedPatterns])) blockedFiles.push(file);
-    if (pathMatches(file, approvalPatterns)) approvalRequiredFiles.push(file);
-    if (pathMatches(file, highRiskPatterns)) approvalRequiredFiles.push(file);
+    if (pathMatches(file, [...allDeniedPatterns])) {
+      blockedFiles.push(file);
+    }
+    if (pathMatches(file, approvalPatterns)) {
+      approvalRequiredFiles.push(file);
+    }
+    if (pathMatches(file, highRiskPatterns)) {
+      approvalRequiredFiles.push(file);
+    }
   }
   void denied;
   if (blockedFiles.length > 0) {
@@ -189,6 +212,7 @@ export function evaluateForbiddenFiles(params: {
     uniqueApprovalRequiredFiles.length > 0 &&
     uniqueApprovalRequiredFiles.length === approvedFileSet.size &&
     uniqueApprovalRequiredFiles.every((file) => approvedFileSet.has(file));
+
   if (approvalRequiredFiles.length > 0 && !params.approvedPaths && !exactFileApproval) {
     return {
       status: ContractValues.Blocked,
@@ -200,6 +224,7 @@ export function evaluateForbiddenFiles(params: {
       patterns: { highRisk: highRiskPatterns, deniedPaths: [...allDeniedPatterns] },
     };
   }
+
   return {
     status: ContractValues.Pass,
     reason: files.length === 0 ? "No diff files to evaluate" : `${files.length} diff files within policy bounds`,
@@ -229,8 +254,10 @@ const SECRET_PATTERNS: Array<{ name: string; regex: RegExp }> = [
 
 export function scanForSecrets(params: { diff: string; diffHash: string }): SecretsScanResult {
   const findings: Array<{ pattern: string; sample: string }> = [];
+
   for (const pattern of SECRET_PATTERNS) {
     const match = pattern.regex.exec(params.diff);
+
     if (match) {
       findings.push({
         pattern: pattern.name,
@@ -246,6 +273,7 @@ export function scanForSecrets(params: { diff: string; diffHash: string }): Secr
       diffHash: params.diffHash,
     };
   }
+
   return {
     status: ContractValues.Pass,
     reason: "No secrets detected in diff",
@@ -265,6 +293,7 @@ function writeGateReport(params: {
   const relativePath = `steps/${params.stepId}/${params.attemptId}/artifacts/${params.fileName}`;
   const target = resolveRunArtifactPath(params.runId, relativePath, params.cwd);
   writeJsonSafely(target, params.payload);
+
   return relativePath;
 }
 
@@ -296,6 +325,7 @@ export function runForbiddenFileGate(input: DiffGateInput): GateResult {
     fileName: "forbidden-file-report.json",
     payload: { schemaVersion: "1", ...result },
   });
+
   return GateResultSchema.parse({
     gateId: "gate_forbidden_file_checks",
     gateType: "forbidden_file_checks",
@@ -316,6 +346,7 @@ export function runSecretsScanGate(input: DiffGateInput): GateResult {
     fileName: "secrets-report.json",
     payload: { schemaVersion: "1", ...result },
   });
+
   return GateResultSchema.parse({
     gateId: "gate_secrets_check",
     gateType: "secrets_check",

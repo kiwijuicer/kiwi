@@ -12,6 +12,7 @@ import { enforceGateResultsBeforePositiveReview } from "./gates";
 
 export function nextActionFromReview(verdict: ReviewVerdict): StepAttemptNextAction {
   const action = classifyReviewAction(verdict);
+
   return {
     type: action,
     reason: verdict.verdict,
@@ -71,5 +72,6 @@ export async function runAttemptReview(params: {
     attemptId: params.attemptId,
     verdict: reviewVerdict,
   });
+
   return { reviewVerdict, reviewReportRef, metadata, startedAt };
 }

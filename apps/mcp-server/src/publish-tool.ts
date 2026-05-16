@@ -7,9 +7,17 @@ export function publishPrDraftTool(args: Record<string, unknown>, workspacePath:
       cwd: workspacePath,
       runId: String(args.runId ?? ""),
     };
-    if (typeof args.remote === "string") input.remote = args.remote;
-    if (typeof args.targetBranch === "string") input.targetBranch = args.targetBranch;
-    if (typeof args.branchName === "string") input.branchName = args.branchName;
+
+    if (typeof args.remote === "string") {
+      input.remote = args.remote;
+    }
+    if (typeof args.targetBranch === "string") {
+      input.targetBranch = args.targetBranch;
+    }
+    if (typeof args.branchName === "string") {
+      input.branchName = args.branchName;
+    }
+
     return publishPrDraft(input);
   });
 }

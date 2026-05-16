@@ -30,6 +30,7 @@ export function resolveRunArtifactPath(runId: string, artifactRelativePath: stri
 
   const base = path.resolve(runDir(runId, cwd));
   const target = path.resolve(base, artifactRelativePath);
+
   if (!(target === base || target.startsWith(`${base}${path.sep}`))) {
     throw new Error(`artifact path escapes run directory: ${artifactRelativePath}`);
   }
@@ -90,9 +91,16 @@ export function savePlannedRun(params: {
     createdAt: now,
     updatedAt: now,
   };
-  if (params.workspacePath) manifestInput.workspacePath = params.workspacePath;
-  if (params.repoId) manifestInput.repoId = params.repoId;
-  if (params.repoPath) manifestInput.repoPath = params.repoPath;
+
+  if (params.workspacePath) {
+    manifestInput.workspacePath = params.workspacePath;
+  }
+  if (params.repoId) {
+    manifestInput.repoId = params.repoId;
+  }
+  if (params.repoPath) {
+    manifestInput.repoPath = params.repoPath;
+  }
   const manifest = RunManifestSchema.parse(manifestInput);
 
   const initiative = InitiativeSchema.parse(params.initiative);
@@ -115,22 +123,27 @@ export function savePlannedRun(params: {
 
 export function loadInitiative(runId: string, cwd: string): Initiative {
   const target = resolveRunArtifactPath(runId, "initiative.json", cwd);
+
   if (!existsSync(target)) {
     throw new RunNotFoundError(runId);
   }
+
   return InitiativeSchema.parse(readJson(target));
 }
 
 export function loadRunManifest(runId: string, cwd: string): RunManifest {
   const target = resolveRunArtifactPath(runId, "run.json", cwd);
+
   if (!existsSync(target)) {
     throw new RunNotFoundError(runId);
   }
+
   return RunManifestSchema.parse(readJson(target));
 }
 
 export function loadTaskGraph(runId: string, cwd: string): TaskGraph {
   const baseTarget = resolveRunArtifactPath(runId, "plan/task-graph.json", cwd);
+
   if (!existsSync(baseTarget)) {
     throw new RunNotFoundError(runId);
   }
@@ -144,19 +157,27 @@ export function loadTaskGraph(runId: string, cwd: string): TaskGraph {
     .sort((a, b) => b.v - a.v);
 
   const target = versioned[0] ? path.join(planDir, versioned[0].f) : baseTarget;
+
   return TaskGraphSchema.parse(readJson(target));
 }
 
 export function listRunManifests(cwd: string): RunManifest[] {
   const root = runsRoot(cwd);
-  if (!existsSync(root)) return [];
+
+  if (!existsSync(root)) {
+    return [];
+  }
 
   const runIds = listRunIds(cwd);
 
   const manifests: RunManifest[] = [];
+
   for (const runId of runIds) {
     const target = resolveRunArtifactPath(runId, "run.json", cwd);
-    if (!existsSync(target)) continue;
+
+    if (!existsSync(target)) {
+      continue;
+    }
     manifests.push(RunManifestSchema.parse(readJson(target)));
   }
 
@@ -165,7 +186,10 @@ export function listRunManifests(cwd: string): RunManifest[] {
 
 export function listRunIds(cwd: string): string[] {
   const root = runsRoot(cwd);
-  if (!existsSync(root)) return [];
+
+  if (!existsSync(root)) {
+    return [];
+  }
 
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())

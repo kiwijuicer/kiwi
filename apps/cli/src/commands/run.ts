@@ -56,7 +56,10 @@ function createRunProgressReporter(opts: RunProgressOptions | undefined): RunPro
 
   function stopStep(stepId: string): void {
     const entry = active.get(stepId);
-    if (!entry) return;
+
+    if (!entry) {
+      return;
+    }
     clearInterval(entry.timer);
     active.delete(stepId);
   }
@@ -67,11 +70,15 @@ function createRunProgressReporter(opts: RunProgressOptions | undefined): RunPro
 
   return {
     line(line: string): void {
-      if (!enabled) return;
+      if (!enabled) {
+        return;
+      }
       write(line);
     },
     stepStart(stepId: string, title?: string): void {
-      if (!enabled) return;
+      if (!enabled) {
+        return;
+      }
       write(title ? `step ${stepId}: ${title}` : `step ${stepId}`);
       write("executing attempt and review...");
       const startedAt = nowMs();
@@ -82,19 +89,25 @@ function createRunProgressReporter(opts: RunProgressOptions | undefined): RunPro
       active.set(stepId, { startedAt, timer });
     },
     stepDone(stepId: string, result: ExecutePlannedStepResult, runStatus?: string): void {
-      if (!enabled) return;
+      if (!enabled) {
+        return;
+      }
       stopStep(stepId);
       write(
         `step ${stepId} done: status=${result.status} next=${result.nextAction.type} runStatus=${runStatus ?? result.runStatus}`,
       );
     },
     stepFailed(stepId: string, error: unknown): void {
-      if (!enabled) return;
+      if (!enabled) {
+        return;
+      }
       stopStep(stepId);
       write(`step ${stepId} failed: ${message(error)}`);
     },
     stopAll(): void {
-      for (const stepId of active.keys()) stopStep(stepId);
+      for (const stepId of active.keys()) {
+        stopStep(stepId);
+      }
     },
   };
 }
@@ -117,12 +130,17 @@ function assertWithinRunMaxCost(params: {
   taskGraph: ReturnType<typeof loadTaskGraph>;
   maxCost?: number;
 }): void {
-  if (params.maxCost === undefined) return;
+  if (params.maxCost === undefined) {
+    return;
+  }
   const forecast = buildRunCostForecast({
     taskGraph: params.taskGraph,
     plannerCostUsd: plannerCostUsd(params.cwd, params.runId),
   });
-  if (forecast.estimatedCostUsd <= params.maxCost) return;
+
+  if (forecast.estimatedCostUsd <= params.maxCost) {
+    return;
+  }
   const profile = firstBudgetProfileForCost(forecast.estimatedCostUsd);
   const hint = profile ? ` Re-plan with --budget-profile ${profile} if this run is intentional.` : "";
   throw new Error(
@@ -156,7 +174,11 @@ function tryAutoAction(params: {
     });
     console.log(chalk.yellow("↺") + ` auto-fix: injected ${injected.injectedStepId} after ${stepId}`);
     const idx = stepIds.indexOf(stepId);
-    if (idx >= 0) stepIds.splice(idx + 1, 0, injected.injectedStepId);
+
+    if (idx >= 0) {
+      stepIds.splice(idx + 1, 0, injected.injectedStepId);
+    }
+
     return true;
   }
 
@@ -171,6 +193,7 @@ function tryAutoAction(params: {
     });
     console.log(chalk.yellow("↻") + ` auto-replan: new plan written to ${replanResult.taskGraphPath}`);
     console.log(chalk.dim("Re-run with: kiwi run " + runId));
+
     return false;
   }
 
@@ -195,6 +218,7 @@ async function runSequentialSteps(params: {
     const stepId = stepIds[i]!;
     progress.stepStart(stepId, titlesByStepId.get(stepId));
     let attemptResult: ExecutePlannedStepResult;
+
     try {
       attemptResult = await runAttemptUnlocked(runId, stepId, attemptOptions, cwd);
     } catch (error) {
@@ -207,11 +231,13 @@ async function runSequentialSteps(params: {
     if (runStatus === ContractValues.Failed || runStatus === "needs_approval") {
       if (runStatus !== "needs_approval") {
         const continued = tryAutoAction({ cwd, runId, stepId, attemptResult, opts, stepIds });
+
         if (continued) {
           i++;
           continue;
         }
       }
+
       return { stoppedStatus: runStatus, stoppedStepId: stepId };
     }
     i++;
@@ -235,6 +261,7 @@ export async function runRun(runId: string, opts: RunOptions = {}, cwd: string =
   progress.line(chalk.dim(`workspace: ${workspace.workspacePath}`));
   let stoppedStatus: string | undefined;
   let stoppedStepId: string | undefined;
+
   try {
     await withRunLock(
       {
@@ -250,15 +277,27 @@ export async function runRun(runId: string, opts: RunOptions = {}, cwd: string =
           runId,
           taskGraph,
         };
-        if (opts.maxCost !== undefined) maxCostInput.maxCost = opts.maxCost;
+
+        if (opts.maxCost !== undefined) {
+          maxCostInput.maxCost = opts.maxCost;
+        }
         assertWithinRunMaxCost(maxCostInput);
         const titlesByStepId = new Map(taskGraph.steps.map((step) => [step.stepId, step.title]));
         progress.line(chalk.dim(`steps: ${taskGraph.steps.length}`));
-        if (opts.fromStep) progress.line(chalk.dim(`fromStep: ${opts.fromStep}`));
+        if (opts.fromStep) {
+          progress.line(chalk.dim(`fromStep: ${opts.fromStep}`));
+        }
         const attemptOptions: AttemptOptions = {};
-        if (opts.command) attemptOptions.command = opts.command;
-        if (opts.approved !== undefined) attemptOptions.approved = opts.approved;
-        if (opts.now) attemptOptions.now = opts.now;
+
+        if (opts.command) {
+          attemptOptions.command = opts.command;
+        }
+        if (opts.approved !== undefined) {
+          attemptOptions.approved = opts.approved;
+        }
+        if (opts.now) {
+          attemptOptions.now = opts.now;
+        }
 
         if (taskGraph.subPlans && taskGraph.subPlans.length > 1) {
           progress.line(chalk.dim(`subplans: ${taskGraph.subPlans.length}`));
@@ -276,6 +315,7 @@ export async function runRun(runId: string, opts: RunOptions = {}, cwd: string =
                 const result = await runAttemptUnlocked(runId, stepId, options, workspace.workspacePath);
                 const runStatus = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.currentStatus;
                 progress.stepDone(stepId, result, runStatus);
+
                 return result;
               } catch (error) {
                 progress.stepFailed(stepId, error);
@@ -285,11 +325,15 @@ export async function runRun(runId: string, opts: RunOptions = {}, cwd: string =
           });
           stoppedStatus = scheduled.stoppedStatus;
           stoppedStepId = scheduled.stoppedStepId;
+
           return;
         }
 
         const startIndex = opts.fromStep ? taskGraph.steps.findIndex((step) => step.stepId === opts.fromStep) : 0;
-        if (startIndex < 0) throw new Error(`Step not found: ${opts.fromStep}`);
+
+        if (startIndex < 0) {
+          throw new Error(`Step not found: ${opts.fromStep}`);
+        }
 
         const result = await runSequentialSteps({
           cwd: workspace.workspacePath,

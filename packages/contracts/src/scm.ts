@@ -17,7 +17,9 @@ export const ScmRepositoryRefSchema = z
     remoteUrl: z.string().min(1).optional(),
   })
   .superRefine((value, ctx) => {
-    if (value.provider !== ScmProviders.BitbucketCloud) return;
+    if (value.provider !== ScmProviders.BitbucketCloud) {
+      return;
+    }
     if (!value.workspace) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

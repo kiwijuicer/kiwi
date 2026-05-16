@@ -3,7 +3,10 @@ import path from "path";
 
 export function debugLog(message: string, details: Record<string, unknown> = {}): void {
   const target = process.env.KIWI_MCP_DEBUG_LOG;
-  if (!target) return;
+
+  if (!target) {
+    return;
+  }
   mkdirSync(path.dirname(target), { recursive: true });
   appendFileSync(
     target,

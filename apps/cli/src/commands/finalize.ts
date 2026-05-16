@@ -16,7 +16,10 @@ export async function runFinalize(
 ): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   const input: Parameters<typeof finalizeRun>[0] = { cwd: workspace.workspacePath, runId };
-  if (opts.now) input.now = opts.now;
+
+  if (opts.now) {
+    input.now = opts.now;
+  }
   const result = await withRunLock(
     {
       cwd: workspace.workspacePath,

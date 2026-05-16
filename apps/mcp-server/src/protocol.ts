@@ -29,7 +29,11 @@ function progressTokenFor(request: JsonRpcRequest): string | number | null | und
   const params = asRecord(request.params);
   const meta = asRecord(params._meta);
   const token = meta.progressToken;
-  if (typeof token === "string" || typeof token === "number" || token === null) return token;
+
+  if (typeof token === "string" || typeof token === "number" || token === null) {
+    return token;
+  }
+
   return request.id;
 }
 
@@ -37,15 +41,21 @@ function progressSender(
   request: JsonRpcRequest,
   context: McpRequestContext | undefined,
 ): ((message: string, percent?: number) => void) | undefined {
-  if (!context?.sendNotification) return undefined;
+  if (!context?.sendNotification) {
+    return undefined;
+  }
   const token = progressTokenFor(request);
+
   return (message, percent) => {
     const params: McpProgressNotification["params"] = { message };
+
     if (percent !== undefined) {
       params.progress = percent;
       params.total = 100;
     }
-    if (token !== undefined) params.progressToken = token;
+    if (token !== undefined) {
+      params.progressToken = token;
+    }
     context.sendNotification?.({
       jsonrpc: "2.0",
       method: "notifications/progress",
@@ -60,10 +70,12 @@ export async function handleMcpRequest(
   context?: McpRequestContext,
 ): Promise<JsonRpcResponse> {
   const id = request.id ?? null;
+
   try {
     if (request.method === "initialize") {
       const params = asRecord(request.params);
       const protocolVersion = typeof params.protocolVersion === "string" ? params.protocolVersion : "2024-11-05";
+
       return {
         jsonrpc: "2.0",
         id,
@@ -82,6 +94,7 @@ export async function handleMcpRequest(
     }
     if (request.method === "resources/read") {
       const params = asRecord(request.params);
+
       return { jsonrpc: "2.0", id, result: { contents: [readMcpResource(String(params.uri), cwd)] } };
     }
     if (request.method === "tools/list") {
@@ -91,8 +104,10 @@ export async function handleMcpRequest(
       const params = asRecord(request.params);
       const onProgress = progressSender(request, context);
       const result = await callTool(String(params.name), toolArguments(params), cwd, onProgress ? { onProgress } : {});
+
       return { jsonrpc: "2.0", id, result: textContent(result) };
     }
+
     return { jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${request.method}` } };
   } catch (error) {
     if (error instanceof ToolInputValidationError) {
@@ -126,6 +141,7 @@ export async function handleMcpRequest(
         },
       };
     }
+
     return {
       jsonrpc: "2.0",
       id,
@@ -156,14 +172,23 @@ export async function handleMcpMessage(
     }
 
     const responses: JsonRpcResponse[] = [];
+
     for (const entry of value) {
-      if (!isJsonRpcRequest(entry) || entry.id === undefined) continue;
+      if (!isJsonRpcRequest(entry) || entry.id === undefined) {
+        continue;
+      }
       responses.push(await handleMcpRequest(entry, cwd, context));
     }
+
     return responses.length > 0 ? responses : undefined;
   }
 
-  if (!isJsonRpcRequest(value)) return undefined;
-  if (value.id === undefined) return undefined;
+  if (!isJsonRpcRequest(value)) {
+    return undefined;
+  }
+  if (value.id === undefined) {
+    return undefined;
+  }
+
   return handleMcpRequest(value, cwd, context);
 }

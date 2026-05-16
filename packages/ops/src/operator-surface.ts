@@ -29,7 +29,10 @@ function writeTextSafely(target: string, value: string): void {
 }
 
 function renderList(items: string[]): string {
-  if (items.length === 0) return "<li>none</li>";
+  if (items.length === 0) {
+    return "<li>none</li>";
+  }
+
   return items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
@@ -45,6 +48,7 @@ export function renderOperatorSnapshotHtml(params: { cwd: string; runId: string;
       const latestAttempt = attempts.filter((attempt) => attempt.stepId === step.stepId).at(-1);
       const attemptStatus = latestAttempt?.attempt.status ?? "missing";
       const review = latestAttempt?.reviewVerdict?.verdict ?? "missing";
+
       return `<tr><td>${escapeHtml(step.stepId)}</td><td>${escapeHtml(step.type)}</td><td>${escapeHtml(step.title)}</td><td>${escapeHtml(step.dependsOn.join(", ") || "none")}</td><td>${escapeHtml(attemptStatus)}</td><td>${escapeHtml(review)}</td></tr>`;
     })
     .join("");
@@ -128,6 +132,7 @@ export function writeOperatorSnapshot(params: {
     timestamp: generatedAt,
     payload: { ref },
   });
+
   return {
     runId: params.runId,
     ref,

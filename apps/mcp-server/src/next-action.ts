@@ -18,7 +18,10 @@ function hasArtifact(cwd: string, runId: string, ref: string): boolean {
 
 export function nextTool(args: Record<string, unknown>, cwd: string): unknown {
   const runId = String(args.runId ?? "");
-  if (!runId) throw new Error("kiwi_next requires runId");
+
+  if (!runId) {
+    throw new Error("kiwi_next requires runId");
+  }
   const workspace = workspaceArgs(args, cwd, false);
   const previewInput = normalizePreviewInput({
     fromStep: typeof args.fromStep === "string" ? args.fromStep : undefined,

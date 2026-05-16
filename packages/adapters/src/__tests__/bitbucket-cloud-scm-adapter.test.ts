@@ -9,11 +9,13 @@ const repository = {
 
 function adapterWithCapturedRequests(requests: BitbucketCloudRequest[]): BitbucketCloudScmAdapter {
   let id = 40;
+
   return new BitbucketCloudScmAdapter({
     now: () => new Date("2026-05-04T08:00:00.000Z"),
     request: async (request) => {
       requests.push(request);
       id += 1;
+
       return {
         status: 201,
         body: {

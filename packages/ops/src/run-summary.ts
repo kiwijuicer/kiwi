@@ -24,12 +24,25 @@ import {
 // Local because @kiwi/core's dist must be rebuilt before the cross-
 // package import resolves; this avoids a build-order trap.
 function inferAccessMode(record: ModelInvocationRecord): AccessMode | null {
-  if (record.accessMode) return record.accessMode;
-  if (record.runner === "claude-code") return AccessModes.ClaudeCodeCli;
-  if (record.runner === "codex") return AccessModes.CodexCli;
-  if (record.runner === "cursor-agent") return AccessModes.CursorAgentCli;
-  if (record.runner === "local-shell") return AccessModes.Local;
-  if (record.providerName === "stub" || record.providerName.startsWith("stub")) return AccessModes.Stub;
+  if (record.accessMode) {
+    return record.accessMode;
+  }
+  if (record.runner === "claude-code") {
+    return AccessModes.ClaudeCodeCli;
+  }
+  if (record.runner === "codex") {
+    return AccessModes.CodexCli;
+  }
+  if (record.runner === "cursor-agent") {
+    return AccessModes.CursorAgentCli;
+  }
+  if (record.runner === "local-shell") {
+    return AccessModes.Local;
+  }
+  if (record.providerName === "stub" || record.providerName.startsWith("stub")) {
+    return AccessModes.Stub;
+  }
+
   return null;
 }
 
@@ -105,6 +118,7 @@ function addPrecision(target: UsagePrecisionCounts, invocation: ModelInvocationR
 function modelLabel(record: ModelInvocationRecord): string {
   const accessMode = inferAccessMode(record);
   const target = accessMode ?? record.runner ?? record.modelId ?? record.providerName;
+
   return `${record.selectedCapability}/${target}`;
 }
 
@@ -112,6 +126,7 @@ function costModelLabel(record: ModelInvocationRecord): string {
   const runner = record.runner ?? "none";
   const accessMode = inferAccessMode(record) ?? "none";
   const modelId = record.modelId ?? "unknown";
+
   return `${record.selectedCapability}/${runner}|${accessMode}|${record.providerName}|${modelId}`;
 }
 
@@ -135,7 +150,10 @@ function phaseSummary(phase: ModelInvocationPhase, invocations: ModelInvocationR
     addPrecision(usagePrecision, record);
     models.add(modelLabel(record));
     const accessMode = inferAccessMode(record);
-    if (accessMode) accessModes.add(accessMode);
+
+    if (accessMode) {
+      accessModes.add(accessMode);
+    }
   }
 
   return {
@@ -150,8 +168,12 @@ function phaseSummary(phase: ModelInvocationPhase, invocations: ModelInvocationR
 
 function readFinalVerdict(cwd: string, runId: string): { verdict: string; safeToApply: boolean | null } {
   const target = resolveRunArtifactPath(runId, "final/final-verdict.json", cwd);
-  if (!existsSync(target)) return { verdict: "missing", safeToApply: null };
+
+  if (!existsSync(target)) {
+    return { verdict: "missing", safeToApply: null };
+  }
   const parsed = JSON.parse(readFileSync(target, "utf-8")) as { verdict?: string; safeToApply?: boolean };
+
   return {
     verdict: parsed.verdict ?? "missing",
     safeToApply: typeof parsed.safeToApply === "boolean" ? parsed.safeToApply : null,
@@ -165,16 +187,30 @@ function nextAction(params: {
   blocked: number;
   status: string;
 }): string {
-  if (params.safeToApply === true) return "complete";
-  if (params.blocked > 0) return "resolve_blocker";
-  if (params.failed > 0) return "fix_step";
-  if (params.finalVerdict === "missing" && params.status !== ContractValues.Completed) return "continue_or_finalize";
-  if (params.finalVerdict === "missing") return "finalize";
+  if (params.safeToApply === true) {
+    return "complete";
+  }
+  if (params.blocked > 0) {
+    return "resolve_blocker";
+  }
+  if (params.failed > 0) {
+    return "fix_step";
+  }
+  if (params.finalVerdict === "missing" && params.status !== ContractValues.Completed) {
+    return "continue_or_finalize";
+  }
+  if (params.finalVerdict === "missing") {
+    return "finalize";
+  }
+
   return "review_final_verdict";
 }
 
 function costQualifier(usagePrecision: UsagePrecisionCounts): string {
-  if (usagePrecision.unknown > 0) return "partial estimate";
+  if (usagePrecision.unknown > 0) {
+    return "partial estimate";
+  }
+
   return "estimated";
 }
 
@@ -191,8 +227,10 @@ function compactLine(params: {
   const phaseLabels = PHASES.map((phase) => {
     const summary = params.phaseSummaries[phase];
     const label = summary.models[0] ?? "none";
+
     return `${phase} ${label}`;
   });
+
   return [
     `cost: ${formatUsd(params.totalEstimatedCostUsd)} ${costQualifier(params.usagePrecision)}`,
     ...phaseLabels,
@@ -202,17 +240,25 @@ function compactLine(params: {
 
 function stringPayloadValue(payload: Record<string, unknown>, key: string): string | null {
   const value = payload[key];
+
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function executorReasonByAttempt(cwd: string, runId: string): Map<string, string> {
   const reasons = new Map<string, string>();
+
   for (const event of readAuditEvents(cwd, runId)) {
-    if (String(event.eventType) !== "executor_model_selected") continue;
+    if (String(event.eventType) !== "executor_model_selected") {
+      continue;
+    }
     const attemptId = stringPayloadValue(event.payload, "attemptId");
     const reason = stringPayloadValue(event.payload, "reason");
-    if (attemptId && reason) reasons.set(attemptId, reason);
+
+    if (attemptId && reason) {
+      reasons.set(attemptId, reason);
+    }
   }
+
   return reasons;
 }
 
@@ -224,16 +270,23 @@ function executorSelectionByAttempt(
     string,
     { modelId: string | null; providerName: string | null; accessMode: string | null }
   >();
+
   for (const event of readAuditEvents(cwd, runId)) {
-    if (String(event.eventType) !== "executor_model_selected") continue;
+    if (String(event.eventType) !== "executor_model_selected") {
+      continue;
+    }
     const attemptId = stringPayloadValue(event.payload, "attemptId");
-    if (!attemptId) continue;
+
+    if (!attemptId) {
+      continue;
+    }
     selections.set(attemptId, {
       modelId: typeof event.payload.modelId === "string" ? event.payload.modelId : null,
       providerName: typeof event.payload.providerName === "string" ? event.payload.providerName : null,
       accessMode: typeof event.payload.accessMode === "string" ? event.payload.accessMode : null,
     });
   }
+
   return selections;
 }
 
@@ -244,9 +297,13 @@ export function buildRunCompletionSummary(params: { cwd: string; runId: string; 
   const usagePrecision = emptyPrecisionCounts();
   const byStepCostsUsd: Record<string, RunStepCosts> = {};
   const byModelCostsUsd: Record<string, number> = {};
-  for (const invocation of invocations) addPrecision(usagePrecision, invocation);
+
+  for (const invocation of invocations) {
+    addPrecision(usagePrecision, invocation);
+  }
   for (const invocation of invocations) {
     const estimatedCost = invocation.estimatedCostUsd ?? 0;
+
     if (invocation.stepId) {
       const current = byStepCostsUsd[invocation.stepId] ?? emptyStepCosts();
       current[invocation.phase] = roundUsd(current[invocation.phase] + estimatedCost);
@@ -268,6 +325,7 @@ export function buildRunCompletionSummary(params: { cwd: string; runId: string; 
   const completed = latest.filter((entry) => entry.attempt.status === ContractValues.Completed);
   const final = readFinalVerdict(params.cwd, params.runId);
   const warnings: string[] = [];
+
   if (usagePrecision.unknown >= Math.max(1, Math.ceil(invocations.length / 4))) {
     warnings.push(
       "cost_precision_unknown_dominant: most invocations have unknown token precision; verify provider usage metadata.",
@@ -330,6 +388,7 @@ export function buildRunExplanation(params: { cwd: string; runId: string; now?: 
       const schedulerDecision = entry.schedulerDecision! as SchedulerDecisionWithModelMetadata;
       const executorReason = executorReasons.get(entry.attemptId);
       const executorSelection = executorSelections.get(entry.attemptId);
+
       return {
         stepId: entry.stepId,
         attemptId: entry.attemptId,
@@ -365,6 +424,7 @@ export function buildRunExplanation(params: { cwd: string; runId: string; now?: 
     .filter((event) => event.eventType === "scheduler_blocked")
     .map((event) => {
       const selectedCapability = stringPayloadValue(event.payload, "modelCapability");
+
       return {
         stepId: String(event.payload.stepId ?? "unknown"),
         attemptId: stringPayloadValue(event.payload, "attemptId") ?? "unknown",

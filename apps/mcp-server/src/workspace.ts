@@ -5,9 +5,11 @@ export function workspaceArgs(args: Record<string, unknown>, cwd: string, requir
   const workspacePath = typeof args.workspacePath === "string" ? args.workspacePath : undefined;
   const repoPath = typeof args.repoPath === "string" ? args.repoPath : undefined;
   const repo = repoPath ? repoPath : typeof args.repoId === "string" ? args.repoId : undefined;
+
   if (workspacePath && repoPath) {
     const resolvedWorkspacePath = path.resolve(cwd, workspacePath);
     const resolvedRepoPath = path.resolve(cwd, repoPath);
+
     if (!isInitialized(resolvedWorkspacePath) && isInitialized(resolvedRepoPath)) {
       return resolveWorkspace({
         cwd,
@@ -18,7 +20,13 @@ export function workspaceArgs(args: Record<string, unknown>, cwd: string, requir
     }
   }
   const input: Parameters<typeof resolveWorkspace>[0] = { cwd, requireRepo };
-  if (workspacePath) input.workspacePath = workspacePath;
-  if (repo) input.repo = repo;
+
+  if (workspacePath) {
+    input.workspacePath = workspacePath;
+  }
+  if (repo) {
+    input.repo = repo;
+  }
+
   return resolveWorkspace(input);
 }

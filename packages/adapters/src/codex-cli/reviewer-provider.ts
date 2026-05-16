@@ -42,7 +42,9 @@ export class CodexCliReviewerProvider implements ReviewerProvider {
 
   constructor(options: CodexCliReviewerProviderOptions = {}) {
     this.binary = options.binary ?? process.env.KIWI_CODEX_BINARY ?? "codex";
-    if (options.cwd !== undefined) this.cwd = options.cwd;
+    if (options.cwd !== undefined) {
+      this.cwd = options.cwd;
+    }
     this.model = options.model;
     this.name = `codex-cli:${this.model ?? "default"}`;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;

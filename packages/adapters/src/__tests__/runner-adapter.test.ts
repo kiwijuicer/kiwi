@@ -28,6 +28,7 @@ class FakeCursorRunner implements CursorAgentCliRunner {
       usage: { input_tokens: 11, output_tokens: 7 },
       total_cost_usd: 0.123,
     });
+
     return {
       ok: true,
       exitCode: 0,
@@ -52,6 +53,7 @@ class FakeCodexRunner implements CodexCliRunner {
     mkdirSync(invocation.cwd, { recursive: true });
     writeFileSync(path.join(invocation.cwd, "generated-codex.txt"), "from codex\n", "utf-8");
     const parsed = [{ type: "turn.completed", usage: { inputTokens: 13, outputTokens: 5 } }];
+
     return {
       ok: true,
       exitCode: 0,

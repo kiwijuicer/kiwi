@@ -58,6 +58,7 @@ function providerError(params: {
         : params.code === "provider_auth"
           ? PlannerProviderSchedulerErrorCodes.ProviderAuth
           : PlannerProviderSchedulerErrorCodes.ProviderNetwork;
+
   return new PlannerProviderError({
     code: params.code,
     schedulerErrorCode,
@@ -69,7 +70,11 @@ function providerError(params: {
 
 function previousAttempts(context?: PlannerProviderRepairContext): unknown[] {
   const artifact = context?.invalidProviderArtifacts?.plannerInput;
-  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) return [];
+
+  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) {
+    return [];
+  }
+
   return artifact.attempts.filter((entry): entry is Record<string, unknown> => isRecord(entry));
 }
 
@@ -104,7 +109,9 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
 
   constructor(options: ClaudeCodeCliPlannerProviderOptions = {}) {
     this.binary = options.binary ?? process.env.KIWI_CLAUDE_CODE_BINARY ?? "claude";
-    if (options.cwd !== undefined) this.cwd = options.cwd;
+    if (options.cwd !== undefined) {
+      this.cwd = options.cwd;
+    }
     this.model = options.model;
     this.name = `claude-code-cli:${this.model ?? "default"}`;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -162,6 +169,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
       env,
     };
     const result = await this.runner.run(invocation);
+
     if (!result.ok) {
       throw providerError({
         code: result.timedOut ? "provider_timeout" : "provider_network",
@@ -174,6 +182,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
 
     const text = extractCliResultText(result.parsed, result.stdout);
     const taskGraph = extractTextJson(text);
+
     if (taskGraph === null) {
       throw providerError({
         code: "provider_schema_invalid",

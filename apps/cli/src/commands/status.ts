@@ -22,7 +22,9 @@ function formatUsd(value: number): string {
 }
 
 function printAttemptStatuses(attempts: RunAttemptStatusEntry[]): void {
-  if (attempts.length === 0) return;
+  if (attempts.length === 0) {
+    return;
+  }
   console.log(`  attempts:`);
   for (const attempt of attempts) {
     console.log(
@@ -75,6 +77,7 @@ function printEditedFiles(files: RunEditedFileEntry[]): void {
   console.log(`  edited_files:`);
   if (files.length === 0) {
     console.log(`    none`);
+
     return;
   }
   for (const file of files) {
@@ -86,6 +89,7 @@ function printActiveStepActivity(entry: RunStatusEntry): void {
   console.log(`  active_activity:`);
   if (entry.activeStepActivity.length === 0) {
     console.log(`    none`);
+
     return;
   }
   for (const activity of entry.activeStepActivity) {
@@ -101,7 +105,9 @@ function printActiveStepActivity(entry: RunStatusEntry): void {
 }
 
 function printCorruptRuns(corrupt: CorruptRunStatusEntry[]): void {
-  if (corrupt.length === 0) return;
+  if (corrupt.length === 0) {
+    return;
+  }
   console.log(chalk.yellow(`corrupt runs skipped: ${corrupt.length}`));
   for (const entry of corrupt) {
     console.log(chalk.dim(`  ${entry.runId}: ${entry.error}`));
@@ -110,7 +116,10 @@ function printCorruptRuns(corrupt: CorruptRunStatusEntry[]): void {
 
 function printSubPlanTree(runId: string, cwd: string): void {
   const lines = formatSubPlanTreeLines(loadTaskGraph(runId, cwd), "    ");
-  if (lines.length === 0) return;
+
+  if (lines.length === 0) {
+    return;
+  }
   console.log("  subplans:");
   for (const line of lines) {
     console.log(line);
@@ -120,7 +129,9 @@ function printSubPlanTree(runId: string, cwd: string): void {
 function printRunEntry(entry: RunStatusEntry, cwd: string): void {
   console.log(`${entry.runId}  ${entry.currentStatus}  ${entry.updatedAt}`);
   console.log(`  run_state: ${entry.currentStatus}`);
-  if (entry.currentStatus !== entry.status) console.log(`  manifest_status: ${entry.status}`);
+  if (entry.currentStatus !== entry.status) {
+    console.log(`  manifest_status: ${entry.status}`);
+  }
   console.log(`  title: ${entry.initiativeTitle}`);
   if (entry.repoId || entry.repoPath) {
     console.log(`  repo: ${entry.repoId ?? "repo"}${entry.repoPath ? ` (${entry.repoPath})` : ""}`);
@@ -145,28 +156,38 @@ function printCompactRunEntry(entry: RunStatusEntry, cwd: string): void {
 export async function runStatus(cwd: string = process.cwd(), runId?: string, opts: StatusOptions = {}): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
   const summary = getRunStatusSummary(workspace.workspacePath, runId);
+
   if (opts.json) {
     console.log(JSON.stringify(summary, null, 2));
+
     return;
   }
 
   if (summary.latest.length === 0) {
     console.log(`runs: ${summary.total}`);
     printCorruptRuns(summary.corrupt);
-    if (summary.corrupt.length === 0) console.log(chalk.dim("no runs found"));
+    if (summary.corrupt.length === 0) {
+      console.log(chalk.dim("no runs found"));
+    }
+
     return;
   }
 
   if (!opts.verbose) {
     console.log("runId  status  cost  next-action");
-    for (const entry of summary.latest) printCompactRunEntry(entry, workspace.workspacePath);
+    for (const entry of summary.latest) {
+      printCompactRunEntry(entry, workspace.workspacePath);
+    }
     printCorruptRuns(summary.corrupt);
+
     return;
   }
 
   console.log(chalk.bold("kiwi status"));
   console.log(`workspace: ${workspace.workspacePath}`);
-  if (runId) console.log(`selected_run: ${runId}`);
+  if (runId) {
+    console.log(`selected_run: ${runId}`);
+  }
   console.log(`runs: ${summary.total}`);
   console.log(`planned: ${summary.planned}`);
   console.log(`running: ${summary.running}`);
@@ -177,6 +198,8 @@ export async function runStatus(cwd: string = process.cwd(), runId?: string, opt
   console.log(`corrupt: ${summary.corrupt.length}`);
   console.log("");
   console.log(chalk.bold("latest runs:"));
-  for (const entry of summary.latest) printRunEntry(entry, workspace.workspacePath);
+  for (const entry of summary.latest) {
+    printRunEntry(entry, workspace.workspacePath);
+  }
   printCorruptRuns(summary.corrupt);
 }

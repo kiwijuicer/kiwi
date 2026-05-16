@@ -32,6 +32,7 @@ export function markAttemptRunning(params: {
       completedAt: null,
     }),
   });
+
   return existingAttempt;
 }
 
@@ -96,6 +97,7 @@ export function persistAttemptCompletion(params: {
       completedAt: params.completedAt,
     }),
   });
+
   return { artifacts, attemptRef };
 }
 

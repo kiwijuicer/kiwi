@@ -5,10 +5,15 @@ import { terminateProcessTree, truncateOutput } from "./process-utils";
 
 function allowedEnv(env: Record<string, string> | undefined, allowlist: string[]): Record<string, string> {
   const selected: Record<string, string> = {};
+
   for (const key of allowlist) {
     const value = env?.[key] ?? process.env[key];
-    if (value !== undefined) selected[key] = value;
+
+    if (value !== undefined) {
+      selected[key] = value;
+    }
   }
+
   return selected;
 }
 
@@ -38,7 +43,9 @@ export function spawnSandboxCommand(input: SandboxCommandInput, startedAt: strin
     });
     child.on("close", (exitCode) => {
       clearTimeout(timeout);
-      if (killTimer) clearTimeout(killTimer);
+      if (killTimer) {
+        clearTimeout(killTimer);
+      }
       resolve(finishCommand({ input, startedAt, exitCode, timedOut, stdout, stderr }));
     });
   });

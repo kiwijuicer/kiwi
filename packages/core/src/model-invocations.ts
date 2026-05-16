@@ -33,18 +33,32 @@ function addTotals(target: ModelUsageSummaryTotals, record: ModelInvocationRecor
 }
 
 export function inferAccessMode(record: ModelInvocationRecord): AccessMode | null {
-  if (record.accessMode) return record.accessMode;
-  if (record.runner === "claude-code") return AccessModes.ClaudeCodeCli;
-  if (record.runner === "codex") return AccessModes.CodexCli;
-  if (record.runner === "cursor-agent") return AccessModes.CursorAgentCli;
-  if (record.runner === "local-shell") return AccessModes.Local;
-  if (record.providerName === "stub" || record.providerName.startsWith("stub")) return AccessModes.Stub;
+  if (record.accessMode) {
+    return record.accessMode;
+  }
+  if (record.runner === "claude-code") {
+    return AccessModes.ClaudeCodeCli;
+  }
+  if (record.runner === "codex") {
+    return AccessModes.CodexCli;
+  }
+  if (record.runner === "cursor-agent") {
+    return AccessModes.CursorAgentCli;
+  }
+  if (record.runner === "local-shell") {
+    return AccessModes.Local;
+  }
+  if (record.providerName === "stub" || record.providerName.startsWith("stub")) {
+    return AccessModes.Stub;
+  }
+
   return null;
 }
 
 function uniqueInvocationModels(invocations: ModelInvocationRecord[]): FinalCostReport["models"] {
   const seen = new Set<string>();
   const models: FinalCostReport["models"] = [];
+
   for (const invocation of invocations) {
     const accessMode = inferAccessMode(invocation);
     const entry = {
@@ -56,10 +70,14 @@ function uniqueInvocationModels(invocations: ModelInvocationRecord[]): FinalCost
       ...(accessMode ? { accessMode } : {}),
     };
     const key = JSON.stringify(entry);
-    if (seen.has(key)) continue;
+
+    if (seen.has(key)) {
+      continue;
+    }
     seen.add(key);
     models.push(entry);
   }
+
   return models;
 }
 
@@ -88,6 +106,7 @@ export function appendModelInvocation(cwd: string, record: ModelInvocationRecord
       estimatedCostUsd: parsed.estimatedCostUsd,
     },
   });
+
   return [
     MODEL_INVOCATIONS_REF,
     [parsed.phase, parsed.stepId, parsed.attemptId, parsed.completedAt.replace(/[^0-9TZ]/g, "")]
@@ -98,7 +117,10 @@ export function appendModelInvocation(cwd: string, record: ModelInvocationRecord
 
 export function readModelInvocations(cwd: string, runId: string): ModelInvocationRecord[] {
   const target = resolveRunArtifactPath(runId, MODEL_INVOCATIONS_REF, cwd);
-  if (!existsSync(target)) return [];
+
+  if (!existsSync(target)) {
+    return [];
+  }
 
   return readFileSync(target, "utf-8")
     .split("\n")
@@ -139,6 +161,7 @@ export function writeModelUsageSummary(params: { cwd: string; runId: string; now
   ensureRunLayout(params.runId, params.cwd);
   const summary = summarizeModelInvocations(params);
   writeJsonSafely(resolveRunArtifactPath(params.runId, MODEL_USAGE_SUMMARY_REF, params.cwd), summary);
+
   return {
     summary,
     ref: MODEL_USAGE_SUMMARY_REF,

@@ -41,6 +41,7 @@ function fakeClaudeBin(script: string): string {
   const target = path.join(dir, "claude");
   writeFileSync(target, `#!/usr/bin/env sh\n${script}\n`, "utf-8");
   chmodSync(target, 0o755);
+
   return dir;
 }
 

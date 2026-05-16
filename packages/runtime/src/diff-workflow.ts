@@ -44,23 +44,38 @@ function patchStat(patchPath: string, patch: string): string {
     const files = new Set<string>();
     let additions = 0;
     let deletions = 0;
+
     for (const line of patch.split(/\r?\n/)) {
-      if (line.startsWith("+++ b/")) files.add(line.slice("+++ b/".length));
-      if (line.startsWith("+") && !line.startsWith("+++")) additions++;
-      if (line.startsWith("-") && !line.startsWith("---")) deletions++;
+      if (line.startsWith("+++ b/")) {
+        files.add(line.slice("+++ b/".length));
+      }
+      if (line.startsWith("+") && !line.startsWith("+++")) {
+        additions++;
+      }
+      if (line.startsWith("-") && !line.startsWith("---")) {
+        deletions++;
+      }
     }
+
     return `${files.size} files changed, ${additions} insertions(+), ${deletions} deletions(-)`;
   }
 }
 
 function attemptApplyModes(cwd: string, runId: string): Map<string, "direct" | "worktree"> {
   const modes = new Map<string, "direct" | "worktree">();
+
   for (const event of readAuditEvents(cwd, runId)) {
-    if (event.eventType !== "attempt_diff_applied") continue;
+    if (event.eventType !== "attempt_diff_applied") {
+      continue;
+    }
     const attemptId = typeof event.payload.attemptId === "string" ? event.payload.attemptId : null;
-    if (!attemptId) continue;
+
+    if (!attemptId) {
+      continue;
+    }
     modes.set(attemptId, event.payload.mode === "direct" ? "direct" : "worktree");
   }
+
   return modes;
 }
 
@@ -73,11 +88,16 @@ function selectedAttempts(params: {
   const attempts = listStepAttemptEvidence(params.cwd, params.runId).filter(
     (attempt) => !params.stepId || attempt.stepId === params.stepId,
   );
-  if (params.allAttempts) return attempts;
+
+  if (params.allAttempts) {
+    return attempts;
+  }
   if (params.stepId) {
     const latest = latestAttemptByStep(attempts).get(params.stepId);
+
     return latest ? [latest] : [];
   }
+
   return Array.from(latestAttemptByStep(attempts).values()).sort((a, b) => a.stepId.localeCompare(b.stepId));
 }
 
@@ -90,11 +110,18 @@ export function buildRunDiff(params: {
   const modes = attemptApplyModes(params.cwd, params.runId);
   const items = selectedAttempts(params).flatMap((attempt): RunDiffItem[] => {
     const diffArtifact = attempt.attempt.artifacts.find((artifact) => artifact.type === ArtifactTypes.Diff);
-    if (!diffArtifact) return [];
+
+    if (!diffArtifact) {
+      return [];
+    }
     const patchPath = resolveRunArtifactPath(params.runId, diffArtifact.ref, params.cwd);
-    if (!existsSync(patchPath)) return [];
+
+    if (!existsSync(patchPath)) {
+      return [];
+    }
     const patch = readFileSync(patchPath, "utf-8");
     const appliedMode = modes.get(attempt.attemptId) ?? null;
+
     return [
       {
         stepId: attempt.stepId,
@@ -122,7 +149,10 @@ export function buildRunDiff(params: {
 }
 
 export function formatRunDiff(result: RunDiffResult): string {
-  if (result.items.length === 0) return "no diff artifacts found";
+  if (result.items.length === 0) {
+    return "no diff artifacts found";
+  }
+
   return result.items
     .map((item) =>
       [`# ${item.stepId}/${item.attemptId}`, item.stat, "", item.patch.trimEnd()]
@@ -143,8 +173,12 @@ export function applyRunDiff(params: {
   forceUnsafe?: boolean;
 }): ApplyRunDiffResult {
   const diffInput: Parameters<typeof buildRunDiff>[0] = { cwd: params.cwd, runId: params.runId };
-  if (params.stepId) diffInput.stepId = params.stepId;
+
+  if (params.stepId) {
+    diffInput.stepId = params.stepId;
+  }
   const diff = buildRunDiff(diffInput);
+
   if (diff.items.length === 0) {
     return { runId: params.runId, applied: [], skipped: [], message: "no diff artifacts found" };
   }
@@ -163,6 +197,7 @@ export function applyRunDiff(params: {
   }
 
   const blocked = diff.items.find((item) => blockedVerdict(item.reviewVerdict));
+
   if (blocked && !params.forceUnsafe) {
     throw new Error(
       `Refusing to apply ${blocked.stepId}/${blocked.attemptId}: review verdict is ${blocked.reviewVerdict}. Use --force-unsafe to override.`,
@@ -172,6 +207,7 @@ export function applyRunDiff(params: {
   const repoPath = loadInitiative(params.runId, params.cwd).repoPath || params.cwd;
   const applied: ApplyRunDiffResult["applied"] = [];
   const skipped: ApplyRunDiffResult["skipped"] = [];
+
   for (const item of diff.items) {
     if (item.appliedMode === "worktree") {
       throw new Error(`Patch already applied for ${item.stepId}/${item.attemptId}.`);
@@ -186,6 +222,7 @@ export function applyRunDiff(params: {
       diffRef: item.diffRef,
       sourcePath: repoPath,
     });
+
     if (!result.applied) {
       appendAuditEvent(params.cwd, {
         eventType: "attempt_diff_apply_failed",

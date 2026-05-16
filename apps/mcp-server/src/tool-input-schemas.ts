@@ -92,11 +92,15 @@ export function invalidToolArgumentIssue(path: Array<string | number>, message: 
 }
 
 export function validateToolArguments(name: string, args: Record<string, unknown>): Record<string, unknown> {
-  if (!Object.prototype.hasOwnProperty.call(ToolInputSchemas, name)) return args;
+  if (!Object.prototype.hasOwnProperty.call(ToolInputSchemas, name)) {
+    return args;
+  }
   const schema = ToolInputSchemas[name as ToolSchemaName];
   const parsed = schema.safeParse(args);
+
   if (!parsed.success) {
     throw new ToolInputValidationError(name, parsed.error.issues);
   }
+
   return parsed.data as Record<string, unknown>;
 }

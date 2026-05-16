@@ -9,14 +9,20 @@ interface ExplainOptions extends CliWorkspaceOptions {
 }
 
 function executorReasonFor(decision: unknown): string | null {
-  if (typeof decision !== "object" || decision === null || !("executorReason" in decision)) return null;
+  if (typeof decision !== "object" || decision === null || !("executorReason" in decision)) {
+    return null;
+  }
   const value = (decision as { executorReason?: unknown }).executorReason;
+
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 function printSubPlanTree(runId: string, cwd: string): void {
   const lines = formatSubPlanTreeLines(loadTaskGraph(runId, cwd), "  ");
-  if (lines.length === 0) return;
+
+  if (lines.length === 0) {
+    return;
+  }
   console.log("subplans:");
   for (const line of lines) {
     console.log(line);
@@ -33,6 +39,7 @@ export async function runExplain(runId: string, opts: ExplainOptions = {}, cwd: 
 
   if (opts.json) {
     console.log(JSON.stringify(explanation, null, 2));
+
     return;
   }
 
@@ -46,6 +53,7 @@ export async function runExplain(runId: string, opts: ExplainOptions = {}, cwd: 
     }
   }
   const byStep = Object.entries(explanation.completionSummary.byStepCostsUsd);
+
   if (byStep.length > 0) {
     console.log("cost_by_step:");
     for (const [stepId, costs] of byStep) {
@@ -55,6 +63,7 @@ export async function runExplain(runId: string, opts: ExplainOptions = {}, cwd: 
     }
   }
   const byModel = Object.entries(explanation.completionSummary.byModelCostsUsd).sort((a, b) => b[1] - a[1]);
+
   if (byModel.length > 0) {
     console.log("cost_by_model:");
     for (const [modelLabel, costUsd] of byModel) {

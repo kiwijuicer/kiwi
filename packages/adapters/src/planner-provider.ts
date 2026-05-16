@@ -119,8 +119,12 @@ export class PlannerProviderError extends Error {
     this.code = params.code;
     this.schedulerErrorCode = params.schedulerErrorCode;
     this.retryable = params.retryable;
-    if (params.statusCode !== undefined) this.statusCode = params.statusCode;
-    if (params.cause !== undefined) this.cause = params.cause;
+    if (params.statusCode !== undefined) {
+      this.statusCode = params.statusCode;
+    }
+    if (params.cause !== undefined) {
+      this.cause = params.cause;
+    }
   }
 }
 
@@ -143,12 +147,14 @@ export class PlannerProviderValidationError extends PlannerProviderError {
 function validateExecutableTaskGraph(taskGraph: TaskGraph): void {
   const issues = taskGraph.steps.flatMap((step) => {
     const stepIssues: string[] = [];
+
     if (step.type === "review") {
       stepIssues.push(`${step.stepId}: standalone review steps are redundant because kiwi reviews every attempt`);
     }
     if (step.requiredGates.includes("structured_review_json")) {
       stepIssues.push(`${step.stepId}: structured_review_json is produced by the review engine, not a runnable gate`);
     }
+
     return stepIssues;
   });
 
@@ -158,7 +164,10 @@ function validateExecutableTaskGraph(taskGraph: TaskGraph): void {
 }
 
 function maxAttemptsForProvider(provider: PlannerProvider, requestedMaxAttempts: number): number {
-  if (provider.maxRepairAttempts === undefined) return requestedMaxAttempts;
+  if (provider.maxRepairAttempts === undefined) {
+    return requestedMaxAttempts;
+  }
+
   return Math.min(requestedMaxAttempts, provider.maxRepairAttempts + 1);
 }
 
@@ -175,6 +184,7 @@ export async function runPlannerProviderWithRetries(
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const output =
       repairContext && provider.repair ? await provider.repair(input, repairContext) : await provider.plan(input);
+
     try {
       const taskGraph = TaskGraphSchema.parse(output.taskGraph);
       validateExecutableTaskGraph(taskGraph);
@@ -185,6 +195,7 @@ export async function runPlannerProviderWithRetries(
         modelUsage: output.modelUsage,
         cost: output.cost,
       });
+
       return {
         ...output,
         taskGraph,

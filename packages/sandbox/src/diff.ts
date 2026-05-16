@@ -30,18 +30,24 @@ export async function captureGitDiffArtifact(params: {
   attemptId: string;
   worktreePath: string;
 }): Promise<Artifact | null> {
-  if (!existsSync(path.join(params.worktreePath, ".git"))) return null;
+  if (!existsSync(path.join(params.worktreePath, ".git"))) {
+    return null;
+  }
   let diff = "";
+
   try {
     diff = await captureGitDiffText(params.worktreePath);
   } catch {
     return null;
   }
-  if (!diff.trim()) return null;
+  if (!diff.trim()) {
+    return null;
+  }
   const ref = `steps/${params.stepId}/${params.attemptId}/artifacts/diff.patch`;
   const target = resolveRunArtifactPath(params.cwd, params.runId, ref);
   mkdirSync(path.dirname(target), { recursive: true });
   writeFileSync(target, diff, "utf-8");
+
   return {
     type: "diff",
     ref,
@@ -54,16 +60,23 @@ function gitEnvWithIndex(indexPath: string): NodeJS.ProcessEnv {
 }
 
 export function createGitTreeSnapshot(worktreePath: string): string | null {
-  if (!existsSync(path.join(worktreePath, ".git"))) return null;
+  if (!existsSync(path.join(worktreePath, ".git"))) {
+    return null;
+  }
   const tempDir = mkdtempSync(path.join(os.tmpdir(), "kiwi-git-index-"));
   const indexPath = path.join(tempDir, "index");
+
   try {
     const sourceIndexPath = execFileSync("git", ["-C", worktreePath, "rev-parse", "--git-path", "index"], {
       encoding: "utf-8",
     }).trim();
-    if (existsSync(sourceIndexPath)) copyFileSync(sourceIndexPath, indexPath);
+
+    if (existsSync(sourceIndexPath)) {
+      copyFileSync(sourceIndexPath, indexPath);
+    }
     const env = gitEnvWithIndex(indexPath);
     execFileSync("git", ["-C", worktreePath, "add", "-A", "--", "."], { env, stdio: "ignore" });
+
     return execFileSync("git", ["-C", worktreePath, "write-tree"], { env, encoding: "utf-8" }).trim();
   } catch {
     return null;
@@ -73,9 +86,15 @@ export function createGitTreeSnapshot(worktreePath: string): string | null {
 }
 
 function commandOutput(error: unknown, key: "stdout" | "stderr"): string {
-  if (typeof error !== "object" || error === null) return "";
+  if (typeof error !== "object" || error === null) {
+    return "";
+  }
   const value = (error as { stdout?: unknown; stderr?: unknown })[key];
-  if (Buffer.isBuffer(value)) return value.toString("utf-8");
+
+  if (Buffer.isBuffer(value)) {
+    return value.toString("utf-8");
+  }
+
   return typeof value === "string" ? value : "";
 }
 
@@ -84,7 +103,10 @@ function execGitDiffWithExpectedDifference(args: string[], cwd: string): string 
     return execFileSync("git", args, { cwd, encoding: "utf-8" });
   } catch (error) {
     const stdout = commandOutput(error, "stdout");
-    if (stdout.trim()) return stdout;
+
+    if (stdout.trim()) {
+      return stdout;
+    }
     throw error;
   }
 }
@@ -93,6 +115,7 @@ function listUntrackedFiles(worktreePath: string): string[] {
   const output = execFileSync("git", ["-C", worktreePath, "ls-files", "--others", "--exclude-standard"], {
     encoding: "utf-8",
   });
+
   return output
     .split(/\r?\n/)
     .map((entry) => entry.trim())
@@ -115,6 +138,7 @@ async function captureGitDiffText(worktreePath: string): Promise<string> {
   const untrackedDiffs = listUntrackedFiles(worktreePath).map((relativePath) =>
     untrackedFileDiff(worktreePath, relativePath),
   );
+
   return [stdout, ...untrackedDiffs].filter((entry) => entry.trim().length > 0).join("\n");
 }
 
@@ -125,6 +149,7 @@ function captureGitDiffTextSync(worktreePath: string): string {
   const untrackedDiffs = listUntrackedFiles(worktreePath).map((relativePath) =>
     untrackedFileDiff(worktreePath, relativePath),
   );
+
   return [tracked, ...untrackedDiffs].filter((entry) => entry.trim().length > 0).join("\n");
 }
 
@@ -136,8 +161,11 @@ function captureGitDiffSync(params: {
   worktreePath: string;
   baseTree?: string | null;
 }): Artifact | null {
-  if (!existsSync(path.join(params.worktreePath, ".git"))) return null;
+  if (!existsSync(path.join(params.worktreePath, ".git"))) {
+    return null;
+  }
   let diff = "";
+
   try {
     diff = params.baseTree
       ? captureGitDiffTextFromBaseTree(params.worktreePath, params.baseTree)
@@ -145,11 +173,14 @@ function captureGitDiffSync(params: {
   } catch {
     return null;
   }
-  if (!diff.trim()) return null;
+  if (!diff.trim()) {
+    return null;
+  }
   const ref = `steps/${params.stepId}/${params.attemptId}/artifacts/diff.patch`;
   const target = resolveRunArtifactPath(params.cwd, params.runId, ref);
   mkdirSync(path.dirname(target), { recursive: true });
   writeFileSync(target, diff, "utf-8");
+
   return {
     type: "diff",
     ref,
@@ -159,7 +190,11 @@ function captureGitDiffSync(params: {
 
 function captureGitDiffTextFromBaseTree(worktreePath: string, baseTree: string): string {
   const afterTree = createGitTreeSnapshot(worktreePath);
-  if (!afterTree) return "";
+
+  if (!afterTree) {
+    return "";
+  }
+
   return execFileSync("git", ["-C", worktreePath, "diff", "--no-color", "--binary", baseTree, afterTree], {
     encoding: "utf-8",
   });
@@ -176,7 +211,11 @@ export function captureDiffArtifact(params: {
 }): Artifact | null {
   if (existsSync(path.join(params.worktreePath, ".git"))) {
     const gitArtifact = captureGitDiffSync(params);
-    if (gitArtifact) return gitArtifact;
+
+    if (gitArtifact) {
+      return gitArtifact;
+    }
+
     return null;
   }
   const fallbackInput: Parameters<typeof captureWorktreeDiffArtifact>[0] = {
@@ -186,37 +225,61 @@ export function captureDiffArtifact(params: {
     attemptId: params.attemptId,
     worktreePath: params.worktreePath,
   };
-  if (params.sourcePath) fallbackInput.sourcePath = params.sourcePath;
+
+  if (params.sourcePath) {
+    fallbackInput.sourcePath = params.sourcePath;
+  }
+
   return captureWorktreeDiffArtifact(fallbackInput);
 }
 
 function listComparableFiles(root: string, base: string = root): string[] {
-  if (!existsSync(root)) return [];
+  if (!existsSync(root)) {
+    return [];
+  }
   const files: string[] = [];
+
   for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (shouldExcludeWorkspaceEntry(entry.name)) continue;
+    if (shouldExcludeWorkspaceEntry(entry.name)) {
+      continue;
+    }
     const fullPath = path.join(root, entry.name);
     const relative = path.relative(base, fullPath).replaceAll(path.sep, "/");
+
     if (entry.isDirectory()) {
       files.push(...listComparableFiles(fullPath, base));
       continue;
     }
-    if (entry.isFile()) files.push(relative);
+    if (entry.isFile()) {
+      files.push(relative);
+    }
   }
+
   return files.sort();
 }
 
 function readTextIfReasonable(target: string): string {
-  if (!existsSync(target)) return "";
+  if (!existsSync(target)) {
+    return "";
+  }
   const stat = lstatSync(target);
-  if (!stat.isFile() || stat.size > 512_000) return "[binary-or-large-file]\n";
+
+  if (!stat.isFile() || stat.size > 512_000) {
+    return "[binary-or-large-file]\n";
+  }
   const raw = readFileSync(target);
-  if (raw.includes(0)) return "[binary-file]\n";
+
+  if (raw.includes(0)) {
+    return "[binary-file]\n";
+  }
+
   return raw.toString("utf-8");
 }
 
 function simplePatchForFile(params: { relativePath: string; before: string; after: string }): string {
-  if (params.before === params.after) return "";
+  if (params.before === params.after) {
+    return "";
+  }
   const beforeLines = params.before
     .split("\n")
     .filter((line) => line.length > 0)
@@ -262,13 +325,16 @@ export function captureWorktreeDiffArtifact(params: {
     .filter((entry) => entry.length > 0)
     .join("\n");
 
-  if (patch.trim().length === 0) return null;
+  if (patch.trim().length === 0) {
+    return null;
+  }
 
   const createdAt = new Date().toISOString();
   const ref = `steps/${params.stepId}/${params.attemptId}/artifacts/diff.patch`;
   const target = resolveRunArtifactPath(params.cwd, params.runId, ref);
   mkdirSync(path.dirname(target), { recursive: true });
   writeFileSync(target, patch, "utf-8");
+
   return {
     type: "diff",
     ref,
@@ -287,9 +353,11 @@ export function readCommandOutputArtifact(params: {
     params.runId,
     `steps/${params.stepId}/${params.attemptId}/artifacts/command-output.json`,
   );
+
   if (!existsSync(target)) {
     throw new Error("command output artifact not found");
   }
+
   return JSON.parse(readFileSync(target, "utf-8")) as unknown;
 }
 
@@ -319,8 +387,12 @@ function gitApplyErrorMessage(error: unknown): string {
     const detail = [stderr, stdout]
       .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
       .join("\n");
-    if (detail.trim()) return detail.trim();
+
+    if (detail.trim()) {
+      return detail.trim();
+    }
   }
+
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -331,6 +403,7 @@ export function applyDiffArtifactToSource(params: {
   sourcePath: string;
 }): ApplyDiffArtifactResult {
   const patchPath = resolveRunArtifactPath(params.cwd, params.runId, params.diffRef);
+
   if (!existsSync(patchPath)) {
     return { applied: false, patchPath, reason: `diff artifact not found: ${params.diffRef}` };
   }
@@ -340,14 +413,17 @@ export function applyDiffArtifactToSource(params: {
   try {
     gitApplyCheck(params.sourcePath, patchPath);
     gitApply(params.sourcePath, patchPath);
+
     return { applied: true, patchPath };
   } catch (error) {
     try {
       gitApplyReverseCheck(params.sourcePath, patchPath);
+
       return { applied: true, patchPath, reason: "diff already applied" };
     } catch {
       // Return the original apply error; the reverse check is only a retry/idempotency probe.
     }
+
     return { applied: false, patchPath, reason: gitApplyErrorMessage(error) };
   }
 }

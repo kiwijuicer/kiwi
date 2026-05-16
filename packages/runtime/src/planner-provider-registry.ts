@@ -40,14 +40,21 @@ function formatPlannerAvailability(candidates: ModelEntry[], env: Record<string,
       const status = availability.available
         ? "available"
         : `unavailable${availability.reason ? ` - ${availability.reason}` : ""}`;
+
       return `  - ${model.id} (${model.accessMode}): ${status}`;
     });
+
   return rows.length > 0 ? rows.join("\n") : "  - no enabled planner models";
 }
 
 function plannerPriority(model: ModelEntry): number {
-  if (model.capability === ContractValues.Frontier) return 0;
-  if (model.capability === ContractValues.Strong) return 1;
+  if (model.capability === ContractValues.Frontier) {
+    return 0;
+  }
+  if (model.capability === ContractValues.Strong) {
+    return 1;
+  }
+
   return 2;
 }
 
@@ -123,6 +130,7 @@ export class PlannerProviderRegistry {
       if (!model.providerModel) {
         throw new Error(`Codex planner model '${model.id}' must define providerModel for enforced model switching`);
       }
+
       return new CodexCliPlannerProvider({
         model: model.providerModel,
         env,
@@ -136,6 +144,7 @@ export class PlannerProviderRegistry {
     }
     if (model.accessMode === AccessModes.Stub) {
       const now = options.now ?? (() => new Date());
+
       return new StubPlannerProvider({
         buildTaskGraph: buildDeterministicTaskGraph,
         now,

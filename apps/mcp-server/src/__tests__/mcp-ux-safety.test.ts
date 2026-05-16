@@ -68,11 +68,13 @@ models:
     execFileSync("git", ["add", "README.md"], { cwd, stdio: "ignore" });
   }
   execFileSync("git", ["commit", "-m", "init"], { cwd, stdio: "ignore" });
+
   return cwd;
 }
 
 function toolJson(response: Awaited<ReturnType<typeof handleMcpRequest>>): unknown {
   const text = (response.result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
+
   return JSON.parse(text) as unknown;
 }
 
@@ -89,6 +91,7 @@ async function planRun(cwd: string): Promise<string> {
     cwd,
   );
   expect(planned.error).toBeUndefined();
+
   return (toolJson(planned) as { runId: string }).runId;
 }
 
@@ -105,6 +108,7 @@ async function previewRun(cwd: string, runId: string): Promise<string> {
     cwd,
   );
   expect(preview.error).toBeUndefined();
+
   return (toolJson(preview) as { previewToken: string }).previewToken;
 }
 
@@ -143,8 +147,11 @@ describe("MCP UX safety tools", () => {
       expect(missingParsed.safeToPlan).toBe(false);
       expect(missingParsed.warnings).toContain("workspace is not initialized");
     } finally {
-      if (previousFake === undefined) delete process.env.KIWI_FAKE_BINARY_AVAILABLE;
-      else process.env.KIWI_FAKE_BINARY_AVAILABLE = previousFake;
+      if (previousFake === undefined) {
+        delete process.env.KIWI_FAKE_BINARY_AVAILABLE;
+      } else {
+        process.env.KIWI_FAKE_BINARY_AVAILABLE = previousFake;
+      }
     }
   });
 
@@ -269,7 +276,10 @@ describe("MCP UX safety tools", () => {
       const cwd = setupRepo();
       writeFileSync(
         kiwiPolicyPath(cwd),
-        readFileSync(kiwiPolicyPath(cwd), "utf-8").replace("riskZones:\n  high: []", "riskZones:\n  high: [src/auth/**]"),
+        readFileSync(kiwiPolicyPath(cwd), "utf-8").replace(
+          "riskZones:\n  high: []",
+          "riskZones:\n  high: [src/auth/**]",
+        ),
         "utf-8",
       );
       const planned = await handleMcpRequest(
@@ -297,7 +307,9 @@ describe("MCP UX safety tools", () => {
         cwd,
       );
       expect(blocked.error).toBeUndefined();
-      const blockedParsed = toolJson(blocked) as { steps: Array<{ stepId: string; attemptId: string; status: string }> };
+      const blockedParsed = toolJson(blocked) as {
+        steps: Array<{ stepId: string; attemptId: string; status: string }>;
+      };
       expect(blockedParsed.steps[0]?.status).toBe("blocked");
       const stepId = blockedParsed.steps[0]?.stepId ?? "step_001";
       const attemptId = blockedParsed.steps[0]?.attemptId ?? "";
@@ -370,8 +382,11 @@ describe("MCP UX safety tools", () => {
       expect(blockedAgain.error).toBeUndefined();
       expect(JSON.stringify(blockedAgain.result)).toContain("blocked");
     } finally {
-      if (previousIsolation === undefined) delete process.env.KIWI_EXECUTION_ISOLATION;
-      else process.env.KIWI_EXECUTION_ISOLATION = previousIsolation;
+      if (previousIsolation === undefined) {
+        delete process.env.KIWI_EXECUTION_ISOLATION;
+      } else {
+        process.env.KIWI_EXECUTION_ISOLATION = previousIsolation;
+      }
     }
   });
 

@@ -43,6 +43,7 @@ export function recordApprovalDecision(params: {
       approvalRequiredFiles: decision.approvalRequiredFiles,
     },
   });
+
   return decision;
 }
 
@@ -52,7 +53,11 @@ export function loadApprovalDecision(params: {
   sourceAttemptId: string;
 }): ApprovalDecision | null {
   const target = resolveRunArtifactPath(params.runId, `approvals/${params.sourceAttemptId}.json`, params.cwd);
-  if (!existsSync(target)) return null;
+
+  if (!existsSync(target)) {
+    return null;
+  }
+
   return ApprovalDecisionSchema.parse(readJson(target));
 }
 
@@ -62,7 +67,10 @@ export function loadLatestApprovalDecisionForStep(params: {
   stepId: string;
 }): ApprovalDecision | null {
   const approvalsDir = resolveRunArtifactPath(params.runId, "approvals", params.cwd);
-  if (!existsSync(approvalsDir)) return null;
+
+  if (!existsSync(approvalsDir)) {
+    return null;
+  }
   const approvals = readdirSync(approvalsDir, { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
     .map((entry) => {
@@ -74,5 +82,6 @@ export function loadLatestApprovalDecisionForStep(params: {
     })
     .filter((entry): entry is ApprovalDecision => entry !== null && entry.stepId === params.stepId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
   return approvals[0] ?? null;
 }

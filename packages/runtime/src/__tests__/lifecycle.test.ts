@@ -96,6 +96,7 @@ class DiffRunner extends PassRunner {
       "diff --git a/src/auth/service.ts b/src/auth/service.ts\n--- a/src/auth/service.ts\n+++ b/src/auth/service.ts\n@@ -0,0 +1 @@\n+ok\n",
       "utf-8",
     );
+
     return super.execute(input);
   }
 }
@@ -243,6 +244,7 @@ describe("run lifecycle", () => {
     const previousForceAccessMode = process.env.KIWI_FORCE_ACCESS_MODE;
     process.env.KIWI_FORCE_ACCESS_MODE = "stub";
     let result: Awaited<ReturnType<typeof executePlannedStep>>;
+
     try {
       result = await executePlannedStep({
         cwd: repo,
@@ -253,8 +255,11 @@ describe("run lifecycle", () => {
         now: new Date("2026-05-04T08:00:30.000Z"),
       });
     } finally {
-      if (previousForceAccessMode === undefined) delete process.env.KIWI_FORCE_ACCESS_MODE;
-      else process.env.KIWI_FORCE_ACCESS_MODE = previousForceAccessMode;
+      if (previousForceAccessMode === undefined) {
+        delete process.env.KIWI_FORCE_ACCESS_MODE;
+      } else {
+        process.env.KIWI_FORCE_ACCESS_MODE = previousForceAccessMode;
+      }
     }
 
     expect(result.status).toBe("completed");

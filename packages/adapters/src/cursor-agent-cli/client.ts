@@ -32,7 +32,10 @@ export interface CursorAgentCliRunner {
 
 function tryParseJson(text: string): unknown {
   const trimmed = text.trim();
-  if (!trimmed) return null;
+
+  if (!trimmed) {
+    return null;
+  }
   try {
     return JSON.parse(trimmed) as unknown;
   } catch {
@@ -47,9 +50,15 @@ function tryParseJson(text: string): unknown {
         return [];
       }
     });
-    if (parsedLines.length > 0) return parsedLines;
+
+    if (parsedLines.length > 0) {
+      return parsedLines;
+    }
     const match = trimmed.match(/\{[\s\S]*\}/);
-    if (!match) return null;
+
+    if (!match) {
+      return null;
+    }
     try {
       return JSON.parse(match[0]) as unknown;
     } catch {
@@ -60,9 +69,11 @@ function tryParseJson(text: string): unknown {
 
 function buildArgs(invocation: CursorAgentCliInvocation): string[] {
   const args = ["-p", invocation.prompt, "--output-format", invocation.outputFormat ?? "json"];
+
   if (invocation.model) {
     args.push("--model", invocation.model);
   }
+
   return args;
 }
 
@@ -77,6 +88,7 @@ export class DefaultCursorAgentCliRunner implements CursorAgentCliRunner {
       timeoutMs: invocation.timeoutMs,
       ...(invocation.onOutputChunk ? { onOutputChunk: invocation.onOutputChunk } : {}),
     });
+
     return {
       ...result,
       parsed: tryParseJson(result.stdout),
@@ -89,7 +101,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function records(value: unknown): Record<string, unknown>[] {
-  if (Array.isArray(value)) return value.filter(isRecord);
+  if (Array.isArray(value)) {
+    return value.filter(isRecord);
+  }
+
   return isRecord(value) ? [value] : [];
 }
 
@@ -104,18 +119,27 @@ export function normalizeUsageFromCursorAgent(parsed: unknown): NormalizedCursor
   let inputTokens = 0;
   let outputTokens = 0;
   let estimatedCostUsd: number | null = null;
+
   for (const record of records(parsed)) {
     const usage = isRecord(record.usage) ? record.usage : record;
     const input = usage.input_tokens ?? usage.inputTokens;
     const output = usage.output_tokens ?? usage.outputTokens;
     const cost = record.total_cost_usd ?? record.totalCostUsd ?? record.estimatedCostUsd;
-    if (typeof input === "number") inputTokens += input;
-    if (typeof output === "number") outputTokens += output;
-    if (typeof cost === "number") estimatedCostUsd = (estimatedCostUsd ?? 0) + cost;
+
+    if (typeof input === "number") {
+      inputTokens += input;
+    }
+    if (typeof output === "number") {
+      outputTokens += output;
+    }
+    if (typeof cost === "number") {
+      estimatedCostUsd = (estimatedCostUsd ?? 0) + cost;
+    }
   }
   if (inputTokens === 0 && outputTokens === 0 && estimatedCostUsd === null) {
     return { precision: "unknown", inputTokens: 0, outputTokens: 0, estimatedCostUsd: null };
   }
+
   return {
     precision: estimatedCostUsd === null ? "estimated" : "exact",
     inputTokens,

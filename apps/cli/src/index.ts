@@ -7,9 +7,11 @@ const program = new Command();
 function buildVersionString(): string {
   const pkgVersion = "0.1.0";
   const sha = process.env.KIWI_BUILD_SHA;
+
   if (sha && sha.length > 0 && sha !== "unknown") {
     return `${pkgVersion} (${sha})`;
   }
+
   return pkgVersion;
 }
 
@@ -25,8 +27,14 @@ function withGlobalWorkspaceOptions<T extends { workspace?: string; repo?: strin
   const merged: T = { ...opts };
   const workspace = opts.workspace ?? global.workspace;
   const repo = opts.repo ?? global.repo;
-  if (workspace) merged.workspace = workspace;
-  if (repo) merged.repo = repo;
+
+  if (workspace) {
+    merged.workspace = workspace;
+  }
+  if (repo) {
+    merged.repo = repo;
+  }
+
   return merged;
 }
 

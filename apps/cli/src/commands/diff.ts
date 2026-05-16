@@ -19,8 +19,10 @@ export async function runDiff(
     ...(stepId ? { stepId } : {}),
     ...(opts.all ? { allAttempts: true } : {}),
   });
+
   if (opts.json) {
     console.log(JSON.stringify(result, null, 2));
+
     return;
   }
   console.log(formatRunDiff(result));
@@ -44,8 +46,10 @@ export async function runApply(
     ...(stepId ? { stepId } : {}),
     ...(opts.forceUnsafe ? { forceUnsafe: true } : {}),
   });
+
   if (opts.json) {
     console.log(JSON.stringify(result, null, 2));
+
     return;
   }
   console.log(result.message);

@@ -175,13 +175,23 @@ function extractResearchReport(responseBody: unknown): unknown {
     });
   }
   const textBlocks: string[] = [];
+
   for (const block of responseBody.content) {
-    if (!isRecord(block)) continue;
-    if (block.type === "tool_use" && block.name === RESEARCHER_TOOL_NAME) return block.input;
-    if (block.type === "text" && typeof block.text === "string") textBlocks.push(block.text);
+    if (!isRecord(block)) {
+      continue;
+    }
+    if (block.type === "tool_use" && block.name === RESEARCHER_TOOL_NAME) {
+      return block.input;
+    }
+    if (block.type === "text" && typeof block.text === "string") {
+      textBlocks.push(block.text);
+    }
   }
   const parsed = extractTextJson(textBlocks.join("\n"));
-  if (parsed !== null) return parsed;
+
+  if (parsed !== null) {
+    return parsed;
+  }
   throw providerError({
     code: "provider_schema_invalid",
     message: `Anthropic researcher response did not call ${RESEARCHER_TOOL_NAME}`,
@@ -194,6 +204,7 @@ export async function runResearcherProviderWithRetries(
   input: ResearcherProviderInput,
 ): Promise<ValidatedResearcherProviderOutput> {
   const output = await provider.research(input);
+
   return {
     ...output,
     researchReport: ResearchReportSchema.parse(output.researchReport),
@@ -279,6 +290,7 @@ export class AnthropicResearcherProvider implements ResearcherProvider {
     assertAnthropicOk(response, providerError);
     const usage = extractAnthropicUsage(response.body);
     const researchReport = extractResearchReport(response.body);
+
     return {
       providerName: this.name,
       researchReport,
@@ -324,7 +336,9 @@ export class ClaudeCodeCliResearcherProvider implements ResearcherProvider {
 
   constructor(options: ClaudeCodeCliResearcherProviderOptions = {}) {
     this.binary = options.binary ?? process.env.KIWI_CLAUDE_CODE_BINARY ?? "claude";
-    if (options.cwd !== undefined) this.cwd = options.cwd;
+    if (options.cwd !== undefined) {
+      this.cwd = options.cwd;
+    }
     this.model = options.model;
     this.name = `claude-code-cli:${this.model ?? "default"}`;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -346,6 +360,7 @@ export class ClaudeCodeCliResearcherProvider implements ResearcherProvider {
       env: buildRunnerEnv({ sourceEnv: this.env, policy: input.policy.commandProfiles.default }),
     };
     const result = await this.runner.run(invocation);
+
     if (!result.ok) {
       throw providerError({
         code: result.timedOut ? "provider_timeout" : "provider_network",
@@ -357,6 +372,7 @@ export class ClaudeCodeCliResearcherProvider implements ResearcherProvider {
     }
     const text = extractCliResultText(result.parsed, result.stdout);
     const researchReport = extractTextJson(text);
+
     if (researchReport === null) {
       throw providerError({
         code: "provider_schema_invalid",
@@ -365,6 +381,7 @@ export class ClaudeCodeCliResearcherProvider implements ResearcherProvider {
       });
     }
     const usage = normalizeUsageFromCli(result.parsed);
+
     return {
       providerName: this.name,
       researchReport,
@@ -412,6 +429,7 @@ export class StubResearcherProvider implements ResearcherProvider {
       .filter(Boolean)
       .slice(0, 10);
     const generatedAt = input.requestedAt;
+
     return {
       providerName: this.name,
       researchReport: ResearchReportSchema.parse({

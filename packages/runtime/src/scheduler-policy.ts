@@ -47,9 +47,11 @@ export function loadContextPackage(params: {
 }): ContextPackage {
   const relative = `steps/${params.stepId}/${params.attemptId}/context-package.json`;
   const target = resolveRunArtifactPath(params.runId, relative, params.cwd);
+
   if (!existsSync(target)) {
     throw new Error(`context package not found: ${relative}`);
   }
+
   return JSON.parse(readFileSync(target, "utf-8")) as ContextPackage;
 }
 
@@ -61,9 +63,11 @@ export function loadSchedulerDecision(params: {
 }): SchedulerDecision {
   const relative = `steps/${params.stepId}/${params.attemptId}/scheduler-decision.json`;
   const target = resolveRunArtifactPath(params.runId, relative, params.cwd);
+
   if (!existsSync(target)) {
     throw new Error(`scheduler decision not found: ${relative}`);
   }
+
   return SchedulerDecisionSchema.parse(JSON.parse(readFileSync(target, "utf-8"))) as SchedulerDecision;
 }
 
@@ -79,11 +83,13 @@ function defaultAttemptId(now: Date): string {
     .toISOString()
     .replace(/[^0-9]/g, "")
     .slice(0, 17);
+
   return `attempt_${stamp}`;
 }
 
 function pickRunner(runners: RunnerName[]): RunnerName | null {
   const parsed = runners.map((entry) => RunnerNameSchema.parse(entry));
+
   return parsed[0] ?? null;
 }
 
@@ -121,18 +127,25 @@ function determineContextLevel(params: {
   routingReason: string[];
 }): ContextLevel {
   const base: ContextLevel = params.contextSize === "small" ? "L0" : params.contextSize === "medium" ? "L1" : "L2";
+
   if (params.riskHigh) {
-    if (params.blastRadius === "high" && params.securitySensitivity === "high") return "L3";
+    if (params.blastRadius === "high" && params.securitySensitivity === "high") {
+      return "L3";
+    }
+
     return base === "L0" ? "L2" : base;
   }
   if (params.modelCapability === ContractValues.Cheap && base !== "L0") {
     params.routingReason.push("cheap_capability_l0_cap");
+
     return "L0";
   }
   if (params.modelCapability === ContractValues.Mid && base === "L2") {
     params.routingReason.push("mid_capability_l1_cap");
+
     return "L1";
   }
+
   return base;
 }
 
@@ -189,10 +202,18 @@ function isCodeExecutionStep(step: Step): boolean {
 
 function determineAgentRole(input: SchedulerInput, routingReason: string[]): Step["recommendedAgentRole"] {
   const riskHigh = determineRiskHigh(input);
-  if (!riskHigh) return input.step.recommendedAgentRole;
+
+  if (!riskHigh) {
+    return input.step.recommendedAgentRole;
+  }
   routingReason.push("risk_high_agent_role_escalation");
-  if (isCodeExecutionStep(input.step) || input.step.type === "validation") return ContractValues.Security;
-  if (input.step.type === "review") return ContractValues.Reviewer;
+  if (isCodeExecutionStep(input.step) || input.step.type === "validation") {
+    return ContractValues.Security;
+  }
+  if (input.step.type === "review") {
+    return ContractValues.Reviewer;
+  }
+
   return input.step.recommendedAgentRole;
 }
 
@@ -207,6 +228,7 @@ function determineModelCapability(input: SchedulerInput, routingReason: string[]
       budgetProfile: input.budgetProfile,
       remainingUsdEstimate: input.budgetRemainingUsdEstimate,
     });
+
   if (!riskHigh && budgetConstrained) {
     capability = downgradeCapability(capability);
     routingReason.push("budget_constrained_downgrade");
@@ -225,29 +247,36 @@ function determineReviewDepth(
   routingReason: string[],
 ): ModelCapability {
   const riskHigh = determineRiskHigh(input);
+
   if (input.step.type === "review") {
     routingReason.push("review_step_frontier_review");
+
     return ContractValues.Frontier;
   }
   if (riskHigh) {
     routingReason.push("risk_high_frontier_review");
+
     return ContractValues.Frontier;
   }
   if (CAPABILITY_RANK[capability] >= CAPABILITY_RANK.strong) {
     routingReason.push("strong_capability_strong_review");
+
     return ContractValues.Strong;
   }
+
   return ContractValues.Mid;
 }
 
 function determineRequiredGates(input: SchedulerInput, routingReason: string[]): string[] {
   const riskHigh = determineRiskHigh(input);
   const gates = new Set(input.step.requiredGates);
+
   if (riskHigh) {
     gates.add("forbidden_file_checks");
     gates.add("secrets_check");
     routingReason.push("risk_high_security_gates");
   }
+
   return Array.from(gates);
 }
 
@@ -281,6 +310,7 @@ function saveAttemptAndContext(params: {
 
   writeJsonSafely(attemptTarget, attempt);
   writeJsonSafely(contextTarget, params.contextPackage);
+
   return { attemptRef, contextRef };
 }
 
@@ -288,6 +318,7 @@ export function saveSchedulerDecision(cwd: string, decision: SchedulerDecision):
   const relative = `steps/${decision.stepId}/${decision.attemptId}/scheduler-decision.json`;
   const target = resolveRunArtifactPath(decision.runId, relative, cwd);
   writeJsonSafely(target, SchedulerDecisionSchema.parse(decision));
+
   return relative;
 }
 
@@ -320,6 +351,7 @@ function prepareScheduling(input: SchedulerInput): PreparedScheduling {
     ...budgetLimit,
     remainingUsdEstimate: input.budgetRemainingUsdEstimate,
   };
+
   if (input.budgetRemainingUsdEstimate === null) {
     routingReason.push("budget_remaining_unknown");
   }
@@ -399,6 +431,7 @@ function blockScheduling(input: SchedulerInput, prepared: PreparedScheduling, re
       routingReason: prepared.routingReason,
     },
   });
+
   return decision;
 }
 
@@ -442,6 +475,7 @@ function schedulePreparedAttempt(
     contextPackageRef: saved.contextRef,
   };
   saveSchedulerDecision(input.cwd, decision);
+
   return decision;
 }
 
@@ -494,10 +528,13 @@ export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
     prepared.routingReason.push("risk_over_budget_hard_cap_override");
   }
 
-  if (!prepared.runner) return blockScheduling(input, prepared, "no_runner_available");
+  if (!prepared.runner) {
+    return blockScheduling(input, prepared, "no_runner_available");
+  }
 
   const decision = schedulePreparedAttempt(input, prepared, prepared.runner);
   auditScheduled(input, prepared, decision);
+
   return decision;
 }
 
@@ -506,6 +543,7 @@ export function previewStepAttempt(input: SchedulerInput): SchedulerDecision {
 
   if (!prepared.riskHigh && input.budgetRemainingUsdEstimate !== null && input.budgetRemainingUsdEstimate <= 0) {
     prepared.routingReason.push("budget_hard_cap_exhausted");
+
     return {
       status: ContractValues.Blocked,
       runId: input.runId,
@@ -530,6 +568,7 @@ export function previewStepAttempt(input: SchedulerInput): SchedulerDecision {
 
   if (!prepared.runner) {
     prepared.routingReason.push("no_runner_available");
+
     return {
       status: ContractValues.Blocked,
       runId: input.runId,
@@ -549,6 +588,7 @@ export function previewStepAttempt(input: SchedulerInput): SchedulerDecision {
   }
 
   prepared.routingReason.push(`runner_selected:${prepared.runner}`);
+
   return {
     status: "scheduled",
     runId: input.runId,

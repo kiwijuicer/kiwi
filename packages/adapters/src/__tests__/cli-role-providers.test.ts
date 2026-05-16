@@ -119,6 +119,7 @@ class FakeCodexRunner implements CodexCliRunner {
       },
       { type: "turn.completed", usage: { inputTokens: 23, outputTokens: 8 } },
     ];
+
     return {
       ok: true,
       exitCode: 0,
@@ -147,6 +148,7 @@ class FakeCursorRunner implements CursorAgentCliRunner {
       usage: { input_tokens: 19, output_tokens: 7 },
       total_cost_usd: 0.04,
     };
+
     return {
       ok: true,
       exitCode: 0,
@@ -176,6 +178,7 @@ class FakeClaudeRunner implements ClaudeCodeCliRunner {
       usage: { input_tokens: 29, output_tokens: 11 },
       total_cost_usd: 0.06,
     };
+
     return {
       ok: true,
       exitCode: 0,

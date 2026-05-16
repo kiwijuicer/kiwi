@@ -84,9 +84,13 @@ interface AttemptScope {
 type AttemptReviewExecutionResult = Awaited<ReturnType<typeof runAttemptReview>>;
 
 function ensureRunnerExecutionPath(input: ExecuteStepAttemptInput): void {
-  if (input.executionMode === "direct") return;
+  if (input.executionMode === "direct") {
+    return;
+  }
   ensureIsolatedWorktree(input.cwd, input.worktreePath);
-  if (input.repoPath) ensureWorktreeIsNotSource(input.repoPath, input.worktreePath);
+  if (input.repoPath) {
+    ensureWorktreeIsNotSource(input.repoPath, input.worktreePath);
+  }
 }
 
 async function reviewAttemptWithFallback<TCommandPolicy>(params: {
@@ -101,6 +105,7 @@ async function reviewAttemptWithFallback<TCommandPolicy>(params: {
   try {
     const runnerNeedsDeterministicReview =
       params.runnerOutput.status !== ContractValues.Completed || !params.attemptDiff;
+
     return {
       reviewResult: await runAttemptReview({
         ...params.attemptScope,
@@ -132,6 +137,7 @@ async function reviewAttemptWithFallback<TCommandPolicy>(params: {
         reason: reviewError.message,
       },
     });
+
     return { reviewResult, reviewError };
   }
 }
@@ -179,6 +185,7 @@ function persistReviewExecutionFailure(params: {
     attemptId: params.attemptId,
     verdict: reviewVerdict,
   });
+
   return {
     reviewVerdict,
     reviewReportRef,
@@ -205,7 +212,10 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
     now: Date;
   }): StepAttemptOrchestrationResult | null {
     const budget = params.input.schedulerDecision.budget;
-    if (!budget) return null;
+
+    if (!budget) {
+      return null;
+    }
     if (params.input.schedulerDecision.routingReason.includes("risk_over_budget_hard_cap_override")) {
       return null;
     }
@@ -224,9 +234,12 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
         contextLevel: params.input.schedulerDecision.contextLevel,
         estimateAttemptCostUsdValue,
       });
+
       return null;
     } catch (error) {
-      if (!(error instanceof BudgetExceededError)) throw error;
+      if (!(error instanceof BudgetExceededError)) {
+        throw error;
+      }
 
       const blockedReason = "budget_estimate_exceeds_remaining";
       const routingReason = params.input.schedulerDecision.routingReason.includes(blockedReason)
@@ -401,7 +414,10 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       attemptScope,
       now,
     });
-    if (budgetBlocked) return budgetBlocked;
+
+    if (budgetBlocked) {
+      return budgetBlocked;
+    }
 
     const contextPackage = loadContextPackage(attemptScope);
     const existingAttempt = markAttemptRunning(attemptScope);
@@ -496,8 +512,12 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       nextAction,
     };
 
-    if (runnerOutput.error) return { ...result, error: runnerOutput.error };
-    if (reviewError) return { ...result, error: reviewError };
+    if (runnerOutput.error) {
+      return { ...result, error: runnerOutput.error };
+    }
+    if (reviewError) {
+      return { ...result, error: reviewError };
+    }
 
     return result;
   }

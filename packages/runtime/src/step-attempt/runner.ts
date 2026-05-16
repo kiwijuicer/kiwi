@@ -50,6 +50,7 @@ function normalizeRunnerException(error: unknown): {
     code: typeof record.code === "string" ? record.code : "RUNNER_EXCEPTION",
     message,
   };
+
   return {
     output: {
       status: ContractValues.Failed,
@@ -89,11 +90,21 @@ function buildRunnerInput<TCommandPolicy>(
     requestedAt,
   };
 
-  if (input.repoPath) runnerInput.repoPath = input.repoPath;
-  if (input.command) runnerInput.command = input.command;
-  if (input.commandPolicy !== undefined) runnerInput.commandPolicy = input.commandPolicy;
-  if (input.env) runnerInput.env = input.env;
-  if (input.approved !== undefined) runnerInput.approved = input.approved;
+  if (input.repoPath) {
+    runnerInput.repoPath = input.repoPath;
+  }
+  if (input.command) {
+    runnerInput.command = input.command;
+  }
+  if (input.commandPolicy !== undefined) {
+    runnerInput.commandPolicy = input.commandPolicy;
+  }
+  if (input.env) {
+    runnerInput.env = input.env;
+  }
+  if (input.approved !== undefined) {
+    runnerInput.approved = input.approved;
+  }
 
   return runnerInput;
 }
@@ -104,6 +115,7 @@ export async function executeStepRunner<TCommandPolicy>(params: {
   startedAt: string;
 }): Promise<StepRunnerExecutionOutput> {
   let runnerOutput: StepRunnerExecutionOutput;
+
   try {
     runnerOutput = await params.input.runner.execute(
       buildRunnerInput(params.input, params.contextPackage, params.startedAt),

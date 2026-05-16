@@ -15,6 +15,7 @@ function captureHandleCommandError(error: unknown): string[] {
     throw new Error(`process.exit:${code ?? 0}`);
   }) as never);
   expect(() => handleCommandError(error)).toThrow("process.exit:1");
+
   return lines;
 }
 

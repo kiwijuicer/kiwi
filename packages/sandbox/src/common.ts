@@ -33,8 +33,10 @@ export function resolveRunArtifactPath(cwd: string, runId: string, relativePath:
 
   const base = path.resolve(runDir(cwd, runId));
   const target = path.resolve(base, relativePath);
+
   if (!(target === base || target.startsWith(`${base}${path.sep}`))) {
     throw new Error(`artifact path escapes run directory: ${relativePath}`);
   }
+
   return target;
 }

@@ -20,6 +20,7 @@ function setupVoiceLikeWorkspace(): { root: string; core: string; agent: string 
     }),
     "utf-8",
   );
+
   return { root, core, agent };
 }
 

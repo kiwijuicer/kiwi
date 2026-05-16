@@ -23,16 +23,29 @@ export function mapRunnerStatusToAttemptStatus(params: {
   if (params.runnerStatus === ContractValues.Blocked || params.runnerStatus === "approval_required") {
     return ContractValues.Blocked;
   }
-  if (params.runnerStatus === ContractValues.Failed || params.runnerStatus === "timeout") return ContractValues.Failed;
+  if (params.runnerStatus === ContractValues.Failed || params.runnerStatus === "timeout") {
+    return ContractValues.Failed;
+  }
   const gateSummary = summarizeGateResults(params.gateResults);
-  if (gateSummary.blockedGateIds.length > 0) return ContractValues.Blocked;
-  if (!gateSummary.safeToContinue) return ContractValues.Failed;
-  if (!params.reviewVerdict.safeToContinue) return ContractValues.Failed;
+
+  if (gateSummary.blockedGateIds.length > 0) {
+    return ContractValues.Blocked;
+  }
+  if (!gateSummary.safeToContinue) {
+    return ContractValues.Failed;
+  }
+  if (!params.reviewVerdict.safeToContinue) {
+    return ContractValues.Failed;
+  }
+
   return ContractValues.Completed;
 }
 
 function bindGateSubject(gate: GateResult, subject: EvidenceSubject | null): GateResult {
-  if (!subject || gate.subject) return GateResultSchema.parse(gate);
+  if (!subject || gate.subject) {
+    return GateResultSchema.parse(gate);
+  }
+
   return GateResultSchema.parse({ ...gate, subject });
 }
 
@@ -42,6 +55,7 @@ export function enforceGateResultsBeforePositiveReview(params: {
   subject?: EvidenceSubject;
 }): ReviewVerdict {
   const gateSummary = summarizeGateResults(params.gateResults);
+
   if (gateSummary.safeToContinue || !params.reviewVerdict.safeToContinue) {
     return ReviewVerdictSchema.parse(
       params.subject && !params.reviewVerdict.subject
@@ -83,8 +97,11 @@ function policyGateResults(params: {
   approved?: boolean;
   approvedFiles?: string[];
 }): GateResult[] {
-  if (!params.policy || !params.attemptDiff) return [];
+  if (!params.policy || !params.attemptDiff) {
+    return [];
+  }
   const gateResults: GateResult[] = [];
+
   if (params.requiredGates.includes("forbidden_file_checks")) {
     gateResults.push(
       runForbiddenFileGate({
@@ -113,6 +130,7 @@ function policyGateResults(params: {
       }),
     );
   }
+
   return gateResults;
 }
 

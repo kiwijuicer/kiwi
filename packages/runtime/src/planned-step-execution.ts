@@ -49,8 +49,13 @@ function shouldUseProviderResearch(): boolean {
 }
 
 function executionMode(policy: KiwiPolicy): "direct" | "worktree" {
-  if (process.env.KIWI_EXECUTION_ISOLATION === "worktree") return "worktree";
-  if (process.env.KIWI_EXECUTION_ISOLATION === "direct") return "direct";
+  if (process.env.KIWI_EXECUTION_ISOLATION === "worktree") {
+    return "worktree";
+  }
+  if (process.env.KIWI_EXECUTION_ISOLATION === "direct") {
+    return "direct";
+  }
+
   return policy.execution?.isolation ?? "direct";
 }
 
@@ -126,7 +131,9 @@ function auditProviderPreference(params: {
   preference: string[];
   now: Date;
 }): void {
-  if (params.preference.length === 0) return;
+  if (params.preference.length === 0) {
+    return;
+  }
   appendAuditEvent(params.cwd, {
     eventType: "provider_preference_applied",
     runId: params.runId,
@@ -156,7 +163,10 @@ function materializeAttemptDiff(params: {
   }
 
   const diffArtifact = params.result.artifactRefs.find((artifact) => artifact.type === ArtifactTypes.Diff);
-  if (!diffArtifact) return { status: "skipped", reason: "attempt produced no diff artifact" };
+
+  if (!diffArtifact) {
+    return { status: "skipped", reason: "attempt produced no diff artifact" };
+  }
 
   if (params.directExecution) {
     appendAuditEvent(params.cwd, {
@@ -171,6 +181,7 @@ function materializeAttemptDiff(params: {
         mode: "direct",
       },
     });
+
     return {
       status: "applied",
       diffRef: diffArtifact.ref,
@@ -216,11 +227,13 @@ function selectStepRunner(params: {
         preferenceByRole: params.policy.routing.providerPreference,
       })
     : null;
+
   if (params.isResearchStep && !researcherSelection) {
     throw new Error("No enabled researcher model with an available access mode found in .kiwi/model-registry.yaml");
   }
 
   const executorSelection = params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
+
   if (executorSelection) {
     auditExecutorModelSelected({
       cwd: params.cwd,
@@ -273,6 +286,7 @@ function selectStepRunner(params: {
       );
     }
   }
+
   return {
     runnerAdapter: params.runnerResolution.buildAdapter(params.decision.runner, executorSelection?.model),
     selectedModel: executorSelection?.model ?? null,
@@ -299,6 +313,7 @@ function createExecutionTarget(params: {
   mode: "direct" | "worktree";
 }): ExecutionTarget {
   const mode = params.mode;
+
   if (mode === "worktree") {
     const sandbox = createWorktreeSandbox({
       cwd: params.cwd,
@@ -306,6 +321,7 @@ function createExecutionTarget(params: {
       attemptId: params.attemptId,
       sourcePath: params.repoPath,
     });
+
     return {
       mode,
       runId: params.runId,
@@ -329,7 +345,9 @@ function createExecutionTarget(params: {
 }
 
 function teardownExecutionTarget(params: { cwd: string; target: ExecutionTarget }): void {
-  if (params.target.isolation === "direct") return;
+  if (params.target.isolation === "direct") {
+    return;
+  }
   teardownWorktreeSandbox({
     cwd: params.cwd,
     runId: params.target.runId,
@@ -366,10 +384,14 @@ function scheduleCurrentStepAttempt(params: {
     now: params.now,
     ...(params.input.attemptId ? { attemptId: params.input.attemptId } : {}),
   });
+
   if (decision.status !== "scheduled") {
     throw new Error(`Step could not be scheduled: ${decision.blockedReason ?? "unknown"}`);
   }
-  if (!decision.runner) throw new Error("Scheduler selected no runner");
+  if (!decision.runner) {
+    throw new Error("Scheduler selected no runner");
+  }
+
   return decision;
 }
 
@@ -379,7 +401,10 @@ function resolveStepRunnerResolution(params: {
   step: Step;
   policy: KiwiPolicy;
 }): RunnerResolution | null {
-  if (params.isResearchStep) return null;
+  if (params.isResearchStep) {
+    return null;
+  }
+
   return resolveRunner({
     registryModels: params.registryModels,
     step: params.step,
@@ -411,6 +436,7 @@ function enrichSchedulerDecision(params: {
     executionIsolation: params.isolation,
   };
   saveSchedulerDecision(params.cwd, enriched);
+
   return enriched;
 }
 
@@ -463,6 +489,7 @@ function previewSelection(params: {
       registryModels: params.registryModels,
       preferenceByRole: params.policy.routing.providerPreference,
     });
+
     return {
       selectedModel: selected?.model ?? null,
       selectedModelId: selected?.model.id ?? null,
@@ -470,6 +497,7 @@ function previewSelection(params: {
     };
   }
   const selection = params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
+
   return {
     selectedModel: selection?.model ?? null,
     selectedModelId: selection?.model?.id ?? null,
@@ -542,7 +570,11 @@ function stepPreview(params: {
     executionOwner: executionOwner(params.policy),
     executionIsolation: params.isolation,
   };
-  if (decision.blockedReason) preview.blockedReason = decision.blockedReason;
+
+  if (decision.blockedReason) {
+    preview.blockedReason = decision.blockedReason;
+  }
+
   return preview;
 }
 
@@ -558,8 +590,12 @@ export function buildRunExecutionPreview(params: {
   const initiative = loadInitiative(params.runId, params.cwd);
   const taskGraph = loadTaskGraph(params.runId, params.cwd);
   const startIndex = params.fromStep ? taskGraph.steps.findIndex((step) => step.stepId === params.fromStep) : 0;
-  if (startIndex < 0) throw new Error(`Step not found: ${params.fromStep}`);
+
+  if (startIndex < 0) {
+    throw new Error(`Step not found: ${params.fromStep}`);
+  }
   const isolation = executionMode(policy);
+
   return {
     runId: params.runId,
     executionOwner: executionOwner(policy),
@@ -586,7 +622,10 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
   const repoPath = initiative.repoPath || input.cwd;
   const taskGraph = loadTaskGraph(input.runId, input.cwd);
   const step = taskGraph.steps.find((entry) => entry.stepId === input.stepId);
-  if (!step) throw new Error(`Step not found: ${input.stepId}`);
+
+  if (!step) {
+    throw new Error(`Step not found: ${input.stepId}`);
+  }
   assertStepDependenciesCompleted({
     cwd: input.cwd,
     runId: input.runId,
@@ -618,7 +657,10 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
   const approved = input.approved ?? false;
   const approvedFiles = approvalApplies ? approval.approvalRequiredFiles : undefined;
   const selectedIsolation = executionMode(policy);
-  if (selectedIsolation === "direct") assertDirectExecutionSafe(repoPath);
+
+  if (selectedIsolation === "direct") {
+    assertDirectExecutionSafe(repoPath);
+  }
   const { runnerAdapter, selectedModel, selectedModelId, executorSelectionReason } = selectStepRunner({
     cwd: input.cwd,
     runId: input.runId,
@@ -656,6 +698,7 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
   });
   let result: Awaited<ReturnType<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>>;
   let materializedDiff: AttemptDiffMaterialization = { status: "skipped", reason: "attempt did not run" };
+
   try {
     const orchestratorInput: Parameters<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>[0] = {
       cwd: input.cwd,
@@ -690,7 +733,10 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
       policy,
       now,
     };
-    if (reviewEngine) orchestratorInput.reviewEngine = reviewEngine;
+
+    if (reviewEngine) {
+      orchestratorInput.reviewEngine = reviewEngine;
+    }
     try {
       result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute(orchestratorInput);
       materializedDiff = materializeAttemptDiff({
@@ -713,6 +759,7 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
     teardownExecutionTarget({ cwd: input.cwd, target });
   }
   const run = refreshRunStatusFromAttempts({ cwd: input.cwd, runId: input.runId, now: new Date() });
+
   return {
     runId: input.runId,
     stepId: input.stepId,

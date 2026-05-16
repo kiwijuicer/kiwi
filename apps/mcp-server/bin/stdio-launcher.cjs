@@ -5,7 +5,11 @@ const path = require("path");
 
 function option(name) {
   const index = process.argv.indexOf(name);
-  if (index < 0) return undefined;
+
+  if (index < 0) {
+    return undefined;
+  }
+
   return process.argv[index + 1];
 }
 
@@ -41,6 +45,7 @@ log("launcher_start", {
 
 try {
   const server = require(serverPath);
+
   if (typeof server.startMcpServer !== "function") {
     throw new Error("startMcpServer export not found");
   }

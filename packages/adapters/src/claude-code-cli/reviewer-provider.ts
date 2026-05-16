@@ -59,6 +59,7 @@ function providerError(params: {
         : params.code === "provider_auth"
           ? ReviewerProviderSchedulerErrorCodes.ProviderAuth
           : ReviewerProviderSchedulerErrorCodes.ProviderNetwork;
+
   return new ReviewerProviderError({
     code: params.code,
     schedulerErrorCode,
@@ -87,7 +88,11 @@ function emptyPolicy(): KiwiPolicy {
 
 function previousAttempts(context?: ReviewerProviderRepairContext): unknown[] {
   const artifact = context?.invalidProviderArtifacts?.reviewerInput;
-  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) return [];
+
+  if (!isRecord(artifact) || !Array.isArray(artifact.attempts)) {
+    return [];
+  }
+
   return artifact.attempts.filter((entry): entry is Record<string, unknown> => isRecord(entry));
 }
 
@@ -104,7 +109,9 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
 
   constructor(options: ClaudeCodeCliReviewerProviderOptions = {}) {
     this.binary = options.binary ?? process.env.KIWI_CLAUDE_CODE_BINARY ?? "claude";
-    if (options.cwd !== undefined) this.cwd = options.cwd;
+    if (options.cwd !== undefined) {
+      this.cwd = options.cwd;
+    }
     this.model = options.model;
     this.name = `claude-code-cli:${this.model ?? "default"}`;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -134,6 +141,7 @@ export class ClaudeCodeCliReviewerProvider implements ReviewerProvider {
 
   private systemPrompt(): string {
     const schema = JSON.stringify(reviewerToolDefinition().input_schema, null, 2);
+
     return `${REVIEWER_JSON_SYSTEM_PROMPT}
 
 Prompt version: ${REVIEWER_PROMPT_VERSION}
@@ -164,6 +172,7 @@ Return only a JSON ReviewVerdict; no commentary or extra top-level keys.`;
       env,
     };
     const result = await this.runner.run(invocation);
+
     if (!result.ok) {
       throw providerError({
         code: result.timedOut ? "provider_timeout" : "provider_network",
@@ -176,6 +185,7 @@ Return only a JSON ReviewVerdict; no commentary or extra top-level keys.`;
 
     const text = extractCliResultText(result.parsed, result.stdout);
     const reviewVerdict = extractTextJson(text);
+
     if (reviewVerdict === null) {
       throw providerError({
         code: "provider_schema_invalid",

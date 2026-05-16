@@ -7,11 +7,13 @@ function trimDiff(diff: string): { diff: string; truncated: boolean } {
     return { diff, truncated: false };
   }
   const slice = Buffer.from(diff, "utf-8").subarray(0, MAX_DIFF_BYTES).toString("utf-8");
+
   return { diff: `${slice}\n[diff truncated to ${MAX_DIFF_BYTES} bytes]`, truncated: true };
 }
 
 export function buildReviewerUserEnvelope(input: ReviewerProviderInput): string {
   const trimmed = trimDiff(input.diff);
+
   return JSON.stringify(
     {
       request: "Review the focal step diff against the provided gate evidence.",

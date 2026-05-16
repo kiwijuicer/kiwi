@@ -49,6 +49,7 @@ interface PlanProgressReporter {
 
 function formatProgressValue(value: Exclude<ProgressValue, undefined>): string {
   const raw = String(value);
+
   return /^[A-Za-z0-9._:/@-]+$/.test(raw) ? raw : JSON.stringify(raw);
 }
 
@@ -58,10 +59,14 @@ function formatProgressLine(
   fields: Record<string, ProgressValue> = {},
 ): string {
   const entries: string[] = [];
+
   for (const [key, value] of Object.entries({ phase, status, ...fields }) as Array<[string, ProgressValue]>) {
-    if (value === undefined) continue;
+    if (value === undefined) {
+      continue;
+    }
     entries.push(`${key}=${formatProgressValue(value)}`);
   }
+
   return entries.join(" ");
 }
 
@@ -85,15 +90,21 @@ function createPlanProgressReporter(opts: {
 
   return {
     line(line: string): void {
-      if (!enabled) return;
+      if (!enabled) {
+        return;
+      }
       write(line);
     },
     phase(phase: string, status: PlanProgressStatus, fields?: Record<string, ProgressValue>): void {
-      if (!enabled) return;
+      if (!enabled) {
+        return;
+      }
       write(formatProgressLine(phase, status, fields));
     },
     startHeartbeat(): void {
-      if (!enabled || timer) return;
+      if (!enabled || timer) {
+        return;
+      }
       startedAt = nowMs();
       timer = setInterval(() => {
         const elapsedSeconds = Math.max(0, Math.floor((nowMs() - startedAt) / 1000));
@@ -101,7 +112,9 @@ function createPlanProgressReporter(opts: {
       }, 30_000);
     },
     stopHeartbeat(): void {
-      if (!timer) return;
+      if (!timer) {
+        return;
+      }
       clearInterval(timer);
       timer = null;
     },
@@ -119,6 +132,7 @@ function looksLikeTicketPath(ticketArg: string): boolean {
 
 function resolveTicketInput(ticketArg: string, cwd: string): { rawInput: string; source: "file" | "cli" } {
   const ticketPath = path.isAbsolute(ticketArg) ? ticketArg : path.join(cwd, ticketArg);
+
   if (existsSync(ticketPath)) {
     return {
       rawInput: readFileSync(ticketPath, "utf-8"),
@@ -228,6 +242,7 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
         2,
       ),
     );
+
     return;
   }
 

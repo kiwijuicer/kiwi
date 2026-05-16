@@ -21,11 +21,18 @@ function hasErrorCode(error: unknown, code: string): boolean {
 }
 
 export function mapErrorToHelp(error: unknown): string | null {
-  if (error instanceof NotInitializedError) return "Run `kiwi init [--workspace ...]`.";
-  if (error instanceof RunNotFoundError) return "List runs with `kiwi status` or pick a different `runId`.";
-  if (error instanceof BudgetExceededError) return "Increase `--budget-profile` or relax risk profile.";
+  if (error instanceof NotInitializedError) {
+    return "Run `kiwi init [--workspace ...]`.";
+  }
+  if (error instanceof RunNotFoundError) {
+    return "List runs with `kiwi status` or pick a different `runId`.";
+  }
+  if (error instanceof BudgetExceededError) {
+    return "Increase `--budget-profile` or relax risk profile.";
+  }
 
   const message = error instanceof Error ? error.message : String(error);
+
   if (message.includes("No real planner model") || message.includes("No enabled planner model")) {
     return "Run `kiwi doctor`, then log in/configure a real planner. Use `--allow-stub` only for tests/dev.";
   }
@@ -43,6 +50,7 @@ export function handleCommandError(error: unknown): never {
   const message = error instanceof Error ? error.message : String(error);
   console.error(`\n✗ ${message}`);
   const hint = mapErrorToHelp(error);
+
   if (hint) {
     console.error(chalk.yellow(`  hint: ${hint}`));
   } else if (process.argv.includes("--debug") && error instanceof Error && error.stack) {

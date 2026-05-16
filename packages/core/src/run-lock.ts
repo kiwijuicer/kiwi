@@ -39,7 +39,9 @@ function lockRef(): string {
 }
 
 function readExistingLock(target: string): unknown {
-  if (!existsSync(target)) return null;
+  if (!existsSync(target)) {
+    return null;
+  }
   try {
     return JSON.parse(readFileSync(target, "utf-8")) as unknown;
   } catch {
@@ -65,10 +67,12 @@ export function acquireRunLock(params: {
   };
 
   let descriptor: number;
+
   try {
     descriptor = openSync(target, "wx");
   } catch (error) {
     const code = typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
+
     if (code === "EEXIST") {
       const existing = readExistingLock(target);
       appendAuditEvent(params.cwd, {
@@ -102,13 +106,18 @@ export function acquireRunLock(params: {
   });
 
   let released = false;
+
   return {
     info,
     ref,
     release: () => {
-      if (released) return;
+      if (released) {
+        return;
+      }
       released = true;
-      if (existsSync(target)) unlinkSync(target);
+      if (existsSync(target)) {
+        unlinkSync(target);
+      }
       appendAuditEvent(params.cwd, {
         eventType: "run_lock_released",
         runId: params.runId,
@@ -132,6 +141,7 @@ export async function withRunLock<T>(
   action: () => Promise<T> | T,
 ): Promise<T> {
   const lock = acquireRunLock(params);
+
   try {
     return await action();
   } finally {

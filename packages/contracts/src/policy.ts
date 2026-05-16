@@ -94,9 +94,16 @@ export const KiwiPolicySchema = z.object({
 export function defaultAccessModeForProvider(
   provider: z.infer<typeof ModelProviderSchema>,
 ): z.infer<typeof AccessModeSchema> {
-  if (provider === ModelProviders.Anthropic) return AccessModes.AnthropicApi;
-  if (provider === ModelProviders.Openai) return AccessModes.OpenaiApi;
-  if (provider === ModelProviders.Local) return AccessModes.Local;
+  if (provider === ModelProviders.Anthropic) {
+    return AccessModes.AnthropicApi;
+  }
+  if (provider === ModelProviders.Openai) {
+    return AccessModes.OpenaiApi;
+  }
+  if (provider === ModelProviders.Local) {
+    return AccessModes.Local;
+  }
+
   return AccessModes.Stub;
 }
 

@@ -30,7 +30,11 @@ export class ResearcherProviderRegistry {
       role: ContractValues.Researcher,
       preferenceByRole: options.preferenceByRole,
     });
-    if (!selected) return null;
+
+    if (!selected) {
+      return null;
+    }
+
     return {
       model: selected.model,
       provider: this.buildProvider(selected.model, env),
@@ -51,6 +55,7 @@ export class ResearcherProviderRegistry {
       if (!model.providerModel) {
         throw new Error(`Codex researcher model '${model.id}' must define providerModel for enforced model switching`);
       }
+
       return new CodexCliResearcherProvider({
         model: model.providerModel,
         env,
@@ -73,6 +78,7 @@ export class ResearcherProviderRegistry {
     const cheap = researchers.filter((model) => model.capability === ContractValues.Cheap);
     const mid = researchers.filter((model) => model.capability === ContractValues.Mid);
     const preferred = [...mid, ...cheap];
+
     return preferred.length > 0 ? preferred : researchers;
   }
 }
