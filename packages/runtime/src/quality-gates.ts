@@ -152,6 +152,7 @@ export function evaluateForbiddenFiles(params: {
   diffHash: string;
   policy: KiwiPolicy;
   approvedPaths?: boolean;
+  approvedFiles?: string[];
 }): ForbiddenFileCheckResult {
   const files = extractDiffFiles(params.diff).map((entry) => entry.filePath);
   const denied: string[] = [];
@@ -182,12 +183,18 @@ export function evaluateForbiddenFiles(params: {
       patterns: { highRisk: highRiskPatterns, deniedPaths: [...allDeniedPatterns] },
     };
   }
-  if (approvalRequiredFiles.length > 0 && !params.approvedPaths) {
+  const uniqueApprovalRequiredFiles = [...new Set(approvalRequiredFiles)];
+  const approvedFileSet = new Set(params.approvedFiles ?? []);
+  const exactFileApproval =
+    uniqueApprovalRequiredFiles.length > 0 &&
+    uniqueApprovalRequiredFiles.length === approvedFileSet.size &&
+    uniqueApprovalRequiredFiles.every((file) => approvedFileSet.has(file));
+  if (approvalRequiredFiles.length > 0 && !params.approvedPaths && !exactFileApproval) {
     return {
-      status: ContractValues.Fail,
-      reason: `Diff touches approval-required paths: ${[...new Set(approvalRequiredFiles)].join(", ")}`,
+      status: ContractValues.Blocked,
+      reason: `Diff touches approval-required paths: ${uniqueApprovalRequiredFiles.join(", ")}`,
       blockedFiles: [],
-      approvalRequiredFiles: [...new Set(approvalRequiredFiles)],
+      approvalRequiredFiles: uniqueApprovalRequiredFiles,
       scannedFiles: files,
       diffHash: params.diffHash,
       patterns: { highRisk: highRiskPatterns, deniedPaths: [...allDeniedPatterns] },
@@ -197,7 +204,7 @@ export function evaluateForbiddenFiles(params: {
     status: ContractValues.Pass,
     reason: files.length === 0 ? "No diff files to evaluate" : `${files.length} diff files within policy bounds`,
     blockedFiles: [],
-    approvalRequiredFiles: [...new Set(approvalRequiredFiles)],
+    approvalRequiredFiles: uniqueApprovalRequiredFiles,
     scannedFiles: files,
     diffHash: params.diffHash,
     patterns: { highRisk: highRiskPatterns, deniedPaths: [...allDeniedPatterns] },
@@ -270,6 +277,7 @@ export interface DiffGateInput {
   diffHash: string;
   policy: KiwiPolicy;
   approvedPaths?: boolean;
+  approvedFiles?: string[];
 }
 
 export function runForbiddenFileGate(input: DiffGateInput): GateResult {
@@ -278,6 +286,7 @@ export function runForbiddenFileGate(input: DiffGateInput): GateResult {
     diffHash: input.diffHash,
     policy: input.policy,
     ...(input.approvedPaths !== undefined ? { approvedPaths: input.approvedPaths } : {}),
+    ...(input.approvedFiles !== undefined ? { approvedFiles: input.approvedFiles } : {}),
   });
   const reportPath = writeGateReport({
     cwd: input.cwd,

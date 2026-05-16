@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { kiwiModelRegistryPath, kiwiPolicyPath } from "@kiwi/core";
 import { handleMcpRequest } from "../index";
 
-function setupRepo(): string {
+function setupRepo(options: { ignoreKiwi?: boolean } = {}): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-ux-"));
   mkdirSync(path.join(cwd, ".kiwi", "runs"), { recursive: true });
   mkdirSync(path.join(cwd, ".kiwi", "logs"), { recursive: true });
@@ -57,6 +57,17 @@ models:
 `,
     "utf-8",
   );
+  execFileSync("git", ["init", "-b", "feature"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["config", "user.email", "kiwi@example.test"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["config", "user.name", "kiwi"], { cwd, stdio: "ignore" });
+  if (options.ignoreKiwi !== false) {
+    writeFileSync(path.join(cwd, ".gitignore"), ".kiwi/\n", "utf-8");
+    execFileSync("git", ["add", ".gitignore"], { cwd, stdio: "ignore" });
+  } else {
+    writeFileSync(path.join(cwd, "README.md"), "test\n", "utf-8");
+    execFileSync("git", ["add", "README.md"], { cwd, stdio: "ignore" });
+  }
+  execFileSync("git", ["commit", "-m", "init"], { cwd, stdio: "ignore" });
   return cwd;
 }
 
@@ -112,12 +123,6 @@ describe("MCP UX safety tools", () => {
     process.env.KIWI_FAKE_BINARY_AVAILABLE = "1";
     try {
       const cwd = setupRepo();
-      writeFileSync(path.join(cwd, ".gitignore"), ".kiwi/\n", "utf-8");
-      execFileSync("git", ["init"], { cwd, stdio: "ignore" });
-      execFileSync("git", ["config", "user.email", "kiwi@example.test"], { cwd, stdio: "ignore" });
-      execFileSync("git", ["config", "user.name", "kiwi"], { cwd, stdio: "ignore" });
-      execFileSync("git", ["add", ".gitignore"], { cwd, stdio: "ignore" });
-      execFileSync("git", ["commit", "-m", "init"], { cwd, stdio: "ignore" });
       writeFileSync(path.join(cwd, "dirty.txt"), "dirty\n", "utf-8");
 
       const doctor = await handleMcpRequest(
@@ -156,13 +161,71 @@ describe("MCP UX safety tools", () => {
       cwd,
     );
 
-    expect(run.error?.code).toBe(-32010);
+    expect(run.error?.code).toBe(-32602);
     expect(run.error?.data).toMatchObject({
-      category: "action_required",
-      recovery: {
-        recommendedToolCall: { name: "kiwi_preview_run" },
-      },
+      category: "invalid_input",
     });
+  });
+
+  it("blocks direct execution previews on protected, dirty, and untracked repos", async () => {
+    const protectedRepo = setupRepo();
+    execFileSync("git", ["switch", "-c", "main"], { cwd: protectedRepo, stdio: "ignore" });
+    const protectedRunId = await planRun(protectedRepo);
+    const protectedPreview = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: { name: "kiwi_preview_run", arguments: { runId: protectedRunId } },
+      },
+      protectedRepo,
+    );
+    expect(protectedPreview.error?.code).toBe(-32010);
+    expect(protectedPreview.error?.message).toContain("protected-looking");
+
+    const dirtyRepo = setupRepo();
+    const dirtyRunId = await planRun(dirtyRepo);
+    writeFileSync(path.join(dirtyRepo, ".gitignore"), ".kiwi/\n# dirty\n", "utf-8");
+    const dirtyPreview = await handleMcpRequest(
+      {
+        id: 3,
+        method: "tools/call",
+        params: { name: "kiwi_preview_run", arguments: { runId: dirtyRunId } },
+      },
+      dirtyRepo,
+    );
+    expect(dirtyPreview.error?.code).toBe(-32010);
+    expect(dirtyPreview.error?.message).toContain("tracked dirty files");
+
+    const untrackedRepo = setupRepo();
+    const untrackedRunId = await planRun(untrackedRepo);
+    writeFileSync(path.join(untrackedRepo, "scratch.txt"), "dirty\n", "utf-8");
+    const untrackedPreview = await handleMcpRequest(
+      {
+        id: 4,
+        method: "tools/call",
+        params: { name: "kiwi_preview_run", arguments: { runId: untrackedRunId } },
+      },
+      untrackedRepo,
+    );
+    expect(untrackedPreview.error?.code).toBe(-32010);
+    expect(untrackedPreview.error?.message).toContain("untracked non-kiwi files");
+  });
+
+  it("keeps preview tokens valid when only kiwi artifacts are written", async () => {
+    const cwd = setupRepo({ ignoreKiwi: false });
+    const runId = await planRun(cwd);
+    const token = await previewRun(cwd, runId);
+    const run = await handleMcpRequest(
+      {
+        id: 3,
+        method: "tools/call",
+        params: { name: "kiwi_run", arguments: { runId, previewToken: token, command: "node -e 0" } },
+      },
+      cwd,
+    );
+
+    expect(run.error).toBeUndefined();
+    expect(JSON.stringify(run.result)).toContain("completed");
   });
 
   it("rejects stale preview tokens after policy changes and recommends the next safe tool", async () => {
@@ -200,7 +263,120 @@ describe("MCP UX safety tools", () => {
     });
   });
 
-  it("keeps approval and forceUnsafe on explicit MCP paths", async () => {
+  it("resumes approval only for the same blocked step and approval-required files", async () => {
+    const previousIsolation = process.env.KIWI_EXECUTION_ISOLATION;
+    process.env.KIWI_EXECUTION_ISOLATION = "worktree";
+    try {
+      const cwd = setupRepo();
+      writeFileSync(
+        kiwiPolicyPath(cwd),
+        readFileSync(kiwiPolicyPath(cwd), "utf-8").replace("riskZones:\n  high: []", "riskZones:\n  high: [src/auth/**]"),
+        "utf-8",
+      );
+      const planned = await handleMcpRequest(
+        {
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "kiwi_plan",
+            arguments: { rawInput: "# Approval resume\n\n## Implement", riskProfile: "production", allowStub: true },
+          },
+        },
+        cwd,
+      );
+      expect(planned.error).toBeUndefined();
+      const runId = (toolJson(planned) as { runId: string }).runId;
+      const firstToken = await previewRun(cwd, runId);
+      const writeApprovedFile =
+        "node -e \"const fs=require('fs');fs.mkdirSync('src/auth',{recursive:true});fs.writeFileSync('src/auth/new.ts','x\\n')\"";
+      const blocked = await handleMcpRequest(
+        {
+          id: 3,
+          method: "tools/call",
+          params: { name: "kiwi_run", arguments: { runId, previewToken: firstToken, command: writeApprovedFile } },
+        },
+        cwd,
+      );
+      expect(blocked.error).toBeUndefined();
+      const blockedParsed = toolJson(blocked) as { steps: Array<{ stepId: string; attemptId: string; status: string }> };
+      expect(blockedParsed.steps[0]?.status).toBe("blocked");
+      const stepId = blockedParsed.steps[0]?.stepId ?? "step_001";
+      const attemptId = blockedParsed.steps[0]?.attemptId ?? "";
+
+      const approval = await handleMcpRequest(
+        {
+          id: 4,
+          method: "tools/call",
+          params: { name: "kiwi_request_approval", arguments: { runId, attemptId, reason: "reviewed" } },
+        },
+        cwd,
+      );
+      expect(approval.error).toBeUndefined();
+
+      const next = await handleMcpRequest(
+        { id: 5, method: "tools/call", params: { name: "kiwi_next", arguments: { runId } } },
+        cwd,
+      );
+      const nextParsed = toolJson(next) as {
+        nextAction: { recommendedToolCall: { name: string; arguments: { fromStep?: string } } };
+      };
+      expect(nextParsed.nextAction.recommendedToolCall.name).toBe("kiwi_preview_run");
+      expect(nextParsed.nextAction.recommendedToolCall.arguments.fromStep).toBe(stepId);
+
+      const secondPreview = await handleMcpRequest(
+        {
+          id: 6,
+          method: "tools/call",
+          params: { name: "kiwi_preview_run", arguments: { runId, fromStep: stepId } },
+        },
+        cwd,
+      );
+      const secondToken = (toolJson(secondPreview) as { previewToken: string }).previewToken;
+      const approvedRun = await handleMcpRequest(
+        {
+          id: 7,
+          method: "tools/call",
+          params: {
+            name: "kiwi_run",
+            arguments: { runId, fromStep: stepId, previewToken: secondToken, command: writeApprovedFile },
+          },
+        },
+        cwd,
+      );
+      expect(approvedRun.error).toBeUndefined();
+      expect(JSON.stringify(approvedRun.result)).toContain("completed");
+
+      const thirdPreview = await handleMcpRequest(
+        {
+          id: 8,
+          method: "tools/call",
+          params: { name: "kiwi_preview_run", arguments: { runId, fromStep: stepId } },
+        },
+        cwd,
+      );
+      const thirdToken = (toolJson(thirdPreview) as { previewToken: string }).previewToken;
+      const writeNewRiskFile =
+        "node -e \"const fs=require('fs');fs.mkdirSync('src/auth',{recursive:true});fs.writeFileSync('src/auth/other.ts','x\\n')\"";
+      const blockedAgain = await handleMcpRequest(
+        {
+          id: 9,
+          method: "tools/call",
+          params: {
+            name: "kiwi_run",
+            arguments: { runId, fromStep: stepId, previewToken: thirdToken, command: writeNewRiskFile },
+          },
+        },
+        cwd,
+      );
+      expect(blockedAgain.error).toBeUndefined();
+      expect(JSON.stringify(blockedAgain.result)).toContain("blocked");
+    } finally {
+      if (previousIsolation === undefined) delete process.env.KIWI_EXECUTION_ISOLATION;
+      else process.env.KIWI_EXECUTION_ISOLATION = previousIsolation;
+    }
+  });
+
+  it("rejects fake approval attempts and MCP forceUnsafe", async () => {
     const cwd = setupRepo();
     const runId = await planRun(cwd);
     const approval = await handleMcpRequest(
@@ -214,7 +390,12 @@ describe("MCP UX safety tools", () => {
       },
       cwd,
     );
-    expect(approval.error).toBeUndefined();
+    expect(approval.error?.code).toBe(-32010);
+    expect(approval.error?.data).toMatchObject({
+      recovery: {
+        recommendedToolCall: { name: "kiwi_next" },
+      },
+    });
 
     const apply = await handleMcpRequest(
       {
@@ -224,13 +405,9 @@ describe("MCP UX safety tools", () => {
       },
       cwd,
     );
-    expect(apply.error?.code).toBe(-32010);
+    expect(apply.error?.code).toBe(-32602);
     expect(apply.error?.data).toMatchObject({
-      category: "blocked",
-      recovery: {
-        recommendedToolCall: { name: "kiwi_diff" },
-      },
+      category: "invalid_input",
     });
-    expect(JSON.stringify(apply.error?.data)).toContain("KIWI_MCP_HIGH_RISK_TOOLS");
   });
 });

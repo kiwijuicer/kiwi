@@ -78,9 +78,7 @@ describe("runSubprocess – streaming (onOutputChunk)", () => {
 
     // Chunks must appear before "resolved" in callOrder
     const resolvedIdx = callOrder.indexOf("resolved");
-    const chunkIdxs = callOrder
-      .map((v, i) => (v.startsWith("chunk:") ? i : -1))
-      .filter((i) => i >= 0);
+    const chunkIdxs = callOrder.map((v, i) => (v.startsWith("chunk:") ? i : -1)).filter((i) => i >= 0);
     expect(chunkIdxs.length).toBeGreaterThan(0);
     for (const idx of chunkIdxs) {
       expect(idx).toBeLessThan(resolvedIdx);

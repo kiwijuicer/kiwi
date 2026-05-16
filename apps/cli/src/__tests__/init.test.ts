@@ -172,9 +172,9 @@ models:
       "codex-cli-strong",
       "codex-cli-frontier",
     ]);
-    expect(registry.models.filter((model) => model.accessMode === "codex-cli").every((model) => model.providerModel)).toBe(
-      true,
-    );
+    expect(
+      registry.models.filter((model) => model.accessMode === "codex-cli").every((model) => model.providerModel),
+    ).toBe(true);
     expect(policy.execution).toMatchObject({
       owner: "kiwi-codex-cli",
       isolation: "direct",

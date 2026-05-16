@@ -49,7 +49,9 @@ export async function runExplain(runId: string, opts: ExplainOptions = {}, cwd: 
   if (byStep.length > 0) {
     console.log("cost_by_step:");
     for (const [stepId, costs] of byStep) {
-      console.log(`  ${stepId} planner:${costs.planner.toFixed(2)} executor:${costs.executor.toFixed(2)} reviewer:${costs.reviewer.toFixed(2)}`);
+      console.log(
+        `  ${stepId} planner:${costs.planner.toFixed(2)} executor:${costs.executor.toFixed(2)} reviewer:${costs.reviewer.toFixed(2)}`,
+      );
     }
   }
   const byModel = Object.entries(explanation.completionSummary.byModelCostsUsd).sort((a, b) => b[1] - a[1]);

@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "fs";
 import path from "path";
 import {
   appendAuditEvent,
+  kiwiModelRegistryPath,
   kiwiPolicyPath,
   loadInitiative,
   loadTaskGraph,
@@ -23,7 +24,9 @@ export interface McpPreviewInput {
 interface McpPreviewFingerprints {
   taskGraphHash: string;
   policyHash: string;
+  registryHash: string;
   repoHead: string | null;
+  repoBranch: string | null;
   dirtyStateHash: string;
 }
 
@@ -35,6 +38,7 @@ export interface McpPreviewTokenRecord {
   repoPath: string;
   createdAt: string;
   previewInput: McpPreviewInput;
+  executionIsolation: "direct" | "worktree";
   fingerprints: McpPreviewFingerprints;
   stateHash: string;
   previewStepIds: string[];
@@ -74,6 +78,11 @@ function hashPolicy(cwd: string): string {
   return existsSync(target) ? sha256(readFileSync(target, "utf-8")) : sha256("missing-policy");
 }
 
+function hashRegistry(cwd: string): string {
+  const target = kiwiModelRegistryPath(cwd);
+  return existsSync(target) ? sha256(readFileSync(target, "utf-8")) : sha256("missing-registry");
+}
+
 function fingerprintState(cwd: string, runId: string): { repoPath: string; fingerprints: McpPreviewFingerprints } {
   const initiative = loadInitiative(runId, cwd);
   const repoPath = initiative.repoPath || cwd;
@@ -83,7 +92,9 @@ function fingerprintState(cwd: string, runId: string): { repoPath: string; finge
     fingerprints: {
       taskGraphHash: sha256(JSON.stringify(loadTaskGraph(runId, cwd))),
       policyHash: hashPolicy(cwd),
+      registryHash: hashRegistry(cwd),
       repoHead: repoState.head,
+      repoBranch: repoState.branch,
       dirtyStateHash: repoState.dirtyStateHash,
     },
   };
@@ -111,6 +122,7 @@ export function createMcpPreviewToken(params: {
     repoPath,
     createdAt: (params.now ?? new Date()).toISOString(),
     previewInput: params.previewInput,
+    executionIsolation: params.preview.executionIsolation,
     fingerprints,
     stateHash: hash,
     previewStepIds: params.preview.steps.map((step) => step.stepId),

@@ -24,7 +24,9 @@ export function mapRunnerStatusToAttemptStatus(params: {
     return ContractValues.Blocked;
   }
   if (params.runnerStatus === ContractValues.Failed || params.runnerStatus === "timeout") return ContractValues.Failed;
-  if (!summarizeGateResults(params.gateResults).safeToContinue) return ContractValues.Failed;
+  const gateSummary = summarizeGateResults(params.gateResults);
+  if (gateSummary.blockedGateIds.length > 0) return ContractValues.Blocked;
+  if (!gateSummary.safeToContinue) return ContractValues.Failed;
   if (!params.reviewVerdict.safeToContinue) return ContractValues.Failed;
   return ContractValues.Completed;
 }
@@ -79,6 +81,7 @@ function policyGateResults(params: {
   requiredGates: string[];
   policy?: KiwiPolicy;
   approved?: boolean;
+  approvedFiles?: string[];
 }): GateResult[] {
   if (!params.policy || !params.attemptDiff) return [];
   const gateResults: GateResult[] = [];
@@ -93,6 +96,7 @@ function policyGateResults(params: {
         diffHash: params.attemptDiff.diffHash,
         policy: params.policy,
         ...(params.approved !== undefined ? { approvedPaths: params.approved } : {}),
+        ...(params.approvedFiles !== undefined ? { approvedFiles: params.approvedFiles } : {}),
       }),
     );
   }
@@ -138,6 +142,7 @@ export async function coordinateAttemptGates<TCommandPolicy>(params: {
     requiredGates: params.input.schedulerDecision.requiredGates,
     ...(params.input.policy ? { policy: params.input.policy } : {}),
     ...(params.input.approved !== undefined ? { approved: params.input.approved } : {}),
+    ...(params.input.approvedFiles !== undefined ? { approvedFiles: params.input.approvedFiles } : {}),
   });
   auditDiffGatesExecuted({
     cwd: params.input.cwd,

@@ -122,7 +122,7 @@ const TOOL_SPECS = [
         command: { type: "string", description: "Optional override command for controlled test/dev execution." },
         ...WORKSPACE_PROPERTIES,
       },
-      required: ["runId"],
+      required: ["runId", "previewToken"],
     },
   },
   {
@@ -156,7 +156,7 @@ const TOOL_SPECS = [
         command: { type: "string", description: "Optional override command for controlled test/dev execution." },
         ...WORKSPACE_PROPERTIES,
       },
-      required: ["runId", "stepId"],
+      required: ["runId", "stepId", "previewToken"],
     },
   },
   {
@@ -176,16 +176,12 @@ const TOOL_SPECS = [
   },
   {
     name: "kiwi_apply",
-    description: `APPLIES_PATCH. When to use: apply a persisted kiwi patch to the source repo after inspecting kiwi_diff. Requires: runId. forceUnsafe requires KIWI_MCP_HIGH_RISK_TOOLS=1. Returns: apply result and operatorCard. ${NO_AUTO_COMMIT_NOTE}`,
+    description: `APPLIES_PATCH. When to use: apply a persisted kiwi patch to the source repo after inspecting kiwi_diff. Requires: runId. Unsafe apply overrides are not exposed over MCP. Returns: apply result and operatorCard. ${NO_AUTO_COMMIT_NOTE}`,
     inputSchema: {
       type: "object",
       properties: {
         runId: runIdProperty,
         stepId: { type: "string", description: "Optional step id to apply only that step's patch." },
-        forceUnsafe: {
-          type: "boolean",
-          description: "Allow unsafe patch application only when KIWI_MCP_HIGH_RISK_TOOLS=1.",
-        },
         ...WORKSPACE_PROPERTIES,
       },
       required: ["runId"],

@@ -68,11 +68,7 @@ export function injectFixStep(input: ReplannerInput): InjectFixStepResult {
     status: ContractValues.Pending,
   });
 
-  const newSteps = [
-    ...taskGraph.steps.slice(0, focalIndex + 1),
-    fixStep,
-    ...taskGraph.steps.slice(focalIndex + 1),
-  ];
+  const newSteps = [...taskGraph.steps.slice(0, focalIndex + 1), fixStep, ...taskGraph.steps.slice(focalIndex + 1)];
 
   const updatedTaskGraph = TaskGraphSchema.parse({ ...taskGraph, steps: newSteps });
   const target = resolveRunArtifactPath(input.runId, "plan/task-graph.json", input.cwd);
@@ -107,17 +103,13 @@ export function attemptReplan(input: ReplannerInput): AttemptReplanResult {
   const versionedPath = `plan/task-graph.v${version}.json`;
 
   try {
-    const issuesSummary =
-      input.reviewVerdict.issues.map((i) => i.title).join("; ") || "see review verdict";
+    const issuesSummary = input.reviewVerdict.issues.map((i) => i.title).join("; ") || "see review verdict";
     const replanNote = `Replanned v${version}: focal step ${input.focalStepId} rejected — ${issuesSummary}`;
 
     const updatedTaskGraph = TaskGraphSchema.parse({
       ...taskGraph,
       summary: `[${replanNote}] ${taskGraph.summary}`,
-      openQuestions: [
-        ...taskGraph.openQuestions,
-        ...input.reviewVerdict.recommendedNextSteps,
-      ],
+      openQuestions: [...taskGraph.openQuestions, ...input.reviewVerdict.recommendedNextSteps],
     });
 
     const target = resolveRunArtifactPath(input.runId, versionedPath, input.cwd);

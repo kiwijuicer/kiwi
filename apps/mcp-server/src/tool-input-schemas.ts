@@ -37,7 +37,7 @@ export const ToolInputSchemas = {
   }),
   kiwi_status: OptionalRunIdSchema,
   kiwi_run: RunIdSchema.extend({
-    previewToken: z.string().min(1).optional(),
+    previewToken: z.string().min(1),
     fromStep: z.string().min(1).optional(),
     maxConcurrency: z.number().int().positive().optional(),
     command: z.string().min(1).optional(),
@@ -48,7 +48,7 @@ export const ToolInputSchemas = {
   }),
   kiwi_run_step: RunIdSchema.extend({
     stepId: z.string().min(1),
-    previewToken: z.string().min(1).optional(),
+    previewToken: z.string().min(1),
     command: z.string().min(1).optional(),
   }),
   kiwi_diff: RunIdSchema.extend({
@@ -57,8 +57,7 @@ export const ToolInputSchemas = {
   }),
   kiwi_apply: RunIdSchema.extend({
     stepId: z.string().min(1).optional(),
-    forceUnsafe: z.boolean().optional(),
-  }),
+  }).strict(),
   kiwi_finalize: RunIdSchema,
   kiwi_cost: RunIdSchema,
   kiwi_explain: RunIdSchema,
@@ -127,6 +126,14 @@ export class ToolInputValidationError extends Error {
     this.name = "ToolInputValidationError";
     this.issues = issues;
   }
+}
+
+export function invalidToolArgumentIssue(path: Array<string | number>, message: string): ZodIssue {
+  return {
+    code: "custom",
+    path,
+    message,
+  };
 }
 
 export function validateToolArguments(name: string, args: Record<string, unknown>): Record<string, unknown> {

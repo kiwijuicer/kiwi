@@ -3,12 +3,7 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { SandboxCommandPolicy } from "@kiwi/sandbox";
-import {
-  buildCodexCliArgs,
-  CodexCliInvocation,
-  CodexCliResult,
-  CodexCliRunner,
-} from "../codex-cli/client";
+import { buildCodexCliArgs, CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../codex-cli/client";
 import { CodexCliRunnerAdapter } from "../codex-cli/runner-adapter";
 import { CursorAgentRunnerAdapter } from "../cursor-agent-cli/runner-adapter";
 import { CursorAgentCliInvocation, CursorAgentCliResult, CursorAgentCliRunner } from "../cursor-agent-cli/client";

@@ -3,11 +3,13 @@ import {
   assertStepDependenciesCompleted,
   kiwiModelRegistryPath,
   kiwiPolicyPath,
-  loadApprovalDecision,
+  latestAttemptByStep,
   loadInitiative,
+  loadLatestApprovalDecisionForStep,
   loadPolicy,
   loadRegistry,
   loadTaskGraph,
+  listStepAttemptEvidence,
   remainingBudgetUsdEstimate,
   estimateAttemptCostUsd,
   refreshRunStatusFromAttempts,
@@ -40,6 +42,7 @@ import { previewStepAttempt, saveSchedulerDecision, scheduleStepAttempt } from "
 import type { SchedulerDecision } from "./scheduler-policy";
 import { StepAttemptOrchestrator } from "./step-attempt-orchestrator";
 import type { StepAttemptRunner } from "./step-runner-types";
+import { assertDirectExecutionSafe } from "./direct-execution-safety";
 
 function shouldUseProviderResearch(): boolean {
   return process.env.KIWI_RESEARCHER_MODE === "provider";
@@ -265,7 +268,9 @@ function selectStepRunner(params: {
       );
     }
     if (!executorSelection.model.providerModel) {
-      throw new Error(`Codex model '${executorSelection.model.id}' must define providerModel for enforced model switching`);
+      throw new Error(
+        `Codex model '${executorSelection.model.id}' must define providerModel for enforced model switching`,
+      );
     }
   }
   return {
@@ -590,7 +595,12 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
   });
   const now = input.now ?? new Date();
   const isResearchStep = step.type === "context_discovery";
-  const runnerResolution = resolveStepRunnerResolution({ isResearchStep, registryModels: registry.models, step, policy });
+  const runnerResolution = resolveStepRunnerResolution({
+    isResearchStep,
+    registryModels: registry.models,
+    step,
+    policy,
+  });
   const decision = scheduleCurrentStepAttempt({
     input,
     step,
@@ -599,9 +609,16 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
     isResearchStep,
     now,
   });
-  const approval = loadApprovalDecision({ cwd: input.cwd, runId: input.runId, attemptId: decision.attemptId });
-  const approved = input.approved ?? approval?.state === "auto";
+  const approval = loadLatestApprovalDecisionForStep({ cwd: input.cwd, runId: input.runId, stepId: input.stepId });
+  const latestAttempt = latestAttemptByStep(listStepAttemptEvidence(input.cwd, input.runId)).get(input.stepId);
+  const approvalApplies =
+    approval?.state === "auto" &&
+    latestAttempt?.attempt.status === ContractValues.Blocked &&
+    approval.sourceAttemptId === latestAttempt.attemptId;
+  const approved = input.approved ?? false;
+  const approvedFiles = approvalApplies ? approval.approvalRequiredFiles : undefined;
   const selectedIsolation = executionMode(policy);
+  if (selectedIsolation === "direct") assertDirectExecutionSafe(repoPath);
   const { runnerAdapter, selectedModel, selectedModelId, executorSelectionReason } = selectStepRunner({
     cwd: input.cwd,
     runId: input.runId,
@@ -656,6 +673,7 @@ export async function executePlannedStep(input: ExecutePlannedStepInput): Promis
       command,
       commandPolicy,
       approved,
+      ...(approvedFiles ? { approvedFiles } : {}),
       postRunnerGateExecutor: (params) =>
         runRequiredGates({
           cwd: input.cwd,

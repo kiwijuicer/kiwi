@@ -60,7 +60,9 @@ function formatEvent(event: AuditEventLine, noColor: boolean): string {
     typeof payload.reason === "string" ? `reason=${JSON.stringify(payload.reason)}` : "",
   ].filter(Boolean);
   const line = parts.join(" ");
-  return noColor ? line : `${chalk.dim(event.timestamp)} ${chalk.cyan(event.eventType)} ${parts.slice(2).join(" ")}`.trim();
+  return noColor
+    ? line
+    : `${chalk.dim(event.timestamp)} ${chalk.cyan(event.eventType)} ${parts.slice(2).join(" ")}`.trim();
 }
 
 function readNewLines(target: string, offset: number): { lines: string[]; offset: number } {

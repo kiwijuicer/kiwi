@@ -49,7 +49,11 @@ function writeCostCsv(params: { cwd: string; runId: string }): { ref: string; ro
       .join(","),
   );
   const ref = "final/final-cost-report.csv";
-  writeFileSync(resolveRunArtifactPath(params.runId, ref, params.cwd), `${[header.join(","), ...rows].join("\n")}\n`, "utf-8");
+  writeFileSync(
+    resolveRunArtifactPath(params.runId, ref, params.cwd),
+    `${[header.join(","), ...rows].join("\n")}\n`,
+    "utf-8",
+  );
   return { ref, rows: invocations.length };
 }
 

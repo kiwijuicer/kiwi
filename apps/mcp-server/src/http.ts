@@ -8,6 +8,7 @@ export interface HttpMcpServerOptions {
   port?: number;
   path?: string;
   allowedOrigins?: string[];
+  authToken?: string;
 }
 
 export function parsePort(value: string | undefined, fallback: number): number {
@@ -49,8 +50,12 @@ function applyCorsHeaders(request: IncomingMessage, response: ServerResponse, al
 
   response.setHeader("Access-Control-Allow-Origin", origin);
   response.setHeader("Vary", "Origin");
-  response.setHeader("Access-Control-Allow-Headers", "content-type, accept, mcp-session-id");
+  response.setHeader("Access-Control-Allow-Headers", "authorization, content-type, accept, mcp-session-id");
   response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+}
+
+function isAuthorized(request: IncomingMessage, authToken: string): boolean {
+  return request.headers.authorization === `Bearer ${authToken}`;
 }
 
 function sendJson(response: ServerResponse, statusCode: number, payload: unknown): void {
@@ -98,9 +103,10 @@ async function handleHttpMcpRequest(
     cwd: string;
     endpointPath: string;
     allowedOrigins: string[];
+    authToken: string;
   },
 ): Promise<void> {
-  const { cwd, endpointPath, allowedOrigins } = params;
+  const { cwd, endpointPath, allowedOrigins, authToken } = params;
   applyCorsHeaders(request, response, allowedOrigins);
 
   if (
@@ -133,6 +139,15 @@ async function handleHttpMcpRequest(
   if (request.method !== "POST") {
     response.writeHead(405, { allow: "POST, GET, OPTIONS" });
     response.end();
+    return;
+  }
+
+  if (!isAuthorized(request, authToken)) {
+    sendJson(response, 401, {
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32001, message: "Unauthorized" },
+    });
     return;
   }
 
@@ -180,9 +195,13 @@ export function startHttpMcpServer(options: HttpMcpServerOptions = {}): Server {
   const port = options.port ?? parsePort(process.env.KIWI_MCP_HTTP_PORT, 3333);
   const endpointPath = options.path ?? process.env.KIWI_MCP_HTTP_PATH ?? "/mcp";
   const allowedOrigins = options.allowedOrigins ?? allowedOriginsFromEnv();
+  const authToken = options.authToken ?? process.env.KIWI_MCP_HTTP_TOKEN;
+  if (!authToken) {
+    throw new Error("KIWI_MCP_HTTP_TOKEN is required for HTTP MCP transport");
+  }
 
   const server = createServer((request, response) => {
-    void handleHttpMcpRequest(request, response, { cwd, endpointPath, allowedOrigins }).catch((error) => {
+    void handleHttpMcpRequest(request, response, { cwd, endpointPath, allowedOrigins, authToken }).catch((error) => {
       debugLog("http_error", { error: error instanceof Error ? error.stack || error.message : String(error) });
       if (!response.headersSent) {
         sendJson(response, 500, {

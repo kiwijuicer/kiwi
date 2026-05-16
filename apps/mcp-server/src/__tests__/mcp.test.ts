@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "fs";
 import { once } from "events";
 import { AddressInfo } from "net";
+import { execFileSync } from "child_process";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
@@ -10,7 +11,17 @@ import { createMcpMessageDrainer, handleMcpRequest, startHttpMcpServer } from ".
 function setupRepo(): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-"));
   writeKiwiConfig(cwd);
+  initCleanGitRepo(cwd);
   return cwd;
+}
+
+function initCleanGitRepo(cwd: string): void {
+  writeFileSync(path.join(cwd, ".gitignore"), ".kiwi/\n", "utf-8");
+  execFileSync("git", ["init", "-b", "feature"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["config", "user.email", "kiwi@example.test"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["config", "user.name", "kiwi"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["add", ".gitignore"], { cwd, stdio: "ignore" });
+  execFileSync("git", ["commit", "-m", "init"], { cwd, stdio: "ignore" });
 }
 
 function writeKiwiConfig(cwd: string): void {
@@ -83,6 +94,11 @@ function setupWorkspace(): { root: string; core: string; agent: string } {
     }),
     "utf-8",
   );
+  execFileSync("git", ["add", "voice-core/core.txt", "voice-livekit-agent/agent.txt", "workspace.code-workspace"], {
+    cwd: root,
+    stdio: "ignore",
+  });
+  execFileSync("git", ["commit", "-m", "workspace"], { cwd: root, stdio: "ignore" });
   return { root, core, agent };
 }
 
@@ -119,7 +135,7 @@ async function startLoopbackHttpServer(
   cwd: string,
   skip: () => void,
 ): Promise<ReturnType<typeof startHttpMcpServer> | null> {
-  const server = startHttpMcpServer({ cwd, host: "127.0.0.1", port: 0 });
+  const server = startHttpMcpServer({ cwd, host: "127.0.0.1", port: 0, authToken: "test-token" });
   try {
     await once(server, "listening");
     return server;
@@ -273,6 +289,7 @@ describe("MCP server", () => {
       const response = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
         method: "POST",
         headers: {
+          authorization: "Bearer test-token",
           accept: "application/json, text/event-stream",
           "content-type": "application/json",
         },
@@ -299,6 +316,19 @@ describe("MCP server", () => {
     }
   });
 
+  it("refuses to start HTTP transport without a bearer token", () => {
+    const previousToken = process.env.KIWI_MCP_HTTP_TOKEN;
+    delete process.env.KIWI_MCP_HTTP_TOKEN;
+    try {
+      expect(() => startHttpMcpServer({ cwd: setupRepo(), host: "127.0.0.1", port: 0 })).toThrow(
+        "KIWI_MCP_HTTP_TOKEN is required",
+      );
+    } finally {
+      if (previousToken === undefined) delete process.env.KIWI_MCP_HTTP_TOKEN;
+      else process.env.KIWI_MCP_HTTP_TOKEN = previousToken;
+    }
+  });
+
   it("returns 202 for HTTP notification-only input", async ({ skip }) => {
     const server = await startLoopbackHttpServer(setupRepo(), skip);
     if (!server) return;
@@ -308,6 +338,7 @@ describe("MCP server", () => {
       const response = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
         method: "POST",
         headers: {
+          authorization: "Bearer test-token",
           accept: "application/json",
           "content-type": "application/json",
         },
@@ -338,6 +369,30 @@ describe("MCP server", () => {
 
       expect(response.status).toBe(204);
       expect(response.headers.get("access-control-allow-origin")).toBe("http://[::1]:3000");
+      expect(response.headers.get("access-control-allow-headers")).toContain("authorization");
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+  });
+
+  it("rejects unauthenticated HTTP POST requests", async ({ skip }) => {
+    const server = await startLoopbackHttpServer(setupRepo(), skip);
+    if (!server) return;
+
+    try {
+      const address = server.address() as AddressInfo;
+      const response = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+      });
+
+      expect(response.status).toBe(401);
     } finally {
       await new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));
@@ -502,7 +557,7 @@ describe("MCP server", () => {
     expect(JSON.stringify(a2a.result)).toContain("accepted");
   });
 
-  it("normalizes kiwi_plan arguments and exposes model evidence resources", async () => {
+  it("plans with object arguments and exposes model evidence resources", async () => {
     const cwd = setupRepo();
     const planned = await handleMcpRequest(
       {
@@ -510,7 +565,7 @@ describe("MCP server", () => {
         method: "tools/call",
         params: {
           name: "kiwi_plan",
-          arguments: JSON.stringify({ rawInput: "# Raw MCP\n\n## Plan", budgetProfile: "tiny", allowStub: true }),
+          arguments: { rawInput: "# Raw MCP\n\n## Plan", budgetProfile: "tiny", allowStub: true },
         },
       },
       cwd,
@@ -546,11 +601,22 @@ describe("MCP server", () => {
     expect(summaryText).toContain('"invocationCount": 1');
   });
 
-  it("accepts tools/call top-level fallback arguments", async () => {
+  it("rejects stringified and top-level fallback tool arguments", async () => {
     const cwd = setupRepo();
-    const planned = await handleMcpRequest(
+    const stringified = await handleMcpRequest(
       {
         id: 1,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: JSON.stringify({ rawInput: "# String MCP\n\n## Plan", allowStub: true }),
+        },
+      },
+      cwd,
+    );
+    const topLevel = await handleMcpRequest(
+      {
+        id: 2,
         method: "tools/call",
         params: {
           name: "kiwi_plan",
@@ -563,8 +629,9 @@ describe("MCP server", () => {
       cwd,
     );
 
-    expect(planned.error).toBeUndefined();
-    expect((toolJson(planned) as { runId: string }).runId).toMatch(/^run_/);
+    expect(stringified.error?.code).toBe(-32602);
+    expect(topLevel.error?.code).toBe(-32602);
+    expect(JSON.stringify(stringified.error?.data)).toContain("params.arguments must be an object");
   });
 
   it("emits progress notifications for kiwi_plan and lists concrete run resources", async () => {

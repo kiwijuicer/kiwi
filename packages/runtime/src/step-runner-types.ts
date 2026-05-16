@@ -81,6 +81,7 @@ export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
   commandPolicy?: TCommandPolicy;
   env?: Record<string, string>;
   approved?: boolean;
+  approvedFiles?: string[];
   additionalGateResults?: GateResult[];
   additionalArtifacts?: Artifact[];
   postRunnerGateExecutor?: (params: {

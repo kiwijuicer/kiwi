@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { execFileSync } from "child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
@@ -123,8 +123,12 @@ describe("PR draft publishing", () => {
       }),
     );
 
+    const added: string[][] = [];
     const pushed: string[][] = [];
     const runner = (args: string[], cwd: string) => {
+      if (args[0] === "add") {
+        added.push(args);
+      }
       if (args[0] === "push") {
         pushed.push(args);
         return { stdout: "", stderr: "" };
@@ -135,6 +139,17 @@ describe("PR draft publishing", () => {
       return { stdout: git(args, cwd), stderr: "" };
     };
 
+    writeFileSync(path.join(repo, "secret.txt"), "do not publish\n", "utf-8");
+    expect(() =>
+      publishPrDraft({
+        cwd: workspace,
+        runId: "run_demo",
+        git: runner,
+        now: new Date("2026-05-05T08:00:30.000Z"),
+      }),
+    ).toThrow("target repo has local changes");
+    unlinkSync(path.join(repo, "secret.txt"));
+
     const result = publishPrDraft({
       cwd: workspace,
       runId: "run_demo",
@@ -142,6 +157,7 @@ describe("PR draft publishing", () => {
       now: new Date("2026-05-05T08:01:00.000Z"),
     });
 
+    expect(added).toContainEqual(["add", "--", "a.txt"]);
     expect(pushed[0]).toEqual(["push", "-u", "origin", "kiwi/run_demo"]);
     expect(result.prDraft.createUrl).toBe(
       "https://bitbucket.org/voice/core/pull-requests/new?source=kiwi%2Frun_demo&dest=main",

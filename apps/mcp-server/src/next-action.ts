@@ -1,6 +1,12 @@
 import { existsSync } from "fs";
 import { ContractValues, RunStatuses } from "@kiwi/contracts";
-import { getRunStatusSummary, resolveRunArtifactPath } from "@kiwi/core";
+import {
+  getRunStatusSummary,
+  latestAttemptByStep,
+  listStepAttemptEvidence,
+  loadLatestApprovalDecisionForStep,
+  resolveRunArtifactPath,
+} from "@kiwi/core";
 import { buildOperatorCard } from "./operator-card";
 import { latestValidPreviewToken, normalizePreviewInput } from "./preview-tokens";
 import { safeReadOnlyToolCalls, toolCall, type McpNextAction, mutationScope, workspaceToolArgs } from "./ux";
@@ -63,18 +69,42 @@ export function nextTool(args: Record<string, unknown>, cwd: string): unknown {
       };
     }
   } else if (status === "needs_approval") {
-    const attemptId = latest?.attempts[0]?.attemptId;
+    const blockedAttempt = Array.from(
+      latestAttemptByStep(listStepAttemptEvidence(workspace.workspacePath, runId)).values(),
+    ).find((entry) => entry.attempt.status === ContractValues.Blocked);
+    const approval = blockedAttempt
+      ? loadLatestApprovalDecisionForStep({
+          cwd: workspace.workspacePath,
+          runId,
+          stepId: blockedAttempt.stepId,
+        })
+      : null;
+    const approvalApplies = approval?.sourceAttemptId === blockedAttempt?.attemptId;
+    const attemptId = blockedAttempt?.attemptId;
     blockedBy = attemptId ? [`attempt ${attemptId} needs explicit approval`] : ["latest attempt needs approval"];
-    nextAction = {
-      recommendedToolCall: toolCall("kiwi_request_approval", {
-        ...baseArgs,
-        attemptId,
-      }),
-      whyThisTool: "The latest attempt is blocked on an explicit approval decision.",
-      requiresUserConfirmation: true,
-      expectedMutation: "WRITES_RUN_ARTIFACTS",
-      expectedAfter: "Approval evidence is recorded; call kiwi_next again.",
-    };
+    if (blockedAttempt && approvalApplies) {
+      nextAction = {
+        recommendedToolCall: toolCall("kiwi_preview_run", {
+          ...baseArgs,
+          fromStep: blockedAttempt.stepId,
+        }),
+        whyThisTool: "Approval evidence matches the latest blocked attempt; preview execution from that step.",
+        requiresUserConfirmation: false,
+        expectedMutation: "WRITES_RUN_ARTIFACTS",
+        expectedAfter: "Show the preview decision card to the user before re-running from the approved step.",
+      };
+    } else {
+      nextAction = {
+        recommendedToolCall: toolCall("kiwi_request_approval", {
+          ...baseArgs,
+          attemptId,
+        }),
+        whyThisTool: "The latest attempt is blocked on an explicit approval decision.",
+        requiresUserConfirmation: true,
+        expectedMutation: "WRITES_RUN_ARTIFACTS",
+        expectedAfter: "Approval evidence is recorded; call kiwi_next again.",
+      };
+    }
   } else if (status === ContractValues.Failed) {
     nextAction = {
       recommendedToolCall: toolCall("kiwi_diff", baseArgs),

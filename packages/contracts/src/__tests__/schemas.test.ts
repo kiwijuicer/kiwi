@@ -584,7 +584,9 @@ describe("contracts schemas", () => {
     const approval = ApprovalDecisionSchema.parse({
       schemaVersion: "1",
       runId: "run_demo",
-      attemptId: "attempt_001",
+      stepId: "step_001",
+      sourceAttemptId: "attempt_001",
+      approvalRequiredFiles: ["src/high-risk.ts"],
       state: "auto",
       reason: "ok",
       approvedBy: "operator",

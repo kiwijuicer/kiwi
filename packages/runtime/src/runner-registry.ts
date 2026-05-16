@@ -165,7 +165,9 @@ function defaultRunnerDefinitions(): RunnerDefinition[] {
           throw new Error("Codex runner requires a selected codex-cli model in .kiwi/model-registry.yaml");
         }
         if (!selectedExecutorModel.providerModel) {
-          throw new Error(`Codex model '${selectedExecutorModel.id}' must define providerModel for enforced model switching`);
+          throw new Error(
+            `Codex model '${selectedExecutorModel.id}' must define providerModel for enforced model switching`,
+          );
         }
         return new CodexCliRunnerAdapter({
           model: selectedExecutorModel.providerModel,
@@ -279,7 +281,12 @@ function pickExecutorModel(
   const stubs = enabled.filter((model) => model.accessMode === AccessModes.Stub);
 
   const atOrAbove = CAPABILITY_ORDER.filter((capability) => CAPABILITY_RANK[capability] >= requestedRank);
-  const adequatePick = preferCapabilityAndAccessOrder({ candidates: nonStub, capabilities: atOrAbove, env, preferenceByRole });
+  const adequatePick = preferCapabilityAndAccessOrder({
+    candidates: nonStub,
+    capabilities: atOrAbove,
+    env,
+    preferenceByRole,
+  });
   if (adequatePick) {
     return {
       model: adequatePick,

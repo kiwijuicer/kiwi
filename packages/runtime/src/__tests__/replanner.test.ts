@@ -46,7 +46,11 @@ function writeTaskGraph(cwd: string, runId: string, steps: Step[]): void {
   writeFileSync(path.join(planDir, "task-graph.json"), JSON.stringify(graph), "utf-8");
 }
 
-function loadTaskGraphRaw(cwd: string, runId: string, filename = "task-graph.json"): ReturnType<typeof TaskGraphSchema.parse> {
+function loadTaskGraphRaw(
+  cwd: string,
+  runId: string,
+  filename = "task-graph.json",
+): ReturnType<typeof TaskGraphSchema.parse> {
   const raw = readFileSync(path.join(cwd, ".kiwi", "runs", runId, "plan", filename), "utf-8");
   return TaskGraphSchema.parse(JSON.parse(raw));
 }
@@ -65,7 +69,9 @@ function rejectVerdict() {
   return ReviewVerdictSchema.parse({
     verdict: "reject",
     safeToContinue: false,
-    issues: [{ code: "SECURITY_VIOLATION", title: "Forbidden path access", severity: "high", detail: "Access to /etc" }],
+    issues: [
+      { code: "SECURITY_VIOLATION", title: "Forbidden path access", severity: "high", detail: "Access to /etc" },
+    ],
     recommendedNextSteps: ["Remove forbidden path access", "Add policy guard"],
     confidence: 0.95,
   });

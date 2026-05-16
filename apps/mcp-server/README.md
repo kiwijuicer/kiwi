@@ -18,6 +18,7 @@ For single-repo use, set `KIWI_WORKSPACE` to the repo root or omit it when the c
 
 ```bash
 pnpm build
+KIWI_MCP_HTTP_TOKEN="$(openssl rand -hex 32)" \
 node apps/mcp-server/dist/index.js \
   --transport http \
   --workspace /Users/norberthanauer/Projects/voice \
@@ -38,7 +39,11 @@ Cursor config for local Streamable HTTP:
 }
 ```
 
-The HTTP transport binds to `127.0.0.1` by default and rejects non-local `Origin` headers unless explicitly allowed with `KIWI_MCP_ALLOWED_ORIGINS`.
+The HTTP transport refuses to start without `KIWI_MCP_HTTP_TOKEN`.
+Every POST to `/mcp` must include `Authorization: Bearer <token>`.
+CORS only limits browser origins; it is not authentication. The HTTP transport
+binds to `127.0.0.1` by default and rejects non-local `Origin` headers unless
+explicitly allowed with `KIWI_MCP_ALLOWED_ORIGINS`.
 
 Codex-first execution uses the current repo working tree by default. Kiwi selects
 the concrete Codex CLI `providerModel` per step and passes it with `--model`;
@@ -56,7 +61,7 @@ Core tools:
 - `kiwi_run`: execute planned steps in order with a fresh `previewToken`.
 - `kiwi_run_step`: execute one planned step with a fresh `previewToken`.
 - `kiwi_diff`: read persisted attempt patch stats and diff.
-- `kiwi_apply`: apply a persisted worktree patch; `forceUnsafe` requires `KIWI_MCP_HIGH_RISK_TOOLS=1`.
+- `kiwi_apply`: apply a persisted worktree patch. Unsafe apply overrides are not exposed over MCP.
 - `kiwi_finalize`: write final verdict, summary, and cost report.
 - `kiwi_evidence_manifest`: write hashed evidence manifest and audit snapshot.
 - `kiwi_operator_snapshot`: write local operator HTML snapshot.
@@ -81,6 +86,9 @@ Workspace-aware tools accept:
   "repoPath": "/Users/norberthanauer/Projects/voice/voice-core"
 }
 ```
+
+Tool calls must pass an object in `params.arguments`. Stringified JSON arguments
+and top-level argument fallbacks are rejected with `-32602`.
 
 Use either `repoId` or `repoPath`. `repoId` maps to the names listed by `kiwi workspace list`; `repoPath` can be absolute or relative to the workspace.
 
@@ -177,14 +185,16 @@ For multi-repo work, start one server per workspace or set `KIWI_WORKSPACE` per 
 - Every tool definition includes MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) for client risk prompts.
 - `kiwi_next` is the default read-only router after every run-related tool, error, interruption, or uncertain state.
 - MCP `kiwi_run` and `kiwi_run_step` require a fresh `previewToken` from `kiwi_preview_run`.
-- Preview tokens bind to run id, TaskGraph hash, policy hash, repo HEAD, dirty state, `fromStep`, and `maxConcurrency`.
+- Preview tokens bind to run id, TaskGraph hash, policy hash, registry hash, repo branch, repo HEAD, dirty state, `fromStep`, and `maxConcurrency`. Kiwi-owned `.kiwi/` artifacts are ignored in the dirty-state fingerprint.
+- Direct execution is blocked on `main`/`master`, tracked dirty files, untracked non-Kiwi files, or non-git repos. Use worktree isolation for those states.
 - Action-required errors return `data.recovery.recommendedToolCall` instead of relying on the model to infer recovery.
 - `approved` is not accepted as an MCP run shortcut; use `kiwi_request_approval`.
-- `kiwi_apply forceUnsafe` is disabled over MCP unless `KIWI_MCP_HIGH_RISK_TOOLS=1`.
+- `forceUnsafe` is not accepted over MCP.
+- `kiwi_request_approval` only records approval for the latest blocked attempt of a step and only for the approval-required files recorded in gate evidence.
 - Tool descriptions carry risk labels: `READ_ONLY`, `WRITES_RUN_ARTIFACTS`, `MUTATES_WORKTREE`, `APPLIES_PATCH`, `PUSHES_BRANCH`.
 - Direct Anthropic/OpenAI API keys are not required for daily use; local CLI auth is used for Claude, Codex, and Cursor Agent.
 - Direct execution captures a pre-step git tree snapshot and persists only the step diff as run evidence.
-- Bitbucket PR draft publishing uses local git auth only and does not store Bitbucket credentials.
+- Bitbucket PR draft publishing uses local git auth only, requires a clean tree including untracked files, stages only expected diff files, and does not store Bitbucket credentials.
 - A2A is disabled by default and only exchanges filesystem envelopes with explicitly trusted peers.
 - Remote patch artifacts are quarantined by the A2A runtime.
 - Step worktrees copy only the selected repo when `KIWI_EXECUTION_ISOLATION=worktree` is enabled.

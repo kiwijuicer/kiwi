@@ -188,13 +188,8 @@ export function buildRepoContextEnvelope(params: {
       grepKeywords,
       grepHits: grepHits(repoPath, grepKeywords),
       filePaths: listFilePaths(repoPath),
-      recentCommits: runGit(repoPath, ["log", "-5", "--pretty=%s"])
-        .split(/\r?\n/)
-        .filter(Boolean),
-      localDiffPaths: runGit(repoPath, ["diff", "--name-only", "HEAD"])
-        .split(/\r?\n/)
-        .filter(Boolean)
-        .sort(),
+      recentCommits: runGit(repoPath, ["log", "-5", "--pretty=%s"]).split(/\r?\n/).filter(Boolean),
+      localDiffPaths: runGit(repoPath, ["diff", "--name-only", "HEAD"]).split(/\r?\n/).filter(Boolean).sort(),
       omittedFields: [],
     });
   } catch (error) {

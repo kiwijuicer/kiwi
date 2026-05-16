@@ -113,7 +113,10 @@ export function buildRunDiff(params: {
   return {
     runId: params.runId,
     items,
-    stat: items.map((item) => item.stat).filter(Boolean).join("\n"),
+    stat: items
+      .map((item) => item.stat)
+      .filter(Boolean)
+      .join("\n"),
     patch: items.map((item) => item.patch).join("\n"),
   };
 }
@@ -196,7 +199,9 @@ export function applyRunDiff(params: {
           reason: result.reason ?? "git apply failed",
         },
       });
-      throw new Error(`Patch apply failed for ${item.stepId}/${item.attemptId}: ${result.reason ?? "git apply failed"}`);
+      throw new Error(
+        `Patch apply failed for ${item.stepId}/${item.attemptId}: ${result.reason ?? "git apply failed"}`,
+      );
     }
     if (result.reason === "diff already applied") {
       throw new Error(`Patch already applied for ${item.stepId}/${item.attemptId}.`);
@@ -213,7 +218,12 @@ export function applyRunDiff(params: {
         mode: "worktree",
       },
     });
-    applied.push({ stepId: item.stepId, attemptId: item.attemptId, diffRef: item.diffRef, patchPath: result.patchPath });
+    applied.push({
+      stepId: item.stepId,
+      attemptId: item.attemptId,
+      diffRef: item.diffRef,
+      patchPath: result.patchPath,
+    });
   }
 
   return {

@@ -18,9 +18,13 @@ describe("buildRepoContextEnvelope", () => {
     writeFileSync(path.join(repoPath, "src", "auth.ts"), "export const authPlanner = true;\n", "utf-8");
     git(repoPath, ["init"]);
     git(repoPath, ["add", "."]);
-    execFileSync("git", ["-C", repoPath, "-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial context"], {
-      stdio: "ignore",
-    });
+    execFileSync(
+      "git",
+      ["-C", repoPath, "-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial context"],
+      {
+        stdio: "ignore",
+      },
+    );
     writeFileSync(path.join(repoPath, "src", "auth.ts"), "export const authPlanner = false;\n", "utf-8");
 
     const context = buildRepoContextEnvelope({

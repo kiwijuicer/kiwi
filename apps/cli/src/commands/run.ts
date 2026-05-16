@@ -8,7 +8,13 @@ import {
   loadTaskGraph,
   withRunLock,
 } from "@kiwi/core";
-import { attemptReplan, ExecutePlannedStepResult, injectFixStep, loadReviewVerdict, runScheduledSubPlans } from "@kiwi/runtime";
+import {
+  attemptReplan,
+  ExecutePlannedStepResult,
+  injectFixStep,
+  loadReviewVerdict,
+  runScheduledSubPlans,
+} from "@kiwi/runtime";
 import { buildRunCompletionSummary } from "@kiwi/ops";
 import { runAttemptUnlocked, AttemptOptions } from "./attempt";
 import { resolveCliWorkspace } from "../workspace-options";
@@ -78,7 +84,9 @@ function createRunProgressReporter(opts: RunProgressOptions | undefined): RunPro
     stepDone(stepId: string, result: ExecutePlannedStepResult, runStatus?: string): void {
       if (!enabled) return;
       stopStep(stepId);
-      write(`step ${stepId} done: status=${result.status} next=${result.nextAction.type} runStatus=${runStatus ?? result.runStatus}`);
+      write(
+        `step ${stepId} done: status=${result.status} next=${result.nextAction.type} runStatus=${runStatus ?? result.runStatus}`,
+      );
     },
     stepFailed(stepId: string, error: unknown): void {
       if (!enabled) return;
@@ -139,7 +147,13 @@ function tryAutoAction(params: {
 
   if (opts.autoFix && nextType === "fix_step") {
     const verdict = loadReviewVerdict({ cwd, runId, stepId, attemptId: attemptResult.attemptId });
-    const injected = injectFixStep({ cwd, runId, focalStepId: stepId, reviewVerdict: verdict, ...(opts.now ? { now: opts.now } : {}) });
+    const injected = injectFixStep({
+      cwd,
+      runId,
+      focalStepId: stepId,
+      reviewVerdict: verdict,
+      ...(opts.now ? { now: opts.now } : {}),
+    });
     console.log(chalk.yellow("↺") + ` auto-fix: injected ${injected.injectedStepId} after ${stepId}`);
     const idx = stepIds.indexOf(stepId);
     if (idx >= 0) stepIds.splice(idx + 1, 0, injected.injectedStepId);
@@ -148,7 +162,13 @@ function tryAutoAction(params: {
 
   if (opts.autoReplan && nextType === "replan") {
     const verdict = loadReviewVerdict({ cwd, runId, stepId, attemptId: attemptResult.attemptId });
-    const replanResult = attemptReplan({ cwd, runId, focalStepId: stepId, reviewVerdict: verdict, ...(opts.now ? { now: opts.now } : {}) });
+    const replanResult = attemptReplan({
+      cwd,
+      runId,
+      focalStepId: stepId,
+      reviewVerdict: verdict,
+      ...(opts.now ? { now: opts.now } : {}),
+    });
     console.log(chalk.yellow("↻") + ` auto-replan: new plan written to ${replanResult.taskGraphPath}`);
     console.log(chalk.dim("Re-run with: kiwi run " + runId));
     return false;

@@ -65,7 +65,9 @@ export interface RunRoutingExplanation {
   routingReason: string[];
 }
 
-type SchedulerDecisionWithModelMetadata = NonNullable<ReturnType<typeof listStepAttemptEvidence>[number]["schedulerDecision"]> & {
+type SchedulerDecisionWithModelMetadata = NonNullable<
+  ReturnType<typeof listStepAttemptEvidence>[number]["schedulerDecision"]
+> & {
   selectedModelId?: string | null;
   selectedProviderModel?: string | null;
   selectedAccessMode?: string | null;
@@ -218,7 +220,10 @@ function executorSelectionByAttempt(
   cwd: string,
   runId: string,
 ): Map<string, { modelId: string | null; providerName: string | null; accessMode: string | null }> {
-  const selections = new Map<string, { modelId: string | null; providerName: string | null; accessMode: string | null }>();
+  const selections = new Map<
+    string,
+    { modelId: string | null; providerName: string | null; accessMode: string | null }
+  >();
   for (const event of readAuditEvents(cwd, runId)) {
     if (String(event.eventType) !== "executor_model_selected") continue;
     const attemptId = stringPayloadValue(event.payload, "attemptId");

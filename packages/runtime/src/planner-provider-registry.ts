@@ -59,11 +59,13 @@ export class PlannerProviderRegistry {
   resolve(options: ResolvePlannerProviderOptions): PlannerResolution {
     const env = options.env ?? process.env;
     const allowStub = stubAllowed(options, env);
-    const candidates = options.registryModels.filter(
-      (model) =>
-        model.roles.includes(ContractValues.Planner) &&
-        (model.capability === ContractValues.Frontier || model.capability === ContractValues.Strong),
-    ).sort(byPlannerCapability);
+    const candidates = options.registryModels
+      .filter(
+        (model) =>
+          model.roles.includes(ContractValues.Planner) &&
+          (model.capability === ContractValues.Frontier || model.capability === ContractValues.Strong),
+      )
+      .sort(byPlannerCapability);
     const fallbackCandidates = options.registryModels
       .filter((model) => model.roles.includes(ContractValues.Planner))
       .sort(byPlannerCapability);

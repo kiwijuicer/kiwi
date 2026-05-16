@@ -51,14 +51,7 @@ function parseJsonLines(text: string): unknown[] {
 }
 
 export function buildCodexCliArgs(invocation: CodexCliInvocation): string[] {
-  const args = [
-    "exec",
-    "--json",
-    "--cd",
-    invocation.cwd,
-    "--skip-git-repo-check",
-    "--ephemeral",
-  ];
+  const args = ["exec", "--json", "--cd", invocation.cwd, "--skip-git-repo-check", "--ephemeral"];
   args.push(
     "--sandbox",
     invocation.sandbox ?? CODEX_AUTO_REVIEW_SANDBOX,

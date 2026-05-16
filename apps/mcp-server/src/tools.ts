@@ -5,10 +5,12 @@ import {
   applyRunDiff,
   buildRunExecutionPreview,
   buildRunDiff,
+  DirectExecutionUnsafeError,
   finalizeRun,
   resolvePlannerProvider,
   runScheduledSubPlans,
   splitCommandLine,
+  assertDirectExecutionSafe,
 } from "@kiwi/runtime";
 import {
   buildRunCompletionSummary,
@@ -21,12 +23,16 @@ import {
   buildRunCostForecast,
   kiwiModelRegistryPath,
   kiwiPolicyPath,
+  latestAttemptByStep,
+  loadInitiative,
   listStepAttemptEvidence,
   loadPolicy,
   loadRegistry,
   loadTaskGraph,
   planRun,
+  readJson,
   recordApprovalDecision,
+  resolveRunArtifactPath,
   withRunLock,
 } from "@kiwi/core";
 import { callA2ATool } from "./a2a-tools";
@@ -37,7 +43,7 @@ import { withOperatorCard } from "./operator-card";
 import { createMcpPreviewToken, normalizePreviewInput, validateMcpPreviewToken } from "./preview-tokens";
 import { ToolActionRequiredError } from "./tool-errors";
 import { a2aMcpToolsEnabled, isA2AToolName } from "./tool-definitions";
-import { validateToolArguments } from "./tool-input-schemas";
+import { invalidToolArgumentIssue, ToolInputValidationError, validateToolArguments } from "./tool-input-schemas";
 import { safeReadOnlyToolCalls, toolCall, type McpNextAction, mutationScope, workspaceToolArgs } from "./ux";
 import { workspaceArgs } from "./workspace";
 
@@ -46,20 +52,9 @@ export function toolArguments(params: Record<string, unknown>): Record<string, u
   if (typeof rawArguments === "object" && rawArguments !== null && !Array.isArray(rawArguments)) {
     return rawArguments as Record<string, unknown>;
   }
-  if (typeof rawArguments === "string") {
-    const parsed = JSON.parse(rawArguments) as unknown;
-    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
-    }
-    throw new Error("tools/call arguments JSON string must decode to an object");
-  }
-
-  const fallback: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(params)) {
-    if (key === "name" || key === "arguments") continue;
-    fallback[key] = value;
-  }
-  return fallback;
+  throw new ToolInputValidationError(String(params.name ?? "tools/call"), [
+    invalidToolArgumentIssue(["arguments"], "tools/call params.arguments must be an object"),
+  ]);
 }
 
 export interface ToolCallOptions {
@@ -130,6 +125,107 @@ function nextRunAction(params: {
     expectedMutation: "MUTATES_WORKTREE",
     expectedAfter: "Run execution starts and progress notifications describe routing, gates, review, and final state.",
   };
+}
+
+function assertMcpDirectExecutionSafe(params: {
+  workspacePath: string;
+  repoPath: string | null;
+  runId: string;
+}): void {
+  if (!params.repoPath) return;
+  try {
+    assertDirectExecutionSafe(params.repoPath);
+  } catch (error) {
+    if (!(error instanceof DirectExecutionUnsafeError)) throw error;
+    throw new ToolActionRequiredError(error.message, {
+      category: "action_required",
+      recovery: {
+        reason: error.reasons.join("; "),
+        recommendedToolCall: toolCall("kiwi_doctor", { workspacePath: params.workspacePath, repoPath: params.repoPath }),
+        safeAlternatives: safeReadOnlyToolCalls({
+          workspacePath: params.workspacePath,
+          repoPath: params.repoPath,
+          runId: params.runId,
+        }),
+        userMessage: "Direct execution is unsafe. Switch away from main/master, clean the repo, or use worktree isolation.",
+      },
+    });
+  }
+}
+
+function approvalRequiredFilesForAttempt(params: {
+  workspacePath: string;
+  runId: string;
+  evidence: ReturnType<typeof listStepAttemptEvidence>[number];
+}): string[] {
+  const files = new Set<string>();
+  for (const gate of params.evidence.gateResults) {
+    if (gate.gateType !== "forbidden_file_checks" || gate.status !== ContractValues.Blocked) continue;
+    for (const ref of gate.evidenceRefs) {
+      const report = readJson(resolveRunArtifactPath(params.runId, ref, params.workspacePath)) as {
+        approvalRequiredFiles?: unknown;
+      };
+      if (!Array.isArray(report.approvalRequiredFiles)) continue;
+      for (const file of report.approvalRequiredFiles) {
+        if (typeof file === "string" && file.length > 0) files.add(file);
+      }
+    }
+  }
+  return Array.from(files).sort();
+}
+
+function approvalValidationError(params: {
+  workspacePath: string;
+  runId: string;
+  reason: string;
+}): ToolActionRequiredError {
+  return new ToolActionRequiredError(`Cannot record approval: ${params.reason}`, {
+    category: "action_required",
+    recovery: {
+      reason: params.reason,
+      recommendedToolCall: toolCall("kiwi_next", { workspacePath: params.workspacePath, runId: params.runId }),
+      safeAlternatives: safeReadOnlyToolCalls({ workspacePath: params.workspacePath, runId: params.runId }),
+      userMessage: "Inspect the current run state and approve only the latest blocked attempt.",
+    },
+  });
+}
+
+function recordMcpApproval(args: Record<string, unknown>, workspacePath: string): unknown {
+  const runId = String(args.runId ?? "");
+  const attemptId = String(args.attemptId ?? "");
+  const attempts = listStepAttemptEvidence(workspacePath, runId);
+  const evidence = attempts.find((entry) => entry.attemptId === attemptId);
+  if (!evidence) {
+    throw approvalValidationError({ workspacePath, runId, reason: `attempt not found: ${attemptId}` });
+  }
+  const latestForStep = latestAttemptByStep(attempts).get(evidence.stepId);
+  if (latestForStep?.attemptId !== attemptId) {
+    throw approvalValidationError({
+      workspacePath,
+      runId,
+      reason: `attempt ${attemptId} is not the latest attempt for ${evidence.stepId}`,
+    });
+  }
+  if (evidence.attempt.status !== ContractValues.Blocked) {
+    throw approvalValidationError({ workspacePath, runId, reason: `attempt ${attemptId} is not blocked` });
+  }
+  const approvalRequiredFiles = approvalRequiredFilesForAttempt({ workspacePath, runId, evidence });
+  if (approvalRequiredFiles.length === 0) {
+    throw approvalValidationError({
+      workspacePath,
+      runId,
+      reason: `attempt ${attemptId} has no approval-required file evidence`,
+    });
+  }
+  return recordApprovalDecision({
+    cwd: workspacePath,
+    runId,
+    stepId: evidence.stepId,
+    sourceAttemptId: attemptId,
+    approvalRequiredFiles,
+    reason: String(args.reason ?? "Approved through MCP"),
+    approvedBy: String(args.approvedBy ?? "mcp-operator"),
+  });
 }
 
 async function planTool(args: Record<string, unknown>, cwd: string, options: ToolCallOptions = {}): Promise<unknown> {
@@ -339,6 +435,14 @@ function previewRunTool(args: Record<string, unknown>, cwd: string): unknown {
     ...(fromStep ? { fromStep } : {}),
     ...(maxConcurrency !== undefined ? { maxConcurrency } : {}),
   });
+  if (preview.executionIsolation === "direct") {
+    const initiative = loadInitiative(runId, workspace.workspacePath);
+    assertMcpDirectExecutionSafe({
+      workspacePath: workspace.workspacePath,
+      repoPath: initiative.repoPath || workspace.workspacePath,
+      runId,
+    });
+  }
   const token = createMcpPreviewToken({
     cwd: workspace.workspacePath,
     runId,
@@ -548,12 +652,19 @@ async function runStepTool(
       operation: `mcp_run_step:${stepId}`,
     },
     async () => {
-      validateMcpPreviewToken({
+      const previewRecord = validateMcpPreviewToken({
         cwd: workspace.workspacePath,
         runId,
         previewToken: typeof args.previewToken === "string" ? args.previewToken : undefined,
         stepId,
       });
+      if (previewRecord.executionIsolation === "direct") {
+        assertMcpDirectExecutionSafe({
+          workspacePath: workspace.workspacePath,
+          repoPath: previewRecord.repoPath,
+          runId,
+        });
+      }
       const result = await runStepToolUnlocked(args, workspace.workspacePath, options, { stepIndex: 1, stepCount: 1 });
       return withOperatorCard(
         {
@@ -606,12 +717,19 @@ async function runTool(
       operation: "mcp_run",
     },
     async () => {
-      validateMcpPreviewToken({
+      const previewRecord = validateMcpPreviewToken({
         cwd: workspace.workspacePath,
         runId,
         previewToken: typeof args.previewToken === "string" ? args.previewToken : undefined,
         previewInput: normalizePreviewInput({ fromStep, maxConcurrency }),
       });
+      if (previewRecord.executionIsolation === "direct") {
+        assertMcpDirectExecutionSafe({
+          workspacePath: workspace.workspacePath,
+          repoPath: previewRecord.repoPath,
+          runId,
+        });
+      }
       const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
       const steps: RunStepToolResult[] = [];
       callOptions.onProgress?.(progressLine({ phase: "run", status: "started", runId }), 0);
@@ -734,18 +852,6 @@ function callCoreTool(
         { cwd: workspacePath, runId, lastAction: "kiwi_diff" },
       );
     case "kiwi_apply": {
-      if (args.forceUnsafe === true && process.env.KIWI_MCP_HIGH_RISK_TOOLS !== "1") {
-        throw new ToolActionRequiredError("kiwi_apply forceUnsafe is disabled over MCP", {
-          category: "blocked",
-          recovery: {
-            reason: "set KIWI_MCP_HIGH_RISK_TOOLS=1 to enable forceUnsafe patch apply",
-            recommendedToolCall: toolCall("kiwi_diff", { workspacePath, runId }),
-            safeAlternatives: safeReadOnlyToolCalls({ workspacePath, runId }),
-            userMessage:
-              "Unsafe patch application is disabled for MCP. Inspect the diff or restart with the explicit high-risk flag.",
-          },
-        });
-      }
       return withOperatorCard(
         {
           schemaVersion: "2",
@@ -754,7 +860,6 @@ function callCoreTool(
             cwd: workspacePath,
             runId,
             ...(typeof args.stepId === "string" ? { stepId: args.stepId } : {}),
-            ...(args.forceUnsafe === true ? { forceUnsafe: true } : {}),
           }),
         },
         {
@@ -831,13 +936,7 @@ function callCoreTool(
             {
               schemaVersion: "2",
               kind: "approval_result",
-              approval: recordApprovalDecision({
-                cwd: workspacePath,
-                runId,
-                attemptId: String(args.attemptId ?? ""),
-                reason: String(args.reason ?? "Approved through MCP"),
-                approvedBy: String(args.approvedBy ?? "mcp-operator"),
-              }),
+              approval: recordMcpApproval(args, workspacePath),
             },
             {
               cwd: workspacePath,

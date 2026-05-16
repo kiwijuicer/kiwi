@@ -30,10 +30,7 @@ function reviewCapabilityFor(executionCapability: ModelCapability): ModelCapabil
   return ContractValues.Mid;
 }
 
-export function buildRunCostForecast(params: {
-  taskGraph: TaskGraph;
-  plannerCostUsd?: number;
-}): RunCostForecast {
+export function buildRunCostForecast(params: { taskGraph: TaskGraph; plannerCostUsd?: number }): RunCostForecast {
   const planner = roundUsd(params.plannerCostUsd ?? 0);
   const steps = params.taskGraph.steps.map((step): StepCostForecast => {
     const executionCostUsd = estimateAttemptCostUsd({

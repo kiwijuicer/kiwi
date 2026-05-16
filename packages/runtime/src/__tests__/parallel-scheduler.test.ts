@@ -130,7 +130,12 @@ describe("parallel scheduler", () => {
 
     const started = readAuditEvents(cwd, runId).filter((event) => event.eventType === "step_attempt_started");
     expect(started).toHaveLength(4);
-    expect(started.slice(0, 2).map((event) => event.payload.stepId).sort()).toEqual(["step_001", "step_003"]);
+    expect(
+      started
+        .slice(0, 2)
+        .map((event) => event.payload.stepId)
+        .sort(),
+    ).toEqual(["step_001", "step_003"]);
 
     const firstTs = Date.parse(started[0]!.timestamp);
     const secondTs = Date.parse(started[1]!.timestamp);

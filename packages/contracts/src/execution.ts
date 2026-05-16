@@ -361,7 +361,9 @@ export const RunCompletionSummarySchema = z.object({
 export const ApprovalDecisionSchema = z.object({
   schemaVersion: ContractsSchemaVersionSchema,
   runId: z.string().regex(/^run_[a-z0-9_]+$/),
-  attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/),
+  stepId: z.string().regex(/^step_\d{3}$/),
+  sourceAttemptId: z.string().regex(/^attempt_[a-z0-9_]+$/),
+  approvalRequiredFiles: z.array(z.string().min(1)).min(1),
   state: ApprovalStateSchema,
   reason: z.string().min(1),
   approvedBy: z.string().min(1),

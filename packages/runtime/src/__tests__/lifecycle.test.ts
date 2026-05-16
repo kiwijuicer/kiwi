@@ -22,6 +22,7 @@ import {
   StepRunnerExecutionOutput,
 } from "../step-attempt-orchestrator";
 import { executePlannedStep } from "../planned-step-execution";
+import { DirectExecutionUnsafeError } from "../direct-execution-safety";
 
 function cwd(): string {
   return mkdtempSync(path.join(os.tmpdir(), "kiwi-lifecycle-"));
@@ -132,7 +133,12 @@ function writeExecutionConfig(repo: string): void {
         lint: `${process.execPath} -e 0`,
         typecheck: `${process.execPath} -e 0`,
       },
-      routing: { defaultAgentRole: "executor", defaultModelCapability: "mid", providerPreference: {}, stepTypeOverrides: {} },
+      routing: {
+        defaultAgentRole: "executor",
+        defaultModelCapability: "mid",
+        providerPreference: {},
+        stepTypeOverrides: {},
+      },
       riskZones: { high: [] },
       approvals: { requireFor: [], commandApprovalStates: {} },
       commandProfiles: {
@@ -185,7 +191,12 @@ const highRiskPolicy: KiwiPolicy = {
   version: "1",
   project: { name: "kiwi", language: "typescript", packageManager: "pnpm" },
   commands: { test: "node -e 0", lint: "node -e 0", typecheck: "node -e 0" },
-  routing: { defaultAgentRole: "executor", defaultModelCapability: "mid", providerPreference: {}, stepTypeOverrides: {} },
+  routing: {
+    defaultAgentRole: "executor",
+    defaultModelCapability: "mid",
+    providerPreference: {},
+    stepTypeOverrides: {},
+  },
   riskZones: { high: ["src/auth/**"] },
   approvals: { requireFor: [], commandApprovalStates: {} },
   commandProfiles: {
@@ -217,14 +228,14 @@ const highRiskPolicy: KiwiPolicy = {
 describe("run lifecycle", () => {
   it("materializes successful attempt diffs into the current working tree by default", async () => {
     const repo = cwd();
-    execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["init", "-b", "feature"], { cwd: repo, stdio: "ignore" });
     writeFileSync(path.join(repo, "README.md"), "old\n", "utf-8");
-    execFileSync("git", ["add", "README.md"], { cwd: repo, stdio: "ignore" });
+    writeFileSync(path.join(repo, "preexisting.txt"), "already here\n", "utf-8");
+    execFileSync("git", ["add", "README.md", "preexisting.txt"], { cwd: repo, stdio: "ignore" });
     execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
       cwd: repo,
       stdio: "ignore",
     });
-    writeFileSync(path.join(repo, "preexisting.txt"), "already here\n", "utf-8");
     const materializedStep = { ...step, requiredGates: [] };
     createRun(repo, [materializedStep], { ...initiative, repoPath: repo });
     writeExecutionConfig(repo);
@@ -257,6 +268,39 @@ describe("run lifecycle", () => {
     expect(diff).not.toContain("preexisting.txt");
   });
 
+  it("blocks direct execution on protected or dirty worktrees", async () => {
+    const repo = cwd();
+    execFileSync("git", ["init", "-b", "main"], { cwd: repo, stdio: "ignore" });
+    writeFileSync(path.join(repo, "README.md"), "old\n", "utf-8");
+    execFileSync("git", ["add", "README.md"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+    createRun(repo, [{ ...step, requiredGates: [] }], { ...initiative, repoPath: repo });
+    writeExecutionConfig(repo);
+
+    await expect(
+      executePlannedStep({
+        cwd: repo,
+        runId: "run_demo",
+        stepId: "step_001",
+        command: [process.execPath, "-e", "0"],
+      }),
+    ).rejects.toBeInstanceOf(DirectExecutionUnsafeError);
+
+    execFileSync("git", ["switch", "-c", "feature"], { cwd: repo, stdio: "ignore" });
+    writeFileSync(path.join(repo, "scratch.txt"), "dirty\n", "utf-8");
+    await expect(
+      executePlannedStep({
+        cwd: repo,
+        runId: "run_demo",
+        stepId: "step_001",
+        command: [process.execPath, "-e", "0"],
+      }),
+    ).rejects.toThrow("untracked non-kiwi files");
+  });
+
   it("records approval decisions", () => {
     const repo = cwd();
     createRun(repo);
@@ -264,7 +308,9 @@ describe("run lifecycle", () => {
     const decision = recordApprovalDecision({
       cwd: repo,
       runId: "run_demo",
-      attemptId: "attempt_001",
+      stepId: "step_001",
+      sourceAttemptId: "attempt_001",
+      approvalRequiredFiles: ["src/high-risk.ts"],
       reason: "safe",
       approvedBy: "tester",
       now: new Date("2026-05-04T08:01:00.000Z"),
@@ -464,6 +510,6 @@ describe("run lifecycle", () => {
       now: new Date("2026-05-04T08:22:00.000Z"),
     });
     expect(finalized.verdict.safeToApply).toBe(false);
-    expect(finalized.verdict.reason).toContain("gate gate_forbidden_file_checks is fail");
+    expect(finalized.verdict.reason).toContain("gate gate_forbidden_file_checks is blocked");
   });
 });

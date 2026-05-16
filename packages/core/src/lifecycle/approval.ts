@@ -1,4 +1,5 @@
-import { existsSync } from "fs";
+import { existsSync, readdirSync } from "fs";
+import path from "path";
 import { ApprovalDecision, ApprovalDecisionSchema } from "@kiwi/contracts";
 import { appendAuditEvent } from "../cost-ledger";
 import { ensureRunLayout, resolveRunArtifactPath } from "../run-store";
@@ -7,7 +8,9 @@ import { readJson, writeJsonSafely } from "../storage/json-io";
 export function recordApprovalDecision(params: {
   cwd: string;
   runId: string;
-  attemptId: string;
+  stepId: string;
+  sourceAttemptId: string;
+  approvalRequiredFiles: string[];
   state?: ApprovalDecision["state"];
   reason: string;
   approvedBy?: string;
@@ -18,22 +21,26 @@ export function recordApprovalDecision(params: {
   const decision = ApprovalDecisionSchema.parse({
     schemaVersion: "1",
     runId: params.runId,
-    attemptId: params.attemptId,
+    stepId: params.stepId,
+    sourceAttemptId: params.sourceAttemptId,
+    approvalRequiredFiles: params.approvalRequiredFiles,
     state: params.state ?? "auto",
     reason: params.reason,
     approvedBy: params.approvedBy ?? "local-operator",
     createdAt: now.toISOString(),
   });
-  const ref = `approvals/${params.attemptId}.json`;
+  const ref = `approvals/${params.sourceAttemptId}.json`;
   writeJsonSafely(resolveRunArtifactPath(params.runId, ref, params.cwd), decision);
   appendAuditEvent(params.cwd, {
     eventType: "approval_decision_recorded",
     runId: params.runId,
     timestamp: decision.createdAt,
     payload: {
-      attemptId: params.attemptId,
+      stepId: params.stepId,
+      sourceAttemptId: params.sourceAttemptId,
       state: decision.state,
       approvedBy: decision.approvedBy,
+      approvalRequiredFiles: decision.approvalRequiredFiles,
     },
   });
   return decision;
@@ -42,9 +49,30 @@ export function recordApprovalDecision(params: {
 export function loadApprovalDecision(params: {
   cwd: string;
   runId: string;
-  attemptId: string;
+  sourceAttemptId: string;
 }): ApprovalDecision | null {
-  const target = resolveRunArtifactPath(params.runId, `approvals/${params.attemptId}.json`, params.cwd);
+  const target = resolveRunArtifactPath(params.runId, `approvals/${params.sourceAttemptId}.json`, params.cwd);
   if (!existsSync(target)) return null;
   return ApprovalDecisionSchema.parse(readJson(target));
+}
+
+export function loadLatestApprovalDecisionForStep(params: {
+  cwd: string;
+  runId: string;
+  stepId: string;
+}): ApprovalDecision | null {
+  const approvalsDir = resolveRunArtifactPath(params.runId, "approvals", params.cwd);
+  if (!existsSync(approvalsDir)) return null;
+  const approvals = readdirSync(approvalsDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+    .map((entry) => {
+      try {
+        return ApprovalDecisionSchema.parse(readJson(path.join(approvalsDir, entry.name)));
+      } catch {
+        return null;
+      }
+    })
+    .filter((entry): entry is ApprovalDecision => entry !== null && entry.stepId === params.stepId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return approvals[0] ?? null;
 }
