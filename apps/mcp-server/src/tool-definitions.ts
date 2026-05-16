@@ -34,8 +34,21 @@ export function isA2AToolName(name: string): boolean {
 
 export const TOOLS = [
   {
+    name: "kiwi_doctor",
+    description:
+      "READ_ONLY: Diagnose workspace, repo, policy, git state, execution mode, A2A, and local CLI availability",
+    inputSchema: {
+      type: "object",
+      properties: {
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+    },
+  },
+  {
     name: "kiwi_plan",
-    description: `Create a planned kiwi run. ${NO_AUTO_COMMIT_NOTE}`,
+    description: `WRITES_RUN_ARTIFACTS: Create a planned kiwi run. ${NO_AUTO_COMMIT_NOTE}`,
     inputSchema: {
       type: "object",
       properties: {
@@ -53,7 +66,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_status",
-    description: "Read run status",
+    description: "READ_ONLY: Read run status",
     inputSchema: {
       type: "object",
       properties: {
@@ -66,15 +79,15 @@ export const TOOLS = [
   },
   {
     name: "kiwi_run",
-    description: `Execute planned steps in order. ${NO_AUTO_COMMIT_NOTE}`,
+    description: `MUTATES_WORKTREE: Execute planned steps in order after kiwi_preview_run previewToken confirmation. ${NO_AUTO_COMMIT_NOTE}`,
     inputSchema: {
       type: "object",
       properties: {
         runId: { type: "string" },
+        previewToken: { type: "string" },
         fromStep: { type: "string" },
         maxConcurrency: { type: "integer", minimum: 1 },
         command: { type: "string" },
-        approved: { type: "boolean" },
         workspacePath: { type: "string" },
         repoId: { type: "string" },
         repoPath: { type: "string" },
@@ -84,7 +97,8 @@ export const TOOLS = [
   },
   {
     name: "kiwi_preview_run",
-    description: "Preview planned step order, model switching, cost, gates, and execution mode before running",
+    description:
+      "READ_ONLY: Preview step order, model switching, cost, gates, execution mode, and create a previewToken",
     inputSchema: {
       type: "object",
       properties: {
@@ -100,14 +114,14 @@ export const TOOLS = [
   },
   {
     name: "kiwi_run_step",
-    description: `Execute a planned step through policy gates. ${NO_AUTO_COMMIT_NOTE}`,
+    description: `MUTATES_WORKTREE: Execute one planned step through policy gates after kiwi_preview_run previewToken confirmation. ${NO_AUTO_COMMIT_NOTE}`,
     inputSchema: {
       type: "object",
       properties: {
         runId: { type: "string" },
         stepId: { type: "string" },
+        previewToken: { type: "string" },
         command: { type: "string" },
-        approved: { type: "boolean" },
         workspacePath: { type: "string" },
         repoId: { type: "string" },
         repoPath: { type: "string" },
@@ -117,7 +131,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_diff",
-    description: "Read persisted attempt patch stat and diff",
+    description: "READ_ONLY: Read persisted attempt patch stat and diff",
     inputSchema: {
       type: "object",
       properties: {
@@ -133,7 +147,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_apply",
-    description: `Apply a persisted worktree patch to the source repo. ${NO_AUTO_COMMIT_NOTE}`,
+    description: `APPLIES_PATCH: Apply a persisted worktree patch to the source repo. forceUnsafe requires KIWI_MCP_HIGH_RISK_TOOLS=1. ${NO_AUTO_COMMIT_NOTE}`,
     inputSchema: {
       type: "object",
       properties: {
@@ -147,16 +161,40 @@ export const TOOLS = [
       required: ["runId"],
     },
   },
-  { name: "kiwi_finalize", description: `Finalize a run. ${NO_AUTO_COMMIT_NOTE}`, inputSchema: RUN_ID_SCHEMA },
-  { name: "kiwi_cost", description: "Read deterministic run cost and model summary", inputSchema: RUN_ID_SCHEMA },
   {
-    name: "kiwi_explain",
-    description: "Read routing reasons, gate status, cost, and next action",
+    name: "kiwi_finalize",
+    description: `WRITES_RUN_ARTIFACTS: Finalize a run. ${NO_AUTO_COMMIT_NOTE}`,
     inputSchema: RUN_ID_SCHEMA,
   },
   {
+    name: "kiwi_cost",
+    description: "READ_ONLY: Read deterministic run cost and model summary",
+    inputSchema: RUN_ID_SCHEMA,
+  },
+  {
+    name: "kiwi_explain",
+    description: "READ_ONLY: Read routing reasons, gate status, cost, and next action",
+    inputSchema: RUN_ID_SCHEMA,
+  },
+  {
+    name: "kiwi_next",
+    description: "READ_ONLY: Recommend the next safe kiwi MCP tool for a run",
+    inputSchema: {
+      type: "object",
+      properties: {
+        runId: { type: "string" },
+        fromStep: { type: "string" },
+        maxConcurrency: { type: "integer", minimum: 1 },
+        workspacePath: { type: "string" },
+        repoId: { type: "string" },
+        repoPath: { type: "string" },
+      },
+      required: ["runId"],
+    },
+  },
+  {
     name: "kiwi_request_approval",
-    description: "Record an approval decision",
+    description: "WRITES_RUN_ARTIFACTS: Record an explicit approval decision for a blocked attempt",
     inputSchema: {
       type: "object",
       properties: {
@@ -173,14 +211,18 @@ export const TOOLS = [
   },
   {
     name: "kiwi_evidence_manifest",
-    description: "Write evidence manifest and audit snapshot",
+    description: "WRITES_RUN_ARTIFACTS: Write evidence manifest and audit snapshot",
     inputSchema: RUN_ID_SCHEMA,
   },
-  { name: "kiwi_operator_snapshot", description: "Write local operator HTML snapshot", inputSchema: RUN_ID_SCHEMA },
+  {
+    name: "kiwi_operator_snapshot",
+    description: "WRITES_RUN_ARTIFACTS: Write local operator HTML snapshot",
+    inputSchema: RUN_ID_SCHEMA,
+  },
   {
     name: "kiwi_publish_pr_draft",
     description:
-      "Push a local Bitbucket branch using existing git auth and write a PR draft artifact. Does not store API credentials.",
+      "PUSHES_BRANCH: Push a local Bitbucket branch using existing git auth and write a PR draft artifact. Does not store API credentials.",
     inputSchema: {
       type: "object",
       properties: {
@@ -197,7 +239,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_a2a_receive",
-    description: "Validate and optionally accept an A2A envelope into the local loopback inbox",
+    description: "WRITES_RUN_ARTIFACTS: Validate and optionally accept an A2A envelope into the local loopback inbox",
     inputSchema: {
       type: "object",
       properties: {
@@ -214,7 +256,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_a2a_config",
-    description: "Read or update filesystem A2A config",
+    description: "WRITES_RUN_ARTIFACTS: Read or update filesystem A2A config",
     inputSchema: {
       type: "object",
       properties: {
@@ -228,7 +270,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_a2a_trust_add",
-    description: "Trust an A2A filesystem peer",
+    description: "WRITES_RUN_ARTIFACTS: Trust an A2A filesystem peer",
     inputSchema: {
       type: "object",
       properties: {
@@ -244,7 +286,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_a2a_trust_list",
-    description: "List trusted A2A filesystem peers",
+    description: "READ_ONLY: List trusted A2A filesystem peers",
     inputSchema: {
       type: "object",
       properties: {
@@ -256,7 +298,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_a2a_trust_remove",
-    description: "Remove a trusted A2A filesystem peer",
+    description: "WRITES_RUN_ARTIFACTS: Remove a trusted A2A filesystem peer",
     inputSchema: {
       type: "object",
       properties: {
@@ -270,7 +312,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_a2a_publish",
-    description: "Queue a canonical A2A envelope for a trusted peer",
+    description: "WRITES_RUN_ARTIFACTS: Queue a canonical A2A envelope for a trusted peer",
     inputSchema: {
       type: "object",
       properties: {
@@ -296,7 +338,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_a2a_sync",
-    description: "Deliver queued A2A envelopes and import incoming filesystem envelopes",
+    description: "WRITES_RUN_ARTIFACTS: Deliver queued A2A envelopes and import incoming filesystem envelopes",
     inputSchema: {
       type: "object",
       properties: {
@@ -308,7 +350,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_a2a_inbox",
-    description: "List accepted and quarantined A2A inbox items",
+    description: "READ_ONLY: List accepted and quarantined A2A inbox items",
     inputSchema: {
       type: "object",
       properties: {
@@ -320,7 +362,7 @@ export const TOOLS = [
   },
   {
     name: "kiwi_a2a_accept",
-    description: "Materialize an incoming A2A initiative handoff as a local run",
+    description: "WRITES_RUN_ARTIFACTS: Materialize an incoming A2A initiative handoff as a local run",
     inputSchema: {
       type: "object",
       properties: {

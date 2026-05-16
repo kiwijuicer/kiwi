@@ -1,16 +1,5 @@
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
-import { ContractValues, ProtocolEnvelopeKindSchema } from "@kiwi/contracts";
-import {
-  acceptA2AHandoff,
-  addA2ATrustedPeer,
-  handleA2AEnvelope,
-  listA2AInbox,
-  loadA2AConfig,
-  publishA2AEnvelope,
-  removeA2ATrustedPeer,
-  setA2AEnabled,
-  syncA2AFilesystem,
-} from "@kiwi/a2a";
+import { ContractValues } from "@kiwi/contracts";
 import {
   executePlannedStep,
   applyRunDiff,
@@ -40,7 +29,13 @@ import {
   recordApprovalDecision,
   withRunLock,
 } from "@kiwi/core";
+import { callA2ATool } from "./a2a-tools";
 import { publishPrDraftTool } from "./publish-tool";
+import { doctorTool } from "./doctor";
+import { nextTool } from "./next-action";
+import { withOperatorCard } from "./operator-card";
+import { createMcpPreviewToken, normalizePreviewInput, validateMcpPreviewToken } from "./preview-tokens";
+import { ToolActionRequiredError } from "./tool-errors";
 import { a2aMcpToolsEnabled, isA2AToolName } from "./tool-definitions";
 import { validateToolArguments } from "./tool-input-schemas";
 import { workspaceArgs } from "./workspace";
@@ -118,7 +113,7 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
   });
   options.onProgress?.(
     progressLine({
-      phase: "planner",
+      phase: ContractValues.Planner,
       status: "started",
       model: resolution.model.id,
       providerModel: resolution.model.providerModel ?? null,
@@ -126,7 +121,10 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     }),
     0,
   );
-  const heartbeat = startHeartbeat(progressLine({ phase: "planner", status: "running" }), options.onProgress);
+  const heartbeat = startHeartbeat(
+    progressLine({ phase: ContractValues.Planner, status: ContractValues.Running }),
+    options.onProgress,
+  );
   let planned: Awaited<ReturnType<typeof planRun>>;
   try {
     planned = await planRun({
@@ -148,8 +146,8 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
   }
   options.onProgress?.(
     progressLine({
-      phase: "planner",
-      status: "completed",
+      phase: ContractValues.Planner,
+      status: ContractValues.Completed,
       runId: planned.runId,
       steps: planned.taskGraph.steps.length,
     }),
@@ -159,27 +157,30 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     taskGraph: planned.taskGraph,
     plannerCostUsd: planned.plannerOutput.cost.estimatedUsd,
   });
-  return {
-    runId: planned.runId,
-    planId: planned.taskGraph.planId,
-    steps: planned.taskGraph.steps.length,
-    plannerModelId: planned.plannerModelId,
-    plannerProviderName: planned.providerName,
-    plannerProviderModel: resolution.model.providerModel ?? null,
-    estimatedCostUsd: costForecast.estimatedCostUsd,
-    costForecast,
-    execution: {
-      owner: policy.execution?.owner ?? "kiwi-codex-cli",
-      isolation: policy.execution?.isolation ?? "direct",
-      sandbox: policy.execution?.sandbox ?? "workspace-write",
-      forbidStaging: policy.execution?.forbidStaging ?? true,
-      forbidCommits: policy.execution?.forbidCommits ?? true,
-      forbidPushes: policy.execution?.forbidPushes ?? true,
+  return withOperatorCard(
+    {
+      runId: planned.runId,
+      planId: planned.taskGraph.planId,
+      steps: planned.taskGraph.steps.length,
+      plannerModelId: planned.plannerModelId,
+      plannerProviderName: planned.providerName,
+      plannerProviderModel: resolution.model.providerModel ?? null,
+      estimatedCostUsd: costForecast.estimatedCostUsd,
+      costForecast,
+      execution: {
+        owner: policy.execution?.owner ?? "kiwi-codex-cli",
+        isolation: policy.execution?.isolation ?? "direct",
+        sandbox: policy.execution?.sandbox ?? "workspace-write",
+        forbidStaging: policy.execution?.forbidStaging ?? true,
+        forbidCommits: policy.execution?.forbidCommits ?? true,
+        forbidPushes: policy.execution?.forbidPushes ?? true,
+      },
+      workspacePath: planned.workspacePath,
+      repoId: planned.repoId,
+      repoPath: planned.repoPath,
     },
-    workspacePath: planned.workspacePath,
-    repoId: planned.repoId,
-    repoPath: planned.repoPath,
-  };
+    { cwd: planned.workspacePath, runId: planned.runId },
+  );
 }
 
 interface RunStepToolResult {
@@ -218,7 +219,7 @@ function emitPostAttemptProgress(params: {
     params.options.onProgress(
       progressLine({
         phase: "review",
-        status: "completed",
+        status: ContractValues.Completed,
         stepId: params.stepId,
         attemptId: params.attemptId,
         verdict: evidence.reviewVerdict.verdict,
@@ -247,12 +248,27 @@ function previewRunTool(args: Record<string, unknown>, cwd: string): unknown {
   if (maxConcurrency !== undefined && (!Number.isInteger(maxConcurrency) || maxConcurrency <= 0)) {
     throw new Error(`kiwi_preview_run maxConcurrency must be a positive integer; received ${maxConcurrency}`);
   }
-  return buildRunExecutionPreview({
+  const previewInput = normalizePreviewInput({ fromStep, maxConcurrency });
+  const preview = buildRunExecutionPreview({
     cwd: workspace.workspacePath,
     runId,
     ...(fromStep ? { fromStep } : {}),
     ...(maxConcurrency !== undefined ? { maxConcurrency } : {}),
   });
+  const token = createMcpPreviewToken({
+    cwd: workspace.workspacePath,
+    runId,
+    preview,
+    previewInput,
+  });
+  return withOperatorCard(
+    {
+      ...preview,
+      previewToken: token.token,
+      previewResource: `kiwi://runs/${runId}/previews/${token.token}`,
+    },
+    { cwd: workspace.workspacePath, runId },
+  );
 }
 
 async function runStepToolUnlocked(
@@ -265,7 +281,6 @@ async function runStepToolUnlocked(
   if (!runId || !stepId) throw new Error("kiwi_run_step requires runId and stepId");
   const input: Parameters<typeof executePlannedStep>[0] = { cwd: workspacePath, runId, stepId };
   if (typeof args.command === "string") input.command = splitCommandLine(args.command);
-  if (args.approved === true) input.approved = true;
   if (typeof args.attemptId === "string") input.attemptId = args.attemptId;
   const preview = buildRunExecutionPreview({ cwd: workspacePath, runId }).steps.find((step) => step.stepId === stepId);
   if (preview) {
@@ -285,12 +300,15 @@ async function runStepToolUnlocked(
     );
   }
   options.onProgress?.(progressLine({ phase: "step", status: "started", stepId }), 0);
-  options.onProgress?.(progressLine({ phase: "gate", status: "running", stepId }));
+  options.onProgress?.(progressLine({ phase: "gate", status: ContractValues.Running, stepId }));
   let result: Awaited<ReturnType<typeof executePlannedStep>>;
   try {
     result = await executePlannedStep(input);
   } catch (error) {
-    options.onProgress?.(progressLine({ phase: "step", status: "failed", stepId, error: errorMessage(error) }), 100);
+    options.onProgress?.(
+      progressLine({ phase: "step", status: ContractValues.Failed, stepId, error: errorMessage(error) }),
+      100,
+    );
     throw error;
   }
   emitPostAttemptProgress({ workspacePath, runId, stepId, attemptId: result.attemptId, options });
@@ -330,7 +348,16 @@ async function runStepTool(
       runId,
       operation: `mcp_run_step:${stepId}`,
     },
-    () => runStepToolUnlocked(args, workspace.workspacePath, options),
+    async () => {
+      validateMcpPreviewToken({
+        cwd: workspace.workspacePath,
+        runId,
+        previewToken: typeof args.previewToken === "string" ? args.previewToken : undefined,
+        stepId,
+      });
+      const result = await runStepToolUnlocked(args, workspace.workspacePath, options);
+      return withOperatorCard(result, { cwd: workspace.workspacePath, runId });
+    },
   );
 }
 
@@ -355,19 +382,24 @@ async function runTool(
       operation: "mcp_run",
     },
     async () => {
+      validateMcpPreviewToken({
+        cwd: workspace.workspacePath,
+        runId,
+        previewToken: typeof args.previewToken === "string" ? args.previewToken : undefined,
+        previewInput: normalizePreviewInput({ fromStep, maxConcurrency }),
+      });
       const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
       const steps: RunStepToolResult[] = [];
       callOptions.onProgress?.(progressLine({ phase: "run", status: "started", runId }), 0);
 
       if (taskGraph.subPlans && taskGraph.subPlans.length > 1) {
-        await runScheduledSubPlans<{ command?: string; approved?: boolean }>({
+        await runScheduledSubPlans<{ command?: string }>({
           cwd: workspace.workspacePath,
           runId,
           ...(fromStep ? { fromStep } : {}),
           ...(maxConcurrency !== undefined ? { maxGlobalConcurrency: maxConcurrency } : {}),
           attemptOptions: {
             ...(typeof args.command === "string" ? { command: args.command } : {}),
-            ...(args.approved === true ? { approved: true } : {}),
           },
           runStep: async (_scheduledRunId, stepId, attemptOptions) => {
             steps.push(
@@ -409,12 +441,15 @@ async function runTool(
 
       const run = getRunStatusSummary(workspace.workspacePath, runId).latest[0];
       callOptions.onProgress?.(progressLine({ phase: "run", status: run?.currentStatus ?? "missing", runId }), 100);
-      return {
-        runId,
-        status: run?.currentStatus ?? "missing",
-        steps,
-        completionSummary: buildRunCompletionSummary({ cwd: workspace.workspacePath, runId }),
-      };
+      return withOperatorCard(
+        {
+          runId,
+          status: run?.currentStatus ?? "missing",
+          steps,
+          completionSummary: buildRunCompletionSummary({ cwd: workspace.workspacePath, runId }),
+        },
+        { cwd: workspace.workspacePath, runId },
+      );
     },
   );
 }
@@ -426,9 +461,14 @@ function callCoreTool(
   workspacePath: string,
   options: ToolCallOptions = {},
 ): Promise<unknown> | unknown | undefined {
+  const runId = String(args.runId ?? "");
   switch (name) {
-    case "kiwi_status":
-      return getRunStatusSummary(workspacePath, typeof args.runId === "string" ? args.runId : undefined);
+    case "kiwi_status": {
+      const status = getRunStatusSummary(workspacePath, typeof args.runId === "string" ? args.runId : undefined);
+      return typeof args.runId === "string"
+        ? withOperatorCard(status, { cwd: workspacePath, runId: args.runId })
+        : status;
+    }
     case "kiwi_preview_run":
       return previewRunTool(args, cwd);
     case "kiwi_run":
@@ -436,152 +476,97 @@ function callCoreTool(
     case "kiwi_run_step":
       return runStepTool(args, cwd, options);
     case "kiwi_diff":
-      return buildRunDiff({
-        cwd: workspacePath,
-        runId: String(args.runId ?? ""),
-        ...(typeof args.stepId === "string" ? { stepId: args.stepId } : {}),
-        ...(args.all === true ? { allAttempts: true } : {}),
-      });
-    case "kiwi_apply":
-      return applyRunDiff({
-        cwd: workspacePath,
-        runId: String(args.runId ?? ""),
-        ...(typeof args.stepId === "string" ? { stepId: args.stepId } : {}),
-        ...(args.forceUnsafe === true ? { forceUnsafe: true } : {}),
-      });
+      return withOperatorCard(
+        buildRunDiff({
+          cwd: workspacePath,
+          runId,
+          ...(typeof args.stepId === "string" ? { stepId: args.stepId } : {}),
+          ...(args.all === true ? { allAttempts: true } : {}),
+        }),
+        { cwd: workspacePath, runId },
+      );
+    case "kiwi_apply": {
+      if (args.forceUnsafe === true && process.env.KIWI_MCP_HIGH_RISK_TOOLS !== "1") {
+        throw new ToolActionRequiredError("kiwi_apply forceUnsafe is disabled over MCP", {
+          nextTool: "kiwi_diff",
+          reason: "set KIWI_MCP_HIGH_RISK_TOOLS=1 to expose forceUnsafe patch apply",
+        });
+      }
+      return withOperatorCard(
+        applyRunDiff({
+          cwd: workspacePath,
+          runId,
+          ...(typeof args.stepId === "string" ? { stepId: args.stepId } : {}),
+          ...(args.forceUnsafe === true ? { forceUnsafe: true } : {}),
+        }),
+        { cwd: workspacePath, runId },
+      );
+    }
     case "kiwi_finalize":
-      return withRunLock({ cwd: workspacePath, runId: String(args.runId ?? ""), operation: "mcp_finalize" }, () => {
-        const runId = String(args.runId ?? "");
+      return withRunLock({ cwd: workspacePath, runId, operation: "mcp_finalize" }, () => {
         options.onProgress?.(`finalize started runId=${runId}`, 0);
         const finalized = finalizeRun({ cwd: workspacePath, runId });
         options.onProgress?.(`finalize completed runId=${runId}`, 100);
-        return {
-          ...finalized,
-          completionSummary: buildRunCompletionSummary({ cwd: workspacePath, runId }),
-        };
+        return withOperatorCard(
+          {
+            ...finalized,
+            completionSummary: buildRunCompletionSummary({ cwd: workspacePath, runId }),
+          },
+          { cwd: workspacePath, runId },
+        );
       });
     case "kiwi_cost":
-      return buildRunCompletionSummary({ cwd: workspacePath, runId: String(args.runId ?? "") });
+      return withOperatorCard(buildRunCompletionSummary({ cwd: workspacePath, runId }), {
+        cwd: workspacePath,
+        runId,
+      });
     case "kiwi_explain":
-      return buildRunExplanation({ cwd: workspacePath, runId: String(args.runId ?? "") });
+      return withOperatorCard(buildRunExplanation({ cwd: workspacePath, runId }), {
+        cwd: workspacePath,
+        runId,
+      });
+    case "kiwi_next":
+      return nextTool(args, cwd);
     case "kiwi_request_approval":
       return withRunLock(
         {
           cwd: workspacePath,
-          runId: String(args.runId ?? ""),
+          runId,
           operation: `mcp_approval:${String(args.attemptId ?? "")}`,
         },
         () =>
-          recordApprovalDecision({
-            cwd: workspacePath,
-            runId: String(args.runId ?? ""),
-            attemptId: String(args.attemptId ?? ""),
-            reason: String(args.reason ?? "Approved through MCP"),
-            approvedBy: String(args.approvedBy ?? "mcp-operator"),
-          }),
+          withOperatorCard(
+            recordApprovalDecision({
+              cwd: workspacePath,
+              runId,
+              attemptId: String(args.attemptId ?? ""),
+              reason: String(args.reason ?? "Approved through MCP"),
+              approvedBy: String(args.approvedBy ?? "mcp-operator"),
+            }),
+            { cwd: workspacePath, runId },
+          ),
       );
     case "kiwi_evidence_manifest":
-      return withRunLock(
-        { cwd: workspacePath, runId: String(args.runId ?? ""), operation: "mcp_evidence_manifest" },
-        () => writeEvidenceManifest({ cwd: workspacePath, runId: String(args.runId ?? "") }),
+      return withRunLock({ cwd: workspacePath, runId, operation: "mcp_evidence_manifest" }, () =>
+        withOperatorCard(writeEvidenceManifest({ cwd: workspacePath, runId }), {
+          cwd: workspacePath,
+          runId,
+        }),
       );
     case "kiwi_operator_snapshot":
-      return withRunLock(
-        { cwd: workspacePath, runId: String(args.runId ?? ""), operation: "mcp_operator_snapshot" },
-        () => writeOperatorSnapshot({ cwd: workspacePath, runId: String(args.runId ?? "") }),
+      return withRunLock({ cwd: workspacePath, runId, operation: "mcp_operator_snapshot" }, () =>
+        withOperatorCard(writeOperatorSnapshot({ cwd: workspacePath, runId }), {
+          cwd: workspacePath,
+          runId,
+        }),
       );
     case "kiwi_publish_pr_draft":
-      options.onProgress?.(`publish pr draft started runId=${String(args.runId ?? "")}`, 0);
+      options.onProgress?.(`publish pr draft started runId=${runId}`, 0);
       return Promise.resolve(publishPrDraftTool(args, workspacePath)).then((result) => {
-        options.onProgress?.(`publish pr draft completed runId=${String(args.runId ?? "")}`, 100);
-        return result;
+        options.onProgress?.(`publish pr draft completed runId=${runId}`, 100);
+        const payload = typeof result === "object" && result !== null && !Array.isArray(result) ? result : { result };
+        return withOperatorCard(payload, { cwd: workspacePath, runId });
       });
-    default:
-      return undefined;
-  }
-}
-
-function a2aConfigTool(args: Record<string, unknown>, workspacePath: string): unknown {
-  if (typeof args.enabled === "boolean" || typeof args.localAgentId === "string") {
-    const configParams: Parameters<typeof setA2AEnabled>[0] = {
-      cwd: workspacePath,
-      enabled: typeof args.enabled === "boolean" ? args.enabled : loadA2AConfig(workspacePath).enabled,
-    };
-    if (typeof args.localAgentId === "string") configParams.localAgentId = args.localAgentId;
-    return setA2AEnabled(configParams);
-  }
-  return loadA2AConfig(workspacePath);
-}
-
-function publishA2ATool(args: Record<string, unknown>, workspacePath: string): unknown {
-  const publishParams: Parameters<typeof publishA2AEnvelope>[0] = {
-    cwd: workspacePath,
-    peerAgentId: String(args.peerAgentId ?? args.peer ?? ""),
-    kind: ProtocolEnvelopeKindSchema.parse(args.kind),
-  };
-  if (typeof args.runId === "string") publishParams.runId = args.runId;
-  if (typeof args.stepId === "string") publishParams.stepId = args.stepId;
-  if (typeof args.attemptId === "string") publishParams.attemptId = args.attemptId;
-  if (typeof args.gateId === "string") publishParams.gateId = args.gateId;
-  if (typeof args.artifactRef === "string") publishParams.artifactRef = args.artifactRef;
-  if (typeof args.correlationId === "string") publishParams.correlationId = args.correlationId;
-  if (typeof args.idempotencyKey === "string") publishParams.idempotencyKey = args.idempotencyKey;
-  if (args.payload !== undefined) publishParams.payload = args.payload;
-  return publishA2AEnvelope(publishParams);
-}
-
-function callA2ATool(
-  name: string,
-  args: Record<string, unknown>,
-  cwd: string,
-  workspacePath: string,
-): Promise<unknown> | unknown | undefined {
-  switch (name) {
-    case "kiwi_a2a_receive":
-      return handleA2AEnvelope({
-        cwd: workspacePath,
-        envelope: args.envelope,
-        policy: {
-          mode: args.loopback === true ? "loopback" : "disabled",
-          localAgentId: typeof args.localAgentId === "string" ? args.localAgentId : "kiwi-local",
-          trustedAgentIds: Array.isArray(args.trustedAgentIds)
-            ? args.trustedAgentIds.filter((entry): entry is string => typeof entry === "string")
-            : [],
-        },
-      }).decision;
-    case "kiwi_a2a_config":
-      return a2aConfigTool(args, workspacePath);
-    case "kiwi_a2a_trust_add":
-      return addA2ATrustedPeer({
-        cwd: workspacePath,
-        agentId: String(args.agentId ?? ""),
-        inboxPath: String(args.inboxPath ?? ""),
-        allowRemotePatches: args.allowRemotePatches === true,
-      });
-    case "kiwi_a2a_trust_list":
-      return loadA2AConfig(workspacePath).peers;
-    case "kiwi_a2a_trust_remove":
-      return removeA2ATrustedPeer({
-        cwd: workspacePath,
-        agentId: String(args.agentId ?? ""),
-      });
-    case "kiwi_a2a_publish":
-      return publishA2ATool(args, workspacePath);
-    case "kiwi_a2a_sync":
-      return syncA2AFilesystem({ cwd: workspacePath });
-    case "kiwi_a2a_inbox":
-      return listA2AInbox({ cwd: workspacePath, includeQuarantine: true });
-    case "kiwi_a2a_accept": {
-      const acceptWorkspace = workspaceArgs(args, cwd, true);
-      const repo = acceptWorkspace.repo!;
-      return acceptA2AHandoff({
-        cwd: acceptWorkspace.workspacePath,
-        messageId: String(args.messageId ?? ""),
-        workspacePath: acceptWorkspace.workspacePath,
-        repoId: repo.id,
-        repoPath: repo.path,
-      });
-    }
     default:
       return undefined;
   }
@@ -597,6 +582,7 @@ export async function callTool(
     throw new Error(`Unknown tool: ${name}`);
   }
   const validatedArgs = validateToolArguments(name, args);
+  if (name === "kiwi_doctor") return doctorTool(validatedArgs, cwd);
   if (name === "kiwi_plan") return planTool(validatedArgs, cwd, options);
   const workspace = workspaceArgs(validatedArgs, cwd, false);
   const workspacePath = workspace.workspacePath;

@@ -48,11 +48,15 @@ the concrete Codex CLI `providerModel` per step and passes it with `--model`;
 
 Core tools:
 
+- `kiwi_doctor`: diagnose workspace/repo/config/git/client readiness.
 - `kiwi_plan`: create a planned run.
 - `kiwi_status`: read run status.
-- `kiwi_preview_run`: preview step order, selected Codex models, cost, gates, and execution mode.
-- `kiwi_run`: execute planned steps in order.
-- `kiwi_run_step`: execute one planned step.
+- `kiwi_preview_run`: preview step order, selected Codex models, cost, gates, execution mode, and return a `previewToken`.
+- `kiwi_next`: recommend the next safe tool for a run.
+- `kiwi_run`: execute planned steps in order with a fresh `previewToken`.
+- `kiwi_run_step`: execute one planned step with a fresh `previewToken`.
+- `kiwi_diff`: read persisted attempt patch stats and diff.
+- `kiwi_apply`: apply a persisted worktree patch; `forceUnsafe` requires `KIWI_MCP_HIGH_RISK_TOOLS=1`.
 - `kiwi_finalize`: write final verdict, summary, and cost report.
 - `kiwi_evidence_manifest`: write hashed evidence manifest and audit snapshot.
 - `kiwi_operator_snapshot`: write local operator HTML snapshot.
@@ -84,6 +88,18 @@ Use either `repoId` or `repoPath`. `repoId` maps to the names listed by `kiwi wo
 
 ```json
 {
+  "name": "kiwi_doctor",
+  "arguments": {
+    "workspacePath": "/Users/norberthanauer/Projects/voice",
+    "repoId": "core"
+  }
+}
+```
+
+Then:
+
+```json
+{
   "name": "kiwi_plan",
   "arguments": {
     "workspacePath": "/Users/norberthanauer/Projects/voice",
@@ -105,14 +121,15 @@ Then:
 }
 ```
 
-Then:
+Confirm the preview with the user, then pass its `previewToken`:
 
 ```json
 {
   "name": "kiwi_run",
   "arguments": {
     "workspacePath": "/Users/norberthanauer/Projects/voice",
-    "runId": "<run-id>"
+    "runId": "<run-id>",
+    "previewToken": "<preview-token>"
   }
 }
 ```
@@ -157,6 +174,11 @@ For multi-repo work, start one server per workspace or set `KIWI_WORKSPACE` per 
 ## Safety
 
 - A run lock protects mutating operations.
+- MCP `kiwi_run` and `kiwi_run_step` require a fresh `previewToken` from `kiwi_preview_run`.
+- Preview tokens bind to run id, TaskGraph hash, policy hash, repo HEAD, dirty state, `fromStep`, and `maxConcurrency`.
+- `approved` is not accepted as an MCP run shortcut; use `kiwi_request_approval`.
+- `kiwi_apply forceUnsafe` is disabled over MCP unless `KIWI_MCP_HIGH_RISK_TOOLS=1`.
+- Tool descriptions carry risk labels: `READ_ONLY`, `WRITES_RUN_ARTIFACTS`, `MUTATES_WORKTREE`, `APPLIES_PATCH`, `PUSHES_BRANCH`.
 - Direct Anthropic/OpenAI API keys are not required for daily use; local CLI auth is used for Claude, Codex, and Cursor Agent.
 - Direct execution captures a pre-step git tree snapshot and persists only the step diff as run evidence.
 - Bitbucket PR draft publishing uses local git auth only and does not store Bitbucket credentials.

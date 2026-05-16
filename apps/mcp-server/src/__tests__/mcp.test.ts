@@ -652,9 +652,11 @@ models:
       expect(preview.error).toBeUndefined();
       const parsed = toolJson(preview) as {
         executionIsolation: string;
+        previewToken: string;
         steps: Array<{ runner: string; selectedModelId: string; selectedProviderModel: string }>;
       };
       expect(parsed.executionIsolation).toBe("direct");
+      expect(parsed.previewToken).toMatch(/^preview_/);
       expect(parsed.steps.some((step) => step.runner === "codex")).toBe(true);
       expect(parsed.steps.some((step) => step.selectedProviderModel === "gpt-5.4")).toBe(true);
     } finally {
@@ -742,17 +744,34 @@ models:
     const text = (planned.result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
     const parsed = JSON.parse(text) as { runId: string; repoPath: string };
     expect(parsed.repoPath).toBe(workspace.core);
+    const preview = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "kiwi_preview_run",
+          arguments: {
+            workspacePath: workspace.root,
+            runId: parsed.runId,
+            maxConcurrency: 2,
+          },
+        },
+      },
+      os.tmpdir(),
+    );
+    const previewToken = (toolJson(preview) as { previewToken: string }).previewToken;
 
     const notifications: unknown[] = [];
     const run = await handleMcpRequest(
       {
-        id: 2,
+        id: 3,
         method: "tools/call",
         params: {
           name: "kiwi_run",
           arguments: {
             workspacePath: workspace.root,
             runId: parsed.runId,
+            previewToken,
             command: "node -e 0",
             maxConcurrency: 2,
           },
@@ -777,7 +796,7 @@ models:
 
     const cost = await handleMcpRequest(
       {
-        id: 3,
+        id: 4,
         method: "tools/call",
         params: {
           name: "kiwi_cost",
@@ -794,7 +813,7 @@ models:
 
     const explain = await handleMcpRequest(
       {
-        id: 4,
+        id: 5,
         method: "tools/call",
         params: {
           name: "kiwi_explain",

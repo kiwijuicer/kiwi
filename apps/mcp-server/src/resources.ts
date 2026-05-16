@@ -42,6 +42,11 @@ export const MCP_RESOURCE_TEMPLATES = [
   { uriTemplate: "kiwi://runs/{runId}/planner-cost", name: "Planner Cost", mimeType: "application/json" },
   { uriTemplate: "kiwi://runs/{runId}/model-invocations", name: "Model Invocations", mimeType: "application/json" },
   { uriTemplate: "kiwi://runs/{runId}/model-usage-summary", name: "Model Usage Summary", mimeType: "application/json" },
+  {
+    uriTemplate: "kiwi://runs/{runId}/previews/{previewToken}",
+    name: "MCP Preview Token",
+    mimeType: "application/json",
+  },
   { uriTemplate: "kiwi://runs/{runId}/attempts", name: "Step Attempts", mimeType: "application/json" },
   {
     uriTemplate: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}",
@@ -120,7 +125,7 @@ export function listResources(cwd: string): McpResource[] {
     })),
   ];
   const dynamic = listRunIds(cwd).flatMap((runId) =>
-    ["plan", "steps", "final"].flatMap((relativeDir) =>
+    ["plan", "previews", "steps", "final"].flatMap((relativeDir) =>
       collectFiles({ cwd, runId, relativeDir }).map((file) => ({
         uri: `kiwi://${runId}/${file.ref}`,
         name: `${runId}/${file.name}`,
@@ -219,6 +224,15 @@ export function readResource(uri: string, cwd: string): McpResourceContent {
   if (named) return named;
   const attempt = readAttemptResource(uri, runId, tail, cwd);
   if (attempt) return attempt;
+
+  const previewMatch = tail.match(/^previews\/([^/]+)$/);
+  if (previewMatch?.[1]) {
+    return asContent(
+      uri,
+      readJsonRunArtifact(runId, `previews/${decodeURIComponent(previewMatch[1])}.json`, cwd),
+      "application/json",
+    );
+  }
 
   const artifactMatch = tail.match(/^artifacts\/(.+)$/);
   if (artifactMatch?.[1]) {

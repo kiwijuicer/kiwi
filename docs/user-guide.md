@@ -56,11 +56,15 @@ When running from inside a listed repo, `kiwi` selects that repo automatically. 
 
 All assistants use the same MCP server. The assistant can call:
 
+- `kiwi_doctor` to inspect workspace, repo, policy, git state, execution mode, A2A, and local CLI readiness.
 - `kiwi_plan` to create a run.
 - `kiwi_status` to inspect runs.
-- `kiwi_preview_run` to inspect step order, model switching, costs, gates, and execution mode before running.
-- `kiwi_run` to execute all planned steps.
-- `kiwi_run_step` for advanced single-step execution.
+- `kiwi_preview_run` to inspect step order, model switching, costs, gates, execution mode, and receive a `previewToken`.
+- `kiwi_next` to ask for the next safe MCP action.
+- `kiwi_run` to execute all planned steps with a fresh `previewToken`.
+- `kiwi_run_step` for advanced single-step execution with a fresh `previewToken`.
+- `kiwi_diff` to inspect persisted diffs.
+- `kiwi_cost` and `kiwi_explain` to inspect costs, routing, gates, and next action.
 - `kiwi_finalize` to write final verdict and summary.
 - `kiwi_publish_pr_draft` to push a local Bitbucket branch and write a PR draft artifact.
 - `kiwi_evidence_manifest` to hash evidence and write an audit snapshot.
@@ -70,10 +74,16 @@ Good assistant prompt:
 
 ```text
 Use kiwi. Workspace: /Users/norberthanauer/Projects/voice. Repo: core.
-Plan this ticket, run the planned steps, then finalize and show me the evidence manifest path.
+Run kiwi_doctor, plan this ticket, preview the run, ask me to confirm the previewToken, run it, finalize, and show me the evidence manifest path.
 ```
 
-No direct Anthropic/OpenAI API key is required for the standard flow. Kiwi is Codex-first by default: each planned step is routed to a configured Codex CLI `providerModel`, passed with `--model`, and executed in the current repo working tree with `workspace-write`, `approval_policy="on-request"`, and `approvals_reviewer="auto_review"`. Set `KIWI_EXECUTION_ISOLATION=worktree` only when you explicitly want isolated worktree execution. Bitbucket PR publishing uses your existing git remote/auth to push a branch, then writes `final/pr-draft.json` and a Bitbucket create-PR URL.
+Safe MCP flow:
+
+```text
+kiwi_doctor -> kiwi_plan -> kiwi_preview_run -> user confirm -> kiwi_run -> kiwi_diff -> kiwi_finalize -> kiwi_evidence_manifest/operator_snapshot
+```
+
+No direct Anthropic/OpenAI API key is required for the standard flow. Kiwi is Codex-first by default: each planned step is routed to a configured Codex CLI `providerModel`, passed with `--model`, and executed in the current repo working tree with `workspace-write`, `approval_policy="on-request"`, and `approvals_reviewer="auto_review"`. MCP `kiwi_run` and `kiwi_run_step` require a fresh `previewToken`; use `kiwi_request_approval`, not `approved`, for approval-required attempts. Set `KIWI_EXECUTION_ISOLATION=worktree` only when you explicitly want isolated worktree execution. Bitbucket PR publishing uses your existing git remote/auth to push a branch, then writes `final/pr-draft.json` and a Bitbucket create-PR URL.
 
 ## A2A
 

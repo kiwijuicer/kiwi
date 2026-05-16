@@ -33,7 +33,13 @@ Inside Claude, use:
 
 ```text
 Use kiwi for workspace /Users/norberthanauer/Projects/voice and repo core.
-Plan this ticket, run it, finalize it, and show the evidence manifest path.
+Run kiwi_doctor, plan this ticket, preview the run, ask me to confirm the previewToken, run it, finalize it, and show the evidence manifest path.
+```
+
+Safe MCP flow:
+
+```text
+kiwi_doctor -> kiwi_plan -> kiwi_preview_run -> user confirm -> kiwi_run -> kiwi_diff -> kiwi_finalize -> kiwi_evidence_manifest/operator_snapshot
 ```
 
 ## Project Config Alternative

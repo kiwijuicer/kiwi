@@ -34,7 +34,13 @@ Use:
 
 ```text
 Use kiwi. Workspace: /Users/norberthanauer/Projects/voice. Repo: recorder.
-Plan this ticket, run validation, finalize, and report the operator snapshot path.
+Run kiwi_doctor, plan this ticket, preview the run, ask me to confirm the previewToken, run validation, finalize, and report the operator snapshot path.
+```
+
+Safe MCP flow:
+
+```text
+kiwi_doctor -> kiwi_plan -> kiwi_preview_run -> user confirm -> kiwi_run -> kiwi_diff -> kiwi_finalize -> kiwi_evidence_manifest/operator_snapshot
 ```
 
 ## CLI Add Alternative

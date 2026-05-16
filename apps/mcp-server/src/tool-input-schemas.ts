@@ -24,6 +24,7 @@ const OptionalRunIdSchema = WorkspaceSelectorSchema.extend({
 });
 
 export const ToolInputSchemas = {
+  kiwi_doctor: WorkspaceSelectorSchema,
   kiwi_plan: WorkspaceSelectorSchema.extend({
     ticket: z.string().min(1).optional(),
     rawInput: z.string().min(1).optional(),
@@ -36,10 +37,10 @@ export const ToolInputSchemas = {
   }),
   kiwi_status: OptionalRunIdSchema,
   kiwi_run: RunIdSchema.extend({
+    previewToken: z.string().min(1).optional(),
     fromStep: z.string().min(1).optional(),
     maxConcurrency: z.number().int().positive().optional(),
     command: z.string().min(1).optional(),
-    approved: z.boolean().optional(),
   }),
   kiwi_preview_run: RunIdSchema.extend({
     fromStep: z.string().min(1).optional(),
@@ -47,8 +48,8 @@ export const ToolInputSchemas = {
   }),
   kiwi_run_step: RunIdSchema.extend({
     stepId: z.string().min(1),
+    previewToken: z.string().min(1).optional(),
     command: z.string().min(1).optional(),
-    approved: z.boolean().optional(),
   }),
   kiwi_diff: RunIdSchema.extend({
     stepId: z.string().min(1).optional(),
@@ -61,6 +62,10 @@ export const ToolInputSchemas = {
   kiwi_finalize: RunIdSchema,
   kiwi_cost: RunIdSchema,
   kiwi_explain: RunIdSchema,
+  kiwi_next: RunIdSchema.extend({
+    fromStep: z.string().min(1).optional(),
+    maxConcurrency: z.number().int().positive().optional(),
+  }),
   kiwi_request_approval: RunIdSchema.extend({
     attemptId: z.string().min(1),
     reason: z.string().min(1).optional(),

@@ -2,6 +2,7 @@ import { callTool, toolArguments } from "./tools";
 import { listTools } from "./tool-definitions";
 import { listResources, listResourceTemplates, readMcpResource } from "./resources";
 import { asRecord, JsonRpcRequest, JsonRpcResponse, textContent } from "./json-rpc";
+import { ToolActionRequiredError } from "./tool-errors";
 import { ToolInputValidationError } from "./tool-input-schemas";
 
 export function defaultServerCwd(): string {
@@ -103,6 +104,17 @@ export async function handleMcpRequest(
           data: {
             issues: error.issues,
           },
+        },
+      };
+    }
+    if (error instanceof ToolActionRequiredError) {
+      return {
+        jsonrpc: "2.0",
+        id,
+        error: {
+          code: error.code,
+          message: error.message,
+          data: error.data,
         },
       };
     }

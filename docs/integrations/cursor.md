@@ -32,7 +32,13 @@ Restart Cursor, then ask:
 
 ```text
 Use kiwi for workspace /Users/norberthanauer/Projects/voice and repo livekit-agent.
-Plan this change and show the TaskGraph summary.
+Run kiwi_doctor, plan this change, preview it, and show the TaskGraph summary plus previewToken.
+```
+
+Safe MCP flow:
+
+```text
+kiwi_doctor -> kiwi_plan -> kiwi_preview_run -> user confirm -> kiwi_run -> kiwi_diff -> kiwi_finalize -> kiwi_evidence_manifest/operator_snapshot
 ```
 
 ## Global Config
@@ -43,10 +49,16 @@ For all projects, use `~/.cursor/mcp.json` with the same `mcpServers` block. For
 
 Cursor should expose:
 
+- `kiwi_doctor`
 - `kiwi_plan`
 - `kiwi_status`
+- `kiwi_preview_run`
+- `kiwi_next`
 - `kiwi_run`
 - `kiwi_run_step`
+- `kiwi_diff`
+- `kiwi_cost`
+- `kiwi_explain`
 - `kiwi_finalize`
 - `kiwi_evidence_manifest`
 - `kiwi_operator_snapshot`
