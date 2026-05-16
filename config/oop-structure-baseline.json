@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-16T15:47:23.507Z",
+  "generatedAt": "2026-05-16T15:58:38.477Z",
   "maxLooseTopLevelFunctions": 4,
   "files": {
     "apps/cli/src/commands/doctor.ts": {
@@ -12,34 +12,6 @@
         "printRoleCounts",
         "printRunnerRegistry",
         "runDoctor"
-      ]
-    },
-    "apps/cli/src/commands/init.ts": {
-      "looseTopLevelFunctions": 22,
-      "cohesiveContainers": 0,
-      "functions": [
-        "desiredCodexMcpBlock",
-        "desiredJsonMcpServer",
-        "isRecord",
-        "kiwiRootCandidates",
-        "logConfigWrite",
-        "normalizeGitignoreLine",
-        "readJsonMcpConfig",
-        "resolveInstalledMcpBin",
-        "resolveKiwiRoot",
-        "resolveMcpServerLaunch",
-        "resolveMcpTargets",
-        "runInit",
-        "stableJson",
-        "tomlArray",
-        "tomlInlineTable",
-        "tomlString",
-        "upsertTomlTable",
-        "writeClaudeCodeMcpConfig",
-        "writeCodexMcpConfig",
-        "writeCursorMcpConfig",
-        "writeGitignoreEntries",
-        "writeJsonMcpConfig"
       ]
     },
     "apps/cli/src/commands/plan.ts": {
@@ -123,23 +95,6 @@
         "statusTool"
       ]
     },
-    "apps/mcp-server/src/http.ts": {
-      "looseTopLevelFunctions": 11,
-      "cohesiveContainers": 0,
-      "functions": [
-        "acceptsSse",
-        "allowedOriginsFromEnv",
-        "applyCorsHeaders",
-        "handleHttpMcpRequest",
-        "isAllowedOrigin",
-        "isAuthorized",
-        "parsePort",
-        "readRequestBody",
-        "sendJson",
-        "startHttpMcpServer",
-        "writeSse"
-      ]
-    },
     "apps/mcp-server/src/preview-tokens.ts": {
       "looseTopLevelFunctions": 13,
       "cohesiveContainers": 0,
@@ -201,18 +156,6 @@
         "runStepTool",
         "runStepToolUnlocked",
         "runTool"
-      ]
-    },
-    "apps/mcp-server/src/stdio.ts": {
-      "looseTopLevelFunctions": 6,
-      "cohesiveContainers": 0,
-      "functions": [
-        "createMcpMessageDrainer",
-        "encodeStdioMessage",
-        "findHeaderSeparator",
-        "handleParsedMcpMessage",
-        "startMcpServer",
-        "startsWithContentLength"
       ]
     },
     "apps/mcp-server/src/tool-helpers.ts": {
@@ -409,32 +352,6 @@
         "selectPlannerModel"
       ]
     },
-    "packages/core/src/planner.ts": {
-      "looseTopLevelFunctions": 20,
-      "cohesiveContainers": 0,
-      "functions": [
-        "addStepToSubPlan",
-        "assignSubPlanDependencies",
-        "buildDeterministicTaskGraph",
-        "createInitiativeFromInput",
-        "createSubPlanId",
-        "defaultRouting",
-        "deriveSubPlansFromSteps",
-        "ensureSubPlan",
-        "extractAcceptanceCriteria",
-        "extractStepTitles",
-        "extractTitle",
-        "inferStepType",
-        "isCodeExecutionStep",
-        "requiredGates",
-        "resolveDependentSubPlanId",
-        "resolveRootSubPlanId",
-        "routedByPolicy",
-        "scoreComplexity",
-        "scoreRisk",
-        "stepSuccessCriteria"
-      ]
-    },
     "packages/core/src/run-store.ts": {
       "looseTopLevelFunctions": 13,
       "cohesiveContainers": 0,
@@ -538,30 +455,6 @@
         "switchToPublishBranch"
       ]
     },
-    "packages/ops/src/run-summary.ts": {
-      "looseTopLevelFunctions": 18,
-      "cohesiveContainers": 0,
-      "functions": [
-        "addPrecision",
-        "buildRunCompletionSummary",
-        "buildRunExplanation",
-        "compactLine",
-        "costModelLabel",
-        "costQualifier",
-        "emptyPrecisionCounts",
-        "emptyStepCosts",
-        "executorReasonByAttempt",
-        "executorSelectionByAttempt",
-        "formatUsd",
-        "inferAccessMode",
-        "modelLabel",
-        "nextAction",
-        "phaseSummary",
-        "readFinalVerdict",
-        "roundUsd",
-        "stringPayloadValue"
-      ]
-    },
     "packages/runtime/src/access-mode-resolver.ts": {
       "looseTopLevelFunctions": 10,
       "cohesiveContainers": 0,
@@ -655,36 +548,6 @@
         "writeGateReport"
       ]
     },
-    "packages/runtime/src/scheduler-policy.ts": {
-      "looseTopLevelFunctions": 24,
-      "cohesiveContainers": 0,
-      "functions": [
-        "auditScheduled",
-        "blockScheduling",
-        "buildContextPackage",
-        "contextPackageRef",
-        "defaultAttemptId",
-        "determineAgentRole",
-        "determineContextLevel",
-        "determineModelCapability",
-        "determineRequiredGates",
-        "determineReviewDepth",
-        "determineRiskHigh",
-        "downgradeCapability",
-        "isCodeExecutionStep",
-        "loadContextPackage",
-        "loadSchedulerDecision",
-        "maxCapability",
-        "pickRunner",
-        "prepareScheduling",
-        "previewStepAttempt",
-        "sanitizeList",
-        "saveAttemptAndContext",
-        "saveSchedulerDecision",
-        "schedulePreparedAttempt",
-        "scheduleStepAttempt"
-      ]
-    },
     "packages/runtime/src/step-attempt-artifacts.ts": {
       "looseTopLevelFunctions": 7,
       "cohesiveContainers": 0,
@@ -765,36 +628,6 @@
         "runDir",
         "runsRoot",
         "writeJsonSafely"
-      ]
-    },
-    "packages/sandbox/src/diff.ts": {
-      "looseTopLevelFunctions": 24,
-      "cohesiveContainers": 0,
-      "functions": [
-        "applyDiffArtifactToSource",
-        "captureDiffArtifact",
-        "captureGitDiffArtifact",
-        "captureGitDiffSync",
-        "captureGitDiffText",
-        "captureGitDiffTextFromBaseTree",
-        "captureGitDiffTextSync",
-        "captureWorktreeDiffArtifact",
-        "commandOutput",
-        "createGitTreeSnapshot",
-        "execGitDiffWithExpectedDifference",
-        "gitApply",
-        "gitApplyCheck",
-        "gitApplyErrorMessage",
-        "gitApplyReverseCheck",
-        "gitEnvWithIndex",
-        "listComparableFiles",
-        "listUntrackedFiles",
-        "readCommandOutputArtifact",
-        "readTextIfReasonable",
-        "shouldExcludeDiffPath",
-        "shouldExcludeWorkspaceEntry",
-        "simplePatchForFile",
-        "untrackedFileDiff"
       ]
     },
     "packages/sandbox/src/worktree.ts": {

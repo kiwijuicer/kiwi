@@ -39,12 +39,7 @@ export type {
   SecuritySensitivity,
 } from "./scheduler-types";
 
-export function loadContextPackage(params: {
-  cwd: string;
-  runId: string;
-  stepId: string;
-  attemptId: string;
-}): ContextPackage {
+function readContextPackage(params: { cwd: string; runId: string; stepId: string; attemptId: string }): ContextPackage {
   const relative = `steps/${params.stepId}/${params.attemptId}/context-package.json`;
   const target = resolveRunArtifactPath(params.runId, relative, params.cwd);
 
@@ -55,7 +50,7 @@ export function loadContextPackage(params: {
   return JSON.parse(readFileSync(target, "utf-8")) as ContextPackage;
 }
 
-export function loadSchedulerDecision(params: {
+function readSchedulerDecision(params: {
   cwd: string;
   runId: string;
   stepId: string;
@@ -314,7 +309,7 @@ function saveAttemptAndContext(params: {
   return { attemptRef, contextRef };
 }
 
-export function saveSchedulerDecision(cwd: string, decision: SchedulerDecision): string {
+function writeSchedulerDecision(cwd: string, decision: SchedulerDecision): string {
   const relative = `steps/${decision.stepId}/${decision.attemptId}/scheduler-decision.json`;
   const target = resolveRunArtifactPath(decision.runId, relative, cwd);
   writeJsonSafely(target, SchedulerDecisionSchema.parse(decision));
@@ -417,7 +412,7 @@ function blockScheduling(input: SchedulerInput, prepared: PreparedScheduling, re
     budget: prepared.budget,
     contextPackageRef: contextPackageRef(input.step.stepId, prepared.attemptId),
   };
-  saveSchedulerDecision(input.cwd, decision);
+  writeSchedulerDecision(input.cwd, decision);
   appendAuditEvent(input.cwd, {
     eventType: "scheduler_blocked",
     runId: input.runId,
@@ -474,7 +469,7 @@ function schedulePreparedAttempt(
     budget: prepared.budget,
     contextPackageRef: saved.contextRef,
   };
-  saveSchedulerDecision(input.cwd, decision);
+  writeSchedulerDecision(input.cwd, decision);
 
   return decision;
 }
@@ -517,7 +512,7 @@ function auditScheduled(input: SchedulerInput, prepared: PreparedScheduling, dec
   });
 }
 
-export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
+function scheduleStepAttemptInternal(input: SchedulerInput): SchedulerDecision {
   const prepared = prepareScheduling(input);
 
   if (!prepared.riskHigh && input.budgetRemainingUsdEstimate !== null && input.budgetRemainingUsdEstimate <= 0) {
@@ -538,7 +533,7 @@ export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
   return decision;
 }
 
-export function previewStepAttempt(input: SchedulerInput): SchedulerDecision {
+function previewStepAttemptInternal(input: SchedulerInput): SchedulerDecision {
   const prepared = prepareScheduling(input);
 
   if (!prepared.riskHigh && input.budgetRemainingUsdEstimate !== null && input.budgetRemainingUsdEstimate <= 0) {
@@ -604,4 +599,52 @@ export function previewStepAttempt(input: SchedulerInput): SchedulerDecision {
     budget: prepared.budget,
     contextPackageRef: contextPackageRef(input.step.stepId, prepared.attemptId),
   };
+}
+
+class SchedulerPolicyService {
+  loadContextPackage(params: Parameters<typeof readContextPackage>[0]): ContextPackage {
+    return readContextPackage(params);
+  }
+
+  loadSchedulerDecision(params: Parameters<typeof readSchedulerDecision>[0]): SchedulerDecision {
+    return readSchedulerDecision(params);
+  }
+
+  saveSchedulerDecision(cwd: string, decision: SchedulerDecision): string {
+    return writeSchedulerDecision(cwd, decision);
+  }
+
+  scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
+    return scheduleStepAttemptInternal(input);
+  }
+
+  previewStepAttempt(input: SchedulerInput): SchedulerDecision {
+    return previewStepAttemptInternal(input);
+  }
+}
+
+const schedulerPolicyService = new SchedulerPolicyService();
+
+export function loadContextPackage(
+  params: Parameters<SchedulerPolicyService["loadContextPackage"]>[0],
+): ContextPackage {
+  return schedulerPolicyService.loadContextPackage(params);
+}
+
+export function loadSchedulerDecision(
+  params: Parameters<SchedulerPolicyService["loadSchedulerDecision"]>[0],
+): SchedulerDecision {
+  return schedulerPolicyService.loadSchedulerDecision(params);
+}
+
+export function saveSchedulerDecision(cwd: string, decision: SchedulerDecision): string {
+  return schedulerPolicyService.saveSchedulerDecision(cwd, decision);
+}
+
+export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
+  return schedulerPolicyService.scheduleStepAttempt(input);
+}
+
+export function previewStepAttempt(input: SchedulerInput): SchedulerDecision {
+  return schedulerPolicyService.previewStepAttempt(input);
 }

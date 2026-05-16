@@ -6,7 +6,7 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { kiwiModelRegistryPath, kiwiPolicyPath } from "@kiwi/core";
-import { createMcpMessageDrainer, handleMcpRequest, startHttpMcpServer } from "../index";
+import { createMcpMessageDrainer, handleMcpRequest, resolveMcpBootstrapOptions, startHttpMcpServer } from "../index";
 
 function setupRepo(): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-"));
@@ -145,6 +145,68 @@ async function startLoopbackHttpServer(
 }
 
 describe("MCP server", () => {
+  it("resolves stdio bootstrap options by default", () => {
+    const options = resolveMcpBootstrapOptions(["node", "index.js"], { KIWI_WORKSPACE: "/workspace" });
+
+    expect(options).toMatchObject({
+      cwd: "/workspace",
+      transport: "stdio",
+    });
+  });
+
+  it("resolves explicit stdio bootstrap options", () => {
+    const options = resolveMcpBootstrapOptions(
+      ["node", "index.js", "--transport", "stdio", "--workspace", "/repo"],
+      {},
+    );
+
+    expect(options).toMatchObject({
+      cwd: "/repo",
+      transport: "stdio",
+    });
+  });
+
+  it("resolves HTTP bootstrap options", () => {
+    const options = resolveMcpBootstrapOptions(
+      ["node", "index.js", "--transport", "http", "--workspace", "/repo", "--host", "127.0.0.1", "--port", "0"],
+      { KIWI_MCP_HTTP_TOKEN: "token" },
+    );
+
+    expect(options).toMatchObject({
+      cwd: "/repo",
+      transport: "http",
+      http: {
+        cwd: "/repo",
+        host: "127.0.0.1",
+        port: 0,
+        authToken: "token",
+      },
+    });
+  });
+
+  it("resolves streamable HTTP bootstrap options", () => {
+    const options = resolveMcpBootstrapOptions(
+      ["node", "index.js", "--transport", "streamable-http", "--workspace", "/repo", "--path", "/custom"],
+      { KIWI_MCP_HTTP_TOKEN: "token" },
+    );
+
+    expect(options).toMatchObject({
+      cwd: "/repo",
+      transport: "streamable-http",
+      http: {
+        cwd: "/repo",
+        path: "/custom",
+        authToken: "token",
+      },
+    });
+  });
+
+  it("rejects unknown bootstrap transports", () => {
+    expect(() => resolveMcpBootstrapOptions(["node", "index.js", "--transport", "nonsense"], {})).toThrow(
+      "Unsupported MCP transport: nonsense",
+    );
+  });
+
   it("initializes and lists tools", async () => {
     const response = await handleMcpRequest({ id: 1, method: "initialize" }, setupRepo());
     expect(response.error).toBeUndefined();

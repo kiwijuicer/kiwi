@@ -370,7 +370,7 @@ function assignSubPlanDependencies(params: {
   }
 }
 
-export function deriveSubPlansFromSteps(steps: Step[]): SubPlan[] {
+function deriveSubPlansFromStepsInternal(steps: Step[]): SubPlan[] {
   const subPlans: SubPlan[] = [];
   const subPlansById = new Map<string, SubPlan>();
   const stepToSubPlan = new Map<string, string>();
@@ -414,7 +414,7 @@ export function deriveSubPlansFromSteps(steps: Step[]): SubPlan[] {
   return subPlans;
 }
 
-export function createInitiativeFromInput(params: {
+function createInitiativeFromInputInternal(params: {
   rawInput: string;
   repoPath: string;
   source: InitiativeSource;
@@ -438,7 +438,7 @@ export function createInitiativeFromInput(params: {
   };
 }
 
-export function buildDeterministicTaskGraph(params: {
+function buildDeterministicTaskGraphInternal(params: {
   runId: string;
   initiative: Initiative;
   policy: KiwiPolicy;
@@ -465,7 +465,7 @@ export function buildDeterministicTaskGraph(params: {
       status: ContractValues.Pending,
     };
   });
-  const subPlans = deriveSubPlansFromSteps(steps);
+  const subPlans = deriveSubPlansFromStepsInternal(steps);
 
   const graph: TaskGraph = {
     planId: generatePlanId(now, idOptions),
@@ -483,4 +483,34 @@ export function buildDeterministicTaskGraph(params: {
   };
 
   return TaskGraphSchema.parse(graph);
+}
+
+class DeterministicPlanner {
+  deriveSubPlansFromSteps(steps: Step[]): SubPlan[] {
+    return deriveSubPlansFromStepsInternal(steps);
+  }
+
+  createInitiativeFromInput(params: Parameters<typeof createInitiativeFromInputInternal>[0]): Initiative {
+    return createInitiativeFromInputInternal(params);
+  }
+
+  buildTaskGraph(params: Parameters<typeof buildDeterministicTaskGraphInternal>[0]): TaskGraph {
+    return buildDeterministicTaskGraphInternal(params);
+  }
+}
+
+const deterministicPlanner = new DeterministicPlanner();
+
+export function deriveSubPlansFromSteps(steps: Step[]): SubPlan[] {
+  return deterministicPlanner.deriveSubPlansFromSteps(steps);
+}
+
+export function createInitiativeFromInput(
+  params: Parameters<DeterministicPlanner["createInitiativeFromInput"]>[0],
+): Initiative {
+  return deterministicPlanner.createInitiativeFromInput(params);
+}
+
+export function buildDeterministicTaskGraph(params: Parameters<DeterministicPlanner["buildTaskGraph"]>[0]): TaskGraph {
+  return deterministicPlanner.buildTaskGraph(params);
 }

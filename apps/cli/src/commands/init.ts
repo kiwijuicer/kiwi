@@ -112,8 +112,10 @@ function resolveMcpServerLaunch(workspaceValue: string): McpServerLaunch {
   };
 }
 
-function desiredJsonMcpServer(workspaceValue: string): Record<string, unknown> {
-  const launch = resolveMcpServerLaunch(workspaceValue);
+function desiredJsonMcpServer(
+  workspaceValue: string,
+  launch: McpServerLaunch = resolveMcpServerLaunch(workspaceValue),
+): Record<string, unknown> {
   const server: Record<string, unknown> = {
     type: "stdio",
     command: launch.command,
@@ -157,12 +159,13 @@ function writeJsonMcpConfig(params: {
   label: string;
   workspaceValue: string;
   force: boolean;
+  nextServer?: Record<string, unknown>;
 }): ConfigWriteResult {
   const { configPath, directoryPath, label, workspaceValue, force } = params;
   const existed = existsSync(configPath);
   const config = readJsonMcpConfig(configPath, label);
   const existingServers = config.mcpServers ?? {};
-  const nextServer = desiredJsonMcpServer(workspaceValue);
+  const nextServer = params.nextServer ?? desiredJsonMcpServer(workspaceValue);
 
   if (!force && stableJson(existingServers.kiwi) === stableJson(nextServer)) {
     return { path: configPath, status: "preserved" };
@@ -184,7 +187,11 @@ function writeJsonMcpConfig(params: {
   return { path: configPath, status: existed ? "updated" : "written" };
 }
 
-function writeCursorMcpConfig(targetCwd: string, force: boolean): ConfigWriteResult {
+function writeCursorMcpConfig(
+  targetCwd: string,
+  force: boolean,
+  nextServer: Record<string, unknown> = desiredJsonMcpServer(targetCwd),
+): ConfigWriteResult {
   const cursorDir = path.join(targetCwd, ".cursor");
 
   return writeJsonMcpConfig({
@@ -193,16 +200,22 @@ function writeCursorMcpConfig(targetCwd: string, force: boolean): ConfigWriteRes
     label: "Cursor",
     workspaceValue: targetCwd,
     force,
+    nextServer,
   });
 }
 
-function writeClaudeCodeMcpConfig(targetCwd: string, force: boolean): ConfigWriteResult {
+function writeClaudeCodeMcpConfig(
+  targetCwd: string,
+  force: boolean,
+  nextServer: Record<string, unknown> = desiredJsonMcpServer(targetCwd),
+): ConfigWriteResult {
   return writeJsonMcpConfig({
     configPath: path.join(targetCwd, ".mcp.json"),
     directoryPath: targetCwd,
     label: "Claude Code",
     workspaceValue: targetCwd,
     force,
+    nextServer,
   });
 }
 
@@ -220,8 +233,7 @@ function tomlInlineTable(values: Record<string, string>): string {
     .join(", ")} }`;
 }
 
-function desiredCodexMcpBlock(targetCwd: string): string {
-  const launch = resolveMcpServerLaunch(targetCwd);
+function desiredCodexMcpBlock(targetCwd: string, launch: McpServerLaunch = resolveMcpServerLaunch(targetCwd)): string {
   const lines = ["[mcp_servers.kiwi]", `command = ${tomlString(launch.command)}`, `args = ${tomlArray(launch.args)}`];
 
   if (launch.env) {
@@ -256,12 +268,16 @@ function upsertTomlTable(existing: string, tableName: string, block: string): st
   return `${next.replace(/\s*$/, "")}\n`;
 }
 
-function writeCodexMcpConfig(targetCwd: string, force: boolean): ConfigWriteResult {
+function writeCodexMcpConfig(
+  targetCwd: string,
+  force: boolean,
+  block: string = desiredCodexMcpBlock(targetCwd),
+): ConfigWriteResult {
   const codexDir = path.join(targetCwd, ".codex");
   const configPath = path.join(codexDir, "config.toml");
   const existed = existsSync(configPath);
   const current = existed ? readFileSync(configPath, "utf-8") : "";
-  const next = upsertTomlTable(current, "mcp_servers.kiwi", desiredCodexMcpBlock(targetCwd));
+  const next = upsertTomlTable(current, "mcp_servers.kiwi", block);
 
   if (!force && current === next) {
     return { path: configPath, status: "preserved" };
@@ -334,7 +350,14 @@ function writeGitignoreEntries(
   return { path: gitignorePath, status: "updated" };
 }
 
-export async function runInit(opts: InitOptions = {}, cwd: string = process.cwd()): Promise<void> {
+async function runInitInternal(
+  opts: InitOptions = {},
+  cwd: string = process.cwd(),
+  services: { mcpConfigWriter: McpConfigWriter; gitignoreWriter: GitignoreWriter } = {
+    mcpConfigWriter: new McpConfigWriter(),
+    gitignoreWriter: new GitignoreWriter(),
+  },
+): Promise<void> {
   const targetCwd = opts.workspace ? path.resolve(cwd, opts.workspace) : cwd;
 
   if (!existsSync(targetCwd)) {
@@ -364,10 +387,14 @@ export async function runInit(opts: InitOptions = {}, cwd: string = process.cwd(
   if (shouldWriteRegistry) {
     writeFileSync(registryPath, DEFAULT_MODEL_REGISTRY_YAML, "utf-8");
   }
-  const cursorMcp = mcpTargets.has("cursor") ? writeCursorMcpConfig(targetCwd, Boolean(opts.force)) : null;
-  const claudeMcp = mcpTargets.has("claude") ? writeClaudeCodeMcpConfig(targetCwd, Boolean(opts.force)) : null;
-  const codexMcp = mcpTargets.has("codex") ? writeCodexMcpConfig(targetCwd, Boolean(opts.force)) : null;
-  const gitignore = writeGitignoreEntries(targetCwd, mcpTargets);
+  const cursorMcp = mcpTargets.has("cursor")
+    ? services.mcpConfigWriter.writeCursor(targetCwd, Boolean(opts.force))
+    : null;
+  const claudeMcp = mcpTargets.has("claude")
+    ? services.mcpConfigWriter.writeClaudeCode(targetCwd, Boolean(opts.force))
+    : null;
+  const codexMcp = mcpTargets.has("codex") ? services.mcpConfigWriter.writeCodex(targetCwd, Boolean(opts.force)) : null;
+  const gitignore = services.gitignoreWriter.write(targetCwd, mcpTargets);
 
   console.log(chalk.green("✓") + " .kiwi initialized");
   console.log(chalk.dim(`workspace: ${targetCwd}`));
@@ -398,4 +425,61 @@ export async function runInit(opts: InitOptions = {}, cwd: string = process.cwd(
   if (gitignore.status === "preserved") {
     console.log(chalk.gray("•") + " .gitignore preserved");
   }
+}
+
+class McpLaunchResolver {
+  resolve(workspaceValue: string): McpServerLaunch {
+    return resolveMcpServerLaunch(workspaceValue);
+  }
+
+  desiredJsonServer(
+    workspaceValue: string,
+    launch: McpServerLaunch = this.resolve(workspaceValue),
+  ): Record<string, unknown> {
+    return desiredJsonMcpServer(workspaceValue, launch);
+  }
+
+  desiredCodexBlock(targetCwd: string, launch: McpServerLaunch = this.resolve(targetCwd)): string {
+    return desiredCodexMcpBlock(targetCwd, launch);
+  }
+}
+
+class McpConfigWriter {
+  constructor(private readonly launchResolver = new McpLaunchResolver()) {}
+
+  writeCursor(targetCwd: string, force: boolean): ConfigWriteResult {
+    const launch = this.launchResolver.resolve(targetCwd);
+
+    return writeCursorMcpConfig(targetCwd, force, this.launchResolver.desiredJsonServer(targetCwd, launch));
+  }
+
+  writeClaudeCode(targetCwd: string, force: boolean): ConfigWriteResult {
+    const launch = this.launchResolver.resolve(targetCwd);
+
+    return writeClaudeCodeMcpConfig(targetCwd, force, this.launchResolver.desiredJsonServer(targetCwd, launch));
+  }
+
+  writeCodex(targetCwd: string, force: boolean): ConfigWriteResult {
+    const launch = this.launchResolver.resolve(targetCwd);
+
+    return writeCodexMcpConfig(targetCwd, force, this.launchResolver.desiredCodexBlock(targetCwd, launch));
+  }
+}
+
+class GitignoreWriter {
+  write(targetCwd: string, mcpTargets: Set<Exclude<McpTarget, "none" | "all">>): GitignoreWriteResult {
+    return writeGitignoreEntries(targetCwd, mcpTargets);
+  }
+}
+
+class InitCommand {
+  async run(opts: InitOptions = {}, cwd: string = process.cwd()): Promise<void> {
+    await runInitInternal(opts, cwd);
+  }
+}
+
+const initCommand = new InitCommand();
+
+export async function runInit(opts: InitOptions = {}, cwd: string = process.cwd()): Promise<void> {
+  await initCommand.run(opts, cwd);
 }

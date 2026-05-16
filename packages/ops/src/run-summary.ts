@@ -290,7 +290,7 @@ function executorSelectionByAttempt(
   return selections;
 }
 
-export function buildRunCompletionSummary(params: { cwd: string; runId: string; now?: Date }): RunCompletionSummary {
+function buildRunCompletionSummaryInternal(params: { cwd: string; runId: string; now?: Date }): RunCompletionSummary {
   const run = loadRunManifest(params.runId, params.cwd);
   const invocations = readModelInvocations(params.cwd, params.runId);
   const costReport = buildFinalCostReportFromModelInvocations(params);
@@ -378,7 +378,7 @@ export function buildRunCompletionSummary(params: { cwd: string; runId: string; 
   return RunCompletionSummarySchema.parse(summaryInput);
 }
 
-export function buildRunExplanation(params: { cwd: string; runId: string; now?: Date }): RunExplanation {
+function buildRunExplanationInternal(params: { cwd: string; runId: string; now?: Date }): RunExplanation {
   const attempts = listStepAttemptEvidence(params.cwd, params.runId);
   const executorReasons = executorReasonByAttempt(params.cwd, params.runId);
   const executorSelections = executorSelectionByAttempt(params.cwd, params.runId);
@@ -437,7 +437,7 @@ export function buildRunExplanation(params: { cwd: string; runId: string; now?: 
           : [String(event.payload.reason ?? "scheduler_blocked")],
       };
     });
-  const completionSummary = buildRunCompletionSummary(params);
+  const completionSummary = buildRunCompletionSummaryInternal(params);
 
   return {
     schemaVersion: "1",
@@ -447,4 +447,27 @@ export function buildRunExplanation(params: { cwd: string; runId: string; now?: 
     gates,
     nextAction: completionSummary.nextAction,
   };
+}
+
+class RunSummaryBuilder {
+  build(params: Parameters<typeof buildRunCompletionSummaryInternal>[0]): RunCompletionSummary {
+    return buildRunCompletionSummaryInternal(params);
+  }
+}
+
+class RunExplanationBuilder {
+  build(params: Parameters<typeof buildRunExplanationInternal>[0]): RunExplanation {
+    return buildRunExplanationInternal(params);
+  }
+}
+
+const runSummaryBuilder = new RunSummaryBuilder();
+const runExplanationBuilder = new RunExplanationBuilder();
+
+export function buildRunCompletionSummary(params: Parameters<RunSummaryBuilder["build"]>[0]): RunCompletionSummary {
+  return runSummaryBuilder.build(params);
+}
+
+export function buildRunExplanation(params: Parameters<RunExplanationBuilder["build"]>[0]): RunExplanation {
+  return runExplanationBuilder.build(params);
 }

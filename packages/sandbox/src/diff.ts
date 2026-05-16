@@ -23,7 +23,7 @@ function shouldExcludeWorkspaceEntry(entryName: string): boolean {
   return WORKSPACE_COPY_EXCLUDES.has(entryName);
 }
 
-export async function captureGitDiffArtifact(params: {
+async function captureGitDiffArtifactInternal(params: {
   cwd: string;
   runId: string;
   stepId: string;
@@ -59,7 +59,7 @@ function gitEnvWithIndex(indexPath: string): NodeJS.ProcessEnv {
   return { ...process.env, GIT_INDEX_FILE: indexPath };
 }
 
-export function createGitTreeSnapshot(worktreePath: string): string | null {
+function createGitTreeSnapshotInternal(worktreePath: string): string | null {
   if (!existsSync(path.join(worktreePath, ".git"))) {
     return null;
   }
@@ -189,7 +189,7 @@ function captureGitDiffSync(params: {
 }
 
 function captureGitDiffTextFromBaseTree(worktreePath: string, baseTree: string): string {
-  const afterTree = createGitTreeSnapshot(worktreePath);
+  const afterTree = createGitTreeSnapshotInternal(worktreePath);
 
   if (!afterTree) {
     return "";
@@ -200,7 +200,7 @@ function captureGitDiffTextFromBaseTree(worktreePath: string, baseTree: string):
   });
 }
 
-export function captureDiffArtifact(params: {
+function captureDiffArtifactInternal(params: {
   cwd: string;
   runId: string;
   stepId: string;
@@ -230,7 +230,7 @@ export function captureDiffArtifact(params: {
     fallbackInput.sourcePath = params.sourcePath;
   }
 
-  return captureWorktreeDiffArtifact(fallbackInput);
+  return captureWorktreeDiffArtifactInternal(fallbackInput);
 }
 
 function listComparableFiles(root: string, base: string = root): string[] {
@@ -302,7 +302,7 @@ function simplePatchForFile(params: { relativePath: string; before: string; afte
   ].join("\n");
 }
 
-export function captureWorktreeDiffArtifact(params: {
+function captureWorktreeDiffArtifactInternal(params: {
   cwd: string;
   runId: string;
   stepId: string;
@@ -396,7 +396,7 @@ function gitApplyErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function applyDiffArtifactToSource(params: {
+function applyDiffArtifactToSourceInternal(params: {
   cwd: string;
   runId: string;
   diffRef: string;
@@ -426,4 +426,62 @@ export function applyDiffArtifactToSource(params: {
 
     return { applied: false, patchPath, reason: gitApplyErrorMessage(error) };
   }
+}
+
+class GitDiffArtifactService {
+  async captureGitDiffArtifact(params: Parameters<typeof captureGitDiffArtifactInternal>[0]): Promise<Artifact | null> {
+    return captureGitDiffArtifactInternal(params);
+  }
+
+  createGitTreeSnapshot(worktreePath: string): string | null {
+    return createGitTreeSnapshotInternal(worktreePath);
+  }
+
+  captureDiffArtifact(params: Parameters<typeof captureDiffArtifactInternal>[0]): Artifact | null {
+    return captureDiffArtifactInternal(params);
+  }
+}
+
+class WorktreeDiffArtifactService {
+  captureWorktreeDiffArtifact(params: Parameters<typeof captureWorktreeDiffArtifactInternal>[0]): Artifact | null {
+    return captureWorktreeDiffArtifactInternal(params);
+  }
+}
+
+class DiffArtifactApplier {
+  applyDiffArtifactToSource(params: Parameters<typeof applyDiffArtifactToSourceInternal>[0]): ApplyDiffArtifactResult {
+    return applyDiffArtifactToSourceInternal(params);
+  }
+}
+
+const gitDiffArtifactService = new GitDiffArtifactService();
+const worktreeDiffArtifactService = new WorktreeDiffArtifactService();
+const diffArtifactApplier = new DiffArtifactApplier();
+
+export function captureGitDiffArtifact(
+  params: Parameters<GitDiffArtifactService["captureGitDiffArtifact"]>[0],
+): Promise<Artifact | null> {
+  return gitDiffArtifactService.captureGitDiffArtifact(params);
+}
+
+export function createGitTreeSnapshot(worktreePath: string): string | null {
+  return gitDiffArtifactService.createGitTreeSnapshot(worktreePath);
+}
+
+export function captureDiffArtifact(
+  params: Parameters<GitDiffArtifactService["captureDiffArtifact"]>[0],
+): Artifact | null {
+  return gitDiffArtifactService.captureDiffArtifact(params);
+}
+
+export function captureWorktreeDiffArtifact(
+  params: Parameters<WorktreeDiffArtifactService["captureWorktreeDiffArtifact"]>[0],
+): Artifact | null {
+  return worktreeDiffArtifactService.captureWorktreeDiffArtifact(params);
+}
+
+export function applyDiffArtifactToSource(
+  params: Parameters<DiffArtifactApplier["applyDiffArtifactToSource"]>[0],
+): ApplyDiffArtifactResult {
+  return diffArtifactApplier.applyDiffArtifactToSource(params);
 }

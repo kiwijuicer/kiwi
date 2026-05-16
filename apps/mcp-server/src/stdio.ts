@@ -108,18 +108,24 @@ export function createMcpMessageDrainer(
   };
 }
 
-export function startMcpServer(cwd: string = defaultServerCwd()): void {
-  debugLog("server_start", { cwd, pid: process.pid });
-  const drainMessages = createMcpMessageDrainer(cwd, (payload) => {
-    process.stdout.write(encodeStdioMessage(payload));
-  });
-  let drain = Promise.resolve();
+class StdioMcpTransport {
+  start(cwd: string = defaultServerCwd()): void {
+    debugLog("server_start", { cwd, pid: process.pid });
+    const drainMessages = createMcpMessageDrainer(cwd, (payload) => {
+      process.stdout.write(encodeStdioMessage(payload));
+    });
+    let drain = Promise.resolve();
 
-  process.stdin.on("data", (chunk) => {
-    const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), "utf-8");
-    drain = drain.then(
-      () => drainMessages(data),
-      () => drainMessages(data),
-    );
-  });
+    process.stdin.on("data", (chunk) => {
+      const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), "utf-8");
+      drain = drain.then(
+        () => drainMessages(data),
+        () => drainMessages(data),
+      );
+    });
+  }
+}
+
+export function startMcpServer(cwd: string = defaultServerCwd()): void {
+  new StdioMcpTransport().start(cwd);
 }

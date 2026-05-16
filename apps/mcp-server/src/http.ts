@@ -218,37 +218,43 @@ async function handleHttpMcpRequest(
   sendJson(response, 200, payload);
 }
 
-export function startHttpMcpServer(options: HttpMcpServerOptions = {}): Server {
-  const cwd = options.cwd ?? defaultServerCwd();
-  const host = options.host ?? process.env.KIWI_MCP_HTTP_HOST ?? "127.0.0.1";
-  const port = options.port ?? parsePort(process.env.KIWI_MCP_HTTP_PORT, 3333);
-  const endpointPath = options.path ?? process.env.KIWI_MCP_HTTP_PATH ?? "/mcp";
-  const allowedOrigins = options.allowedOrigins ?? allowedOriginsFromEnv();
-  const authToken = options.authToken ?? process.env.KIWI_MCP_HTTP_TOKEN;
+class HttpMcpTransport {
+  start(options: HttpMcpServerOptions = {}): Server {
+    const cwd = options.cwd ?? defaultServerCwd();
+    const host = options.host ?? process.env.KIWI_MCP_HTTP_HOST ?? "127.0.0.1";
+    const port = options.port ?? parsePort(process.env.KIWI_MCP_HTTP_PORT, 3333);
+    const endpointPath = options.path ?? process.env.KIWI_MCP_HTTP_PATH ?? "/mcp";
+    const allowedOrigins = options.allowedOrigins ?? allowedOriginsFromEnv();
+    const authToken = options.authToken ?? process.env.KIWI_MCP_HTTP_TOKEN;
 
-  if (!authToken) {
-    throw new Error("KIWI_MCP_HTTP_TOKEN is required for HTTP MCP transport");
-  }
+    if (!authToken) {
+      throw new Error("KIWI_MCP_HTTP_TOKEN is required for HTTP MCP transport");
+    }
 
-  const server = createServer((request, response) => {
-    void handleHttpMcpRequest(request, response, { cwd, endpointPath, allowedOrigins, authToken }).catch((error) => {
-      debugLog("http_error", { error: error instanceof Error ? error.stack || error.message : String(error) });
-      if (!response.headersSent) {
-        sendJson(response, 500, {
-          jsonrpc: "2.0",
-          id: null,
-          error: { code: -32000, message: "Internal server error" },
-        });
+    const server = createServer((request, response) => {
+      void handleHttpMcpRequest(request, response, { cwd, endpointPath, allowedOrigins, authToken }).catch((error) => {
+        debugLog("http_error", { error: error instanceof Error ? error.stack || error.message : String(error) });
+        if (!response.headersSent) {
+          sendJson(response, 500, {
+            jsonrpc: "2.0",
+            id: null,
+            error: { code: -32000, message: "Internal server error" },
+          });
 
-        return;
-      }
-      response.end();
+          return;
+        }
+        response.end();
+      });
     });
-  });
 
-  server.listen(port, host, () => {
-    debugLog("http_server_start", { cwd, host, port, endpointPath });
-  });
+    server.listen(port, host, () => {
+      debugLog("http_server_start", { cwd, host, port, endpointPath });
+    });
 
-  return server;
+    return server;
+  }
+}
+
+export function startHttpMcpServer(options: HttpMcpServerOptions = {}): Server {
+  return new HttpMcpTransport().start(options);
 }
