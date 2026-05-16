@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-16T15:58:38.477Z",
+  "generatedAt": "2026-05-16T17:47:47.609Z",
   "maxLooseTopLevelFunctions": 4,
   "files": {
     "apps/cli/src/commands/doctor.ts": {
@@ -172,13 +172,12 @@
       ]
     },
     "apps/mcp-server/src/ux.ts": {
-      "looseTopLevelFunctions": 9,
+      "looseTopLevelFunctions": 8,
       "cohesiveContainers": 0,
       "functions": [
         "compactObject",
         "defaultNextAction",
         "mutationScope",
-        "relativeRepoPath",
         "resourceLinks",
         "safeReadOnlyToolCalls",
         "toolCall",
@@ -505,29 +504,6 @@
         "defaultProfile",
         "noopCommand",
         "splitCommandLine"
-      ]
-    },
-    "packages/runtime/src/planned-step-execution.ts": {
-      "looseTopLevelFunctions": 17,
-      "cohesiveContainers": 0,
-      "functions": [
-        "auditExecutorModelSelected",
-        "auditProviderPreference",
-        "buildRunExecutionPreview",
-        "codexSandbox",
-        "createExecutionTarget",
-        "enrichSchedulerDecision",
-        "executePlannedStep",
-        "executionMode",
-        "executionOwner",
-        "materializeAttemptDiff",
-        "previewSelection",
-        "resolveStepRunnerResolution",
-        "scheduleCurrentStepAttempt",
-        "selectStepRunner",
-        "shouldUseProviderResearch",
-        "stepPreview",
-        "teardownExecutionTarget"
       ]
     },
     "packages/runtime/src/quality-gates.ts": {
