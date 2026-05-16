@@ -1,8 +1,9 @@
 import { spawn } from "child_process";
 import { terminateProcessTree, truncateOutput } from "@kiwi/sandbox";
+import { SubprocessStreams, type SubprocessStream } from "./constants";
 
 export interface SubprocessOutputChunk {
-  stream: "stdout" | "stderr";
+  stream: SubprocessStream;
   text: string;
 }
 
@@ -67,12 +68,12 @@ export async function runSubprocess(invocation: SubprocessInvocation): Promise<S
     child.stdout.on("data", (chunk: Buffer) => {
       const text = chunk.toString("utf-8");
       stdout = truncateOutput(stdout + text, invocation.maxOutputBytes);
-      invocation.onOutputChunk?.({ stream: "stdout", text });
+      invocation.onOutputChunk?.({ stream: SubprocessStreams.Stdout, text });
     });
     child.stderr.on("data", (chunk: Buffer) => {
       const text = chunk.toString("utf-8");
       stderr = truncateOutput(stderr + text, invocation.maxOutputBytes);
-      invocation.onOutputChunk?.({ stream: "stderr", text });
+      invocation.onOutputChunk?.({ stream: SubprocessStreams.Stderr, text });
     });
 
     child.on("error", (error) => {

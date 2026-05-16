@@ -1,9 +1,7 @@
 import { ContractValues } from "@kiwi/contracts";
-import { getRunStatusSummary, listStepAttemptEvidence, loadInitiative, loadTaskGraph, withRunLock } from "@kiwi/core";
 import { buildRunCompletionSummary } from "@kiwi/ops";
 import {
   assertDirectExecutionSafe,
-  createRuntimeExecutionServices,
   DirectExecutionUnsafeError,
   type ExecutePlannedStepInput,
   type ExecutePlannedStepResult,
@@ -15,9 +13,11 @@ import { createMcpPreviewToken, normalizePreviewInput, validateMcpPreviewToken }
 import { ToolActionRequiredError } from "./tool-errors";
 import { errorMessage, previewConfirmationSummary, progressLine, type ToolCallOptions } from "./tool-helpers";
 import { mutationScope, safeReadOnlyToolCalls, toolCall, type McpNextAction, workspaceToolArgs } from "./ux";
+import { McpToolProgressStatuses } from "./constants";
+import { createMcpServerServices } from "./services";
 import { workspaceArgs } from "./workspace";
 
-const runtimeExecution = createRuntimeExecutionServices();
+const mcpServices = createMcpServerServices();
 
 interface RunStepToolResult {
   attemptId: string;
@@ -94,9 +94,9 @@ function emitPostAttemptProgress(params: {
   if (!params.options.onProgress) {
     return;
   }
-  const evidence = listStepAttemptEvidence(params.workspacePath, params.runId).find(
-    (entry) => entry.stepId === params.stepId && entry.attemptId === params.attemptId,
-  );
+  const evidence = mcpServices.core.evidence
+    .listStepAttempts(params.workspacePath, params.runId)
+    .find((entry) => entry.stepId === params.stepId && entry.attemptId === params.attemptId);
 
   if (!evidence) {
     return;
@@ -161,7 +161,7 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
     throw new Error(`kiwi_preview_run maxConcurrency must be a positive integer; received ${maxConcurrency}`);
   }
   const previewInput = normalizePreviewInput({ fromStep, maxConcurrency });
-  const preview = runtimeExecution.previews.build({
+  const preview = mcpServices.runtime.execution.previews.build({
     cwd: workspace.workspacePath,
     runId,
     ...(fromStep ? { fromStep } : {}),
@@ -169,7 +169,7 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
   });
 
   if (preview.executionIsolation === "direct") {
-    const initiative = loadInitiative(runId, workspace.workspacePath);
+    const initiative = mcpServices.core.runs.loadInitiative(runId, workspace.workspacePath);
     assertMcpDirectExecutionSafe({
       workspacePath: workspace.workspacePath,
       repoPath: initiative.repoPath || workspace.workspacePath,
@@ -291,7 +291,7 @@ async function runStepToolUnlocked(
   if (typeof args.attemptId === "string") {
     input.attemptId = args.attemptId;
   }
-  const preview = runtimeExecution.previews
+  const preview = mcpServices.runtime.execution.previews
     .build({ cwd: workspacePath, runId })
     .steps.find((step) => step.stepId === stepId);
 
@@ -299,7 +299,7 @@ async function runStepToolUnlocked(
     options.onProgress?.(
       progressLine({
         phase: "routing",
-        status: "selected",
+        status: McpToolProgressStatuses.Selected,
         stepId,
         model: preview.selectedModelId,
         providerModel: preview.selectedProviderModel,
@@ -316,7 +316,7 @@ async function runStepToolUnlocked(
   options.onProgress?.(
     progressLine({
       phase: "step",
-      status: "started",
+      status: McpToolProgressStatuses.Started,
       stepId,
       stepIndex: progressContext.stepIndex,
       stepCount: progressContext.stepCount,
@@ -335,7 +335,7 @@ async function runStepToolUnlocked(
   let result: ExecutePlannedStepResult;
 
   try {
-    result = await runtimeExecution.plannedSteps.execute(input);
+    result = await mcpServices.runtime.execution.plannedSteps.execute(input);
   } catch (error) {
     options.onProgress?.(
       progressLine({
@@ -395,7 +395,7 @@ export async function runStepTool(
   }
   const workspace = workspaceArgs(args, cwd, false);
 
-  return withRunLock(
+  return mcpServices.core.locks.withLock(
     {
       cwd: workspace.workspacePath,
       runId,
@@ -466,7 +466,7 @@ export async function runTool(
     throw new Error(`kiwi_run maxConcurrency must be a positive integer; received ${maxConcurrency}`);
   }
 
-  return withRunLock(
+  return mcpServices.core.locks.withLock(
     {
       cwd: workspace.workspacePath,
       runId,
@@ -487,9 +487,9 @@ export async function runTool(
           runId,
         });
       }
-      const taskGraph = loadTaskGraph(runId, workspace.workspacePath);
+      const taskGraph = mcpServices.core.runs.loadTaskGraph(runId, workspace.workspacePath);
       const steps: RunStepToolResult[] = [];
-      callOptions.onProgress?.(progressLine({ phase: "run", status: "started", runId }), 0);
+      callOptions.onProgress?.(progressLine({ phase: "run", status: McpToolProgressStatuses.Started, runId }), 0);
 
       if (taskGraph.subPlans && taskGraph.subPlans.length > 1) {
         await runScheduledSubPlans<{ command?: string }>({
@@ -541,7 +541,7 @@ export async function runTool(
               { stepIndex: index + 1, stepCount: selectedSteps.length },
             ),
           );
-          const status = getRunStatusSummary(workspace.workspacePath, runId).latest[0]?.currentStatus;
+          const status = mcpServices.core.runStatus.summary(workspace.workspacePath, runId).latest[0]?.currentStatus;
 
           if (status === ContractValues.Failed || status === "needs_approval") {
             break;
@@ -549,7 +549,7 @@ export async function runTool(
         }
       }
 
-      const run = getRunStatusSummary(workspace.workspacePath, runId).latest[0];
+      const run = mcpServices.core.runStatus.summary(workspace.workspacePath, runId).latest[0];
       callOptions.onProgress?.(progressLine({ phase: "run", status: run?.currentStatus ?? "missing", runId }), 100);
 
       return withOperatorCard(

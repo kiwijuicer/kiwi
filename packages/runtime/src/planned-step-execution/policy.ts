@@ -5,15 +5,17 @@ export class ExecutionPolicyResolver {
   readonly directExecutionMode = ExecutionIsolations.Direct;
   readonly worktreeExecutionMode = ExecutionIsolations.Worktree;
 
+  constructor(private readonly env: Record<string, string | undefined> = process.env) {}
+
   useProviderResearch(): boolean {
-    return process.env.KIWI_RESEARCHER_MODE === "provider";
+    return this.env.KIWI_RESEARCHER_MODE === "provider";
   }
 
   executionMode(policy: KiwiPolicy): ExecutionMode {
-    if (process.env.KIWI_EXECUTION_ISOLATION === ExecutionIsolations.Worktree) {
+    if (this.env.KIWI_EXECUTION_ISOLATION === ExecutionIsolations.Worktree) {
       return ExecutionIsolations.Worktree;
     }
-    if (process.env.KIWI_EXECUTION_ISOLATION === ExecutionIsolations.Direct) {
+    if (this.env.KIWI_EXECUTION_ISOLATION === ExecutionIsolations.Direct) {
       return ExecutionIsolations.Direct;
     }
 

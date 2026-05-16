@@ -1,13 +1,24 @@
-import { ContractValues, CommandProfile, GateType, KiwiPolicy, StepType } from "@kiwi/contracts";
+import {
+  ApprovalStates,
+  ContractValues,
+  CommandProfile,
+  GateType,
+  GateTypes,
+  KiwiPolicy,
+  NetworkPolicies,
+  StepType,
+  type ApprovalState,
+  type NetworkPolicy,
+} from "@kiwi/contracts";
 
 export interface CommandExecutionPolicy {
   allowedCommands: string[];
-  approvalState: "auto" | "required" | "blocked";
+  approvalState: ApprovalState;
   approvalRequiredPaths: string[];
   deniedPaths: string[];
   envAllowlist: string[];
   secretValues: string[];
-  networkPolicy: "disabled" | "enabled";
+  networkPolicy: NetworkPolicy;
   timeoutMs: number;
   maxOutputBytes: number;
 }
@@ -31,12 +42,12 @@ export function splitCommandLine(command: string): string[] {
 function defaultProfile(): CommandProfile {
   return {
     allowedCommands: ["node", "pnpm"],
-    approvalState: "auto",
+    approvalState: ApprovalStates.Auto,
     approvalRequiredPaths: [],
     deniedPaths: [".env*", "secrets/**"],
     envAllowlist: ["PATH", "CI"],
     secretEnvNames: [],
-    networkPolicy: "disabled",
+    networkPolicy: NetworkPolicies.Disabled,
     timeoutMs: 120_000,
     maxOutputBytes: 65_536,
   };
@@ -78,9 +89,9 @@ export function commandForGate(policy: KiwiPolicy, gateType: GateType): string[]
       return splitCommandLine(policy.commands.lint);
     case ContractValues.Tests:
       return splitCommandLine(policy.commands.test);
-    case "forbidden_file_checks":
-    case "secrets_check":
-    case "structured_review_json":
+    case GateTypes.ForbiddenFileChecks:
+    case GateTypes.SecretsCheck:
+    case GateTypes.StructuredReviewJson:
       return null;
     default:
       return null;
@@ -89,4 +100,29 @@ export function commandForGate(policy: KiwiPolicy, gateType: GateType): string[]
 
 export function noopCommand(): string[] {
   return ["node", "-e", "console.log('kiwi step attempt recorded')"];
+}
+
+export class OperatorPolicyService {
+  splitCommandLine(command: string): string[] {
+    return splitCommandLine(command);
+  }
+
+  commandProfileForStep(policy: KiwiPolicy, stepType: StepType): CommandProfile {
+    return commandProfileForStep(policy, stepType);
+  }
+
+  commandProfileToExecutionPolicy(
+    profile: CommandProfile,
+    env: Record<string, string | undefined> = process.env,
+  ): CommandExecutionPolicy {
+    return commandProfileToExecutionPolicy(profile, env);
+  }
+
+  commandForGate(policy: KiwiPolicy, gateType: GateType): string[] | null {
+    return commandForGate(policy, gateType);
+  }
+
+  noopCommand(): string[] {
+    return noopCommand();
+  }
 }

@@ -1,9 +1,4 @@
-export type McpRiskLabel =
-  | "READ_ONLY"
-  | "WRITES_RUN_ARTIFACTS"
-  | "MUTATES_WORKTREE"
-  | "APPLIES_PATCH"
-  | "PUSHES_BRANCH";
+import type { McpMutationScope as McpRiskLabel } from "./constants";
 
 export interface RecommendedToolCall {
   name: string;

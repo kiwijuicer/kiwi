@@ -12,6 +12,7 @@ import {
 } from "fs";
 import path from "path";
 import { appendAuditEvent, resolveRunArtifactPath } from "./common";
+import { WorktreeIsolationKinds, type WorktreeIsolationKind } from "./constants";
 
 export interface WorktreeSandbox {
   runId: string;
@@ -121,7 +122,7 @@ export interface CreateWorktreeSandboxOptions {
 }
 
 export interface WorktreeSandboxResult extends WorktreeSandbox {
-  isolation: "git-worktree" | "copy-folder";
+  isolation: WorktreeIsolationKind;
   sourcePath: string;
 }
 
@@ -147,7 +148,7 @@ export function createWorktreeSandbox(params: CreateWorktreeSandboxOptions): Wor
         payload: {
           attemptId: params.attemptId,
           worktreePath,
-          isolation: "git-worktree",
+          isolation: WorktreeIsolationKinds.GitWorktree,
           sourcePath,
         },
       });
@@ -156,7 +157,7 @@ export function createWorktreeSandbox(params: CreateWorktreeSandboxOptions): Wor
         runId: params.runId,
         attemptId: params.attemptId,
         worktreePath,
-        isolation: "git-worktree",
+        isolation: WorktreeIsolationKinds.GitWorktree,
         sourcePath,
       };
     }
@@ -175,7 +176,7 @@ export function createWorktreeSandbox(params: CreateWorktreeSandboxOptions): Wor
     payload: {
       attemptId: params.attemptId,
       worktreePath,
-      isolation: "copy-folder",
+      isolation: WorktreeIsolationKinds.CopyFolder,
       sourcePath,
     },
   });
@@ -184,7 +185,7 @@ export function createWorktreeSandbox(params: CreateWorktreeSandboxOptions): Wor
     runId: params.runId,
     attemptId: params.attemptId,
     worktreePath,
-    isolation: "copy-folder",
+    isolation: WorktreeIsolationKinds.CopyFolder,
     sourcePath,
   };
 }
@@ -194,12 +195,12 @@ export function teardownWorktreeSandbox(params: {
   runId: string;
   attemptId: string;
   sourcePath: string;
-  isolation: "git-worktree" | "copy-folder";
+  isolation: WorktreeIsolationKind;
   worktreePath: string;
 }): { removed: boolean } {
   let removed = false;
 
-  if (params.isolation === "git-worktree" && isGitRepository(params.sourcePath)) {
+  if (params.isolation === WorktreeIsolationKinds.GitWorktree && isGitRepository(params.sourcePath)) {
     removed = tryGitWorktreeRemove(params.sourcePath, params.worktreePath);
   }
   if (existsSync(params.worktreePath)) {

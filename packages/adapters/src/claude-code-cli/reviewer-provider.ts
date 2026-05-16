@@ -6,6 +6,7 @@ import {
   formatCliFailure,
   normalizeUsageFromCli,
 } from "./client";
+import type { ProviderAttemptType } from "../constants";
 import { ContractValues, KiwiPolicy } from "@kiwi/contracts";
 import { extractTextJson } from "../anthropic-common";
 import { redactForProvider, RedactionSummary } from "../provider-redaction";
@@ -154,7 +155,7 @@ Return only a JSON ReviewVerdict; no commentary or extra top-level keys.`;
 
   private async invoke(params: {
     input: ReviewerProviderInput;
-    attemptType: "initial" | "repair";
+    attemptType: ProviderAttemptType;
     envelope: string;
     context?: ReviewerProviderRepairContext;
   }): Promise<ReviewerProviderOutput> {

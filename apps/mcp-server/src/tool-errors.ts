@@ -1,7 +1,8 @@
+import type { McpToolErrorCategory } from "./constants";
 import type { McpRecovery } from "./ux";
 
 interface ToolActionRequiredErrorData {
-  category: "action_required" | "blocked" | "stale_preview";
+  category: McpToolErrorCategory;
   recovery: McpRecovery;
 }
 

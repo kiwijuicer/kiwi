@@ -1,6 +1,17 @@
-import { AccessMode, Artifact, GateResult, RunnerName, Step, UsagePrecision } from "@kiwi/contracts";
+import type {
+  AccessMode,
+  Artifact,
+  CodexSandbox,
+  ExecutionIsolation,
+  GateResult,
+  NextActionType,
+  RunnerExecutionStatus,
+  RunnerName,
+  Step,
+  UsagePrecision,
+} from "@kiwi/contracts";
 
-export type StepRunnerExecutionStatus = "completed" | "failed" | "blocked" | "approval_required" | "timeout";
+export type StepRunnerExecutionStatus = RunnerExecutionStatus;
 
 export interface StepRunnerExecutionTimeouts {
   commandTimeoutMs: number;
@@ -23,8 +34,8 @@ export interface StepRunnerExecutionInput<TCommandPolicy = unknown> {
   workspacePath: string;
   repoPath?: string;
   worktreePath: string;
-  executionMode?: "direct" | "worktree";
-  codexSandbox?: "read-only" | "workspace-write" | "danger-full-access";
+  executionMode?: ExecutionIsolation;
+  codexSandbox?: CodexSandbox;
   diffBaseTree?: string | null;
   stepPrompt: string;
   contextPackage: unknown;
@@ -57,7 +68,7 @@ export interface StepAttemptRunner<TCommandPolicy = unknown> {
 }
 
 export interface StepAttemptNextAction {
-  type: "continue" | "fix_step" | "replan";
+  type: NextActionType;
   reason: string;
   recommendedNextSteps: string[];
   issueCodes: string[];
@@ -71,8 +82,8 @@ export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
   selectedModelId?: string | null;
   runner: StepAttemptRunner<TCommandPolicy>;
   worktreePath: string;
-  executionMode?: "direct" | "worktree";
-  codexSandbox?: "read-only" | "workspace-write" | "danger-full-access";
+  executionMode?: ExecutionIsolation;
+  codexSandbox?: CodexSandbox;
   diffBaseTree?: string | null;
   stepPrompt: string;
   allowedTools?: string[];

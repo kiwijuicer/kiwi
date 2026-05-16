@@ -1,4 +1,5 @@
 import { extractTextJson } from "../anthropic-common";
+import type { ProviderAttemptType } from "../constants";
 import {
   ClaudeCodeCliInvocation,
   ClaudeCodeCliRunner,
@@ -79,7 +80,7 @@ function previousAttempts(context?: PlannerProviderRepairContext): unknown[] {
 }
 
 interface RedactedInvocationArtifact {
-  attemptType: "initial" | "repair";
+  attemptType: ProviderAttemptType;
   promptVersion: string;
   model: string;
   binary: string;
@@ -144,7 +145,7 @@ export class ClaudeCodeCliPlannerProvider implements PlannerProvider {
 
   private async invoke(params: {
     input: PlannerProviderInput;
-    attemptType: "initial" | "repair";
+    attemptType: ProviderAttemptType;
     userEnvelope: string;
     context?: PlannerProviderRepairContext;
   }): Promise<PlannerProviderOutput> {

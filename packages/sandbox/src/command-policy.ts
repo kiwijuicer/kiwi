@@ -1,9 +1,10 @@
 import path from "path";
 import { ApprovalStates, ContractValues, NetworkPolicies, RunnerExecutionStatuses } from "@kiwi/contracts";
 import type { SandboxCommandInput } from "./command-types";
+import { SandboxPolicyDecisionStatuses } from "./constants";
 
 export type PolicyDecision =
-  | { status: "allow"; reason: string }
+  | { status: typeof SandboxPolicyDecisionStatuses.Allow; reason: string }
   | { status: typeof ContractValues.Blocked | typeof RunnerExecutionStatuses.ApprovalRequired; reason: string };
 
 const NETWORK_COMMANDS = new Set(["curl", "wget", "ssh", "scp", "git", "npm", "pnpm", "yarn"]);
@@ -188,5 +189,5 @@ export function evaluatePolicy(input: SandboxCommandInput): PolicyDecision {
     }
   }
 
-  return { status: "allow", reason: "allowed" };
+  return { status: SandboxPolicyDecisionStatuses.Allow, reason: "allowed" };
 }

@@ -1,8 +1,10 @@
 import { ExecutionIsolations } from "@kiwi/contracts";
-import { createGitTreeSnapshot, createWorktreeSandbox, teardownWorktreeSandbox } from "@kiwi/sandbox";
+import type { SandboxServices } from "@kiwi/sandbox";
 import type { ExecutionMode, ExecutionTarget } from "./types";
 
 export class ExecutionTargetResolver {
+  constructor(private readonly sandbox: SandboxServices) {}
+
   create(params: {
     cwd: string;
     runId: string;
@@ -11,7 +13,7 @@ export class ExecutionTargetResolver {
     mode: ExecutionMode;
   }): ExecutionTarget {
     if (params.mode === ExecutionIsolations.Worktree) {
-      const sandbox = createWorktreeSandbox({
+      const sandbox = this.sandbox.worktrees.create({
         cwd: params.cwd,
         runId: params.runId,
         attemptId: params.attemptId,
@@ -36,7 +38,7 @@ export class ExecutionTargetResolver {
       worktreePath: params.repoPath,
       sourcePath: params.repoPath,
       isolation: ExecutionIsolations.Direct,
-      diffBaseTree: createGitTreeSnapshot(params.repoPath),
+      diffBaseTree: this.sandbox.diffs.createGitTreeSnapshot(params.repoPath),
     };
   }
 
@@ -44,7 +46,7 @@ export class ExecutionTargetResolver {
     if (params.target.isolation === ExecutionIsolations.Direct) {
       return;
     }
-    teardownWorktreeSandbox({
+    this.sandbox.worktrees.teardown({
       cwd: params.cwd,
       runId: params.target.runId,
       attemptId: params.target.attemptId,

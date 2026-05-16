@@ -5,3 +5,9 @@ export type { RunnerResolution, RunnerResolutionOptions } from "./runner-registr
 export function resolveRunner(options: RunnerResolutionOptions): RunnerResolution {
   return new RunnerRegistry().resolve(options);
 }
+
+export class RunnerResolver {
+  resolve(options: RunnerResolutionOptions): RunnerResolution {
+    return resolveRunner(options);
+  }
+}

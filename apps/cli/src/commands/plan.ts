@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
-import { AccessModes, ContractValues } from "@kiwi/contracts";
+import { AccessModes, ContractValues, type BudgetProfile, type RiskProfile } from "@kiwi/contracts";
 import {
   buildRunCostForecast,
   kiwiModelRegistryPath,
@@ -15,12 +15,13 @@ import {
   planRun,
 } from "@kiwi/core";
 import { resolvePlannerProvider } from "@kiwi/runtime";
+import { CliProgressStatuses, type CliProgressStatus, TicketInputSources, type TicketInputSource } from "../constants";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
 interface PlanOptions extends CliWorkspaceOptions {
   dryRun?: boolean;
-  riskProfile?: "local" | "dev" | "staging" | "production";
-  budgetProfile?: "tiny" | "small" | "normal" | "large" | "critical";
+  riskProfile?: RiskProfile;
+  budgetProfile?: BudgetProfile;
   now?: Date;
   runId?: string;
   runIdSuffix?: string;
@@ -38,7 +39,7 @@ interface PlanProgressOptions {
 }
 
 type ProgressValue = string | number | boolean | null | undefined;
-type PlanProgressStatus = "started" | typeof ContractValues.Completed | typeof ContractValues.Failed;
+type PlanProgressStatus = CliProgressStatus | typeof ContractValues.Completed | typeof ContractValues.Failed;
 
 interface PlanProgressReporter {
   line(line: string): void;
@@ -130,13 +131,13 @@ function looksLikeTicketPath(ticketArg: string): boolean {
   );
 }
 
-function resolveTicketInput(ticketArg: string, cwd: string): { rawInput: string; source: "file" | "cli" } {
+function resolveTicketInput(ticketArg: string, cwd: string): { rawInput: string; source: TicketInputSource } {
   const ticketPath = path.isAbsolute(ticketArg) ? ticketArg : path.join(cwd, ticketArg);
 
   if (existsSync(ticketPath)) {
     return {
       rawInput: readFileSync(ticketPath, "utf-8"),
-      source: "file",
+      source: TicketInputSources.File,
     };
   }
 
@@ -146,7 +147,7 @@ function resolveTicketInput(ticketArg: string, cwd: string): { rawInput: string;
 
   return {
     rawInput: ticketArg,
-    source: "cli",
+    source: TicketInputSources.Cli,
   };
 }
 
@@ -186,7 +187,7 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
   );
   progress.line(chalk.dim(`runId: ${runId}`));
   progress.line("generating TaskGraph, this can take a few minutes...");
-  progress.phase(ContractValues.Planner, "started", {
+  progress.phase(ContractValues.Planner, CliProgressStatuses.Started, {
     runId,
     model: plannerModel.id,
     provider: provider.name,

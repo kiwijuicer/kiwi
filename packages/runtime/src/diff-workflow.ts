@@ -1,6 +1,12 @@
 import { execFileSync } from "child_process";
 import { existsSync, readFileSync } from "fs";
-import { ArtifactTypes, ContractValues, ReviewVerdictValue } from "@kiwi/contracts";
+import {
+  ArtifactTypes,
+  ContractValues,
+  ExecutionIsolations,
+  type ExecutionIsolation,
+  ReviewVerdictValue,
+} from "@kiwi/contracts";
 import {
   appendAuditEvent,
   latestAttemptByStep,
@@ -11,6 +17,12 @@ import {
 } from "@kiwi/core";
 import { applyDiffArtifactToSource } from "@kiwi/sandbox";
 
+const DiffReviewVerdicts = {
+  Missing: "missing",
+} as const;
+
+type DiffReviewVerdict = ReviewVerdictValue | (typeof DiffReviewVerdicts)[keyof typeof DiffReviewVerdicts];
+
 export interface RunDiffItem {
   stepId: string;
   attemptId: string;
@@ -18,9 +30,9 @@ export interface RunDiffItem {
   patchPath: string;
   stat: string;
   patch: string;
-  reviewVerdict: ReviewVerdictValue | "missing";
+  reviewVerdict: DiffReviewVerdict;
   appliedDuringRun: boolean;
-  appliedMode: "direct" | "worktree" | null;
+  appliedMode: ExecutionIsolation | null;
 }
 
 export interface RunDiffResult {
@@ -61,8 +73,8 @@ function patchStat(patchPath: string, patch: string): string {
   }
 }
 
-function attemptApplyModes(cwd: string, runId: string): Map<string, "direct" | "worktree"> {
-  const modes = new Map<string, "direct" | "worktree">();
+function attemptApplyModes(cwd: string, runId: string): Map<string, ExecutionIsolation> {
+  const modes = new Map<string, ExecutionIsolation>();
 
   for (const event of readAuditEvents(cwd, runId)) {
     if (event.eventType !== "attempt_diff_applied") {
@@ -73,7 +85,10 @@ function attemptApplyModes(cwd: string, runId: string): Map<string, "direct" | "
     if (!attemptId) {
       continue;
     }
-    modes.set(attemptId, event.payload.mode === "direct" ? "direct" : "worktree");
+    modes.set(
+      attemptId,
+      event.payload.mode === ExecutionIsolations.Direct ? ExecutionIsolations.Direct : ExecutionIsolations.Worktree,
+    );
   }
 
   return modes;
@@ -130,7 +145,7 @@ export function buildRunDiff(params: {
         patchPath,
         stat: patchStat(patchPath, patch),
         patch,
-        reviewVerdict: attempt.reviewVerdict?.verdict ?? "missing",
+        reviewVerdict: attempt.reviewVerdict?.verdict ?? DiffReviewVerdicts.Missing,
         appliedDuringRun: appliedMode !== null,
         appliedMode,
       },
@@ -162,7 +177,7 @@ export function formatRunDiff(result: RunDiffResult): string {
     .join("\n\n");
 }
 
-function blockedVerdict(verdict: ReviewVerdictValue | "missing"): boolean {
+function blockedVerdict(verdict: DiffReviewVerdict): boolean {
   return verdict === ContractValues.NeedsChanges || verdict === ContractValues.Reject;
 }
 
@@ -183,7 +198,7 @@ export function applyRunDiff(params: {
     return { runId: params.runId, applied: [], skipped: [], message: "no diff artifacts found" };
   }
 
-  if (diff.items.every((item) => item.appliedMode === "direct")) {
+  if (diff.items.every((item) => item.appliedMode === ExecutionIsolations.Direct)) {
     return {
       runId: params.runId,
       applied: [],
@@ -209,10 +224,10 @@ export function applyRunDiff(params: {
   const skipped: ApplyRunDiffResult["skipped"] = [];
 
   for (const item of diff.items) {
-    if (item.appliedMode === "worktree") {
+    if (item.appliedMode === ExecutionIsolations.Worktree) {
       throw new Error(`Patch already applied for ${item.stepId}/${item.attemptId}.`);
     }
-    if (item.appliedMode === "direct") {
+    if (item.appliedMode === ExecutionIsolations.Direct) {
       skipped.push({ stepId: item.stepId, attemptId: item.attemptId, reason: "already applied during run" });
       continue;
     }
@@ -252,7 +267,7 @@ export function applyRunDiff(params: {
         attemptId: item.attemptId,
         diffRef: item.diffRef,
         targetPath: repoPath,
-        mode: "worktree",
+        mode: ExecutionIsolations.Worktree,
       },
     });
     applied.push({

@@ -1,4 +1,6 @@
 import { extractTextJson } from "../anthropic-common";
+import type { UsagePrecision } from "@kiwi/contracts";
+import type { CliOutputFormat } from "../constants";
 import { runSubprocess, SubprocessOutputChunk } from "../subprocess";
 
 export interface ClaudeCodeCliInvocation {
@@ -7,7 +9,7 @@ export interface ClaudeCodeCliInvocation {
   model?: string;
   prompt: string;
   systemPrompt?: string;
-  outputFormat?: "json" | "text";
+  outputFormat?: CliOutputFormat;
   allowedTools?: string[];
   appendSystemPrompt?: string;
   timeoutMs: number;
@@ -105,7 +107,7 @@ function isClaudeCodeJsonEnvelope(value: unknown): value is ClaudeCodeJsonEnvelo
 }
 
 export interface NormalizedClaudeCodeUsage {
-  precision: "exact" | "estimated" | "unknown";
+  precision: UsagePrecision;
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;

@@ -1,9 +1,4 @@
-import {
-  latestAttemptByStep,
-  listStepAttemptEvidence,
-  loadLatestApprovalDecisionForStep,
-  refreshRunStatusFromAttempts,
-} from "@kiwi/core";
+import type { CoreServices } from "@kiwi/core";
 import { ExecutionIsolations, StepAttemptStatuses } from "@kiwi/contracts";
 import { assertDirectExecutionSafe } from "../direct-execution-safety";
 import { ExecutionContextLoader } from "./context";
@@ -19,6 +14,7 @@ export class PlannedStepExecutionService {
   constructor(
     private readonly contextLoader: ExecutionContextLoader,
     private readonly policyResolver: ExecutionPolicyResolver,
+    private readonly core: CoreServices,
     private readonly runnerSelector: StepRunnerSelector,
     private readonly schedulerDecisionService: SchedulerDecisionService,
     private readonly targetResolver: ExecutionTargetResolver,
@@ -45,7 +41,7 @@ export class PlannedStepExecutionService {
     );
 
     const attempt = await this.executeWithTargetCleanup(session);
-    const run = refreshRunStatusFromAttempts({ cwd: session.cwd, runId: session.runId, now: new Date() });
+    const run = this.core.runStatus.refreshFromAttempts({ cwd: session.cwd, runId: session.runId, now: new Date() });
 
     return {
       runId: session.runId,
@@ -62,18 +58,20 @@ export class PlannedStepExecutionService {
   private createSession(input: ExecutePlannedStepInput): StepExecutionSession {
     const context = this.contextLoader.load(input);
     const step = context.step(input.stepId);
-    context.assertStepReady(step);
+    this.contextLoader.assertStepReady(context, step);
 
     return new StepExecutionSession(input, context, step);
   }
 
   private resolveApprovalContext(session: StepExecutionSession): ApprovalContext {
-    const approval = loadLatestApprovalDecisionForStep({
+    const approval = this.core.approvals.loadLatestForStep({
       cwd: session.cwd,
       runId: session.runId,
       stepId: session.stepId,
     });
-    const latestAttempt = latestAttemptByStep(listStepAttemptEvidence(session.cwd, session.runId)).get(session.stepId);
+    const latestAttempt = this.core.evidence
+      .latestAttemptByStep(this.core.evidence.listStepAttempts(session.cwd, session.runId))
+      .get(session.stepId);
     const approved = session.input.approved ?? false;
 
     if (

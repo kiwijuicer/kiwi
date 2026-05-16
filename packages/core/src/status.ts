@@ -1,9 +1,17 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
-import { ContractValues, FinalVerdictSchema, RunStatus, Step, StepType } from "@kiwi/contracts";
+import { ContractValues, FinalVerdictSchema, GateStatus, RunStatus, Step, StepType } from "@kiwi/contracts";
 import { RunCorruptError, RunNotFoundError } from "./errors";
 import { listRunIds, loadInitiative, loadRunManifest, loadTaskGraph, resolveRunArtifactPath } from "./run-store";
 import { latestAttemptByStep, listStepAttemptEvidence, StepAttemptEvidence } from "./lifecycle";
+
+const RunStatusSentinels = {
+  Missing: "missing",
+} as const;
+
+type MissingStatus = (typeof RunStatusSentinels)[keyof typeof RunStatusSentinels];
+type GateStatusSummary = GateStatus | MissingStatus;
+type TextStatusSummary = string | MissingStatus;
 
 export interface RunArtifactPaths {
   runManifest: string;
@@ -22,9 +30,9 @@ export interface RunAttemptStatusEntry {
   attemptId: string;
   status: string;
   runner: string;
-  gateStatus: "pass" | "fail" | "blocked" | "missing";
-  reviewVerdict: string | "missing";
-  nextAction: string | "missing";
+  gateStatus: GateStatusSummary;
+  reviewVerdict: TextStatusSummary;
+  nextAction: TextStatusSummary;
   artifacts: string[];
 }
 
@@ -47,9 +55,9 @@ export interface RunStepStatusEntry {
   runner?: string;
   startedAt?: string;
   completedAt?: string | null;
-  gateStatus?: "pass" | "fail" | "blocked" | "missing";
-  reviewVerdict?: string | "missing";
-  nextAction?: string | "missing";
+  gateStatus?: GateStatusSummary;
+  reviewVerdict?: TextStatusSummary;
+  nextAction?: TextStatusSummary;
 }
 
 export interface RunCompletedStepEntry {
@@ -161,7 +169,7 @@ function finalRunStatusFor(runId: string, cwd: string): RunStatus | null {
   }
 }
 
-function gateStatusFor(entry: StepAttemptEvidence): "pass" | "fail" | "blocked" | "missing" {
+function gateStatusFor(entry: StepAttemptEvidence): GateStatusSummary {
   const blocked = entry.gateResults.some((gate) => gate.status === ContractValues.Blocked);
   const failed = entry.gateResults.some((gate) => gate.status === ContractValues.Fail);
 
@@ -172,7 +180,7 @@ function gateStatusFor(entry: StepAttemptEvidence): "pass" | "fail" | "blocked" 
     return ContractValues.Fail;
   }
 
-  return entry.gateResults.length > 0 ? ContractValues.Pass : "missing";
+  return entry.gateResults.length > 0 ? ContractValues.Pass : RunStatusSentinels.Missing;
 }
 
 function attemptStatusEntries(attempts: StepAttemptEvidence[]): RunAttemptStatusEntry[] {
@@ -183,8 +191,8 @@ function attemptStatusEntries(attempts: StepAttemptEvidence[]): RunAttemptStatus
       status: entry.attempt.status,
       runner: entry.attempt.runner,
       gateStatus: gateStatusFor(entry),
-      reviewVerdict: entry.reviewVerdict?.verdict ?? "missing",
-      nextAction: entry.summary?.nextAction.type ?? "missing",
+      reviewVerdict: entry.reviewVerdict?.verdict ?? RunStatusSentinels.Missing,
+      nextAction: entry.summary?.nextAction.type ?? RunStatusSentinels.Missing,
       artifacts: entry.attempt.artifacts.map((artifact) => artifact.ref),
     };
   });
@@ -306,8 +314,8 @@ function latestStepEntries(params: {
       entry.startedAt = latest.attempt.startedAt;
       entry.completedAt = latest.attempt.completedAt;
       entry.gateStatus = gateStatusFor(latest);
-      entry.reviewVerdict = latest.reviewVerdict?.verdict ?? "missing";
-      entry.nextAction = latest.summary?.nextAction.type ?? "missing";
+      entry.reviewVerdict = latest.reviewVerdict?.verdict ?? RunStatusSentinels.Missing;
+      entry.nextAction = latest.summary?.nextAction.type ?? RunStatusSentinels.Missing;
     }
 
     if (entry.status === ContractValues.Completed && latest) {

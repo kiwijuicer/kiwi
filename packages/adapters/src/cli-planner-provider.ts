@@ -1,4 +1,5 @@
 import { AccessMode } from "@kiwi/contracts";
+import type { ProviderAttemptType } from "./constants";
 import { extractTextJson, isRecord } from "./anthropic-common";
 import {
   PlannerProviderArtifacts,
@@ -47,7 +48,7 @@ interface CliPlannerInvokeParams {
   binary: string;
   model: string | undefined;
   input: PlannerProviderInput;
-  attemptType: "initial" | "repair";
+  attemptType: ProviderAttemptType;
   context?: PlannerProviderRepairContext;
   env: Record<string, string | undefined>;
   timeoutMs: number;
@@ -56,7 +57,7 @@ interface CliPlannerInvokeParams {
 }
 
 interface RedactedInvocationArtifact {
-  attemptType: "initial" | "repair";
+  attemptType: ProviderAttemptType;
   promptVersion: string;
   model: string;
   binary: string;
@@ -172,7 +173,7 @@ export function formatExternalCliFailure(
 
 function buildPrompt(params: {
   input: PlannerProviderInput;
-  attemptType: "initial" | "repair";
+  attemptType: ProviderAttemptType;
   context?: PlannerProviderRepairContext;
   env: Record<string, string | undefined>;
 }): {

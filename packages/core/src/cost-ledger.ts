@@ -4,54 +4,57 @@ import { BudgetProfile } from "@kiwi/contracts";
 import { ensureRunLayout, resolveRunArtifactPath } from "./run-store";
 import { appendJsonLine, writeJsonSafely } from "./storage/json-io";
 
-export type AuditEventType =
-  | "planner_provider_selected"
-  | "planner_retry"
-  | "planner_validation_failed"
-  | "planner_succeeded"
-  | "planner_failed"
-  | "prompt_version_used"
-  | "reviewer_provider_selected"
-  | "reviewer_retry"
-  | "reviewer_validation_failed"
-  | "reviewer_succeeded"
-  | "reviewer_failed"
-  | "scheduler_routing_decided"
-  | "scheduler_blocked"
-  | "provider_preference_applied"
-  | "executor_model_selected"
-  | "context_package_created"
-  | "step_attempt_started"
-  | "step_attempt_failed"
-  | "runner_attempt_completed"
-  | "runner_attempt_failed"
-  | "step_attempt_reviewed"
-  | "step_attempt_next_action"
-  | "approval_decision_recorded"
-  | "run_finalized"
-  | "run_status_updated"
-  | "run_lock_acquired"
-  | "run_lock_released"
-  | "run_lock_busy"
-  | "model_invocation_recorded"
-  | "run_audit_snapshot_written"
-  | "evidence_manifest_written"
-  | "operator_snapshot_written"
-  | "pr_draft_published"
-  | "mcp_preview_created"
-  | "mcp_preview_consumed"
-  | "gate_command_executed"
-  | "gate_command_blocked"
-  | "diff_path_blocked"
-  | "attempt_diff_applied"
-  | "attempt_diff_apply_failed"
-  | "worktree_created"
-  | "worktree_removed"
-  | "worktree_remove_failed"
-  | "worktree_orphan_reaped"
-  | "replan_succeeded"
-  | "replan_failed"
-  | "fix_step_injected";
+export const AuditEventTypes = {
+  PlannerProviderSelected: "planner_provider_selected",
+  PlannerRetry: "planner_retry",
+  PlannerValidationFailed: "planner_validation_failed",
+  PlannerSucceeded: "planner_succeeded",
+  PlannerFailed: "planner_failed",
+  PromptVersionUsed: "prompt_version_used",
+  ReviewerProviderSelected: "reviewer_provider_selected",
+  ReviewerRetry: "reviewer_retry",
+  ReviewerValidationFailed: "reviewer_validation_failed",
+  ReviewerSucceeded: "reviewer_succeeded",
+  ReviewerFailed: "reviewer_failed",
+  SchedulerRoutingDecided: "scheduler_routing_decided",
+  SchedulerBlocked: "scheduler_blocked",
+  ProviderPreferenceApplied: "provider_preference_applied",
+  ExecutorModelSelected: "executor_model_selected",
+  ContextPackageCreated: "context_package_created",
+  StepAttemptStarted: "step_attempt_started",
+  StepAttemptFailed: "step_attempt_failed",
+  RunnerAttemptCompleted: "runner_attempt_completed",
+  RunnerAttemptFailed: "runner_attempt_failed",
+  StepAttemptReviewed: "step_attempt_reviewed",
+  StepAttemptNextAction: "step_attempt_next_action",
+  ApprovalDecisionRecorded: "approval_decision_recorded",
+  RunFinalized: "run_finalized",
+  RunStatusUpdated: "run_status_updated",
+  RunLockAcquired: "run_lock_acquired",
+  RunLockReleased: "run_lock_released",
+  RunLockBusy: "run_lock_busy",
+  ModelInvocationRecorded: "model_invocation_recorded",
+  RunAuditSnapshotWritten: "run_audit_snapshot_written",
+  EvidenceManifestWritten: "evidence_manifest_written",
+  OperatorSnapshotWritten: "operator_snapshot_written",
+  PrDraftPublished: "pr_draft_published",
+  McpPreviewCreated: "mcp_preview_created",
+  McpPreviewConsumed: "mcp_preview_consumed",
+  GateCommandExecuted: "gate_command_executed",
+  GateCommandBlocked: "gate_command_blocked",
+  DiffPathBlocked: "diff_path_blocked",
+  AttemptDiffApplied: "attempt_diff_applied",
+  AttemptDiffApplyFailed: "attempt_diff_apply_failed",
+  WorktreeCreated: "worktree_created",
+  WorktreeRemoved: "worktree_removed",
+  WorktreeRemoveFailed: "worktree_remove_failed",
+  WorktreeOrphanReaped: "worktree_orphan_reaped",
+  ReplanSucceeded: "replan_succeeded",
+  ReplanFailed: "replan_failed",
+  FixStepInjected: "fix_step_injected",
+} as const;
+
+export type AuditEventType = (typeof AuditEventTypes)[keyof typeof AuditEventTypes];
 
 export interface AuditEvent {
   eventType: AuditEventType;

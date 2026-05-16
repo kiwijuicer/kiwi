@@ -1,6 +1,6 @@
-import { refreshRunStatusFromAttempts } from "@kiwi/core";
+import type { CoreServices } from "@kiwi/core";
 import type { SandboxCommandPolicy } from "@kiwi/sandbox";
-import { commandProfileForStep, commandProfileToExecutionPolicy, noopCommand } from "../operator-policy";
+import { OperatorPolicyService } from "../operator-policy";
 import { createReviewEngineFromRegistry } from "../provider-review-engine";
 import { runRequiredGates } from "../required-gates";
 import { StepAttemptOrchestrator } from "../step-attempt-orchestrator";
@@ -9,17 +9,36 @@ import { ExecutionPolicyResolver } from "./policy";
 import type { StepExecutionSession } from "./session";
 import { AttemptDiffStatuses, ExecutionToolNames, type RunAttemptResult } from "./types";
 
+export class ReviewEngineFactory {
+  create(
+    params: Parameters<typeof createReviewEngineFromRegistry>[0],
+  ): ReturnType<typeof createReviewEngineFromRegistry> {
+    return createReviewEngineFromRegistry(params);
+  }
+}
+
+export class RequiredGateRunner {
+  run(params: Parameters<typeof runRequiredGates>[0]): ReturnType<typeof runRequiredGates> {
+    return runRequiredGates(params);
+  }
+}
+
 export class StepAttemptExecutor {
   constructor(
     private readonly policyResolver: ExecutionPolicyResolver,
     private readonly diffMaterializer: AttemptDiffMaterializer,
+    private readonly core: CoreServices,
+    private readonly operatorPolicy: OperatorPolicyService,
+    private readonly orchestrator: StepAttemptOrchestrator<SandboxCommandPolicy>,
+    private readonly reviewEngines: ReviewEngineFactory,
+    private readonly requiredGates: RequiredGateRunner,
   ) {}
 
   async execute(session: StepExecutionSession): Promise<RunAttemptResult> {
-    const commandPolicy = commandProfileToExecutionPolicy(
-      commandProfileForStep(session.context.policy, session.step.type),
+    const commandPolicy = this.operatorPolicy.commandProfileToExecutionPolicy(
+      this.operatorPolicy.commandProfileForStep(session.context.policy, session.step.type),
     ) as SandboxCommandPolicy;
-    const reviewEngine = createReviewEngineFromRegistry({
+    const reviewEngine = this.reviewEngines.create({
       cwd: session.cwd,
       policy: session.context.policy,
       registryModels: session.context.registry.models,
@@ -37,12 +56,12 @@ export class StepAttemptExecutor {
       diffBaseTree: session.target.diffBaseTree,
       stepPrompt: session.step.title,
       allowedTools: [ExecutionToolNames.Shell],
-      command: session.input.command ?? noopCommand(),
+      command: session.input.command ?? this.operatorPolicy.noopCommand(),
       commandPolicy,
       approved: session.approval.approved,
       ...(session.approval.approvedFiles ? { approvedFiles: session.approval.approvedFiles } : {}),
       postRunnerGateExecutor: (gateInput) =>
-        runRequiredGates({
+        this.requiredGates.run({
           cwd: session.cwd,
           runId: session.runId,
           stepId: session.stepId,
@@ -63,7 +82,7 @@ export class StepAttemptExecutor {
     }
 
     try {
-      const result = await new StepAttemptOrchestrator<SandboxCommandPolicy>().execute(orchestratorInput);
+      const result = await this.orchestrator.execute(orchestratorInput);
       const materializedDiff = this.diffMaterializer.materialize({
         cwd: session.cwd,
         runId: session.runId,
@@ -80,7 +99,7 @@ export class StepAttemptExecutor {
 
       return { result, materializedDiff };
     } catch (error) {
-      refreshRunStatusFromAttempts({ cwd: session.cwd, runId: session.runId, now: new Date() });
+      this.core.runStatus.refreshFromAttempts({ cwd: session.cwd, runId: session.runId, now: new Date() });
       throw error;
     }
   }

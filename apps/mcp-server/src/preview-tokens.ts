@@ -11,6 +11,7 @@ import {
   resolveRunArtifactPath,
   writeJsonSafely,
 } from "@kiwi/core";
+import type { ExecutionIsolation } from "@kiwi/contracts";
 import { RunExecutionPreview } from "@kiwi/runtime";
 import { readRepoState } from "./repo-state";
 import { ToolActionRequiredError } from "./tool-errors";
@@ -38,7 +39,7 @@ interface McpPreviewTokenRecord {
   repoPath: string;
   createdAt: string;
   previewInput: McpPreviewInput;
-  executionIsolation: "direct" | "worktree";
+  executionIsolation: ExecutionIsolation;
   fingerprints: McpPreviewFingerprints;
   stateHash: string;
   previewStepIds: string[];

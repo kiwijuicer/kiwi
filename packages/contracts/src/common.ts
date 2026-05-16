@@ -336,6 +336,7 @@ export const ContractValues = {
   Fail: GateStatuses.Fail,
   Blocked: GateStatuses.Blocked,
   Pending: StepAttemptStatuses.Pending,
+  Scheduled: SchedulerDecisionStatuses.Scheduled,
   Running: RunStatuses.Running,
   Completed: RunStatuses.Completed,
   Failed: RunStatuses.Failed,
@@ -376,6 +377,8 @@ export const ContextLevelSchema = enumFrom(CONTEXT_LEVEL_VALUES);
 export const SchedulerDecisionStatusSchema = enumFrom(SCHEDULER_DECISION_STATUS_VALUES);
 export const ModelInvocationPhaseSchema = enumFrom(MODEL_INVOCATION_PHASE_VALUES);
 export const ModelInvocationStatusSchema = enumFrom(MODEL_INVOCATION_STATUS_VALUES);
+export const RunnerExecutionStatusSchema = enumFrom(RUNNER_EXECUTION_STATUS_VALUES);
+export const NextActionTypeSchema = enumFrom(NEXT_ACTION_TYPE_VALUES);
 export const UsagePrecisionSchema = enumFrom(USAGE_PRECISION_VALUES);
 export const ReviewVerdictValueSchema = enumFrom(REVIEW_VERDICT_VALUE_VALUES);
 export const ReviewIssueSeveritySchema = enumFrom(REVIEW_ISSUE_SEVERITY_VALUES);

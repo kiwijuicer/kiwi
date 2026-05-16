@@ -1,4 +1,4 @@
-import { estimateAttemptCostUsd } from "@kiwi/core";
+import type { CoreServices } from "@kiwi/core";
 import type { Step } from "@kiwi/contracts";
 import { ExecutionContextLoader } from "./context";
 import { ExecutionPolicyResolver } from "./policy";
@@ -17,6 +17,7 @@ export class RunExecutionPreviewBuilder {
   constructor(
     private readonly contextLoader: ExecutionContextLoader,
     private readonly policyResolver: ExecutionPolicyResolver,
+    private readonly core: CoreServices,
     private readonly runnerSelector: StepRunnerSelector,
     private readonly schedulerDecisionService: SchedulerDecisionService,
   ) {}
@@ -82,7 +83,7 @@ export class RunExecutionPreviewBuilder {
       selectedProviderModel: selection.selectedModel?.providerModel ?? null,
       selectedAccessMode: selection.selectedModel?.accessMode ?? null,
       executorSelectionReason: selection.reason,
-      estimatedAttemptCostUsd: estimateAttemptCostUsd({
+      estimatedAttemptCostUsd: this.core.budgets.estimateAttemptCostUsd({
         modelId: selection.selectedModelId,
         capability: decision.modelCapability,
         contextLevel: decision.contextLevel,

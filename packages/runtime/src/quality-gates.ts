@@ -6,6 +6,7 @@ import {
   GateResultSchema,
   GateStatus,
   GateType,
+  GateTypes,
   KiwiPolicy,
 } from "@kiwi/contracts";
 import { resolveRunArtifactPath, writeJsonSafely } from "@kiwi/core";
@@ -328,7 +329,7 @@ export function runForbiddenFileGate(input: DiffGateInput): GateResult {
 
   return GateResultSchema.parse({
     gateId: "gate_forbidden_file_checks",
-    gateType: "forbidden_file_checks",
+    gateType: GateTypes.ForbiddenFileChecks,
     status: result.status,
     evidenceRefs: [reportPath],
     reason: result.reason,
@@ -349,7 +350,7 @@ export function runSecretsScanGate(input: DiffGateInput): GateResult {
 
   return GateResultSchema.parse({
     gateId: "gate_secrets_check",
-    gateType: "secrets_check",
+    gateType: GateTypes.SecretsCheck,
     status: result.status,
     evidenceRefs: [reportPath],
     reason: result.reason,

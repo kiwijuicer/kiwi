@@ -4,6 +4,9 @@ import {
   EvidenceSubject,
   GateResult,
   GateResultSchema,
+  ExecutionIsolations,
+  GateTypes,
+  NextActionTypes,
   ReviewVerdict,
   ReviewVerdictSchema,
   SchedulerDecisionSchema,
@@ -84,7 +87,7 @@ interface AttemptScope {
 type AttemptReviewExecutionResult = Awaited<ReturnType<typeof runAttemptReview>>;
 
 function ensureRunnerExecutionPath(input: ExecuteStepAttemptInput): void {
-  if (input.executionMode === "direct") {
+  if (input.executionMode === ExecutionIsolations.Direct) {
     return;
   }
   ensureIsolatedWorktree(input.cwd, input.worktreePath);
@@ -264,7 +267,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       const gateResultsRef = `steps/${params.stepId}/${params.attemptId}/gate-results.json`;
       const budgetGateResult = GateResultSchema.parse({
         gateId: "gate_budget_preflight",
-        gateType: "forbidden_file_checks",
+        gateType: GateTypes.ForbiddenFileChecks,
         status: ContractValues.Blocked,
         evidenceRefs: [`steps/${params.stepId}/${params.attemptId}/scheduler-decision.json`],
         reason: blockedReason,
@@ -328,7 +331,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
         error: blockedError,
       };
       const nextAction: StepAttemptNextAction = {
-        type: "replan",
+        type: NextActionTypes.Replan,
         reason: "budget_estimate_exceeds_remaining",
         recommendedNextSteps: ["Increase budget profile or re-run with lower capability/context requirements."],
         issueCodes: ["BUDGET_EXCEEDED"],

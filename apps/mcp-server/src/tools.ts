@@ -10,6 +10,7 @@ import {
   planRun,
 } from "@kiwi/core";
 import { callCoreTool } from "./core-tool-dispatch";
+import { McpToolProgressStatuses } from "./constants";
 import { doctorTool } from "./doctor";
 import { withOperatorCard } from "./operator-card";
 import { previewRunTool, runStepTool, runTool } from "./run-tools";
@@ -41,7 +42,7 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
   options.onProgress?.(
     progressLine({
       phase: ContractValues.Planner,
-      status: "started",
+      status: McpToolProgressStatuses.Started,
       model: resolution.model.id,
       providerModel: resolution.model.providerModel ?? null,
       provider: resolution.provider.name,

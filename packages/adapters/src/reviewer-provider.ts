@@ -1,4 +1,5 @@
 import { GateResult, ReviewVerdict, ReviewVerdictSchema, Step } from "@kiwi/contracts";
+import type { ProviderFailureCode, ProviderValidationStatus } from "./constants";
 
 export interface ReviewerProviderInput {
   runId: string;
@@ -37,7 +38,7 @@ export interface ReviewerProviderOutput {
 export interface ReviewerRetryRecord {
   attempt: number;
   providerName: string;
-  status: "valid" | "invalid";
+  status: ProviderValidationStatus;
   validationError?: string;
   modelUsage: ReviewerModelUsageEstimate;
   cost: ReviewerCostEstimate;
@@ -95,13 +96,7 @@ export const ReviewerProviderSchedulerErrorCodes = {
   ProviderAuth: "SCHEDULER_REVIEWER_AUTH",
 } as const;
 
-export type ReviewerProviderErrorCode =
-  | "provider_rate_limited"
-  | "provider_timeout"
-  | "provider_network"
-  | "provider_schema_invalid"
-  | "provider_content_policy"
-  | "provider_auth";
+export type ReviewerProviderErrorCode = ProviderFailureCode;
 
 export type ReviewerProviderSchedulerErrorCode =
   (typeof ReviewerProviderSchedulerErrorCodes)[keyof typeof ReviewerProviderSchedulerErrorCodes];

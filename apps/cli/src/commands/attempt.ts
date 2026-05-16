@@ -1,14 +1,9 @@
 import chalk from "chalk";
-import {
-  AttemptDiffStatuses,
-  createRuntimeExecutionServices,
-  type ExecutePlannedStepResult,
-  splitCommandLine,
-} from "@kiwi/runtime";
-import { withRunLock } from "@kiwi/core";
+import { AttemptDiffStatuses, type ExecutePlannedStepResult, splitCommandLine } from "@kiwi/runtime";
+import { createCliServices } from "../services";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../workspace-options";
 
-const runtimeExecution = createRuntimeExecutionServices();
+const cliServices = createCliServices();
 
 export interface AttemptOptions extends CliWorkspaceOptions {
   command?: string;
@@ -23,7 +18,7 @@ export async function runAttemptUnlocked(
   opts: AttemptOptions = {},
   cwd: string = process.cwd(),
 ): Promise<ExecutePlannedStepResult> {
-  const result = await runtimeExecution.plannedSteps.execute({
+  const result = await cliServices.runtime.execution.plannedSteps.execute({
     cwd,
     runId,
     stepId,
@@ -57,7 +52,7 @@ export async function runAttempt(
   cwd: string = process.cwd(),
 ): Promise<void> {
   const workspace = resolveCliWorkspace(opts, cwd, false);
-  await withRunLock(
+  await cliServices.core.locks.withLock(
     {
       cwd: workspace.workspacePath,
       runId,

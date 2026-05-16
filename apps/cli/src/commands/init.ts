@@ -2,9 +2,17 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
 import { kiwiModelRegistryPath, kiwiPolicyPath } from "@kiwi/core";
+import {
+  type ConfigWriteStatus,
+  ConfigWriteStatuses,
+  type GitignoreWriteStatus,
+  GitignoreWriteStatuses,
+  type McpInitTarget,
+  McpInitTargets,
+} from "../constants";
 import { DEFAULT_MODEL_REGISTRY_YAML, DEFAULT_POLICY_YAML, defaultKiwiConfigYaml } from "../default-config";
 
-type McpTarget = "none" | "cursor" | "claude" | "codex" | "all";
+type McpTarget = McpInitTarget;
 
 interface InitOptions {
   force?: boolean;
@@ -25,16 +33,19 @@ interface JsonMcpConfig {
 
 interface ConfigWriteResult {
   path: string;
-  status: "written" | "updated" | "preserved";
+  status: ConfigWriteStatus;
 }
 
 interface GitignoreWriteResult {
   path: string;
-  status: "updated" | "preserved" | "missing";
+  status: GitignoreWriteStatus;
 }
 
 const KIWI_GITIGNORE_ENTRY = ".kiwi/";
-const MCP_GITIGNORE_ENTRIES: Record<Exclude<McpTarget, "none" | "all">, string> = {
+const MCP_GITIGNORE_ENTRIES: Record<
+  Exclude<McpTarget, typeof McpInitTargets.None | typeof McpInitTargets.All>,
+  string
+> = {
   cursor: ".cursor/mcp.json",
   claude: ".mcp.json",
   codex: ".codex/config.toml",
@@ -168,7 +179,7 @@ function writeJsonMcpConfig(params: {
   const nextServer = params.nextServer ?? desiredJsonMcpServer(workspaceValue);
 
   if (!force && stableJson(existingServers.kiwi) === stableJson(nextServer)) {
-    return { path: configPath, status: "preserved" };
+    return { path: configPath, status: ConfigWriteStatuses.Preserved };
   }
 
   mkdirSync(directoryPath, { recursive: true });
@@ -184,7 +195,7 @@ function writeJsonMcpConfig(params: {
     "utf-8",
   );
 
-  return { path: configPath, status: existed ? "updated" : "written" };
+  return { path: configPath, status: existed ? ConfigWriteStatuses.Updated : ConfigWriteStatuses.Written };
 }
 
 function writeCursorMcpConfig(
@@ -280,37 +291,39 @@ function writeCodexMcpConfig(
   const next = upsertTomlTable(current, "mcp_servers.kiwi", block);
 
   if (!force && current === next) {
-    return { path: configPath, status: "preserved" };
+    return { path: configPath, status: ConfigWriteStatuses.Preserved };
   }
 
   mkdirSync(codexDir, { recursive: true });
   writeFileSync(configPath, next, "utf-8");
 
-  return { path: configPath, status: existed ? "updated" : "written" };
+  return { path: configPath, status: existed ? ConfigWriteStatuses.Updated : ConfigWriteStatuses.Written };
 }
 
 function logConfigWrite(result: ConfigWriteResult | null, displayPath: string): void {
-  if (result?.status === "preserved") {
+  if (result?.status === ConfigWriteStatuses.Preserved) {
     console.log(chalk.gray("•") + ` ${displayPath} preserved`);
   }
-  if (result?.status === "written") {
+  if (result?.status === ConfigWriteStatuses.Written) {
     console.log(chalk.green("✓") + ` ${displayPath} written`);
   }
-  if (result?.status === "updated") {
+  if (result?.status === ConfigWriteStatuses.Updated) {
     console.log(chalk.green("✓") + ` ${displayPath} updated`);
   }
 }
 
-function resolveMcpTargets(target: string | undefined): Set<Exclude<McpTarget, "none" | "all">> {
-  const value = target ?? "none";
+function resolveMcpTargets(
+  target: string | undefined,
+): Set<Exclude<McpTarget, typeof McpInitTargets.None | typeof McpInitTargets.All>> {
+  const value = target ?? McpInitTargets.None;
 
-  if (value === "none") {
+  if (value === McpInitTargets.None) {
     return new Set();
   }
-  if (value === "all") {
-    return new Set(["cursor", "claude", "codex"]);
+  if (value === McpInitTargets.All) {
+    return new Set([McpInitTargets.Cursor, McpInitTargets.Claude, McpInitTargets.Codex]);
   }
-  if (value === "cursor" || value === "claude" || value === "codex") {
+  if (value === McpInitTargets.Cursor || value === McpInitTargets.Claude || value === McpInitTargets.Codex) {
     return new Set([value]);
   }
   throw new Error(`Invalid MCP target: ${value}. Expected one of: none, cursor, claude, codex, all`);
@@ -322,12 +335,12 @@ function normalizeGitignoreLine(line: string): string {
 
 function writeGitignoreEntries(
   targetCwd: string,
-  mcpTargets: Set<Exclude<McpTarget, "none" | "all">>,
+  mcpTargets: Set<Exclude<McpTarget, typeof McpInitTargets.None | typeof McpInitTargets.All>>,
 ): GitignoreWriteResult {
   const gitignorePath = path.join(targetCwd, ".gitignore");
 
   if (!existsSync(gitignorePath)) {
-    return { path: gitignorePath, status: "missing" };
+    return { path: gitignorePath, status: GitignoreWriteStatuses.Missing };
   }
 
   const current = readFileSync(gitignorePath, "utf-8");
@@ -341,13 +354,13 @@ function writeGitignoreEntries(
   const missing = entries.filter((entry) => !existing.has(normalizeGitignoreLine(entry)));
 
   if (missing.length === 0) {
-    return { path: gitignorePath, status: "preserved" };
+    return { path: gitignorePath, status: GitignoreWriteStatuses.Preserved };
   }
 
   const separator = current.length === 0 || current.endsWith("\n") ? "" : "\n";
   writeFileSync(gitignorePath, `${current}${separator}${missing.join("\n")}\n`, "utf-8");
 
-  return { path: gitignorePath, status: "updated" };
+  return { path: gitignorePath, status: GitignoreWriteStatuses.Updated };
 }
 
 async function runInitInternal(
@@ -387,13 +400,15 @@ async function runInitInternal(
   if (shouldWriteRegistry) {
     writeFileSync(registryPath, DEFAULT_MODEL_REGISTRY_YAML, "utf-8");
   }
-  const cursorMcp = mcpTargets.has("cursor")
+  const cursorMcp = mcpTargets.has(McpInitTargets.Cursor)
     ? services.mcpConfigWriter.writeCursor(targetCwd, Boolean(opts.force))
     : null;
-  const claudeMcp = mcpTargets.has("claude")
+  const claudeMcp = mcpTargets.has(McpInitTargets.Claude)
     ? services.mcpConfigWriter.writeClaudeCode(targetCwd, Boolean(opts.force))
     : null;
-  const codexMcp = mcpTargets.has("codex") ? services.mcpConfigWriter.writeCodex(targetCwd, Boolean(opts.force)) : null;
+  const codexMcp = mcpTargets.has(McpInitTargets.Codex)
+    ? services.mcpConfigWriter.writeCodex(targetCwd, Boolean(opts.force))
+    : null;
   const gitignore = services.gitignoreWriter.write(targetCwd, mcpTargets);
 
   console.log(chalk.green("✓") + " .kiwi initialized");
@@ -419,10 +434,10 @@ async function runInitInternal(
   logConfigWrite(cursorMcp, ".cursor/mcp.json");
   logConfigWrite(claudeMcp, ".mcp.json");
   logConfigWrite(codexMcp, ".codex/config.toml");
-  if (gitignore.status === "updated") {
+  if (gitignore.status === GitignoreWriteStatuses.Updated) {
     console.log(chalk.green("✓") + " .gitignore updated");
   }
-  if (gitignore.status === "preserved") {
+  if (gitignore.status === GitignoreWriteStatuses.Preserved) {
     console.log(chalk.gray("•") + " .gitignore preserved");
   }
 }
@@ -467,7 +482,10 @@ class McpConfigWriter {
 }
 
 class GitignoreWriter {
-  write(targetCwd: string, mcpTargets: Set<Exclude<McpTarget, "none" | "all">>): GitignoreWriteResult {
+  write(
+    targetCwd: string,
+    mcpTargets: Set<Exclude<McpTarget, typeof McpInitTargets.None | typeof McpInitTargets.All>>,
+  ): GitignoreWriteResult {
     return writeGitignoreEntries(targetCwd, mcpTargets);
   }
 }

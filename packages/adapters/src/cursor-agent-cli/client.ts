@@ -1,3 +1,5 @@
+import type { UsagePrecision } from "@kiwi/contracts";
+import type { CliOutputFormat } from "../constants";
 import { runSubprocess, SubprocessOutputChunk } from "../subprocess";
 
 export interface CursorAgentCliInvocation {
@@ -5,7 +7,7 @@ export interface CursorAgentCliInvocation {
   cwd: string;
   model?: string;
   prompt: string;
-  outputFormat?: "json" | "text" | "stream-json";
+  outputFormat?: CliOutputFormat;
   timeoutMs: number;
   env?: Record<string, string | undefined>;
   /** Called for each stdout/stderr chunk as it arrives. Optional. */
@@ -109,7 +111,7 @@ function records(value: unknown): Record<string, unknown>[] {
 }
 
 export interface NormalizedCursorUsage {
-  precision: "exact" | "estimated" | "unknown";
+  precision: UsagePrecision;
   inputTokens: number;
   outputTokens: number;
   estimatedCostUsd: number | null;

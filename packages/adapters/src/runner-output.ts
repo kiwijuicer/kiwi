@@ -1,4 +1,4 @@
-import { ContractValues, GateResult, GateResultSchema } from "@kiwi/contracts";
+import { ContractValues, GateResult, GateResultSchema, GateStatuses, GateTypes } from "@kiwi/contracts";
 import { RunnerExecutionError, RunnerExecutionOutput, RunnerExecutionStatus } from "./runner-adapter";
 
 export function zeroModelUsage(): { inputTokens: number; outputTokens: number } {
@@ -10,13 +10,13 @@ export function zeroModelUsage(): { inputTokens: number; outputTokens: number } 
 
 function createRunnerGateResult(params: {
   gateId: string;
-  status: "fail" | "blocked";
+  status: typeof GateStatuses.Fail | typeof GateStatuses.Blocked;
   reason: string;
   evidenceRefs?: string[];
 }): GateResult {
   return GateResultSchema.parse({
     gateId: params.gateId,
-    gateType: "forbidden_file_checks",
+    gateType: GateTypes.ForbiddenFileChecks,
     status: params.status,
     evidenceRefs: params.evidenceRefs ?? [],
     reason: params.reason,
@@ -27,7 +27,7 @@ export function createFailedRunnerOutput(params: {
   status: Exclude<RunnerExecutionStatus, typeof ContractValues.Completed>;
   code: string;
   message: string;
-  gateStatus?: "fail" | "blocked";
+  gateStatus?: typeof GateStatuses.Fail | typeof GateStatuses.Blocked;
   gateId?: string;
 }): RunnerExecutionOutput {
   const error: RunnerExecutionError = {

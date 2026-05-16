@@ -1,7 +1,16 @@
-import { AccessMode, Artifact, GateResult, RunnerName, UsagePrecision } from "@kiwi/contracts";
+import type {
+  AccessMode,
+  Artifact,
+  CodexSandbox,
+  ExecutionIsolation,
+  GateResult,
+  RunnerExecutionStatus as ContractRunnerExecutionStatus,
+  RunnerName,
+  UsagePrecision,
+} from "@kiwi/contracts";
 import { SandboxCommandPolicy } from "@kiwi/sandbox";
 
-export type RunnerExecutionStatus = "completed" | "failed" | "blocked" | "approval_required" | "timeout";
+export type RunnerExecutionStatus = ContractRunnerExecutionStatus;
 
 export interface RunnerExecutionTimeouts {
   commandTimeoutMs: number;
@@ -24,8 +33,8 @@ export interface RunnerExecutionInput {
   workspacePath: string;
   repoPath?: string;
   worktreePath: string;
-  executionMode?: "direct" | "worktree";
-  codexSandbox?: "read-only" | "workspace-write" | "danger-full-access";
+  executionMode?: ExecutionIsolation;
+  codexSandbox?: CodexSandbox;
   diffBaseTree?: string | null;
   stepPrompt: string;
   contextPackage: unknown;

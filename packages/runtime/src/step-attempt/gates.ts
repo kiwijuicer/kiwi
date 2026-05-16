@@ -5,9 +5,11 @@ import {
   EvidenceSubject,
   GateResult,
   GateResultSchema,
+  GateTypes,
   KiwiPolicy,
   ReviewVerdict,
   ReviewVerdictSchema,
+  RunnerExecutionStatuses,
   StepAttemptStatus,
 } from "@kiwi/contracts";
 import { runForbiddenFileGate, runSecretsScanGate, saveGateResults, summarizeGateResults } from "../quality-gates";
@@ -20,10 +22,13 @@ export function mapRunnerStatusToAttemptStatus(params: {
   reviewVerdict: ReviewVerdict;
   gateResults: GateResult[];
 }): StepAttemptStatus {
-  if (params.runnerStatus === ContractValues.Blocked || params.runnerStatus === "approval_required") {
+  if (
+    params.runnerStatus === ContractValues.Blocked ||
+    params.runnerStatus === RunnerExecutionStatuses.ApprovalRequired
+  ) {
     return ContractValues.Blocked;
   }
-  if (params.runnerStatus === ContractValues.Failed || params.runnerStatus === "timeout") {
+  if (params.runnerStatus === ContractValues.Failed || params.runnerStatus === RunnerExecutionStatuses.Timeout) {
     return ContractValues.Failed;
   }
   const gateSummary = summarizeGateResults(params.gateResults);
@@ -102,7 +107,7 @@ function policyGateResults(params: {
   }
   const gateResults: GateResult[] = [];
 
-  if (params.requiredGates.includes("forbidden_file_checks")) {
+  if (params.requiredGates.includes(GateTypes.ForbiddenFileChecks)) {
     gateResults.push(
       runForbiddenFileGate({
         cwd: params.cwd,
@@ -117,7 +122,7 @@ function policyGateResults(params: {
       }),
     );
   }
-  if (params.requiredGates.includes("secrets_check")) {
+  if (params.requiredGates.includes(GateTypes.SecretsCheck)) {
     gateResults.push(
       runSecretsScanGate({
         cwd: params.cwd,

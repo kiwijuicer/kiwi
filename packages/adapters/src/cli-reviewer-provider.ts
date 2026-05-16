@@ -1,4 +1,5 @@
 import { AccessMode, ContractValues, KiwiPolicy } from "@kiwi/contracts";
+import type { ProviderAttemptType } from "./constants";
 import { extractTextJson, isRecord } from "./anthropic-common";
 import { CliPlannerResult, extractCliPlannerText, formatExternalCliFailure } from "./cli-planner-provider";
 import {
@@ -33,7 +34,7 @@ interface CliReviewerInvokeParams {
   binary: string;
   model: string | undefined;
   input: ReviewerProviderInput;
-  attemptType: "initial" | "repair";
+  attemptType: ProviderAttemptType;
   context?: ReviewerProviderRepairContext;
   env: Record<string, string | undefined>;
   policy: KiwiPolicy;
@@ -43,7 +44,7 @@ interface CliReviewerInvokeParams {
 }
 
 interface RedactedInvocationArtifact {
-  attemptType: "initial" | "repair";
+  attemptType: ProviderAttemptType;
   promptVersion: string;
   model: string;
   binary: string;
@@ -88,7 +89,7 @@ function previousAttempts(context?: ReviewerProviderRepairContext): unknown[] {
 
 function buildPrompt(params: {
   input: ReviewerProviderInput;
-  attemptType: "initial" | "repair";
+  attemptType: ProviderAttemptType;
   context?: ReviewerProviderRepairContext;
   policy: KiwiPolicy;
   env: Record<string, string | undefined>;

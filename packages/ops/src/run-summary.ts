@@ -449,13 +449,13 @@ function buildRunExplanationInternal(params: { cwd: string; runId: string; now?:
   };
 }
 
-class RunSummaryBuilder {
+export class RunSummaryBuilder {
   build(params: Parameters<typeof buildRunCompletionSummaryInternal>[0]): RunCompletionSummary {
     return buildRunCompletionSummaryInternal(params);
   }
 }
 
-class RunExplanationBuilder {
+export class RunExplanationBuilder {
   build(params: Parameters<typeof buildRunExplanationInternal>[0]): RunExplanation {
     return buildRunExplanationInternal(params);
   }

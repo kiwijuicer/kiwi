@@ -9,7 +9,7 @@ import {
 } from "@kiwi/contracts";
 import { ResearcherProviderRegistry } from "../researcher-provider-registry";
 import { LocalResearchStepRunner, ResearcherStepRunner } from "../researcher-step-runner";
-import { resolveRunner } from "../runner-resolution";
+import { RunnerResolver } from "../runner-resolution";
 import type { RunnerResolution } from "../runner-registry";
 import type { SchedulerDecision } from "../scheduler-policy";
 import { ExecutionAuditReporter } from "./audit";
@@ -21,6 +21,8 @@ export class StepRunnerSelector {
   constructor(
     private readonly policyResolver: ExecutionPolicyResolver,
     private readonly auditReporter: ExecutionAuditReporter,
+    private readonly runnerResolver: RunnerResolver,
+    private readonly researcherProviderRegistry: ResearcherProviderRegistry,
   ) {}
 
   resolveRunnerResolution(session: StepExecutionSession): RunnerResolution | null {
@@ -36,7 +38,7 @@ export class StepRunnerSelector {
   }
 
   resolveNonResearchRunner(params: { registryModels: ModelEntry[]; step: Step; policy: KiwiPolicy }): RunnerResolution {
-    return resolveRunner({
+    return this.runnerResolver.resolve({
       registryModels: params.registryModels,
       step: params.step,
       preferenceByRole: params.policy.routing.providerPreference,
@@ -78,7 +80,7 @@ export class StepRunnerSelector {
       };
     }
     if (params.isResearchStep) {
-      const selected = new ResearcherProviderRegistry().select({
+      const selected = this.researcherProviderRegistry.select({
         registryModels: params.registryModels,
         preferenceByRole: params.policy.routing.providerPreference,
       });
@@ -167,7 +169,7 @@ export class StepRunnerSelector {
     if (!params.isResearchStep) {
       return null;
     }
-    const selection = new ResearcherProviderRegistry().select({
+    const selection = this.researcherProviderRegistry.select({
       registryModels: params.registryModels,
       preferenceByRole: params.policy.routing.providerPreference,
     });

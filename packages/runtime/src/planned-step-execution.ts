@@ -5,7 +5,11 @@ import type {
   RunExecutionPreview,
 } from "./planned-step-execution/types";
 
-export { createRuntimeExecutionServices, type RuntimeExecutionServices } from "./planned-step-execution/factory";
+export {
+  createRuntimeExecutionServices,
+  type RuntimeExecutionServiceDependencies,
+  type RuntimeExecutionServices,
+} from "./planned-step-execution/factory";
 export { AttemptDiffStatuses, ExecutionToolNames, ExecutorSelectionReasons } from "./planned-step-execution/types";
 export type {
   AttemptDiffMaterialization,

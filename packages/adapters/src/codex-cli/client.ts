@@ -1,16 +1,23 @@
+import { CodexSandboxes, type CodexSandbox, type UsagePrecision } from "@kiwi/contracts";
+import {
+  CodexApprovalPolicies,
+  CodexApprovalsReviewers,
+  type CodexApprovalPolicy,
+  type CodexApprovalsReviewer,
+} from "../constants";
 import { runSubprocess, SubprocessOutputChunk } from "../subprocess";
 
-export const CODEX_AUTO_REVIEW_APPROVAL_POLICY = "on-request" as const;
-export const CODEX_AUTO_REVIEW_APPROVALS_REVIEWER = "auto_review" as const;
-export const CODEX_AUTO_REVIEW_SANDBOX = "workspace-write" as const;
+export const CODEX_AUTO_REVIEW_APPROVAL_POLICY = CodexApprovalPolicies.OnRequest;
+export const CODEX_AUTO_REVIEW_APPROVALS_REVIEWER = CodexApprovalsReviewers.AutoReview;
+export const CODEX_AUTO_REVIEW_SANDBOX = CodexSandboxes.WorkspaceWrite;
 
 export interface CodexCliInvocation {
   binary: string;
   cwd: string;
   model?: string;
-  sandbox?: "read-only" | "workspace-write" | "danger-full-access";
-  approvalPolicy?: "untrusted" | "on-failure" | "on-request" | "never";
-  approvalsReviewer?: "user" | "auto_review" | "guardian_subagent";
+  sandbox?: CodexSandbox;
+  approvalPolicy?: CodexApprovalPolicy;
+  approvalsReviewer?: CodexApprovalsReviewer;
   prompt: string;
   timeoutMs: number;
   env?: Record<string, string | undefined>;
@@ -110,7 +117,7 @@ function nestedRecords(value: unknown): Record<string, unknown>[] {
 }
 
 export interface NormalizedCodexUsage {
-  precision: "exact" | "estimated" | "unknown";
+  precision: UsagePrecision;
   inputTokens: number;
   outputTokens: number;
   estimatedCostUsd: number | null;

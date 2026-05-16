@@ -8,6 +8,7 @@ export default defineConfig({
       "@kiwi/contracts": path.resolve(__dirname, "../contracts/src/index.ts"),
       "@kiwi/core": path.resolve(__dirname, "../core/src/index.ts"),
       "@kiwi/runtime": path.resolve(__dirname, "../runtime/src/index.ts"),
+      "@kiwi/sandbox": path.resolve(__dirname, "../sandbox/src/index.ts"),
     },
   },
   test: {

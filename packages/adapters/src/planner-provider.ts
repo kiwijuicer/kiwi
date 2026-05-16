@@ -1,4 +1,5 @@
 import { Initiative, KiwiPolicy, TaskGraph, TaskGraphSchema } from "@kiwi/contracts";
+import type { ProviderFailureCode, ProviderValidationStatus } from "./constants";
 
 export interface PlannerProviderInput {
   runId: string;
@@ -33,7 +34,7 @@ export interface PlannerProviderOutput {
 export interface PlannerRetryRecord {
   attempt: number;
   providerName: string;
-  status: "valid" | "invalid";
+  status: ProviderValidationStatus;
   validationError?: string;
   modelUsage: ModelUsageEstimate;
   cost: CostEstimate;
@@ -89,13 +90,7 @@ export const PlannerProviderSchedulerErrorCodes = {
   ProviderAuth: "SCHEDULER_PROVIDER_AUTH",
 } as const;
 
-export type PlannerProviderErrorCode =
-  | "provider_rate_limited"
-  | "provider_timeout"
-  | "provider_network"
-  | "provider_schema_invalid"
-  | "provider_content_policy"
-  | "provider_auth";
+export type PlannerProviderErrorCode = ProviderFailureCode;
 
 export type PlannerProviderSchedulerErrorCode =
   (typeof PlannerProviderSchedulerErrorCodes)[keyof typeof PlannerProviderSchedulerErrorCodes];

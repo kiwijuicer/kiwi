@@ -1,8 +1,15 @@
-import { Artifact, GateResult, GateType } from "@kiwi/contracts";
+import type {
+  ApprovalState as ContractApprovalState,
+  Artifact,
+  GateResult,
+  GateType,
+  NetworkPolicy as ContractNetworkPolicy,
+  RunnerExecutionStatus,
+} from "@kiwi/contracts";
 
-export type ApprovalState = "auto" | "required" | "blocked";
-export type NetworkPolicy = "disabled" | "enabled";
-export type SandboxExecutionStatus = "completed" | "failed" | "blocked" | "approval_required" | "timeout";
+export type ApprovalState = ContractApprovalState;
+export type NetworkPolicy = ContractNetworkPolicy;
+export type SandboxExecutionStatus = RunnerExecutionStatus;
 
 export interface SandboxCommandPolicy {
   allowedCommands: string[];

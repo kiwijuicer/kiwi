@@ -1,6 +1,7 @@
 import { mkdirSync } from "fs";
 import { auditPolicyDecision, blockedOutput } from "./command-artifacts";
 import { evaluatePolicy } from "./command-policy";
+import { SandboxPolicyDecisionStatuses } from "./constants";
 import { spawnSandboxCommand } from "./process-execution";
 import type { SandboxCommandInput, SandboxCommandOutput } from "./command-types";
 
@@ -17,7 +18,7 @@ export async function executeSandboxCommand(input: SandboxCommandInput): Promise
   const startedAt = (input.now ?? new Date()).toISOString();
   const policyDecision = evaluatePolicy(input);
   auditPolicyDecision(input, startedAt, policyDecision);
-  if (policyDecision.status === "allow") {
+  if (policyDecision.status === SandboxPolicyDecisionStatuses.Allow) {
     mkdirSync(input.worktreePath, { recursive: true });
 
     return spawnSandboxCommand(input, startedAt);

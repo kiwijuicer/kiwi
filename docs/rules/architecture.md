@@ -45,4 +45,6 @@ Use only canonical terms from `docs/vision.md`:
 - Prefer additive evolution of schemas over breaking churn.
 - Treat apps as composition roots for app-specific services.
 - Packages should export service/factory entrypoints for cohesive workflows, with wrapper functions only for compatibility.
+- Internal orchestration must depend on services/repositories/adapters, not exported wrapper functions from sibling modules.
 - `packages/contracts` is the source of truth for serialized domain values; runtime packages should consume contract constants instead of repeating string literals.
+- Package-local serialized values must be centralized in package constants when they do not belong in `packages/contracts`.

@@ -61,6 +61,10 @@ function isFunctionInitializer(node) {
   return ts.isArrowFunction(node) || ts.isFunctionExpression(node);
 }
 
+function hasExportModifier(node) {
+  return Boolean(node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword));
+}
+
 function objectFunctionMemberCount(objectLiteral) {
   let count = 0;
 
@@ -81,6 +85,7 @@ function analyzeFile(filePath) {
   const sourceText = readFileSync(filePath, "utf-8");
   const sourceFile = ts.createSourceFile(filePath, sourceText, ts.ScriptTarget.Latest, true);
   const looseFunctions = [];
+  const exportedLooseFunctions = [];
   let classCount = 0;
   let objectContainerCount = 0;
 
@@ -90,7 +95,11 @@ function analyzeFile(filePath) {
       continue;
     }
     if (ts.isFunctionDeclaration(statement) && statement.body) {
-      looseFunctions.push(declarationName(statement.name));
+      const name = declarationName(statement.name);
+      looseFunctions.push(name);
+      if (hasExportModifier(statement)) {
+        exportedLooseFunctions.push(name);
+      }
       continue;
     }
     if (!ts.isVariableStatement(statement)) {
@@ -105,6 +114,9 @@ function analyzeFile(filePath) {
       }
       if (isFunctionInitializer(initializer)) {
         looseFunctions.push(name);
+        if (hasExportModifier(statement)) {
+          exportedLooseFunctions.push(name);
+        }
         continue;
       }
       if (ts.isObjectLiteralExpression(initializer) && objectFunctionMemberCount(initializer) >= 2) {
@@ -116,8 +128,10 @@ function analyzeFile(filePath) {
   return {
     file: toRelativePath(filePath),
     looseTopLevelFunctions: looseFunctions.length,
+    exportedLooseTopLevelFunctions: exportedLooseFunctions.length,
     cohesiveContainers: classCount + objectContainerCount,
     functions: looseFunctions.sort(),
+    exportedFunctions: exportedLooseFunctions.sort(),
   };
 }
 
@@ -146,8 +160,10 @@ function writeIssueBaseline(issues) {
             issue.file,
             {
               looseTopLevelFunctions: issue.looseTopLevelFunctions,
+              exportedLooseTopLevelFunctions: issue.exportedLooseTopLevelFunctions,
               cohesiveContainers: issue.cohesiveContainers,
               functions: issue.functions,
+              exportedFunctions: issue.exportedFunctions,
             },
           ]),
         ),
@@ -174,7 +190,15 @@ function newOrWorseIssues(issues, baseline) {
   return issues.filter((issue) => {
     const baselineIssue = baselineFiles[issue.file];
 
-    return !baselineIssue || issue.looseTopLevelFunctions > baselineIssue.looseTopLevelFunctions;
+    if (!baselineIssue) {
+      return true;
+    }
+    const exportedBaseline = baselineIssue.exportedLooseTopLevelFunctions ?? issue.exportedLooseTopLevelFunctions;
+
+    return (
+      issue.looseTopLevelFunctions > baselineIssue.looseTopLevelFunctions ||
+      issue.exportedLooseTopLevelFunctions > exportedBaseline
+    );
   });
 }
 
@@ -194,7 +218,8 @@ if (offenders.length > 0) {
   for (const issue of offenders.slice(0, 40)) {
     console.error(
       `${issue.file}: ${issue.looseTopLevelFunctions} loose top-level functions, ` +
-        `${issue.cohesiveContainers} class/object containers. Group related behavior or split the module.`,
+        `${issue.exportedLooseTopLevelFunctions} exported, ${issue.cohesiveContainers} class/object containers. ` +
+        "Group related behavior or split the module.",
     );
   }
   if (offenders.length > 40) {

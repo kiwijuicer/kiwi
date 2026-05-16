@@ -1,4 +1,5 @@
 import { AccessModes, KiwiPolicy } from "@kiwi/contracts";
+import type { ProviderAttemptType } from "../constants";
 import { CliPlannerResult } from "../cli-planner-provider";
 import { emptyReviewerPolicy, invokeCliReviewer } from "../cli-reviewer-provider";
 import {
@@ -64,7 +65,7 @@ export class CodexCliReviewerProvider implements ReviewerProvider {
 
   private async invoke(
     input: ReviewerProviderInput,
-    attemptType: "initial" | "repair",
+    attemptType: ProviderAttemptType,
     context?: ReviewerProviderRepairContext,
   ): Promise<ReviewerProviderOutput> {
     return invokeCliReviewer({

@@ -1,4 +1,5 @@
 import { AccessModes } from "@kiwi/contracts";
+import type { ProviderAttemptType } from "../constants";
 import { CliPlannerResult, invokeCliPlanner } from "../cli-planner-provider";
 import {
   PlannerProvider,
@@ -60,7 +61,7 @@ export class CodexCliPlannerProvider implements PlannerProvider {
 
   private async invoke(
     input: PlannerProviderInput,
-    attemptType: "initial" | "repair",
+    attemptType: ProviderAttemptType,
     context?: PlannerProviderRepairContext,
   ): Promise<PlannerProviderOutput> {
     return invokeCliPlanner({

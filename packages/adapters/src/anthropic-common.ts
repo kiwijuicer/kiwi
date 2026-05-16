@@ -1,3 +1,5 @@
+import type { ProviderFailureCode } from "./constants";
+
 export const ANTHROPIC_MESSAGES_ENDPOINT = "https://api.anthropic.com/v1/messages";
 export const ANTHROPIC_VERSION = "2023-06-01";
 
@@ -37,13 +39,7 @@ export interface AnthropicHttpResponse {
   requestId?: string;
 }
 
-type AnthropicProviderErrorCode =
-  | "provider_rate_limited"
-  | "provider_timeout"
-  | "provider_network"
-  | "provider_schema_invalid"
-  | "provider_content_policy"
-  | "provider_auth";
+type AnthropicProviderErrorCode = ProviderFailureCode;
 
 type AnthropicProviderErrorFactory<TError extends Error> = (params: {
   code: AnthropicProviderErrorCode;

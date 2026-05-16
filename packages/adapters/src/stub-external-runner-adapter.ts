@@ -1,8 +1,8 @@
-import { ContractValues, RunnerName } from "@kiwi/contracts";
+import { ContractValues, RunnerName, RunnerNames } from "@kiwi/contracts";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "./runner-adapter";
 import { createFailedRunnerOutput } from "./runner-output";
 
-export type ExternalRunnerName = Exclude<RunnerName, "local-shell">;
+export type ExternalRunnerName = Exclude<RunnerName, typeof RunnerNames.LocalShell>;
 
 export class StubExternalRunnerAdapter implements RunnerAdapter {
   readonly name: ExternalRunnerName;

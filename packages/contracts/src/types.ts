@@ -35,6 +35,7 @@ import type {
   ModelInvocationPhaseSchema,
   ModelInvocationRecordSchema,
   ModelInvocationStatusSchema,
+  NextActionTypeSchema,
   ModelProviderSchema,
   ModelRegistrySchema,
   ModelUsageSchema,
@@ -56,6 +57,7 @@ import type {
   RunSchema,
   RunStatusSchema,
   RunnerExecutionErrorSchema,
+  RunnerExecutionStatusSchema,
   RunnerExecutionInputSchema,
   RunnerExecutionOutputSchema,
   RunnerModelUsageSchema,
@@ -102,6 +104,8 @@ export type ContextLevel = z.infer<typeof ContextLevelSchema>;
 export type SchedulerDecisionStatus = z.infer<typeof SchedulerDecisionStatusSchema>;
 export type ModelInvocationPhase = z.infer<typeof ModelInvocationPhaseSchema>;
 export type ModelInvocationStatus = z.infer<typeof ModelInvocationStatusSchema>;
+export type RunnerExecutionStatus = z.infer<typeof RunnerExecutionStatusSchema>;
+export type NextActionType = z.infer<typeof NextActionTypeSchema>;
 export type AccessMode = z.infer<typeof AccessModeSchema>;
 export type UsagePrecision = z.infer<typeof UsagePrecisionSchema>;
 export type ReviewVerdictValue = z.infer<typeof ReviewVerdictValueSchema>;

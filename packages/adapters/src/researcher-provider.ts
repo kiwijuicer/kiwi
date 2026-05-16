@@ -1,4 +1,5 @@
 import { ContractValues, ResearchReport, ResearchReportSchema, Initiative, KiwiPolicy } from "@kiwi/contracts";
+import type { ProviderFailureCode } from "./constants";
 import {
   ANTHROPIC_MESSAGES_ENDPOINT,
   ANTHROPIC_VERSION,
@@ -66,13 +67,7 @@ export interface ResearcherProvider {
 
 export class ResearcherProviderError extends Error {
   constructor(
-    readonly code:
-      | "provider_rate_limited"
-      | "provider_timeout"
-      | "provider_network"
-      | "provider_schema_invalid"
-      | "provider_content_policy"
-      | "provider_auth",
+    readonly code: ProviderFailureCode,
     message: string,
     readonly retryable: boolean,
     readonly statusCode?: number,

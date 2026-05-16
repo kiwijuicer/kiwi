@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import type { BudgetProfile, RiskProfile } from "@kiwi/contracts";
 import { runCost } from "./cost";
 import { runDoctor } from "./doctor";
 import { runExplain } from "./explain";
@@ -36,8 +37,8 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
         allowStub?: boolean;
         workspace?: string;
         repo?: string;
-        riskProfile?: "local" | "dev" | "staging" | "production";
-        budgetProfile?: "tiny" | "small" | "normal" | "large" | "critical";
+        riskProfile?: RiskProfile;
+        budgetProfile?: BudgetProfile;
       },
     ) => {
       runPlan(ticket, withWorkspaceOptions(opts)).catch(handleCommandError);

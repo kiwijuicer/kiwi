@@ -1,5 +1,14 @@
 import path from "path";
-import { ArtifactSchema, ContractValues, GateResult, GateResultSchema } from "@kiwi/contracts";
+import {
+  ArtifactSchema,
+  CodexSandboxes,
+  ContractValues,
+  ExecutionIsolations,
+  GateResult,
+  GateResultSchema,
+  GateTypes,
+  SchedulerDecisionStatuses,
+} from "@kiwi/contracts";
 import type {
   ExecuteStepAttemptInput,
   StepRunnerExecutionError,
@@ -8,7 +17,7 @@ import type {
 } from "../step-runner-types";
 
 export function ensureRunnerMatchesDecision(input: ExecuteStepAttemptInput): void {
-  if (input.schedulerDecision.status !== "scheduled") {
+  if (input.schedulerDecision.status !== SchedulerDecisionStatuses.Scheduled) {
     throw new Error(`cannot execute blocked scheduler decision: ${input.schedulerDecision.blockedReason}`);
   }
   if (input.schedulerDecision.runner !== input.runner.name) {
@@ -31,7 +40,7 @@ export function ensureWorktreeIsNotSource(sourcePath: string, worktreePath: stri
 function gateResultFromRunnerException(error: StepRunnerExecutionError, evidenceRefs: string[]): GateResult {
   return GateResultSchema.parse({
     gateId: "gate_runner_execution",
-    gateType: "forbidden_file_checks",
+    gateType: GateTypes.ForbiddenFileChecks,
     status: ContractValues.Fail,
     evidenceRefs,
     reason: error.message,
@@ -80,8 +89,8 @@ function buildRunnerInput<TCommandPolicy>(
     attemptId: input.schedulerDecision.attemptId,
     workspacePath: input.cwd,
     worktreePath: input.worktreePath,
-    executionMode: input.executionMode ?? "worktree",
-    codexSandbox: input.codexSandbox ?? "workspace-write",
+    executionMode: input.executionMode ?? ExecutionIsolations.Worktree,
+    codexSandbox: input.codexSandbox ?? CodexSandboxes.WorkspaceWrite,
     diffBaseTree: input.diffBaseTree ?? null,
     stepPrompt: input.stepPrompt,
     contextPackage,

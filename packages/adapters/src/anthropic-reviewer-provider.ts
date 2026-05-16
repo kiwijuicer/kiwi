@@ -1,4 +1,5 @@
 import { ContractValues, KiwiPolicy } from "@kiwi/contracts";
+import type { ProviderAttemptType } from "./constants";
 import {
   ANTHROPIC_MESSAGES_ENDPOINT,
   ANTHROPIC_VERSION,
@@ -63,7 +64,7 @@ interface PromptBuildResult {
 }
 
 interface AnthropicReviewerAttemptArtifact {
-  attemptType: "initial" | "repair";
+  attemptType: ProviderAttemptType;
   promptVersion: string;
   model: string;
   request: AnthropicMessageRequest;
@@ -218,7 +219,7 @@ function previousAttempts(context?: ReviewerProviderRepairContext): AnthropicRev
 }
 
 function buildProviderArtifacts(params: {
-  attemptType: "initial" | "repair";
+  attemptType: ProviderAttemptType;
   model: string;
   prompt: PromptBuildResult;
   response: unknown;
@@ -303,7 +304,7 @@ export class AnthropicReviewerProvider implements ReviewerProvider {
 
   private async invoke(params: {
     input: ReviewerProviderInput;
-    attemptType: "initial" | "repair";
+    attemptType: ProviderAttemptType;
     userEnvelope: string;
     context?: ReviewerProviderRepairContext;
   }): Promise<ReviewerProviderOutput> {

@@ -1,8 +1,10 @@
-import { appendAuditEvent, resolveRunArtifactPath } from "@kiwi/core";
+import type { CoreServices } from "@kiwi/core";
 import { ArtifactTypes, ContractValues, ExecutionIsolations } from "@kiwi/contracts";
 import { AttemptDiffStatuses, type AttemptDiffMaterialization, type StepAttemptExecutionResult } from "./types";
 
 export class AttemptDiffMaterializer {
+  constructor(private readonly core: CoreServices) {}
+
   materialize(params: {
     cwd: string;
     runId: string;
@@ -23,7 +25,7 @@ export class AttemptDiffMaterializer {
     }
 
     if (params.directExecution) {
-      appendAuditEvent(params.cwd, {
+      this.core.costs.appendAuditEvent(params.cwd, {
         eventType: "attempt_diff_applied",
         runId: params.runId,
         timestamp: new Date().toISOString(),
@@ -39,7 +41,7 @@ export class AttemptDiffMaterializer {
       return {
         status: AttemptDiffStatuses.Applied,
         diffRef: diffArtifact.ref,
-        patchPath: resolveRunArtifactPath(params.runId, diffArtifact.ref, params.cwd),
+        patchPath: this.core.artifacts.resolvePath(params.runId, diffArtifact.ref, params.cwd),
         targetPath: params.repoPath,
       };
     }

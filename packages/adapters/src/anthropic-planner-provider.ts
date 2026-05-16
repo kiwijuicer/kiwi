@@ -12,6 +12,7 @@ import {
   extractTextJson,
   isRecord,
 } from "./anthropic-common";
+import type { ProviderAttemptType } from "./constants";
 import {
   PlannerProvider,
   PlannerProviderArtifacts,
@@ -62,7 +63,7 @@ interface PromptBuildResult {
 }
 
 interface AnthropicPlannerAttemptArtifact {
-  attemptType: "initial" | "repair";
+  attemptType: ProviderAttemptType;
   promptVersion: string;
   model: string;
   request: AnthropicMessageRequest;
@@ -237,7 +238,7 @@ function previousAttempts(context?: PlannerProviderRepairContext): AnthropicPlan
 }
 
 function buildProviderArtifacts(params: {
-  attemptType: "initial" | "repair";
+  attemptType: ProviderAttemptType;
   model: string;
   prompt: PromptBuildResult;
   response: unknown;
@@ -321,7 +322,7 @@ export class AnthropicPlannerProvider implements PlannerProvider {
 
   private async invoke(params: {
     input: PlannerProviderInput;
-    attemptType: "initial" | "repair";
+    attemptType: ProviderAttemptType;
     userEnvelope: string;
     context?: PlannerProviderRepairContext;
   }): Promise<PlannerProviderOutput> {

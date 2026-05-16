@@ -15,6 +15,7 @@ import path from "path";
 import { promisify } from "util";
 import { Artifact } from "@kiwi/contracts";
 import { resolveRunArtifactPath } from "./common";
+import { CommandOutputStreams, type CommandOutputStream } from "./constants";
 
 const execFileAsync = promisify(execFile);
 const WORKSPACE_COPY_EXCLUDES = new Set([".git", ".kiwi", "node_modules", "dist", ".turbo", ".cache"]);
@@ -85,7 +86,7 @@ function createGitTreeSnapshotInternal(worktreePath: string): string | null {
   }
 }
 
-function commandOutput(error: unknown, key: "stdout" | "stderr"): string {
+function commandOutput(error: unknown, key: CommandOutputStream): string {
   if (typeof error !== "object" || error === null) {
     return "";
   }
@@ -102,7 +103,7 @@ function execGitDiffWithExpectedDifference(args: string[], cwd: string): string 
   try {
     return execFileSync("git", args, { cwd, encoding: "utf-8" });
   } catch (error) {
-    const stdout = commandOutput(error, "stdout");
+    const stdout = commandOutput(error, CommandOutputStreams.Stdout);
 
     if (stdout.trim()) {
       return stdout;
@@ -428,7 +429,7 @@ function applyDiffArtifactToSourceInternal(params: {
   }
 }
 
-class GitDiffArtifactService {
+export class GitDiffArtifactService {
   async captureGitDiffArtifact(params: Parameters<typeof captureGitDiffArtifactInternal>[0]): Promise<Artifact | null> {
     return captureGitDiffArtifactInternal(params);
   }
@@ -442,13 +443,13 @@ class GitDiffArtifactService {
   }
 }
 
-class WorktreeDiffArtifactService {
+export class WorktreeDiffArtifactService {
   captureWorktreeDiffArtifact(params: Parameters<typeof captureWorktreeDiffArtifactInternal>[0]): Artifact | null {
     return captureWorktreeDiffArtifactInternal(params);
   }
 }
 
-class DiffArtifactApplier {
+export class DiffArtifactApplier {
   applyDiffArtifactToSource(params: Parameters<typeof applyDiffArtifactToSourceInternal>[0]): ApplyDiffArtifactResult {
     return applyDiffArtifactToSourceInternal(params);
   }

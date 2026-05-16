@@ -16,6 +16,13 @@ import { appendModelInvocation } from "./model-invocations";
 import { createInitiativeFromInput } from "./planner";
 import { savePlannedRun } from "./run-store";
 
+export const PlannerValidationStatuses = {
+  Valid: "valid",
+  Invalid: "invalid",
+} as const;
+
+export type PlannerValidationStatus = (typeof PlannerValidationStatuses)[keyof typeof PlannerValidationStatuses];
+
 export interface PlannerRunInput {
   runId: string;
   initiative: Initiative;
@@ -31,7 +38,7 @@ export interface PlannerCostEstimate {
 export interface PlannerRetryRecord {
   attempt: number;
   providerName: string;
-  status: "valid" | "invalid";
+  status: PlannerValidationStatus;
   validationError?: string;
   modelUsage: ModelUsage;
   cost: PlannerCostEstimate;

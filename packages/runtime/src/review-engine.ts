@@ -6,6 +6,8 @@ import {
   GateResult,
   ModelCapability,
   ModelEntry,
+  NextActionTypes,
+  type NextActionType,
   ReviewVerdict,
   ReviewVerdictSchema,
   Step,
@@ -13,7 +15,7 @@ import {
 import { resolveRunArtifactPath, writeJsonSafely } from "@kiwi/core";
 import { summarizeGateResults } from "./quality-gates";
 
-export type ReviewAction = "continue" | "fix_step" | "replan";
+export type ReviewAction = NextActionType;
 
 export interface ReviewInput {
   runId: string;
@@ -108,13 +110,13 @@ export class StubReviewEngine implements ReviewEngine {
 
 export function classifyReviewAction(verdict: ReviewVerdict): ReviewAction {
   if (verdict.verdict === ContractValues.Reject) {
-    return "replan";
+    return NextActionTypes.Replan;
   }
   if (verdict.verdict === ContractValues.NeedsChanges) {
-    return "fix_step";
+    return NextActionTypes.FixStep;
   }
 
-  return "continue";
+  return NextActionTypes.Continue;
 }
 
 export function saveReviewVerdict(params: {

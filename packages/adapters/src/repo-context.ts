@@ -2,6 +2,7 @@ import { execFileSync } from "child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "fs";
 import path from "path";
 import { Initiative } from "@kiwi/contracts";
+import { RepoContextStatuses, type RepoContextStatus } from "./constants";
 
 const DEFAULT_MAX_CHARS = 12_000;
 const HEAD_LINE_LIMIT = 100;
@@ -39,7 +40,7 @@ export interface RepoContextGrepHit {
 
 export interface RepoContextEnvelope {
   repoPath: string;
-  status: "ok" | "missing" | "not_directory" | "unreadable";
+  status: RepoContextStatus;
   maxChars: number;
   readmeHead?: string | null;
   agentsHead?: string | null;
@@ -187,7 +188,7 @@ export function buildRepoContextEnvelope(params: {
   if (!existsSync(repoPath)) {
     return {
       repoPath,
-      status: "missing",
+      status: RepoContextStatuses.Missing,
       maxChars,
       grepKeywords: [],
       grepHits: [],
@@ -200,7 +201,7 @@ export function buildRepoContextEnvelope(params: {
   if (!statSync(repoPath).isDirectory()) {
     return {
       repoPath,
-      status: "not_directory",
+      status: RepoContextStatuses.NotDirectory,
       maxChars,
       grepKeywords: [],
       grepHits: [],
@@ -216,7 +217,7 @@ export function buildRepoContextEnvelope(params: {
 
     return compactToLimit({
       repoPath,
-      status: "ok",
+      status: RepoContextStatuses.Ok,
       maxChars,
       readmeHead: readHead(repoPath, "README.md"),
       agentsHead: readHead(repoPath, "AGENTS.md"),
@@ -230,7 +231,7 @@ export function buildRepoContextEnvelope(params: {
   } catch (error) {
     return {
       repoPath,
-      status: "unreadable",
+      status: RepoContextStatuses.Unreadable,
       maxChars,
       grepKeywords: [],
       grepHits: [],

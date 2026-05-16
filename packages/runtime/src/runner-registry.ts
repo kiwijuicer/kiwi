@@ -35,12 +35,21 @@ export interface RunnerResolutionOptions {
   preferenceByRole?: ProviderPreference | undefined;
 }
 
-export type ExecutorSelectionReason =
-  | "exact_match"
-  | "escalated_for_availability"
-  | "fell_back_to_lower"
-  | "stub_fallback"
-  | "no_model_available";
+export type ExecutorSelectionReason = (typeof RunnerSelectionReasons)[keyof typeof RunnerSelectionReasons];
+
+export const RunnerSelectionReasons = {
+  ExactMatch: "exact_match",
+  EscalatedForAvailability: "escalated_for_availability",
+  FellBackToLower: "fell_back_to_lower",
+  StubFallback: "stub_fallback",
+  NoModelAvailable: "no_model_available",
+} as const;
+
+export const RunnerAccessModes = {
+  LocalShell: RunnerNames.LocalShell,
+} as const;
+
+type RunnerAccessMode = AccessMode | (typeof RunnerAccessModes)[keyof typeof RunnerAccessModes];
 
 export interface ExecutorSelection {
   model: ModelEntry | null;
@@ -51,7 +60,7 @@ export interface ExecutorSelection {
 
 export interface RunnerAvailabilityDetail {
   runner: RunnerName;
-  accessMode: AccessMode | "local-shell";
+  accessMode: RunnerAccessMode;
   available: boolean;
   reason?: string;
 }
@@ -63,7 +72,7 @@ export interface RunnerBuildContext {
 
 export interface RunnerDefinition {
   runner: RunnerName;
-  accessMode: AccessMode | "local-shell";
+  accessMode: RunnerAccessMode;
   availability(context: { env: Record<string, string | undefined> }): RunnerAvailabilityDetail;
   buildAdapter(context: RunnerBuildContext): RunnerAdapter;
 }
@@ -140,8 +149,12 @@ function defaultRunnerDefinitions(): RunnerDefinition[] {
   return [
     {
       runner: RunnerNames.LocalShell,
-      accessMode: "local-shell",
-      availability: () => ({ runner: RunnerNames.LocalShell, accessMode: "local-shell", available: true }),
+      accessMode: RunnerAccessModes.LocalShell,
+      availability: () => ({
+        runner: RunnerNames.LocalShell,
+        accessMode: RunnerAccessModes.LocalShell,
+        available: true,
+      }),
       buildAdapter: () => new LocalShellRunnerAdapter(),
     },
     {
@@ -294,7 +307,7 @@ function pickExecutorModel(
       model: null,
       requestedCapability: requested,
       selectedCapability: null,
-      reason: "no_model_available",
+      reason: RunnerSelectionReasons.NoModelAvailable,
     };
   }
   const requestedRank = CAPABILITY_RANK[requested];
@@ -314,7 +327,10 @@ function pickExecutorModel(
       model: adequatePick,
       requestedCapability: requested,
       selectedCapability: adequatePick.capability,
-      reason: adequatePick.capability === requested ? "exact_match" : "escalated_for_availability",
+      reason:
+        adequatePick.capability === requested
+          ? RunnerSelectionReasons.ExactMatch
+          : RunnerSelectionReasons.EscalatedForAvailability,
     };
   }
 
@@ -326,7 +342,7 @@ function pickExecutorModel(
       model: lowerPick,
       requestedCapability: requested,
       selectedCapability: lowerPick.capability,
-      reason: "fell_back_to_lower",
+      reason: RunnerSelectionReasons.FellBackToLower,
     };
   }
 
@@ -338,7 +354,7 @@ function pickExecutorModel(
       model: stub,
       requestedCapability: requested,
       selectedCapability: stub.capability,
-      reason: "stub_fallback",
+      reason: RunnerSelectionReasons.StubFallback,
     };
   }
 
@@ -346,7 +362,7 @@ function pickExecutorModel(
     model: null,
     requestedCapability: requested,
     selectedCapability: null,
-    reason: "no_model_available",
+    reason: RunnerSelectionReasons.NoModelAvailable,
   };
 }
 
@@ -391,7 +407,7 @@ function hasExecutorModelForRunner(
   models: ModelEntry[],
   env: Record<string, string | undefined>,
 ): boolean {
-  if (detail.runner === RunnerNames.LocalShell || detail.accessMode === "local-shell") {
+  if (detail.runner === RunnerNames.LocalShell || detail.accessMode === RunnerAccessModes.LocalShell) {
     return true;
   }
 

@@ -1,4 +1,13 @@
-import { Artifact, GateResult, GateResultSchema, GateType, GateTypeSchema, KiwiPolicy } from "@kiwi/contracts";
+import {
+  Artifact,
+  GateResult,
+  GateResultSchema,
+  GateType,
+  GateTypes,
+  GateTypeSchema,
+  KiwiPolicy,
+  StepTypes,
+} from "@kiwi/contracts";
 import { executeSandboxCommand, SandboxCommandPolicy } from "@kiwi/sandbox";
 import { commandForGate, commandProfileForStep, commandProfileToExecutionPolicy } from "./operator-policy";
 
@@ -20,7 +29,7 @@ export async function runRequiredGates(params: {
   diffHash?: string | null;
   now?: Date;
 }): Promise<{ gateResults: GateResult[]; artifacts: Artifact[] }> {
-  const profile = commandProfileForStep(params.policy, "validation");
+  const profile = commandProfileForStep(params.policy, StepTypes.Validation);
   const commandPolicy = commandProfileToExecutionPolicy(profile) as SandboxCommandPolicy;
   const gateResults: GateResult[] = [];
   const artifacts: Artifact[] = [];
@@ -31,7 +40,7 @@ export async function runRequiredGates(params: {
     if (!gateType) {
       continue;
     }
-    if (gateType === "forbidden_file_checks" || gateType === "secrets_check") {
+    if (gateType === GateTypes.ForbiddenFileChecks || gateType === GateTypes.SecretsCheck) {
       continue;
     }
     const command = commandForGate(params.policy, gateType);

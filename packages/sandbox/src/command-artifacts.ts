@@ -9,6 +9,7 @@ import {
 import { appendAuditEvent, resolveRunArtifactPath, writeJsonSafely } from "./common";
 import type { PolicyDecision } from "./command-policy";
 import type { SandboxCommandInput, SandboxCommandOutput, SandboxExecutionStatus } from "./command-types";
+import { SandboxPolicyDecisionStatuses } from "./constants";
 
 function redact(value: string, secretValues: string[]): string {
   return secretValues
@@ -62,7 +63,10 @@ export function auditPolicyDecision(
   policyDecision: PolicyDecision,
 ): void {
   appendAuditEvent(input.cwd, {
-    eventType: policyDecision.status === "allow" ? "sandbox_command_allowed" : "sandbox_command_blocked",
+    eventType:
+      policyDecision.status === SandboxPolicyDecisionStatuses.Allow
+        ? "sandbox_command_allowed"
+        : "sandbox_command_blocked",
     runId: input.runId,
     timestamp: startedAt,
     payload: {

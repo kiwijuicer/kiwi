@@ -1,12 +1,4 @@
-import {
-  assertStepDependenciesCompleted,
-  kiwiModelRegistryPath,
-  kiwiPolicyPath,
-  loadInitiative,
-  loadPolicy,
-  loadRegistry,
-  loadTaskGraph,
-} from "@kiwi/core";
+import type { CoreServices } from "@kiwi/core";
 import type { Initiative, KiwiPolicy, ModelRegistry, Step, TaskGraph } from "@kiwi/contracts";
 import type { ExecutePlannedStepInput } from "./types";
 
@@ -34,27 +26,32 @@ export class ExecutionRunContext {
 
     return step;
   }
-
-  assertStepReady(step: Step): void {
-    assertStepDependenciesCompleted({
-      cwd: this.cwd,
-      runId: this.runId,
-      stepId: step.stepId,
-      dependsOn: step.dependsOn,
-    });
-  }
 }
 
 export class ExecutionContextLoader {
+  constructor(private readonly core: CoreServices) {}
+
   load(input: Pick<ExecutePlannedStepInput, "cwd" | "runId" | "now">): ExecutionRunContext {
+    const policyPath = this.core.config.policyPath(input.cwd);
+    const registryPath = this.core.config.modelRegistryPath(input.cwd);
+
     return new ExecutionRunContext(
       input.cwd,
       input.runId,
       input.now ?? new Date(),
-      loadPolicy(kiwiPolicyPath(input.cwd)),
-      loadRegistry(kiwiModelRegistryPath(input.cwd)),
-      loadInitiative(input.runId, input.cwd),
-      loadTaskGraph(input.runId, input.cwd),
+      this.core.config.loadPolicy(policyPath),
+      this.core.config.loadRegistry(registryPath),
+      this.core.runs.loadInitiative(input.runId, input.cwd),
+      this.core.runs.loadTaskGraph(input.runId, input.cwd),
     );
+  }
+
+  assertStepReady(context: ExecutionRunContext, step: Step): void {
+    this.core.evidence.assertStepDependenciesCompleted({
+      cwd: context.cwd,
+      runId: context.runId,
+      stepId: step.stepId,
+      dependsOn: step.dependsOn,
+    });
   }
 }

@@ -1,5 +1,5 @@
 import type { loadTaskGraph, refreshRunStatusFromAttempts } from "@kiwi/core";
-import { ContractValues } from "@kiwi/contracts";
+import { ContractValues, ExecutionIsolations } from "@kiwi/contracts";
 import type {
   CodexSandbox,
   ExecutionIsolation,
@@ -8,6 +8,7 @@ import type {
   SchedulerDecision,
 } from "@kiwi/contracts";
 import type { SandboxCommandPolicy } from "@kiwi/sandbox";
+import type { WorktreeIsolationKind } from "@kiwi/sandbox";
 import type { StepAttemptOrchestrator } from "../step-attempt-orchestrator";
 import type { StepAttemptRunner } from "../step-runner-types";
 
@@ -72,7 +73,7 @@ export interface ExecutionTarget {
   attemptId: string;
   worktreePath: string;
   sourcePath: string;
-  isolation: "direct" | "git-worktree" | "copy-folder";
+  isolation: typeof ExecutionIsolations.Direct | WorktreeIsolationKind;
   diffBaseTree: string | null;
 }
 

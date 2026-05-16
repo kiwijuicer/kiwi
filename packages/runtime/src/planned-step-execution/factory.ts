@@ -1,7 +1,14 @@
+import { createCoreServices, type CoreServices } from "@kiwi/core";
+import { createSandboxServices, type SandboxServices, type SandboxCommandPolicy } from "@kiwi/sandbox";
+import { OperatorPolicyService } from "../operator-policy";
+import { ResearcherProviderRegistry } from "../researcher-provider-registry";
+import { RunnerResolver } from "../runner-resolution";
+import { SchedulerPolicyService } from "../scheduler-policy";
+import { StepAttemptOrchestrator } from "../step-attempt-orchestrator";
 import { ExecutionAuditReporter } from "./audit";
 import { ExecutionContextLoader } from "./context";
 import { AttemptDiffMaterializer } from "./diff-materializer";
-import { StepAttemptExecutor } from "./executor";
+import { RequiredGateRunner, ReviewEngineFactory, StepAttemptExecutor } from "./executor";
 import { ExecutionPolicyResolver } from "./policy";
 import { RunExecutionPreviewBuilder } from "./preview-builder";
 import { StepRunnerSelector } from "./runner-selection";
@@ -14,25 +21,57 @@ export interface RuntimeExecutionServices {
   previews: RunExecutionPreviewBuilder;
 }
 
-export function createRuntimeExecutionServices(): RuntimeExecutionServices {
-  const contextLoader = new ExecutionContextLoader();
-  const policyResolver = new ExecutionPolicyResolver();
+export interface RuntimeExecutionServiceDependencies {
+  core?: CoreServices;
+  sandbox?: SandboxServices;
+  env?: Record<string, string | undefined>;
+}
+
+export function createRuntimeExecutionServices(
+  dependencies: RuntimeExecutionServiceDependencies = {},
+): RuntimeExecutionServices {
+  const core = dependencies.core ?? createCoreServices();
+  const sandbox = dependencies.sandbox ?? createSandboxServices();
+  const contextLoader = new ExecutionContextLoader(core);
+  const policyResolver = new ExecutionPolicyResolver(dependencies.env);
+  const schedulerPolicy = new SchedulerPolicyService();
+  const operatorPolicy = new OperatorPolicyService();
   const auditReporter = new ExecutionAuditReporter();
-  const runnerSelector = new StepRunnerSelector(policyResolver, auditReporter);
-  const schedulerDecisionService = new SchedulerDecisionService(policyResolver);
-  const targetResolver = new ExecutionTargetResolver();
-  const diffMaterializer = new AttemptDiffMaterializer();
-  const attemptExecutor = new StepAttemptExecutor(policyResolver, diffMaterializer);
+  const runnerSelector = new StepRunnerSelector(
+    policyResolver,
+    auditReporter,
+    new RunnerResolver(),
+    new ResearcherProviderRegistry(),
+  );
+  const schedulerDecisionService = new SchedulerDecisionService(policyResolver, schedulerPolicy, core);
+  const targetResolver = new ExecutionTargetResolver(sandbox);
+  const diffMaterializer = new AttemptDiffMaterializer(core);
+  const attemptExecutor = new StepAttemptExecutor(
+    policyResolver,
+    diffMaterializer,
+    core,
+    operatorPolicy,
+    new StepAttemptOrchestrator<SandboxCommandPolicy>(),
+    new ReviewEngineFactory(),
+    new RequiredGateRunner(),
+  );
 
   return {
     plannedSteps: new PlannedStepExecutionService(
       contextLoader,
       policyResolver,
+      core,
       runnerSelector,
       schedulerDecisionService,
       targetResolver,
       attemptExecutor,
     ),
-    previews: new RunExecutionPreviewBuilder(contextLoader, policyResolver, runnerSelector, schedulerDecisionService),
+    previews: new RunExecutionPreviewBuilder(
+      contextLoader,
+      policyResolver,
+      core,
+      runnerSelector,
+      schedulerDecisionService,
+    ),
   };
 }

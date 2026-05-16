@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "fs";
 import {
   BudgetProfileLimit,
   ContractValues,
+  GateTypes,
   ModelCapability,
   ModelCapabilitySchema,
   RunnerName,
@@ -267,8 +268,8 @@ function determineRequiredGates(input: SchedulerInput, routingReason: string[]):
   const gates = new Set(input.step.requiredGates);
 
   if (riskHigh) {
-    gates.add("forbidden_file_checks");
-    gates.add("secrets_check");
+    gates.add(GateTypes.ForbiddenFileChecks);
+    gates.add(GateTypes.SecretsCheck);
     routingReason.push("risk_high_security_gates");
   }
 
@@ -455,7 +456,7 @@ function schedulePreparedAttempt(
     now: prepared.now,
   });
   const decision: SchedulerDecision = {
-    status: "scheduled",
+    status: ContractValues.Scheduled,
     runId: input.runId,
     stepId: input.step.stepId,
     attemptId: prepared.attemptId,
@@ -585,7 +586,7 @@ function previewStepAttemptInternal(input: SchedulerInput): SchedulerDecision {
   prepared.routingReason.push(`runner_selected:${prepared.runner}`);
 
   return {
-    status: "scheduled",
+    status: ContractValues.Scheduled,
     runId: input.runId,
     stepId: input.step.stepId,
     attemptId: prepared.attemptId,
@@ -601,7 +602,7 @@ function previewStepAttemptInternal(input: SchedulerInput): SchedulerDecision {
   };
 }
 
-class SchedulerPolicyService {
+export class SchedulerPolicyService {
   loadContextPackage(params: Parameters<typeof readContextPackage>[0]): ContextPackage {
     return readContextPackage(params);
   }

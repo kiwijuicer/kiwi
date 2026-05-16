@@ -1,4 +1,4 @@
-import { estimateAttemptCostUsd, remainingBudgetUsdEstimate } from "@kiwi/core";
+import type { CoreServices } from "@kiwi/core";
 import {
   RiskProfiles,
   RunnerNames,
@@ -7,8 +7,7 @@ import {
   type KiwiPolicy,
   type ModelEntry,
 } from "@kiwi/contracts";
-import { previewStepAttempt, saveSchedulerDecision, scheduleStepAttempt } from "../scheduler-policy";
-import type { SchedulerDecision } from "../scheduler-policy";
+import type { SchedulerDecision, SchedulerPolicyService } from "../scheduler-policy";
 import {
   BlastRadii,
   ContextSizes,
@@ -22,10 +21,14 @@ import type { StepExecutionSession } from "./session";
 import type { ExecutionMode } from "./types";
 
 export class SchedulerDecisionService {
-  constructor(private readonly policyResolver: ExecutionPolicyResolver) {}
+  constructor(
+    private readonly policyResolver: ExecutionPolicyResolver,
+    private readonly schedulerPolicy: SchedulerPolicyService,
+    private readonly core: CoreServices,
+  ) {}
 
   schedule(session: StepExecutionSession): SchedulerDecision {
-    const decision = scheduleStepAttempt({
+    const decision = this.schedulerPolicy.scheduleStepAttempt({
       ...this.decisionInput(session),
       now: session.now,
       ...(session.input.attemptId ? { attemptId: session.input.attemptId } : {}),
@@ -47,7 +50,7 @@ export class SchedulerDecisionService {
       throw new Error("Preview scheduler decision requires an attempt id");
     }
 
-    return previewStepAttempt({
+    return this.schedulerPolicy.previewStepAttempt({
       ...this.decisionInput(session),
       attemptId: session.input.attemptId,
       now: session.now,
@@ -84,7 +87,7 @@ export class SchedulerDecisionService {
       selectedProviderModel: params.selectedModel?.providerModel ?? null,
       selectedAccessMode: params.selectedModel?.accessMode ?? null,
       executorSelectionReason: params.executorSelectionReason,
-      estimatedAttemptCostUsd: estimateAttemptCostUsd({
+      estimatedAttemptCostUsd: this.core.budgets.estimateAttemptCostUsd({
         modelId: params.selectedModelId,
         capability: params.decision.modelCapability,
         contextLevel: params.decision.contextLevel,
@@ -92,7 +95,7 @@ export class SchedulerDecisionService {
       executionOwner: this.policyResolver.executionOwner(params.policy),
       executionIsolation: params.isolation,
     };
-    saveSchedulerDecision(params.cwd, enriched);
+    this.schedulerPolicy.saveSchedulerDecision(params.cwd, enriched);
 
     return enriched;
   }
@@ -106,7 +109,7 @@ export class SchedulerDecisionService {
       step: session.step,
       initiative: session.context.initiative,
       budgetProfile: session.context.initiative.budgetProfile,
-      budgetRemainingUsdEstimate: remainingBudgetUsdEstimate({
+      budgetRemainingUsdEstimate: this.core.budgets.remainingUsdEstimate({
         cwd: session.cwd,
         runId: session.runId,
         budgetProfile: session.context.initiative.budgetProfile,
