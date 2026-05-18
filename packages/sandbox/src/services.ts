@@ -1,16 +1,16 @@
-import { executeSandboxCommand } from "./command-executor";
-import { auditPolicyDecision, blockedOutput, finishCommand } from "./command-artifacts";
-import { evaluatePolicy } from "./command-policy";
-import type { SandboxCommandInput } from "./command-types";
+import { executeSandboxCommand } from "./commands/executor";
+import { auditPolicyDecision, blockedOutput, finishCommand } from "./commands/artifacts";
+import { evaluatePolicy } from "./commands/policy";
+import type { SandboxCommandInput } from "./commands/types";
 import {
   DiffArtifactApplier,
   GitDiffArtifactService,
   WorktreeDiffArtifactService,
   readCommandOutputArtifact,
-} from "./diff";
-import { spawnSandboxCommand } from "./process-execution";
-import { terminateProcessTree, truncateOutput } from "./process-utils";
-import { createWorktreeSandbox, reapOrphanWorktrees, teardownWorktreeSandbox } from "./worktree";
+} from "./diffs";
+import { spawnSandboxCommand } from "./processes/execution";
+import { terminateProcessTree, truncateOutput } from "./processes/utils";
+import { createWorktreeSandbox, reapOrphanWorktrees, teardownWorktreeSandbox } from "./worktrees";
 
 export class SandboxCommandPolicyEvaluator {
   constructor(

@@ -174,13 +174,13 @@ export default [
   },
   {
     files: [
-      "packages/contracts/src/schemas.ts",
-      "packages/contracts/src/common.ts",
-      "packages/contracts/src/domain.ts",
-      "packages/contracts/src/execution.ts",
-      "packages/contracts/src/policy.ts",
-      "packages/contracts/src/scm.ts",
-      "packages/contracts/src/evidence.ts",
+      "packages/contracts/src/public/schemas.ts",
+      "packages/contracts/src/shared/common.ts",
+      "packages/contracts/src/domain/index.ts",
+      "packages/contracts/src/execution/index.ts",
+      "packages/contracts/src/policy/index.ts",
+      "packages/contracts/src/scm/index.ts",
+      "packages/contracts/src/evidence/index.ts",
     ],
     rules: {
       "max-lines": "off",

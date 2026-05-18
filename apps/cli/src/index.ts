@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { registerCoreCommands } from "./commands/register-core";
-import { registerExecutionCommands } from "./commands/register-execution";
+import { registerCoreCommands } from "./commands/registration/core";
+import { registerExecutionCommands } from "./commands/registration/execution";
 
 const program = new Command();
 

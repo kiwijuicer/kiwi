@@ -1,14 +1,14 @@
 {
   "generatedAt": "2026-05-16T15:22:53.749Z",
   "issueKeys": [
-    "apps/mcp-server/src/next-action.ts|max-lines-per-function|1|Function 'nextTool' has too many lines (148). Maximum allowed is 120.|export function nextTool(args: Record<string, unknown>, cwd: string): unknown {",
-    "apps/mcp-server/src/next-action.ts|sonarjs/cognitive-complexity|1|Refactor this function to reduce its Cognitive Complexity from 25 to the 20 allowed.|export function nextTool(args: Record<string, unknown>, cwd: string): unknown {",
-    "apps/mcp-server/src/tools.ts|max-lines-per-function|1|Async function 'planTool' has too many lines (128). Maximum allowed is 120.|async function planTool(args: Record<string, unknown>, cwd: string, options: ToolCallOptions = {}): Promise<unknown> {",
-    "apps/mcp-server/src/tools.ts|max-lines-per-function|1|Function 'callCoreTool' has too many lines (205). Maximum allowed is 120.|function callCoreTool(",
-    "apps/mcp-server/src/tools.ts|max-lines|1|File has too many lines (1006). Maximum allowed is 600.|};",
-    "packages/runtime/src/planned-step-execution.ts|max-lines-per-function|1|Async function 'executePlannedStep' has too many lines (151). Maximum allowed is 120.|export async function executePlannedStep(input: ExecutePlannedStepInput): Promise<ExecutePlannedStepResult> {",
-    "packages/runtime/src/planned-step-execution.ts|max-lines|1|File has too many lines (719). Maximum allowed is 600.|const approval = loadLatestApprovalDecisionForStep({ cwd: input.cwd, runId: input.runId, stepId: input.stepId });",
-    "packages/runtime/src/step-attempt-orchestrator.ts|max-lines-per-function|1|Method 'blockBudgetExceeded' has too many lines (182). Maximum allowed is 120.|private blockBudgetExceeded(params: {"
+    "apps/mcp-server/src/tools/next-action.ts|max-lines-per-function|1|Function 'nextTool' has too many lines (148). Maximum allowed is 120.|export function nextTool(args: Record<string, unknown>, cwd: string): unknown {",
+    "apps/mcp-server/src/tools/next-action.ts|sonarjs/cognitive-complexity|1|Refactor this function to reduce its Cognitive Complexity from 25 to the 20 allowed.|export function nextTool(args: Record<string, unknown>, cwd: string): unknown {",
+    "apps/mcp-server/src/tools/dispatcher.ts|max-lines-per-function|1|Async function 'planTool' has too many lines (128). Maximum allowed is 120.|async function planTool(args: Record<string, unknown>, cwd: string, options: ToolCallOptions = {}): Promise<unknown> {",
+    "apps/mcp-server/src/tools/dispatcher.ts|max-lines-per-function|1|Function 'callCoreTool' has too many lines (205). Maximum allowed is 120.|function callCoreTool(",
+    "apps/mcp-server/src/tools/dispatcher.ts|max-lines|1|File has too many lines (1006). Maximum allowed is 600.|};",
+    "packages/runtime/src/execution/planned-steps/index.ts|max-lines-per-function|1|Async function 'executePlannedStep' has too many lines (151). Maximum allowed is 120.|export async function executePlannedStep(input: ExecutePlannedStepInput): Promise<ExecutePlannedStepResult> {",
+    "packages/runtime/src/execution/planned-steps/index.ts|max-lines|1|File has too many lines (719). Maximum allowed is 600.|const approval = loadLatestApprovalDecisionForStep({ cwd: input.cwd, runId: input.runId, stepId: input.stepId });",
+    "packages/runtime/src/execution/step-attempt-orchestrator.ts|max-lines-per-function|1|Method 'blockBudgetExceeded' has too many lines (182). Maximum allowed is 120.|private blockBudgetExceeded(params: {"
   ],
   "ignoredRuleIds": []
 }

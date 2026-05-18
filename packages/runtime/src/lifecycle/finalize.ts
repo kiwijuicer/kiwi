@@ -21,7 +21,7 @@ import {
   writeJsonSafely,
   writeModelUsageSummary,
 } from "@kiwi/core";
-import { loadAttemptDiff } from "../review-engine";
+import { loadAttemptDiff } from "../review/review-engine";
 
 export interface FinalizeRunResult {
   verdict: FinalVerdict;

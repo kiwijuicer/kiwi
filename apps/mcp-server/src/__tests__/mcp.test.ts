@@ -12,7 +12,7 @@ import {
   McpServerBootstrap,
   resolveMcpBootstrapOptions,
   startHttpMcpServer,
-} from "../index";
+} from "..";
 
 function setupRepo(): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-"));

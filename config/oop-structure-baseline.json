@@ -2,7 +2,7 @@
   "generatedAt": "2026-05-16T18:30:33.537Z",
   "maxLooseTopLevelFunctions": 4,
   "files": {
-    "apps/cli/src/commands/doctor.ts": {
+    "apps/cli/src/commands/setup/doctor.ts": {
       "looseTopLevelFunctions": 6,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
@@ -16,7 +16,7 @@
       ],
       "exportedFunctions": ["runDoctor"]
     },
-    "apps/cli/src/commands/plan.ts": {
+    "apps/cli/src/commands/planning/plan.ts": {
       "looseTopLevelFunctions": 8,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
@@ -32,7 +32,7 @@
       ],
       "exportedFunctions": ["runPlan"]
     },
-    "apps/cli/src/commands/run-summary.ts": {
+    "apps/cli/src/commands/runs/run-summary.ts": {
       "looseTopLevelFunctions": 6,
       "exportedLooseTopLevelFunctions": 2,
       "cohesiveContainers": 0,
@@ -46,7 +46,7 @@
       ],
       "exportedFunctions": ["printCostSummary", "printRunCompletionSummary"]
     },
-    "apps/cli/src/commands/run.ts": {
+    "apps/cli/src/commands/runs/run.ts": {
       "looseTopLevelFunctions": 7,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
@@ -61,7 +61,7 @@
       ],
       "exportedFunctions": ["runRun"]
     },
-    "apps/cli/src/commands/status.ts": {
+    "apps/cli/src/commands/runs/status.ts": {
       "looseTopLevelFunctions": 11,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
@@ -80,14 +80,14 @@
       ],
       "exportedFunctions": ["runStatus"]
     },
-    "apps/cli/src/commands/tail.ts": {
+    "apps/cli/src/commands/runs/tail.ts": {
       "looseTopLevelFunctions": 7,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
       "functions": ["auditPath", "formatEvent", "matches", "parseLine", "parseSince", "readNewLines", "runTail"],
       "exportedFunctions": ["runTail"]
     },
-    "apps/mcp-server/src/core-tool-dispatch.ts": {
+    "apps/mcp-server/src/tools/core-dispatch.ts": {
       "looseTopLevelFunctions": 14,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
@@ -109,7 +109,7 @@
       ],
       "exportedFunctions": ["callCoreTool"]
     },
-    "apps/mcp-server/src/preview-tokens.ts": {
+    "apps/mcp-server/src/tools/preview-tokens.ts": {
       "looseTopLevelFunctions": 13,
       "exportedLooseTopLevelFunctions": 4,
       "cohesiveContainers": 0,
@@ -135,7 +135,7 @@
         "validateMcpPreviewToken"
       ]
     },
-    "apps/mcp-server/src/protocol.ts": {
+    "apps/mcp-server/src/server/protocol.ts": {
       "looseTopLevelFunctions": 6,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
@@ -149,7 +149,7 @@
       ],
       "exportedFunctions": ["defaultServerCwd", "handleMcpMessage", "handleMcpRequest"]
     },
-    "apps/mcp-server/src/resources.ts": {
+    "apps/mcp-server/src/resources/index.ts": {
       "looseTopLevelFunctions": 12,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
@@ -169,7 +169,7 @@
       ],
       "exportedFunctions": ["listResourceTemplates", "listResources", "readMcpResource"]
     },
-    "apps/mcp-server/src/run-tools.ts": {
+    "apps/mcp-server/src/tools/run-tools.ts": {
       "looseTopLevelFunctions": 8,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
@@ -185,7 +185,7 @@
       ],
       "exportedFunctions": ["previewRunTool", "runStepTool", "runTool"]
     },
-    "apps/mcp-server/src/tool-helpers.ts": {
+    "apps/mcp-server/src/tools/helpers.ts": {
       "looseTopLevelFunctions": 7,
       "exportedLooseTopLevelFunctions": 6,
       "cohesiveContainers": 0,
@@ -207,7 +207,7 @@
         "toolArguments"
       ]
     },
-    "apps/mcp-server/src/ux.ts": {
+    "apps/mcp-server/src/ux/index.ts": {
       "looseTopLevelFunctions": 8,
       "exportedLooseTopLevelFunctions": 7,
       "cohesiveContainers": 0,
@@ -231,7 +231,7 @@
         "workspaceToolArgs"
       ]
     },
-    "packages/adapters/src/anthropic-common.ts": {
+    "packages/adapters/src/integrations/anthropic/common.ts": {
       "looseTopLevelFunctions": 11,
       "exportedLooseTopLevelFunctions": 7,
       "cohesiveContainers": 0,
@@ -258,7 +258,7 @@
         "isRecord"
       ]
     },
-    "packages/adapters/src/cli-planner-provider.ts": {
+    "packages/adapters/src/providers/cli-planner.ts": {
       "looseTopLevelFunctions": 9,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
@@ -275,14 +275,14 @@
       ],
       "exportedFunctions": ["extractCliPlannerText", "formatExternalCliFailure", "invokeCliPlanner"]
     },
-    "packages/adapters/src/cli-reviewer-provider.ts": {
+    "packages/adapters/src/providers/cli-reviewer.ts": {
       "looseTopLevelFunctions": 5,
       "exportedLooseTopLevelFunctions": 2,
       "cohesiveContainers": 0,
       "functions": ["buildPrompt", "emptyReviewerPolicy", "invokeCliReviewer", "previousAttempts", "providerError"],
       "exportedFunctions": ["emptyReviewerPolicy", "invokeCliReviewer"]
     },
-    "packages/adapters/src/provider-redaction.ts": {
+    "packages/adapters/src/providers/redaction.ts": {
       "looseTopLevelFunctions": 9,
       "exportedLooseTopLevelFunctions": 2,
       "cohesiveContainers": 0,
@@ -299,7 +299,7 @@
       ],
       "exportedFunctions": ["redactForProvider", "secretEnvNamesFromPolicy"]
     },
-    "packages/adapters/src/repo-context.ts": {
+    "packages/adapters/src/providers/repo-context.ts": {
       "looseTopLevelFunctions": 8,
       "exportedLooseTopLevelFunctions": 2,
       "cohesiveContainers": 0,
@@ -315,7 +315,7 @@
       ],
       "exportedFunctions": ["buildRepoContextEnvelope", "renderRepoContext"]
     },
-    "packages/core/src/budget-policy.ts": {
+    "packages/core/src/budget/policy.ts": {
       "looseTopLevelFunctions": 8,
       "exportedLooseTopLevelFunctions": 7,
       "cohesiveContainers": 0,
@@ -339,7 +339,7 @@
         "remainingBudgetUsdEstimate"
       ]
     },
-    "packages/core/src/config.ts": {
+    "packages/core/src/config/index.ts": {
       "looseTopLevelFunctions": 7,
       "exportedLooseTopLevelFunctions": 6,
       "cohesiveContainers": 0,
@@ -361,7 +361,7 @@
         "saveKiwiConfig"
       ]
     },
-    "packages/core/src/cost-ledger.ts": {
+    "packages/core/src/ledger/cost-ledger.ts": {
       "looseTopLevelFunctions": 5,
       "exportedLooseTopLevelFunctions": 4,
       "cohesiveContainers": 0,
@@ -391,7 +391,7 @@
       ],
       "exportedFunctions": ["generateInitiativeId", "generatePlanId", "generateRunId", "generateStepId"]
     },
-    "packages/core/src/lifecycle/evidence-collection.ts": {
+    "packages/core/src/runs/lifecycle/evidence-collection.ts": {
       "looseTopLevelFunctions": 9,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
@@ -408,7 +408,7 @@
       ],
       "exportedFunctions": ["assertStepDependenciesCompleted", "latestAttemptByStep", "listStepAttemptEvidence"]
     },
-    "packages/core/src/model-invocations.ts": {
+    "packages/core/src/ledger/model-invocations.ts": {
       "looseTopLevelFunctions": 9,
       "exportedLooseTopLevelFunctions": 6,
       "cohesiveContainers": 0,
@@ -432,7 +432,7 @@
         "writeModelUsageSummary"
       ]
     },
-    "packages/core/src/planner-run.ts": {
+    "packages/core/src/planning/planner-run.ts": {
       "looseTopLevelFunctions": 11,
       "exportedLooseTopLevelFunctions": 2,
       "cohesiveContainers": 0,
@@ -451,7 +451,7 @@
       ],
       "exportedFunctions": ["planRun", "selectPlannerModel"]
     },
-    "packages/core/src/run-store.ts": {
+    "packages/core/src/runs/store.ts": {
       "looseTopLevelFunctions": 13,
       "exportedLooseTopLevelFunctions": 9,
       "cohesiveContainers": 0,
@@ -482,7 +482,7 @@
         "savePlannedRun"
       ]
     },
-    "packages/core/src/status.ts": {
+    "packages/core/src/runs/status.ts": {
       "looseTopLevelFunctions": 14,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
@@ -504,7 +504,7 @@
       ],
       "exportedFunctions": ["getRunStatusSummary"]
     },
-    "packages/core/src/workspace.ts": {
+    "packages/core/src/workspace/index.ts": {
       "looseTopLevelFunctions": 12,
       "exportedLooseTopLevelFunctions": 2,
       "cohesiveContainers": 0,
@@ -524,7 +524,7 @@
       ],
       "exportedFunctions": ["discoverWorkspaceRepos", "resolveWorkspace"]
     },
-    "packages/ops/src/evidence.ts": {
+    "packages/ops/src/evidence/index.ts": {
       "looseTopLevelFunctions": 8,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
@@ -540,7 +540,7 @@
       ],
       "exportedFunctions": ["loadEvidenceManifest", "writeEvidenceManifest", "writeRunAuditSnapshot"]
     },
-    "packages/ops/src/operator-surface.ts": {
+    "packages/ops/src/operator/surface.ts": {
       "looseTopLevelFunctions": 5,
       "exportedLooseTopLevelFunctions": 2,
       "cohesiveContainers": 0,
@@ -553,7 +553,7 @@
       ],
       "exportedFunctions": ["renderOperatorSnapshotHtml", "writeOperatorSnapshot"]
     },
-    "packages/ops/src/pr-draft.ts": {
+    "packages/ops/src/publishing/pr-draft.ts": {
       "looseTopLevelFunctions": 15,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
@@ -576,7 +576,7 @@
       ],
       "exportedFunctions": ["publishPrDraft"]
     },
-    "packages/runtime/src/access-mode-resolver.ts": {
+    "packages/runtime/src/registries/access-mode-resolver.ts": {
       "looseTopLevelFunctions": 10,
       "exportedLooseTopLevelFunctions": 5,
       "cohesiveContainers": 0,
@@ -600,7 +600,7 @@
         "stubAccessAllowed"
       ]
     },
-    "packages/runtime/src/diff-workflow.ts": {
+    "packages/runtime/src/execution/diff-workflow.ts": {
       "looseTopLevelFunctions": 7,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
@@ -628,7 +628,7 @@
       ],
       "exportedFunctions": ["finalizeRun"]
     },
-    "packages/runtime/src/quality-gates.ts": {
+    "packages/runtime/src/gates/quality-gates.ts": {
       "looseTopLevelFunctions": 12,
       "exportedLooseTopLevelFunctions": 9,
       "cohesiveContainers": 0,
@@ -658,7 +658,7 @@
         "summarizeGateResults"
       ]
     },
-    "packages/runtime/src/step-attempt-artifacts.ts": {
+    "packages/runtime/src/execution/step-attempt-artifacts.ts": {
       "looseTopLevelFunctions": 7,
       "exportedLooseTopLevelFunctions": 6,
       "cohesiveContainers": 0,
@@ -680,7 +680,7 @@
         "saveStepAttempt"
       ]
     },
-    "packages/runtime/src/step-attempt/gates.ts": {
+    "packages/runtime/src/execution/step-attempt/gates.ts": {
       "looseTopLevelFunctions": 5,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
@@ -697,7 +697,7 @@
         "mapRunnerStatusToAttemptStatus"
       ]
     },
-    "packages/runtime/src/step-attempt/runner.ts": {
+    "packages/runtime/src/execution/step-attempt/runner.ts": {
       "looseTopLevelFunctions": 7,
       "exportedLooseTopLevelFunctions": 4,
       "cohesiveContainers": 0,
@@ -717,7 +717,7 @@
         "executeStepRunner"
       ]
     },
-    "packages/sandbox/src/command-artifacts.ts": {
+    "packages/sandbox/src/commands/artifacts.ts": {
       "looseTopLevelFunctions": 9,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
@@ -734,7 +734,7 @@
       ],
       "exportedFunctions": ["auditPolicyDecision", "blockedOutput", "finishCommand"]
     },
-    "packages/sandbox/src/command-policy.ts": {
+    "packages/sandbox/src/commands/policy.ts": {
       "looseTopLevelFunctions": 12,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
@@ -754,7 +754,7 @@
       ],
       "exportedFunctions": ["evaluatePolicy"]
     },
-    "packages/sandbox/src/common.ts": {
+    "packages/sandbox/src/shared/common.ts": {
       "looseTopLevelFunctions": 6,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
@@ -768,7 +768,7 @@
       ],
       "exportedFunctions": ["appendAuditEvent", "resolveRunArtifactPath", "writeJsonSafely"]
     },
-    "packages/sandbox/src/worktree.ts": {
+    "packages/sandbox/src/worktrees/index.ts": {
       "looseTopLevelFunctions": 12,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,

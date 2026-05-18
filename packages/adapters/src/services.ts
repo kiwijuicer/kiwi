@@ -1,8 +1,8 @@
 import type { KiwiPolicy } from "@kiwi/contracts";
-import { runnerTimeoutMs, cliRunnerOutput } from "./cli-runner-output";
-import { redactForProvider, secretEnvNamesFromPolicy } from "./provider-redaction";
-import { buildRepoContextEnvelope, renderRepoContext } from "./repo-context";
-import { runSubprocess } from "./subprocess";
+import { runnerTimeoutMs, cliRunnerOutput } from "./runners/cli-output";
+import { redactForProvider, secretEnvNamesFromPolicy } from "./providers/redaction";
+import { buildRepoContextEnvelope, renderRepoContext } from "./providers/repo-context";
+import { runSubprocess } from "./runners/subprocess";
 
 export class ProviderRedactionService {
   constructor(

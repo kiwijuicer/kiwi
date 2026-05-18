@@ -1,5 +1,5 @@
-export * from "./schemas";
-export type * from "./types";
+export * from "./public/schemas";
+export type * from "./public/types";
 export * as DomainContracts from "./domain";
 export * as ExecutionContracts from "./execution";
 export * as EvidenceContracts from "./evidence";

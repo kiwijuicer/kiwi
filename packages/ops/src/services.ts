@@ -1,7 +1,7 @@
 import { loadEvidenceManifest, writeEvidenceManifest, writeRunAuditSnapshot } from "./evidence";
-import { renderOperatorSnapshotHtml, writeOperatorSnapshot } from "./operator-surface";
-import { publishPrDraft } from "./pr-draft";
-import { RunExplanationBuilder, RunSummaryBuilder } from "./run-summary";
+import { renderOperatorSnapshotHtml, writeOperatorSnapshot } from "./operator/surface";
+import { publishPrDraft } from "./publishing/pr-draft";
+import { RunExplanationBuilder, RunSummaryBuilder } from "./summaries/run-summary";
 
 export class EvidenceService {
   constructor(
