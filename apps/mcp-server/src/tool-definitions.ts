@@ -348,7 +348,7 @@ const TOOL_ANNOTATIONS: Record<ToolName, ToolAnnotations> = {
   kiwi_request_approval: {
     title: "Record kiwi approval",
     readOnlyHint: false,
-    destructiveHint: false,
+    destructiveHint: true,
     idempotentHint: false,
     openWorldHint: false,
   },

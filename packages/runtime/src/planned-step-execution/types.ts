@@ -34,6 +34,7 @@ export const ExecutorSelectionReasons = {
 } as const;
 
 export const PREVIEW_ATTEMPT_ID_PREFIX = "attempt_preview_";
+export const DEFAULT_MAX_CONCURRENCY = 2;
 
 export interface ExecutePlannedStepInput {
   cwd: string;

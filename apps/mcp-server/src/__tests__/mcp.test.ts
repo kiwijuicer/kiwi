@@ -257,6 +257,10 @@ describe("MCP server", () => {
       destructiveHint: false,
       idempotentHint: true,
     });
+    expect(listedTools.find((tool) => tool.name === "kiwi_request_approval")?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+    });
   });
 
   it("lists concrete resources separately from templates", async () => {
@@ -428,6 +432,32 @@ describe("MCP server", () => {
       expect(response.status).toBe(204);
       expect(response.headers.get("access-control-allow-origin")).toBe("http://[::1]:3000");
       expect(response.headers.get("access-control-allow-headers")).toContain("authorization");
+      expect(response.headers.get("access-control-allow-methods")).toBe("POST, OPTIONS");
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+  });
+
+  it("does not advertise GET on the HTTP MCP endpoint", async ({ skip }) => {
+    const server = await startLoopbackHttpServer(setupRepo(), skip);
+
+    if (!server) {
+      return;
+    }
+
+    try {
+      const address = server.address() as AddressInfo;
+      const response = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
+        method: "GET",
+        headers: {
+          authorization: "Bearer test-token",
+        },
+      });
+
+      expect(response.status).toBe(405);
+      expect(response.headers.get("allow")).toBe("POST, OPTIONS");
     } finally {
       await new Promise<void>((resolve, reject) => {
         server.close((error) => (error ? reject(error) : resolve()));
@@ -638,7 +668,7 @@ describe("MCP server", () => {
     expect(JSON.stringify(stringified.error?.data)).toContain("params.arguments must be an object");
   });
 
-  it("emits progress notifications for kiwi_plan and lists concrete run resources", async () => {
+  it("emits progress notifications only when a progressToken is explicit", async () => {
     const cwd = setupRepo();
     const notifications: unknown[] = [];
     const planned = await handleMcpRequest(
@@ -646,6 +676,7 @@ describe("MCP server", () => {
         id: 1,
         method: "tools/call",
         params: {
+          _meta: { progressToken: "plan-progress" },
           name: "kiwi_plan",
           arguments: { rawInput: "# Progress MCP\n\n## Plan", allowStub: true },
         },
@@ -659,6 +690,73 @@ describe("MCP server", () => {
     expect(JSON.stringify(notifications)).toContain("notifications/progress");
     expect(JSON.stringify(notifications)).toContain("phase=planner status=started");
     expect(JSON.stringify(notifications)).toContain("phase=planner status=completed");
+    expect(
+      notifications.every(
+        (notification) =>
+          (notification as { params?: { progressToken?: unknown } }).params?.progressToken === "plan-progress",
+      ),
+    ).toBe(true);
+
+    const omittedTokenNotifications: unknown[] = [];
+    const omittedTokenPlan = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: { rawInput: "# Progress omitted\n\n## Plan", allowStub: true },
+        },
+      },
+      cwd,
+      { sendNotification: (notification) => omittedTokenNotifications.push(notification) },
+    );
+    expect(omittedTokenPlan.error).toBeUndefined();
+    expect(omittedTokenNotifications).toEqual([]);
+
+    const nullTokenNotifications: unknown[] = [];
+    const nullTokenPlan = await handleMcpRequest(
+      {
+        id: 3,
+        method: "tools/call",
+        params: {
+          _meta: { progressToken: null },
+          name: "kiwi_plan",
+          arguments: { rawInput: "# Progress null\n\n## Plan", allowStub: true },
+        },
+      },
+      cwd,
+      { sendNotification: (notification) => nullTokenNotifications.push(notification) },
+    );
+    expect(nullTokenPlan.error).toBeUndefined();
+    expect(nullTokenNotifications).toEqual([]);
+
+    const resources = await handleMcpRequest({ id: 4, method: "resources/list" }, cwd);
+    const taskGraphUri = `kiwi://runs/${parsed.runId}/artifacts/plan%2Ftask-graph.json`;
+    expect(JSON.stringify(resources.result)).toContain(taskGraphUri);
+
+    const taskGraph = await handleMcpRequest(
+      { id: 5, method: "resources/read", params: { uri: taskGraphUri } },
+      cwd,
+    );
+    expect(JSON.stringify(taskGraph.result)).toContain("Progress MCP");
+  });
+
+  it("lists concrete run resources", async () => {
+    const cwd = setupRepo();
+    const planned = await handleMcpRequest(
+      {
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: { rawInput: "# Resource MCP\n\n## Plan", allowStub: true },
+        },
+      },
+      cwd,
+    );
+    expect(planned.error).toBeUndefined();
+    const parsed = toolJson(planned) as { runId: string; cost: { estimatedCostUsd: number } };
+    expect(parsed.cost.estimatedCostUsd).toBeTypeOf("number");
 
     const resources = await handleMcpRequest({ id: 2, method: "resources/list" }, cwd);
     const taskGraphUri = `kiwi://runs/${parsed.runId}/artifacts/plan%2Ftask-graph.json`;
@@ -668,7 +766,7 @@ describe("MCP server", () => {
       { id: 3, method: "resources/read", params: { uri: taskGraphUri } },
       cwd,
     );
-    expect(JSON.stringify(taskGraph.result)).toContain("Progress MCP");
+    expect(JSON.stringify(taskGraph.result)).toContain("Resource MCP");
   });
 
   it("previews Codex model switching before running", async () => {
@@ -733,6 +831,7 @@ models:
 
       expect(preview.error).toBeUndefined();
       const parsed = toolJson(preview) as {
+        decision: { nextAction: { recommendedToolCall: { arguments: { maxConcurrency?: number } } } };
         execution: { isolation: string };
         previewToken: string;
         steps: Array<{ runner: string; selectedModelId: string; selectedProviderModel: string }>;
@@ -741,6 +840,40 @@ models:
       expect(parsed.previewToken).toMatch(/^preview_/);
       expect(parsed.steps.some((step) => step.runner === "codex")).toBe(true);
       expect(parsed.steps.some((step) => step.selectedProviderModel === "gpt-5.4")).toBe(true);
+      expect(parsed.decision.nextAction.recommendedToolCall.arguments.maxConcurrency).toBe(2);
+
+      const next = await handleMcpRequest(
+        {
+          id: 3,
+          method: "tools/call",
+          params: {
+            name: "kiwi_next",
+            arguments: { runId, maxConcurrency: 2 },
+          },
+        },
+        cwd,
+      );
+      const nextParsed = toolJson(next) as {
+        nextAction: { recommendedToolCall: { name: string; arguments: { maxConcurrency?: number } } };
+      };
+      expect(nextParsed.nextAction.recommendedToolCall.name).toBe("kiwi_run");
+      expect(nextParsed.nextAction.recommendedToolCall.arguments.maxConcurrency).toBe(2);
+
+      const implicitPreview = await handleMcpRequest(
+        {
+          id: 4,
+          method: "tools/call",
+          params: {
+            name: "kiwi_preview_run",
+            arguments: { runId },
+          },
+        },
+        cwd,
+      );
+      const implicitParsed = toolJson(implicitPreview) as {
+        decision: { nextAction: { recommendedToolCall: { arguments: { maxConcurrency?: number } } } };
+      };
+      expect(implicitParsed.decision.nextAction.recommendedToolCall.arguments).not.toHaveProperty("maxConcurrency");
     } finally {
       if (previousFake === undefined) {
         delete process.env.KIWI_FAKE_BINARY_AVAILABLE;
@@ -755,61 +888,61 @@ models:
     }
   });
 
-  it("falls back from uninitialized workspacePath to initialized repoPath and prefers repoPath over repoId", async () => {
+  it("rejects uninitialized workspacePath instead of falling back to initialized repoPath", async () => {
     const workspaceRoot = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-workspace-root-"));
     const core = path.join(workspaceRoot, "voice-core");
     mkdirSync(core);
     writeKiwiConfig(core);
 
-    const calls = [
+    const rejected = await handleMcpRequest(
       {
-        workspacePath: workspaceRoot,
-        repoId: "voice-core",
-        repoPath: core,
-      },
-      {
-        workspacePath: workspaceRoot,
-        repoPath: core,
-      },
-      {
-        workspacePath: core,
-        repoId: "voice-workspace",
-        repoPath: core,
-      },
-      {
-        workspacePath: core,
-        repoId: "voice-core",
-        repoPath: core,
-      },
-    ];
-
-    for (const [index, args] of calls.entries()) {
-      const planned = await handleMcpRequest(
-        {
-          id: index + 1,
-          method: "tools/call",
-          params: {
-            name: "kiwi_plan",
-            arguments: {
-              ...args,
-              rawInput: `# Workspace fallback ${index}\n\n## Plan`,
-              riskProfile: "dev",
-              budgetProfile: "tiny",
-              allowStub: true,
-            },
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: {
+            workspacePath: workspaceRoot,
+            repoPath: core,
+            rawInput: "# Workspace fallback rejected\n\n## Plan",
+            riskProfile: "dev",
+            budgetProfile: "tiny",
+            allowStub: true,
           },
         },
-        os.tmpdir(),
-      );
+      },
+      os.tmpdir(),
+    );
+    expect(rejected.error?.code).toBe(-32000);
+    expect(rejected.error?.message).toContain("Workspace path is not initialized");
+    expect(rejected.error?.message).toContain("kiwi_doctor");
 
-      expect(planned.error).toBeUndefined();
-      const parsed = toolJson(planned) as {
-        workspace: { workspacePath: string; repoId: string; repoPath: string };
-      };
-      expect(parsed.workspace.workspacePath).toBe(core);
-      expect(parsed.workspace.repoId).toBe("voice-core");
-      expect(parsed.workspace.repoPath).toBe(core);
-    }
+    const planned = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: {
+            workspacePath: core,
+            repoId: "voice-core",
+            repoPath: core,
+            rawInput: "# Workspace direct\n\n## Plan",
+            riskProfile: "dev",
+            budgetProfile: "tiny",
+            allowStub: true,
+          },
+        },
+      },
+      os.tmpdir(),
+    );
+
+    expect(planned.error).toBeUndefined();
+    const parsed = toolJson(planned) as {
+      workspace: { workspacePath: string; repoId: string; repoPath: string };
+    };
+    expect(parsed.workspace.workspacePath).toBe(core);
+    expect(parsed.workspace.repoId).toBe("voice-core");
+    expect(parsed.workspace.repoPath).toBe(core);
   });
 
   it("accepts workspace selection and exposes kiwi_run", async () => {
@@ -857,6 +990,7 @@ models:
         id: 3,
         method: "tools/call",
         params: {
+          _meta: { progressToken: "run-progress" },
           name: "kiwi_run",
           arguments: {
             workspacePath: workspace.root,
@@ -878,6 +1012,7 @@ models:
     expect(notificationText).toContain("phase=step status=started");
     expect(notificationText).toContain("phase=gate status=");
     expect(notificationText).toContain("phase=review status=completed");
+    expect(notificationText).toContain("run-progress");
     const runParsed = toolJson(run) as { summary: { totalEstimatedCostUsd: number; nextAction: string } };
     expect(runParsed.summary.totalEstimatedCostUsd).toBe(0);
 

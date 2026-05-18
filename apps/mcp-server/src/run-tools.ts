@@ -14,10 +14,10 @@ import { ToolActionRequiredError } from "./tool-errors";
 import { errorMessage, previewConfirmationSummary, progressLine, type ToolCallOptions } from "./tool-helpers";
 import { mutationScope, safeReadOnlyToolCalls, toolCall, type McpNextAction, workspaceToolArgs } from "./ux";
 import { McpToolProgressStatuses } from "./constants";
-import { createMcpServerServices } from "./services";
+import { getMcpServerServices } from "./services";
 import { workspaceArgs } from "./workspace";
 
-const mcpServices = createMcpServerServices();
+const mcpServices = getMcpServerServices();
 const MCP_COMMAND_OVERRIDE_ENV = "KIWI_ALLOW_MCP_COMMAND_OVERRIDE";
 
 interface RunStepToolResult {
@@ -36,13 +36,14 @@ function nextRunAction(params: {
   previewToken: string;
   fromStep?: string | undefined;
   maxConcurrency?: number | undefined;
+  maxConcurrencyExplicit?: boolean | undefined;
 }): McpNextAction {
   return {
     recommendedToolCall: toolCall("kiwi_run", {
       ...workspaceToolArgs(params),
       previewToken: params.previewToken,
       ...(params.fromStep ? { fromStep: params.fromStep } : {}),
-      ...(params.maxConcurrency !== undefined && params.maxConcurrency !== 2
+      ...(params.maxConcurrencyExplicit === true && params.maxConcurrency !== undefined
         ? { maxConcurrency: params.maxConcurrency }
         : {}),
     }),
@@ -204,6 +205,7 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
     previewToken: token.token,
     fromStep,
     maxConcurrency: previewInput.maxConcurrency,
+    maxConcurrencyExplicit: previewInput.maxConcurrencyExplicit,
   });
   const runScope = mutationScope({
     riskLabel: "MUTATES_WORKTREE",
@@ -284,21 +286,29 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
   );
 }
 
+interface InternalAttemptOptions {
+  attemptId?: string;
+  command?: string;
+}
+
 async function runStepToolUnlocked(
   args: Record<string, unknown>,
   workspacePath: string,
   options: ToolCallOptions = {},
   progressContext: { stepIndex?: number; stepCount?: number } = {},
+  internalAttemptOptions: InternalAttemptOptions = {},
 ): Promise<RunStepToolResult> {
   const runId = String(args.runId ?? "");
   const stepId = String(args.stepId ?? "");
   const input: ExecutePlannedStepInput = { cwd: workspacePath, runId, stepId };
 
-  if (typeof args.command === "string") {
-    input.command = splitCommandLine(args.command);
+  const command = internalAttemptOptions.command ?? (typeof args.command === "string" ? args.command : undefined);
+
+  if (command) {
+    input.command = splitCommandLine(command);
   }
-  if (typeof args.attemptId === "string") {
-    input.attemptId = args.attemptId;
+  if (internalAttemptOptions.attemptId) {
+    input.attemptId = internalAttemptOptions.attemptId;
   }
   const preview = mcpServices.runtime.execution.previews
     .build({ cwd: workspacePath, runId })
@@ -508,11 +518,11 @@ export async function runTool(
                   workspacePath: workspace.workspacePath,
                   runId,
                   stepId,
-                  ...attemptOptions,
                 },
                 workspace.workspacePath,
                 callOptions,
                 { stepIndex, stepCount: taskGraph.steps.length },
+                attemptOptions,
               ),
             );
           },

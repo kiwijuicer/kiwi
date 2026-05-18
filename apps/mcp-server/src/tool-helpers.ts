@@ -10,6 +10,7 @@ export function toolArguments(params: Record<string, unknown>): Record<string, u
   if (typeof rawArguments === "object" && rawArguments !== null && !Array.isArray(rawArguments)) {
     return rawArguments as Record<string, unknown>;
   }
+  // Reject early MCP SDK fallbacks that smuggled tool args outside params.arguments.
   throw new ToolInputValidationError(String(params.name ?? "tools/call"), [
     invalidToolArgumentIssue(["arguments"], "tools/call params.arguments must be an object"),
   ]);

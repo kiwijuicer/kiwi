@@ -5,7 +5,6 @@ import {
   readJson,
   recordApprovalDecision,
   resolveRunArtifactPath,
-  withRunLock,
 } from "@kiwi/core";
 import { ContractValues } from "@kiwi/contracts";
 import { applyRunDiff, buildRunDiff, finalizeRun } from "@kiwi/runtime";
@@ -18,9 +17,12 @@ import {
 import { nextTool } from "./next-action";
 import { withOperatorCard } from "./operator-card";
 import { publishPrDraftTool } from "./publish-tool";
+import { getMcpServerServices } from "./services";
 import { ToolActionRequiredError } from "./tool-errors";
 import type { ToolCallOptions } from "./tool-helpers";
 import { mutationScope, safeReadOnlyToolCalls, toolCall } from "./ux";
+
+const mcpServices = getMcpServerServices();
 
 interface CoreToolHandlers {
   previewRunTool(args: Record<string, unknown>, cwd: string): unknown;
@@ -186,31 +188,34 @@ function applyTool(context: DispatchContext): unknown {
 }
 
 function finalizeTool(context: DispatchContext): unknown {
-  return withRunLock({ cwd: context.workspacePath, runId: context.runId, operation: "mcp_finalize" }, () => {
-    context.options.onProgress?.(`finalize started runId=${context.runId}`, 0);
-    const finalized = finalizeRun({ cwd: context.workspacePath, runId: context.runId });
-    context.options.onProgress?.(`finalize completed runId=${context.runId}`, 100);
+  return mcpServices.core.locks.withLock(
+    { cwd: context.workspacePath, runId: context.runId, operation: "mcp_finalize" },
+    () => {
+      context.options.onProgress?.(`finalize started runId=${context.runId}`, 0);
+      const finalized = finalizeRun({ cwd: context.workspacePath, runId: context.runId });
+      context.options.onProgress?.(`finalize completed runId=${context.runId}`, 100);
 
-    return withOperatorCard(
-      {
-        schemaVersion: "2",
-        kind: "run_finalization_result",
-        ...finalized,
-        summary: buildRunCompletionSummary({ cwd: context.workspacePath, runId: context.runId }),
-      },
-      {
-        cwd: context.workspacePath,
-        runId: context.runId,
-        lastAction: "kiwi_finalize",
-        mutationScope: mutationScope({
-          riskLabel: "WRITES_RUN_ARTIFACTS",
-          workspacePath: context.workspacePath,
-          repoPath: context.repoPath,
-          executionMode: null,
-        }),
-      },
-    );
-  });
+      return withOperatorCard(
+        {
+          schemaVersion: "2",
+          kind: "run_finalization_result",
+          ...finalized,
+          summary: buildRunCompletionSummary({ cwd: context.workspacePath, runId: context.runId }),
+        },
+        {
+          cwd: context.workspacePath,
+          runId: context.runId,
+          lastAction: "kiwi_finalize",
+          mutationScope: mutationScope({
+            riskLabel: "WRITES_RUN_ARTIFACTS",
+            workspacePath: context.workspacePath,
+            repoPath: context.repoPath,
+            executionMode: null,
+          }),
+        },
+      );
+    },
+  );
 }
 
 function costTool(context: DispatchContext): unknown {
@@ -244,7 +249,7 @@ function explainTool(context: DispatchContext): unknown {
 }
 
 function requestApprovalTool(context: DispatchContext): unknown {
-  return withRunLock(
+  return mcpServices.core.locks.withLock(
     {
       cwd: context.workspacePath,
       runId: context.runId,
@@ -273,48 +278,52 @@ function requestApprovalTool(context: DispatchContext): unknown {
 }
 
 function evidenceManifestTool(context: DispatchContext): unknown {
-  return withRunLock({ cwd: context.workspacePath, runId: context.runId, operation: "mcp_evidence_manifest" }, () =>
-    withOperatorCard(
-      {
-        schemaVersion: "2",
-        kind: "evidence_manifest_result",
-        manifest: writeEvidenceManifest({ cwd: context.workspacePath, runId: context.runId }),
-      },
-      {
-        cwd: context.workspacePath,
-        runId: context.runId,
-        lastAction: "kiwi_evidence_manifest",
-        mutationScope: mutationScope({
-          riskLabel: "WRITES_RUN_ARTIFACTS",
-          workspacePath: context.workspacePath,
-          repoPath: context.repoPath,
-          executionMode: null,
-        }),
-      },
-    ),
+  return mcpServices.core.locks.withLock(
+    { cwd: context.workspacePath, runId: context.runId, operation: "mcp_evidence_manifest" },
+    () =>
+      withOperatorCard(
+        {
+          schemaVersion: "2",
+          kind: "evidence_manifest_result",
+          manifest: writeEvidenceManifest({ cwd: context.workspacePath, runId: context.runId }),
+        },
+        {
+          cwd: context.workspacePath,
+          runId: context.runId,
+          lastAction: "kiwi_evidence_manifest",
+          mutationScope: mutationScope({
+            riskLabel: "WRITES_RUN_ARTIFACTS",
+            workspacePath: context.workspacePath,
+            repoPath: context.repoPath,
+            executionMode: null,
+          }),
+        },
+      ),
   );
 }
 
 function operatorSnapshotTool(context: DispatchContext): unknown {
-  return withRunLock({ cwd: context.workspacePath, runId: context.runId, operation: "mcp_operator_snapshot" }, () =>
-    withOperatorCard(
-      {
-        schemaVersion: "2",
-        kind: "operator_snapshot_result",
-        snapshot: writeOperatorSnapshot({ cwd: context.workspacePath, runId: context.runId }),
-      },
-      {
-        cwd: context.workspacePath,
-        runId: context.runId,
-        lastAction: "kiwi_operator_snapshot",
-        mutationScope: mutationScope({
-          riskLabel: "WRITES_RUN_ARTIFACTS",
-          workspacePath: context.workspacePath,
-          repoPath: context.repoPath,
-          executionMode: null,
-        }),
-      },
-    ),
+  return mcpServices.core.locks.withLock(
+    { cwd: context.workspacePath, runId: context.runId, operation: "mcp_operator_snapshot" },
+    () =>
+      withOperatorCard(
+        {
+          schemaVersion: "2",
+          kind: "operator_snapshot_result",
+          snapshot: writeOperatorSnapshot({ cwd: context.workspacePath, runId: context.runId }),
+        },
+        {
+          cwd: context.workspacePath,
+          runId: context.runId,
+          lastAction: "kiwi_operator_snapshot",
+          mutationScope: mutationScope({
+            riskLabel: "WRITES_RUN_ARTIFACTS",
+            workspacePath: context.workspacePath,
+            repoPath: context.repoPath,
+            executionMode: null,
+          }),
+        },
+      ),
   );
 }
 

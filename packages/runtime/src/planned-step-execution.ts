@@ -10,7 +10,12 @@ export {
   type RuntimeExecutionServiceDependencies,
   type RuntimeExecutionServices,
 } from "./planned-step-execution/factory";
-export { AttemptDiffStatuses, ExecutionToolNames, ExecutorSelectionReasons } from "./planned-step-execution/types";
+export {
+  AttemptDiffStatuses,
+  DEFAULT_MAX_CONCURRENCY,
+  ExecutionToolNames,
+  ExecutorSelectionReasons,
+} from "./planned-step-execution/types";
 export type {
   AttemptDiffMaterialization,
   ExecutePlannedStepInput,

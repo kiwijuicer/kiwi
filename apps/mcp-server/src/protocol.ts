@@ -17,7 +17,7 @@ interface McpProgressNotification {
     message: string;
     progress?: number;
     total?: number;
-    progressToken?: string | number | null;
+    progressToken: string | number;
   };
 }
 
@@ -25,16 +25,16 @@ interface McpRequestContext {
   sendNotification?: (notification: McpProgressNotification) => void;
 }
 
-function progressTokenFor(request: JsonRpcRequest): string | number | null | undefined {
+function progressTokenFor(request: JsonRpcRequest): string | number | undefined {
   const params = asRecord(request.params);
   const meta = asRecord(params._meta);
   const token = meta.progressToken;
 
-  if (typeof token === "string" || typeof token === "number" || token === null) {
+  if (typeof token === "string" || typeof token === "number") {
     return token;
   }
 
-  return request.id;
+  return undefined;
 }
 
 function progressSender(
@@ -46,15 +46,16 @@ function progressSender(
   }
   const token = progressTokenFor(request);
 
+  if (token === undefined) {
+    return undefined;
+  }
+
   return (message, percent) => {
-    const params: McpProgressNotification["params"] = { message };
+    const params: McpProgressNotification["params"] = { message, progressToken: token };
 
     if (percent !== undefined) {
       params.progress = percent;
       params.total = 100;
-    }
-    if (token !== undefined) {
-      params.progressToken = token;
     }
     context.sendNotification?.({
       jsonrpc: "2.0",

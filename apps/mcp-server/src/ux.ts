@@ -75,19 +75,6 @@ export function safeReadOnlyToolCalls(params: {
   ];
 }
 
-export function defaultNextAction(params: { workspacePath: string; runId: string }): McpNextAction {
-  return {
-    recommendedToolCall: toolCall("kiwi_next", {
-      workspacePath: params.workspacePath,
-      runId: params.runId,
-    }),
-    whyThisTool: "kiwi_next is the read-only router for the current safe action.",
-    requiresUserConfirmation: false,
-    expectedMutation: "READ_ONLY",
-    expectedAfter: "Follow the recommendedToolCall returned by kiwi_next.",
-  };
-}
-
 export function mutationScope(params: {
   riskLabel: McpRiskLabel;
   workspacePath: string;

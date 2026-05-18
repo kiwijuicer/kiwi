@@ -14,3 +14,9 @@ export function createMcpServerServices(): McpServerServices {
     runtime: createRuntimeServices({ core }),
   };
 }
+
+const mcpServerServices = createMcpServerServices();
+
+export function getMcpServerServices(): McpServerServices {
+  return mcpServerServices;
+}

@@ -11,12 +11,9 @@ export function workspaceArgs(args: Record<string, unknown>, cwd: string, requir
     const resolvedRepoPath = path.resolve(cwd, repoPath);
 
     if (!isInitialized(resolvedWorkspacePath) && isInitialized(resolvedRepoPath)) {
-      return resolveWorkspace({
-        cwd,
-        workspacePath: resolvedRepoPath,
-        repo: resolvedRepoPath,
-        requireRepo,
-      });
+      throw new Error(
+        `Workspace path is not initialized: ${resolvedWorkspacePath}. Pass the initialized repo as workspacePath or run kiwi_doctor.`,
+      );
     }
   }
   const input: Parameters<typeof resolveWorkspace>[0] = { cwd, requireRepo };

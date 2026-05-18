@@ -63,7 +63,7 @@ function applyCorsHeaders(request: IncomingMessage, response: ServerResponse, al
   response.setHeader("Access-Control-Allow-Origin", origin);
   response.setHeader("Vary", "Origin");
   response.setHeader("Access-Control-Allow-Headers", "authorization, content-type, accept, mcp-session-id");
-  response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
 }
 
 function isAuthorized(request: IncomingMessage, authToken: string): boolean {
@@ -121,16 +121,15 @@ async function handleHttpMcpRequest(
   },
 ): Promise<void> {
   const { cwd, endpointPath, allowedOrigins, authToken } = params;
-  applyCorsHeaders(request, response, allowedOrigins);
+  const origin = typeof request.headers.origin === "string" ? request.headers.origin : undefined;
 
-  if (
-    !isAllowedOrigin(typeof request.headers.origin === "string" ? request.headers.origin : undefined, allowedOrigins)
-  ) {
+  if (!isAllowedOrigin(origin, allowedOrigins)) {
     response.writeHead(403);
     response.end();
 
     return;
   }
+  applyCorsHeaders(request, response, allowedOrigins);
 
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
 
@@ -148,15 +147,8 @@ async function handleHttpMcpRequest(
     return;
   }
 
-  if (request.method === "GET") {
-    response.writeHead(405, { allow: "POST, GET, OPTIONS" });
-    response.end();
-
-    return;
-  }
-
   if (request.method !== "POST") {
-    response.writeHead(405, { allow: "POST, GET, OPTIONS" });
+    response.writeHead(405, { allow: "POST, OPTIONS" });
     response.end();
 
     return;

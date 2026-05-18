@@ -42,6 +42,7 @@ Cursor config for local Streamable HTTP:
 
 The HTTP transport refuses to start without `KIWI_MCP_HTTP_TOKEN`.
 Every POST to `/mcp` must include `Authorization: Bearer <token>`.
+`/mcp` supports `POST` and `OPTIONS`; `GET` returns `405`.
 CORS only limits browser origins; it is not authentication. The HTTP transport
 binds to `127.0.0.1` by default and rejects non-local `Origin` headers unless
 explicitly allowed with `KIWI_MCP_ALLOWED_ORIGINS`.
@@ -84,6 +85,8 @@ Workspace-aware tools accept:
 
 Tool calls must pass an object in `params.arguments`. Stringified JSON arguments
 and top-level argument fallbacks are rejected with `-32602`.
+Progress notifications are opt-in: pass a string or numeric
+`params._meta.progressToken` to receive `notifications/progress`.
 
 Use either `repoId` or `repoPath`. `repoId` maps to the names listed by `kiwi workspace list`; `repoPath` can be absolute or relative to the workspace.
 

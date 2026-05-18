@@ -7,6 +7,7 @@ import { StepRunnerSelector } from "./runner-selection";
 import { StepExecutionSession } from "./session";
 import type { ExecutionRunContext } from "./context";
 import {
+  DEFAULT_MAX_CONCURRENCY,
   PREVIEW_ATTEMPT_ID_PREFIX,
   type ExecutionMode,
   type RunExecutionPreview,
@@ -43,7 +44,7 @@ export class RunExecutionPreviewBuilder {
       runId: context.runId,
       executionOwner: this.policyResolver.executionOwner(context.policy),
       executionIsolation: isolation,
-      maxConcurrency: params.maxConcurrency ?? 2,
+      maxConcurrency: params.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
       subPlans: context.taskGraph.subPlans ?? [],
       steps: context.taskGraph.steps.slice(startIndex).map((step) => this.stepPreview(context, step, isolation)),
     };

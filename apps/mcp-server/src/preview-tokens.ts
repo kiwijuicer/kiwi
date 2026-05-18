@@ -12,7 +12,7 @@ import {
   writeJsonSafely,
 } from "@kiwi/core";
 import type { ExecutionIsolation } from "@kiwi/contracts";
-import { RunExecutionPreview } from "@kiwi/runtime";
+import { DEFAULT_MAX_CONCURRENCY, type RunExecutionPreview } from "@kiwi/runtime";
 import { readRepoState } from "./repo-state";
 import { ToolActionRequiredError } from "./tool-errors";
 import { safeReadOnlyToolCalls, toolCall } from "./ux";
@@ -20,6 +20,7 @@ import { safeReadOnlyToolCalls, toolCall } from "./ux";
 interface McpPreviewInput {
   fromStep: string | null;
   maxConcurrency: number;
+  maxConcurrencyExplicit?: boolean;
 }
 
 interface McpPreviewFingerprints {
@@ -53,9 +54,22 @@ export function normalizePreviewInput(args: {
   fromStep?: string | undefined;
   maxConcurrency?: number | undefined;
 }): McpPreviewInput {
-  return {
+  const input: McpPreviewInput = {
     fromStep: args.fromStep ?? null,
-    maxConcurrency: args.maxConcurrency ?? 2,
+    maxConcurrency: args.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
+  };
+
+  if (args.maxConcurrency !== undefined) {
+    input.maxConcurrencyExplicit = true;
+  }
+
+  return input;
+}
+
+export function previewInputToolArgs(input: McpPreviewInput): Record<string, unknown> {
+  return {
+    ...(input.fromStep ? { fromStep: input.fromStep } : {}),
+    ...(input.maxConcurrencyExplicit === true ? { maxConcurrency: input.maxConcurrency } : {}),
   };
 }
 
@@ -105,8 +119,15 @@ function fingerprintState(cwd: string, runId: string): { repoPath: string; finge
   };
 }
 
+function previewInputFingerprint(previewInput: McpPreviewInput): Pick<McpPreviewInput, "fromStep" | "maxConcurrency"> {
+  return {
+    fromStep: previewInput.fromStep,
+    maxConcurrency: previewInput.maxConcurrency,
+  };
+}
+
 function stateHash(fingerprints: McpPreviewFingerprints, previewInput: McpPreviewInput): string {
-  return sha256(JSON.stringify({ fingerprints, previewInput }));
+  return sha256(JSON.stringify({ fingerprints, previewInput: previewInputFingerprint(previewInput) }));
 }
 
 export function createMcpPreviewToken(params: {
@@ -266,25 +287,28 @@ export function latestValidPreviewToken(params: {
     .filter((entry): entry is McpPreviewTokenRecord => entry !== null)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
+  let current: ReturnType<typeof fingerprintState>;
+
+  try {
+    current = fingerprintState(params.cwd, params.runId);
+  } catch {
+    return null;
+  }
+
   for (const record of records) {
-    try {
-      const current = fingerprintState(params.cwd, params.runId);
-      const currentHash = stateHash(current.fingerprints, record.previewInput);
+    const currentHash = stateHash(current.fingerprints, record.previewInput);
 
-      if (currentHash !== record.stateHash) {
-        continue;
-      }
-      if (
-        record.previewInput.fromStep !== params.previewInput.fromStep ||
-        record.previewInput.maxConcurrency !== params.previewInput.maxConcurrency
-      ) {
-        continue;
-      }
-
-      return record;
-    } catch {
-      return null;
+    if (currentHash !== record.stateHash) {
+      continue;
     }
+    if (
+      record.previewInput.fromStep !== params.previewInput.fromStep ||
+      record.previewInput.maxConcurrency !== params.previewInput.maxConcurrency
+    ) {
+      continue;
+    }
+
+    return record;
   }
 
   return null;

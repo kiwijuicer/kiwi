@@ -1,14 +1,13 @@
 import { existsSync } from "fs";
 import { ContractValues } from "@kiwi/contracts";
 import { getRunStatusSummary, kiwiPolicyPath, loadInitiative, loadPolicy, resolveRunArtifactPath } from "@kiwi/core";
-import { buildRunDiff } from "@kiwi/runtime";
 import { readRepoState } from "./repo-state";
 import {
-  defaultNextAction,
   type McpMutationScope,
   type McpNextAction,
   mutationScope,
   resourceLinks,
+  toolCall,
   uniqueSorted,
 } from "./ux";
 
@@ -24,21 +23,6 @@ interface OperatorCard {
   mutationScope: McpMutationScope;
   warnings: string[];
   resources: Array<{ name: string; uri: string }>;
-}
-
-function changedFilesFromPatch(patch: string): string[] {
-  const files: string[] = [];
-
-  for (const line of patch.split("\n")) {
-    if (line.startsWith("+++ b/")) {
-      files.push(line.slice("+++ b/".length));
-    }
-    if (line.startsWith("--- a/")) {
-      files.push(line.slice("--- a/".length));
-    }
-  }
-
-  return uniqueSorted(files.filter((entry) => entry !== "/dev/null"));
 }
 
 export function buildOperatorCard(params: {
@@ -65,17 +49,9 @@ export function buildOperatorCard(params: {
       return null;
     }
   })();
-  const diff = (() => {
-    try {
-      return buildRunDiff({ cwd: params.cwd, runId: params.runId });
-    } catch {
-      return null;
-    }
-  })();
   const repoPath = initiative?.repoPath || params.cwd;
   const executionMode = policy?.execution?.isolation ?? "direct";
   const repoState = readRepoState(repoPath);
-  const changedFiles = changedFilesFromPatch(diff?.patch ?? "");
   const currentState = latest?.currentStatus ?? "missing";
 
   if (executionMode === "direct") {
@@ -95,7 +71,16 @@ export function buildOperatorCard(params: {
     repoPath,
     currentState,
     lastAction: params.lastAction ?? null,
-    nextAction: params.nextAction ?? defaultNextAction({ workspacePath: params.cwd, runId: params.runId }),
+    nextAction: params.nextAction ?? {
+      recommendedToolCall: toolCall("kiwi_next", {
+        workspacePath: params.cwd,
+        runId: params.runId,
+      }),
+      whyThisTool: "kiwi_next is the read-only router for the current safe action.",
+      requiresUserConfirmation: false,
+      expectedMutation: "READ_ONLY",
+      expectedAfter: "Follow the recommendedToolCall returned by kiwi_next.",
+    },
     blockedBy: uniqueSorted(params.blockedBy ?? []),
     mutationScope:
       params.mutationScope ??
@@ -104,7 +89,6 @@ export function buildOperatorCard(params: {
         workspacePath: params.cwd,
         repoPath,
         executionMode,
-        changedFiles,
       }),
     warnings: uniqueSorted(warnings),
     resources: resourceLinks(params.runId),

@@ -8,7 +8,7 @@ import {
   resolveRunArtifactPath,
 } from "@kiwi/core";
 import { buildOperatorCard } from "./operator-card";
-import { latestValidPreviewToken, normalizePreviewInput } from "./preview-tokens";
+import { latestValidPreviewToken, normalizePreviewInput, previewInputToolArgs } from "./preview-tokens";
 import { safeReadOnlyToolCalls, toolCall, type McpNextAction, mutationScope, workspaceToolArgs } from "./ux";
 import { workspaceArgs } from "./workspace";
 
@@ -38,8 +38,7 @@ export function nextTool(args: Record<string, unknown>, cwd: string): unknown {
   });
   const previewArgs = {
     ...baseArgs,
-    ...(previewInput.fromStep ? { fromStep: previewInput.fromStep } : {}),
-    ...(previewInput.maxConcurrency !== 2 ? { maxConcurrency: previewInput.maxConcurrency } : {}),
+    ...previewInputToolArgs(previewInput),
   };
   let nextAction: McpNextAction = {
     recommendedToolCall: toolCall("kiwi_status", baseArgs),
@@ -54,7 +53,8 @@ export function nextTool(args: Record<string, unknown>, cwd: string): unknown {
     if (validPreview) {
       nextAction = {
         recommendedToolCall: toolCall("kiwi_run", {
-          ...previewArgs,
+          ...baseArgs,
+          ...previewInputToolArgs(validPreview.previewInput),
           previewToken: validPreview.token,
         }),
         whyThisTool: "A fresh previewToken matches the current TaskGraph, policy, HEAD, dirty state, and run options.",
