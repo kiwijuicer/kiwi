@@ -24,7 +24,7 @@ describe("register-common error hints", () => {
     expect(mapErrorToHelp(Object.assign(new Error("auth failed"), { code: "provider_auth" }))).toContain("/login");
     expect(
       mapErrorToHelp(
-        new Error("No real planner model with an available access mode found in .kiwi/model-registry.yaml"),
+        new Error("No real planner model with an available access mode found in the effective model registry"),
       ),
     ).toContain("kiwi doctor");
   });

@@ -10,10 +10,21 @@ function readJson(target: string): unknown {
   return JSON.parse(readFileSync(target, "utf-8")) as unknown;
 }
 
+function testEnv(cwd: string, env: Record<string, string | undefined> = {}): Record<string, string | undefined> {
+  return {
+    ...env,
+    KIWI_HOME: env.KIWI_HOME ?? path.join(path.dirname(cwd), `${path.basename(cwd)}-home`),
+  };
+}
+
+async function init(cwd: string): Promise<void> {
+  await runInit({ env: testEnv(cwd) }, cwd);
+}
+
 describe("kiwi plan", () => {
   it("stores schema-valid planned run artifacts under run directory", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-"));
-    await runInit({}, cwd);
+    await init(cwd);
 
     const ticketPath = path.join(cwd, "ticket.md");
     writeFileSync(
@@ -32,7 +43,7 @@ describe("kiwi plan", () => {
       ticketPath,
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-03T19:00:00.000Z"),
         runIdSuffix: "abcd",
         initiativeIdSuffix: "abcd",
@@ -90,9 +101,9 @@ describe("kiwi plan", () => {
 
   it("accepts inline ticket text when the argument is not a file path", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-inline-"));
-    await runInit({}, cwd);
+    await init(cwd);
 
-    await runPlan("Implement inline ticket planning", { allowStub: true, env: { PATH: "/empty" } }, cwd);
+    await runPlan("Implement inline ticket planning", { allowStub: true, env: testEnv(cwd, { PATH: "/empty" }) }, cwd);
 
     const runsRoot = path.join(cwd, ".kiwi", "runs");
     const runs = readdirSync(runsRoot);
@@ -112,13 +123,13 @@ describe("kiwi plan", () => {
       JSON.stringify({ folders: [{ name: "voice-core", path: "voice-core" }] }),
       "utf-8",
     );
-    await runInit({}, workspace);
+    await init(workspace);
 
     await runPlan(
       "Implement workspace-aware planning",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: testEnv(workspace, { PATH: "/empty" }),
         workspace,
         repo: "voice-core",
         now: new Date("2026-05-03T20:00:00.000Z"),
@@ -142,23 +153,23 @@ describe("kiwi plan", () => {
 
   it("does not silently use the stub planner by default", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-no-stub-"));
-    await runInit({}, cwd);
+    await init(cwd);
 
-    await expect(runPlan("Implement real planning", { env: { PATH: "/empty" } }, cwd)).rejects.toThrow(
+    await expect(runPlan("Implement real planning", { env: testEnv(cwd, { PATH: "/empty" }) }, cwd)).rejects.toThrow(
       /No real planner model[\s\S]*stub-frontier \(stub\): disabled by default/,
     );
   });
 
   it("writes safe progress to the configured progress writer", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-progress-"));
-    await runInit({}, cwd);
+    await init(cwd);
     const lines: string[] = [];
 
     await runPlan(
       "Implement visible planning progress",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T12:00:00.000Z"),
         runIdSuffix: "prog",
         initiativeIdSuffix: "prog",
@@ -184,18 +195,18 @@ describe("kiwi plan", () => {
 
   it("writes structured failure progress when the planner provider fails", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-progress-fail-"));
-    await runInit({}, cwd);
+    await init(cwd);
     const lines: string[] = [];
 
     await expect(
       runPlan(
         "Implement failed planner progress",
         {
-          env: {
+          env: testEnv(cwd, {
             KIWI_FAKE_BINARY_AVAILABLE: "1",
             KIWI_FORCE_ACCESS_MODE: "codex-cli",
             PATH: "/empty",
-          },
+          }),
           now: new Date("2026-05-04T12:00:00.000Z"),
           runIdSuffix: "fail",
           initiativeIdSuffix: "fail",
@@ -218,7 +229,7 @@ describe("kiwi plan", () => {
 
   it("keeps dry-run output as JSON without progress text", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-dry-run-"));
-    await runInit({}, cwd);
+    await init(cwd);
     const progressLines: string[] = [];
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
@@ -227,7 +238,7 @@ describe("kiwi plan", () => {
       {
         dryRun: true,
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T12:00:00.000Z"),
         runIdSuffix: "dry1",
         initiativeIdSuffix: "dry1",

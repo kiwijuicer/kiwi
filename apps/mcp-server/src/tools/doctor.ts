@@ -2,11 +2,13 @@ import path from "path";
 import { AccessModes } from "@kiwi/contracts";
 import {
   isInitialized,
+  kiwiHomeModelRegistryPath,
+  kiwiHomePolicyPath,
   kiwiModelRegistryPath,
   kiwiPolicyPath,
+  loadEffectivePolicy,
+  loadEffectiveRegistry,
   loadKiwiConfig,
-  loadPolicy,
-  loadRegistry,
 } from "@kiwi/core";
 import { evaluateAccessModeAvailability, readExecutionRepoState } from "@kiwi/runtime";
 import { errorMessage } from "./helpers";
@@ -27,6 +29,30 @@ function configStatus<T>(pathValue: string, load: () => T): { status: FileStatus
   }
 }
 
+function layeredPathLabel(homePath: string, workspacePath: string): string {
+  return `${homePath} + ${workspacePath} override`;
+}
+
+function policyStatus(workspacePath: string): {
+  status: FileStatus;
+  value: ReturnType<typeof loadEffectivePolicy> | null;
+} {
+  const homePath = kiwiHomePolicyPath();
+  const localPath = kiwiPolicyPath(workspacePath);
+
+  return configStatus(layeredPathLabel(homePath, localPath), () => loadEffectivePolicy(workspacePath));
+}
+
+function registryStatus(workspacePath: string): {
+  status: FileStatus;
+  value: ReturnType<typeof loadEffectiveRegistry> | null;
+} {
+  const homePath = kiwiHomeModelRegistryPath();
+  const localPath = kiwiModelRegistryPath(workspacePath);
+
+  return configStatus(layeredPathLabel(homePath, localPath), () => loadEffectiveRegistry(workspacePath));
+}
+
 export function doctorTool(args: Record<string, unknown>, cwd: string): unknown {
   const warnings: string[] = [];
   const nextFixes: string[] = [];
@@ -34,10 +60,8 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
   try {
     const workspace = workspaceArgs(args, cwd, false);
     const initialized = isInitialized(workspace.workspacePath);
-    const policyPath = kiwiPolicyPath(workspace.workspacePath);
-    const registryPath = kiwiModelRegistryPath(workspace.workspacePath);
-    const policy = configStatus(policyPath, () => loadPolicy(policyPath));
-    const registry = configStatus(registryPath, () => loadRegistry(registryPath));
+    const policy = policyStatus(workspace.workspacePath);
+    const registry = registryStatus(workspace.workspacePath);
     const config = initialized
       ? configStatus(path.join(workspace.workspacePath, ".kiwi", "config.yaml"), () =>
           loadKiwiConfig(path.join(workspace.workspacePath, ".kiwi", "config.yaml")),
@@ -55,10 +79,12 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
       nextFixes.push("Pass repoId or repoPath.");
     }
     if (!policy.status.loaded) {
-      nextFixes.push("Fix or create .kiwi/policy.yaml.");
+      nextFixes.push("Create/fix ~/.kiwi/defaults/policy.yaml, then fix workspace .kiwi/policy.yaml if present.");
     }
     if (!registry.status.loaded) {
-      nextFixes.push("Fix or create .kiwi/model-registry.yaml.");
+      nextFixes.push(
+        "Create/fix ~/.kiwi/defaults/model-registry.yaml, then fix workspace .kiwi/model-registry.yaml if present.",
+      );
     }
     const executionMode = policy.value?.execution?.isolation ?? "direct";
 

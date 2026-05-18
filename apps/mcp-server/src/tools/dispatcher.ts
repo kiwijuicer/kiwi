@@ -1,14 +1,7 @@
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { ContractValues, ProgressStatuses } from "@kiwi/contracts";
 import { resolvePlannerProvider } from "@kiwi/runtime";
-import {
-  buildRunCostForecast,
-  kiwiModelRegistryPath,
-  kiwiPolicyPath,
-  loadPolicy,
-  loadRegistry,
-  planRun,
-} from "@kiwi/core";
+import { buildRunCostForecast, loadEffectivePolicy, loadEffectiveRegistry, planRun } from "@kiwi/core";
 import { callCoreTool } from "./core-dispatch";
 import { doctorTool } from "./doctor";
 import { withOperatorCard } from "../ux/operator-card";
@@ -38,9 +31,8 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
   const workspace = workspaceArgs(args, cwd, true);
   const repo = workspace.repo!;
   const now = new Date();
-  const policyPath = kiwiPolicyPath(workspace.workspacePath);
-  const policy = loadPolicy(policyPath);
-  const registry = loadRegistry(kiwiModelRegistryPath(workspace.workspacePath));
+  const policy = loadEffectivePolicy(workspace.workspacePath);
+  const registry = loadEffectiveRegistry(workspace.workspacePath);
   const resolution = resolvePlannerProvider({
     registryModels: registry.models,
     now: () => now,

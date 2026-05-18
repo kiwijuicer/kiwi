@@ -10,13 +10,20 @@ import { runPlan } from "../../commands/planning/plan";
 const NOW = new Date("2026-05-04T12:00:00.000Z");
 const RUN_ID = "run_20260504_140000_cost";
 
+function testEnv(cwd: string, env: Record<string, string | undefined> = {}): Record<string, string | undefined> {
+  return {
+    ...env,
+    KIWI_HOME: env.KIWI_HOME ?? path.join(path.dirname(cwd), `${path.basename(cwd)}-home`),
+  };
+}
+
 async function setupRun(cwd: string): Promise<void> {
-  await runInit({}, cwd);
+  await runInit({ env: testEnv(cwd) }, cwd);
   await runPlan(
     "# Cost Report\n\n## Implement",
     {
       allowStub: true,
-      env: { PATH: "/empty" },
+      env: testEnv(cwd, { PATH: "/empty" }),
       now: NOW,
       runIdSuffix: "cost",
       initiativeIdSuffix: "cost",

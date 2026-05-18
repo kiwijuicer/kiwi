@@ -97,7 +97,7 @@ export class PlannerProviderRegistry {
     if (!selected) {
       throw new Error(
         [
-          "No real planner model with an available access mode found in .kiwi/model-registry.yaml",
+          "No real planner model with an available access mode found in the effective model registry",
           "checked:",
           formatPlannerAvailability(fallbackCandidates, env),
           "Stub planning is disabled by default; use --allow-stub or KIWI_ALLOW_STUB=1 only for tests/dev.",

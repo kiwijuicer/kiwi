@@ -8,7 +8,7 @@ import { runTail } from "../../commands/runs/tail";
 describe("kiwi tail", () => {
   it("prints filtered audit events without following in tests", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-tail-"));
-    await runInit({}, cwd);
+    await runInit({ env: { KIWI_HOME: path.join(cwd, "home") } }, cwd);
     mkdirSync(path.join(cwd, ".kiwi", "logs"), { recursive: true });
     writeFileSync(
       path.join(cwd, ".kiwi", "logs", "audit.log"),

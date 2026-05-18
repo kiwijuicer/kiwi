@@ -18,8 +18,8 @@ flowchart TD
   adapters --> contracts
   sandbox --> contracts
   core --> runstore[.kiwi/runs/<run-id>/]
-  cli --> policy[.kiwi/policy.yaml]
-  cli --> registry[.kiwi/model-registry.yaml]
+  cli --> policy[~/.kiwi/defaults/policy.yaml + workspace override]
+  cli --> registry[~/.kiwi/defaults/model-registry.yaml + workspace override]
 ```
 
 ## Module
@@ -50,10 +50,16 @@ flowchart TD
 ## Persistenzlayout
 
 ```text
+~/.kiwi/
+  defaults/
+    policy.yaml
+    model-registry.yaml
+  install/
+
 .kiwi/
   config.yaml
-  policy.yaml
-  model-registry.yaml
+  policy.yaml              # optional workspace override
+  model-registry.yaml      # optional workspace override
   runs/
     <run-id>/
       run.json
@@ -61,6 +67,8 @@ flowchart TD
       plan/
         task-graph.json
 ```
+
+The home defaults are required. Workspace policy/registry files are overlays only.
 
 ## Dependency Rules
 
@@ -74,7 +82,8 @@ flowchart TD
 
 ## Model Tier Mapping
 
-Capability tiers in `.kiwi/model-registry.yaml` map to explicit Codex CLI
+Capability tiers in `~/.kiwi/defaults/model-registry.yaml`, optionally overlaid
+by `<workspace>/.kiwi/model-registry.yaml`, map to explicit Codex CLI
 models by default. Kiwi passes the selected `providerModel` to Codex CLI with
 `--model` for every planned step, so model switching is enforced by the runner
 instead of left to Codex defaults. Direct provider API keys are not required for
@@ -116,7 +125,7 @@ context for non-risk-high routes:
 ## Tier-to-Step-Type Defaults
 
 The scheduler picks `agentRole` and `modelCapability` from the policy
-`stepTypeOverrides`. Defaults below match `.kiwi/policy.yaml` and the
+`stepTypeOverrides`. Defaults below match `~/.kiwi/defaults/policy.yaml` and the
 defaults written by `kiwi init`. Risk zones from `riskZones.high` may
 escalate execution and review tiers; downgrading for security-sensitive
 steps is not allowed.

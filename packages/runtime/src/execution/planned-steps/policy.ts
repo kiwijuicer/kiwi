@@ -7,6 +7,10 @@ export class ExecutionPolicyResolver {
 
   constructor(private readonly env: Record<string, string | undefined> = process.env) {}
 
+  environment(): Record<string, string | undefined> {
+    return this.env;
+  }
+
   useProviderResearch(): boolean {
     return this.env.KIWI_RESEARCHER_MODE === "provider";
   }

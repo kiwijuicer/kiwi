@@ -5,13 +5,11 @@ import { runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { AccessModes, ContractValues, type BudgetProfile, type RiskProfile } from "@kiwi/contracts";
 import {
   buildRunCostForecast,
-  kiwiModelRegistryPath,
-  kiwiPolicyPath,
   generateRunId,
   NotInitializedError,
   isInitialized,
-  loadPolicy,
-  loadRegistry,
+  loadEffectivePolicy,
+  loadEffectiveRegistry,
   planRun,
 } from "@kiwi/core";
 import { resolvePlannerProvider } from "@kiwi/runtime";
@@ -169,8 +167,8 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
     throw new NotInitializedError(workspacePath);
   }
 
-  const policy = loadPolicy(kiwiPolicyPath(workspacePath));
-  const registry = loadRegistry(kiwiModelRegistryPath(workspacePath));
+  const policy = loadEffectivePolicy(workspacePath, opts.env ? { env: opts.env } : {});
+  const registry = loadEffectiveRegistry(workspacePath, opts.env ? { env: opts.env } : {});
 
   const { rawInput, source } = resolveTicketInput(ticketArg, cwd);
   const now = opts.now ?? new Date();

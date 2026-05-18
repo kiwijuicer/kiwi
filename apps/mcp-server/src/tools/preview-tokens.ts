@@ -1,10 +1,10 @@
 import { createHash, randomBytes } from "crypto";
-import { existsSync, readdirSync, readFileSync, unlinkSync } from "fs";
+import { existsSync, readdirSync, unlinkSync } from "fs";
 import path from "path";
 import {
   appendAuditEvent,
-  kiwiModelRegistryPath,
-  kiwiPolicyPath,
+  loadEffectivePolicy,
+  loadEffectiveRegistry,
   loadInitiative,
   loadTaskGraph,
   readJson,
@@ -96,15 +96,19 @@ function previewPath(cwd: string, runId: string, token: string): string {
 }
 
 function hashPolicy(cwd: string): string {
-  const target = kiwiPolicyPath(cwd);
-
-  return existsSync(target) ? sha256(readFileSync(target, "utf-8")) : sha256("missing-policy");
+  try {
+    return sha256(JSON.stringify(loadEffectivePolicy(cwd)));
+  } catch {
+    return sha256("missing-policy");
+  }
 }
 
 function hashRegistry(cwd: string): string {
-  const target = kiwiModelRegistryPath(cwd);
-
-  return existsSync(target) ? sha256(readFileSync(target, "utf-8")) : sha256("missing-registry");
+  try {
+    return sha256(JSON.stringify(loadEffectiveRegistry(cwd)));
+  } catch {
+    return sha256("missing-registry");
+  }
 }
 
 function fingerprintState(cwd: string, runId: string): { repoPath: string; fingerprints: McpPreviewFingerprints } {

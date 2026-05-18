@@ -2,7 +2,13 @@ import { execFileSync } from "child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
-import { kiwiModelRegistryPath, kiwiPolicyPath } from "@kiwi/core";
+import {
+  kiwiHomeModelRegistryPath,
+  kiwiHomePolicyPath,
+  kiwiModelRegistryPath,
+  kiwiPolicyPath,
+  resolveKiwiHome,
+} from "@kiwi/core";
 import {
   type ConfigWriteStatus,
   ConfigWriteStatuses,
@@ -41,6 +47,12 @@ interface ConfigWriteResult {
 interface GitignoreWriteResult {
   path: string;
   status: GitignoreWriteStatus;
+}
+
+interface HomeDefaultsWriteResult {
+  homePath: string;
+  policy: ConfigWriteResult;
+  registry: ConfigWriteResult;
 }
 
 const KIWI_GITIGNORE_ENTRY = ".kiwi/";
@@ -340,7 +352,31 @@ function logConfigWrite(result: ConfigWriteResult | null, displayPath: string): 
 
 function displayPath(targetCwd: string, filePath: string): string {
   const relative = path.relative(targetCwd, filePath);
+
   return relative && !relative.startsWith("..") ? relative : filePath;
+}
+
+function writeFileIfMissingOrForced(target: string, contents: string, force: boolean): ConfigWriteResult {
+  const existed = existsSync(target);
+
+  if (existed && !force) {
+    return { path: target, status: ConfigWriteStatuses.Preserved };
+  }
+
+  mkdirSync(path.dirname(target), { recursive: true });
+  writeFileSync(target, contents, "utf-8");
+
+  return { path: target, status: existed ? ConfigWriteStatuses.Updated : ConfigWriteStatuses.Written };
+}
+
+function writeHomeDefaults(env: Record<string, string | undefined>, force: boolean): HomeDefaultsWriteResult {
+  const homePath = resolveKiwiHome(env);
+
+  return {
+    homePath,
+    policy: writeFileIfMissingOrForced(kiwiHomePolicyPath(env), DEFAULT_POLICY_YAML, force),
+    registry: writeFileIfMissingOrForced(kiwiHomeModelRegistryPath(env), DEFAULT_MODEL_REGISTRY_YAML, force),
+  };
 }
 
 function resolveMcpTargets(target: string | undefined): Set<ConcreteMcpTarget> {
@@ -362,9 +398,30 @@ function normalizeGitignoreLine(line: string): string {
   return line.trim().replace(/^\//, "");
 }
 
-function writeGitignoreEntries(targetCwd: string, mcpTargets: Set<ConcreteMcpTarget>): GitignoreWriteResult {
+function kiwiHomeIgnoreEntries(targetCwd: string, homePath: string): string[] {
+  const relative = path.relative(targetCwd, homePath);
+
+  if (relative.length === 0) {
+    throw new Error("KIWI_HOME must not point at the workspace root.");
+  }
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return [];
+  }
+
+  return [`${relative.split(path.sep).join("/")}/`];
+}
+
+function writeGitignoreEntries(
+  targetCwd: string,
+  mcpTargets: Set<ConcreteMcpTarget>,
+  extraEntries: string[] = [],
+): GitignoreWriteResult {
   const gitignorePath = resolveLocalIgnorePath(targetCwd);
-  const entries = [KIWI_GITIGNORE_ENTRY, ...[...mcpTargets].map((target) => MCP_GITIGNORE_ENTRIES[target])];
+  const entries = [
+    KIWI_GITIGNORE_ENTRY,
+    ...extraEntries,
+    ...[...mcpTargets].map((target) => MCP_GITIGNORE_ENTRIES[target]),
+  ];
 
   if (!existsSync(gitignorePath)) {
     mkdirSync(path.dirname(gitignorePath), { recursive: true });
@@ -465,6 +522,7 @@ async function runInitInternal(
   },
 ): Promise<void> {
   const targetCwd = opts.workspace ? path.resolve(cwd, opts.workspace) : cwd;
+  const env = opts.env ?? process.env;
 
   if (!existsSync(targetCwd)) {
     throw new Error(`Workspace path not found: ${targetCwd}`);
@@ -474,6 +532,9 @@ async function runInitInternal(
   const policyPath = kiwiPolicyPath(targetCwd);
   const registryPath = kiwiModelRegistryPath(targetCwd);
   const mcpTargets = resolveMcpTargets(opts.mcp);
+  const homePath = resolveKiwiHome(env);
+  const homeIgnoreEntries = kiwiHomeIgnoreEntries(targetCwd, homePath);
+  const homeDefaults = writeHomeDefaults(env, Boolean(opts.force));
 
   mkdirSync(path.join(kiwiDir, "runs"), { recursive: true });
   mkdirSync(path.join(kiwiDir, "logs"), { recursive: true });
@@ -484,15 +545,6 @@ async function runInitInternal(
     writeFileSync(configPath, defaultKiwiConfigYaml(new Date().toISOString()), "utf-8");
   }
 
-  const shouldWritePolicy = !existsSync(policyPath) || Boolean(opts.force);
-  const shouldWriteRegistry = !existsSync(registryPath) || Boolean(opts.force);
-
-  if (shouldWritePolicy) {
-    writeFileSync(policyPath, DEFAULT_POLICY_YAML, "utf-8");
-  }
-  if (shouldWriteRegistry) {
-    writeFileSync(registryPath, DEFAULT_MODEL_REGISTRY_YAML, "utf-8");
-  }
   const cursorMcp = mcpTargets.has(McpInitTargets.Cursor)
     ? services.mcpConfigWriter.writeCursor(targetCwd, Boolean(opts.force))
     : null;
@@ -502,33 +554,31 @@ async function runInitInternal(
   const codexMcp = mcpTargets.has(McpInitTargets.Codex)
     ? services.mcpConfigWriter.writeCodex(targetCwd, Boolean(opts.force))
     : null;
-  const gitignore = services.gitignoreWriter.write(targetCwd, mcpTargets);
+  const gitignore = services.gitignoreWriter.write(targetCwd, mcpTargets, homeIgnoreEntries);
 
   console.log(chalk.green("✓") + " .kiwi initialized");
   console.log(chalk.dim(`workspace: ${targetCwd}`));
+  console.log(chalk.dim(`kiwi home: ${homeDefaults.homePath}`));
+  logConfigWrite(homeDefaults.policy, homeDefaults.policy.path);
+  logConfigWrite(homeDefaults.registry, homeDefaults.registry.path);
   if (!shouldWriteConfig) {
     console.log(chalk.gray("•") + " .kiwi/config.yaml preserved");
-  }
-  if (!shouldWritePolicy) {
-    console.log(chalk.gray("•") + " .kiwi/policy.yaml preserved");
-  }
-  if (!shouldWriteRegistry) {
-    console.log(chalk.gray("•") + " .kiwi/model-registry.yaml preserved");
   }
   if (shouldWriteConfig) {
     console.log(chalk.green("✓") + " .kiwi/config.yaml written");
   }
-  if (shouldWritePolicy) {
-    console.log(chalk.green("✓") + " .kiwi/policy.yaml written");
+  if (existsSync(policyPath)) {
+    console.log(chalk.gray("•") + " .kiwi/policy.yaml preserved as workspace override");
   }
-  if (shouldWriteRegistry) {
-    console.log(chalk.green("✓") + " .kiwi/model-registry.yaml written");
+  if (existsSync(registryPath)) {
+    console.log(chalk.gray("•") + " .kiwi/model-registry.yaml preserved as workspace override");
   }
   logConfigWrite(cursorMcp, ".cursor/mcp.json");
   logConfigWrite(claudeMcp, ".mcp.json");
   logConfigWrite(codexMcp, ".codex/config.toml");
-  logMcpReadiness(mcpTargets, opts.env ?? process.env);
+  logMcpReadiness(mcpTargets, env);
   const ignoreDisplayPath = displayPath(targetCwd, gitignore.path);
+
   if (gitignore.status === GitignoreWriteStatuses.Updated) {
     console.log(chalk.green("✓") + ` ${ignoreDisplayPath} updated`);
   }
@@ -577,8 +627,8 @@ class McpConfigWriter {
 }
 
 class GitignoreWriter {
-  write(targetCwd: string, mcpTargets: Set<ConcreteMcpTarget>): GitignoreWriteResult {
-    return writeGitignoreEntries(targetCwd, mcpTargets);
+  write(targetCwd: string, mcpTargets: Set<ConcreteMcpTarget>, extraEntries: string[] = []): GitignoreWriteResult {
+    return writeGitignoreEntries(targetCwd, mcpTargets, extraEntries);
   }
 }
 

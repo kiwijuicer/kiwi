@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cli = path.join(repoRoot, "apps", "cli", "dist", "index.js");
 const cwd = mkdtempSync(path.join(tmpdir(), "kiwi-smoke-"));
+const kiwiHome = mkdtempSync(path.join(tmpdir(), "kiwi-smoke-home-"));
 
 execFileSync("pnpm", ["build"], {
   cwd: repoRoot,
@@ -17,6 +18,7 @@ execFileSync("pnpm", ["build"], {
 function kiwi(args, commandCwd = cwd) {
   return execFileSync(process.execPath, [cli, ...args], {
     cwd: commandCwd,
+    env: { ...process.env, KIWI_HOME: kiwiHome },
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -142,10 +144,10 @@ const audit = readFileSync(path.join(workspace, ".kiwi", "logs", "audit.log"), "
 if (!audit.includes(voiceCore)) {
   throw new Error("workspace smoke did not record selected repo path");
 }
-const policy = readFileSync(path.join(workspace, ".kiwi", "policy.yaml"), "utf-8");
+const policy = readFileSync(path.join(kiwiHome, "defaults", "policy.yaml"), "utf-8");
 
 if (!policy.includes("providerPreference")) {
-  throw new Error("workspace smoke policy did not include providerPreference");
+  throw new Error("home default policy did not include providerPreference");
 }
 
 console.log(`smoke ok: ${runId}, ${workspaceRunId}`);

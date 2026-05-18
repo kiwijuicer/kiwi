@@ -2,7 +2,8 @@ PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 KIWI_BIN ?= $(BINDIR)/kiwi
 KIWI_MCP_BIN ?= $(BINDIR)/kiwi-mcp
-KIWI_INSTALL_ROOT ?= $(PREFIX)/share/kiwi
+KIWI_HOME ?= $(HOME)/.kiwi
+KIWI_INSTALL_ROOT ?= $(KIWI_HOME)/install
 KIWI_RELEASES_DIR ?= $(KIWI_INSTALL_ROOT)/releases
 KIWI_CURRENT ?= $(KIWI_INSTALL_ROOT)/current
 KIWI_RELEASES_TO_KEEP ?= 2
@@ -60,8 +61,9 @@ install:
 		RELEASE_PATH="$$RELEASES_DIR/$$RELEASE_ID"; \
 	fi; \
 	SMOKE_WORKSPACE="$$TMP_ROOT/smoke-workspace-$$RELEASE_ID"; \
+	SMOKE_KIWI_HOME="$$TMP_ROOT/smoke-home-$$RELEASE_ID"; \
 	LINK_TMP="$$CURRENT_LINK.next"; \
-	trap 'rm -rf "$$CANDIDATE" "$$SMOKE_WORKSPACE" "$$LINK_TMP"' EXIT INT TERM; \
+	trap 'rm -rf "$$CANDIDATE" "$$SMOKE_WORKSPACE" "$$SMOKE_KIWI_HOME" "$$LINK_TMP"' EXIT INT TERM; \
 	test -f "$(REPO_ROOT)/apps/cli/dist/index.js"; \
 	test -f "$(REPO_ROOT)/apps/mcp-server/dist/index.js"; \
 	test -f "$(REPO_ROOT)/apps/mcp-server/bin/stdio-launcher.cjs"; \
@@ -92,9 +94,9 @@ install:
 	node "$(REPO_ROOT)/scripts/check-bundle-requires.mjs" "$$CANDIDATE/apps/cli/dist/index.js" "$$CANDIDATE/apps/mcp-server/dist/index.js"; \
 	"$$CANDIDATE/bin/kiwi" --version >/dev/null; \
 	node -e 'const server = require(process.argv[1]); if (typeof server.startMcpServer !== "function") throw new Error("startMcpServer export not found");' "$$CANDIDATE/apps/mcp-server/dist/index.js"; \
-	mkdir -p "$$SMOKE_WORKSPACE"; \
-	"$$CANDIDATE/bin/kiwi" init --workspace "$$SMOKE_WORKSPACE" >/dev/null; \
-	KIWI_FORCE_ACCESS_MODE=stub "$$CANDIDATE/bin/kiwi" doctor --workspace "$$SMOKE_WORKSPACE" >/dev/null; \
+	mkdir -p "$$SMOKE_WORKSPACE" "$$SMOKE_KIWI_HOME"; \
+	KIWI_HOME="$$SMOKE_KIWI_HOME" "$$CANDIDATE/bin/kiwi" init --workspace "$$SMOKE_WORKSPACE" >/dev/null; \
+	KIWI_HOME="$$SMOKE_KIWI_HOME" KIWI_FORCE_ACCESS_MODE=stub "$$CANDIDATE/bin/kiwi" doctor --workspace "$$SMOKE_WORKSPACE" >/dev/null; \
 	mv "$$CANDIDATE" "$$RELEASE_PATH"; \
 	if [ -e "$$CURRENT_LINK" ] && [ ! -L "$$CURRENT_LINK" ]; then \
 		echo "kiwi current path exists and is not a symlink: $$CURRENT_LINK" >&2; \
@@ -132,7 +134,7 @@ install:
 		> "$(KIWI_MCP_BIN)"; \
 	chmod +x "$(KIWI_BIN)" "$(KIWI_MCP_BIN)"; \
 	find "$$RELEASES_DIR" -mindepth 1 -maxdepth 1 -type d | sort -r | awk 'NR > $(KIWI_RELEASES_TO_KEEP)' | while IFS= read -r old_release; do rm -rf "$$old_release"; done; \
-	rm -rf "$$SMOKE_WORKSPACE"; \
+	rm -rf "$$SMOKE_WORKSPACE" "$$SMOKE_KIWI_HOME"; \
 	rmdir "$$TMP_ROOT" 2>/dev/null || true; \
 	trap - EXIT; \
 	echo "kiwi installed: $(KIWI_BIN)"; \

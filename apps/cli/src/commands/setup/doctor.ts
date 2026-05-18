@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { ACCESS_MODE_VALUES, AccessMode, ContractValues, ModelEntry, Step } from "@kiwi/contracts";
-import { isInitialized, kiwiModelRegistryPath, kiwiPolicyPath, loadPolicy, loadRegistry } from "@kiwi/core";
+import { isInitialized, loadEffectivePolicy, loadEffectiveRegistry } from "@kiwi/core";
 import { evaluateAccessModeAvailability, preferredAccessModes, RunnerRegistry } from "@kiwi/runtime";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
 
@@ -65,8 +65,8 @@ function printRoleCounts(enabled: ModelEntry[]): void {
 }
 
 function printInitializedWorkspaceDiagnostics(workspacePath: string, env: NodeJS.ProcessEnv): void {
-  const policy = loadPolicy(kiwiPolicyPath(workspacePath));
-  const registry = loadRegistry(kiwiModelRegistryPath(workspacePath));
+  const policy = loadEffectivePolicy(workspacePath, { env });
+  const registry = loadEffectiveRegistry(workspacePath, { env });
   console.log(`policy: ${chalk.green(policy.project.name)} (${policy.routing.defaultModelCapability} default)`);
   console.log(`registry: ${chalk.green(registry.models.length)} entries`);
 

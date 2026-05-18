@@ -175,7 +175,7 @@ function defaultRunnerDefinitions(): RunnerDefinition[] {
         detailFromAccessMode(RunnerNames.Codex, evaluateAccessModeAvailability(AccessModes.CodexCli, env)),
       buildAdapter: ({ env, selectedExecutorModel }) => {
         if (!selectedExecutorModel || selectedExecutorModel.accessMode !== AccessModes.CodexCli) {
-          throw new Error("Codex runner requires a selected codex-cli model in .kiwi/model-registry.yaml");
+          throw new Error("Codex runner requires a selected codex-cli model in the effective model registry");
         }
         if (!selectedExecutorModel.providerModel) {
           throw new Error(

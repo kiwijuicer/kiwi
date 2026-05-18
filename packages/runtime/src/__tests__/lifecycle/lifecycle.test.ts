@@ -2,12 +2,12 @@ import { execFileSync } from "child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GateResultSchema, Initiative, KiwiPolicy, Step } from "@kiwi/contracts";
 import {
   assertStepDependenciesCompleted,
-  kiwiModelRegistryPath,
-  kiwiPolicyPath,
+  kiwiHomeModelRegistryPath,
+  kiwiHomePolicyPath,
   listStepAttemptEvidence,
   recordApprovalDecision,
   refreshRunStatusFromAttempts,
@@ -21,8 +21,23 @@ import {
   StepRunnerExecutionInput,
   StepRunnerExecutionOutput,
 } from "../../execution/step-attempt-orchestrator";
-import { executePlannedStep } from "../../execution/planned-steps";
+import { createRuntimeExecutionServices, executePlannedStep } from "../../execution/planned-steps";
 import { DirectExecutionUnsafeError, readExecutionRepoState } from "../../execution/direct-safety";
+
+let previousKiwiHome: string | undefined;
+
+beforeEach(() => {
+  previousKiwiHome = process.env.KIWI_HOME;
+  process.env.KIWI_HOME = mkdtempSync(path.join(os.tmpdir(), "kiwi-runtime-home-"));
+});
+
+afterEach(() => {
+  if (previousKiwiHome === undefined) {
+    delete process.env.KIWI_HOME;
+  } else {
+    process.env.KIWI_HOME = previousKiwiHome;
+  }
+});
 
 function cwd(): string {
   return mkdtempSync(path.join(os.tmpdir(), "kiwi-lifecycle-"));
@@ -123,9 +138,14 @@ function createRun(repo: string, steps: Step[] = [step], runInitiative: Initiati
   });
 }
 
-function writeExecutionConfig(repo: string): void {
-  writeFileSync(
-    kiwiPolicyPath(repo),
+function writeConfigFile(target: string, contents: string): void {
+  mkdirSync(path.dirname(target), { recursive: true });
+  writeFileSync(target, contents, "utf-8");
+}
+
+function writeExecutionConfig(_repo: string, env: Record<string, string | undefined> = process.env): void {
+  writeConfigFile(
+    kiwiHomePolicyPath(env),
     JSON.stringify({
       version: "1",
       project: { name: "kiwi", language: "typescript", packageManager: "pnpm" },
@@ -167,10 +187,9 @@ function writeExecutionConfig(repo: string): void {
         },
       },
     }),
-    "utf-8",
   );
-  writeFileSync(
-    kiwiModelRegistryPath(repo),
+  writeConfigFile(
+    kiwiHomeModelRegistryPath(env),
     JSON.stringify({
       version: "1",
       models: [
@@ -184,7 +203,6 @@ function writeExecutionConfig(repo: string): void {
         },
       ],
     }),
-    "utf-8",
   );
 }
 
@@ -227,6 +245,21 @@ const highRiskPolicy: KiwiPolicy = {
 };
 
 describe("run lifecycle", () => {
+  it("loads effective config from injected runtime env", () => {
+    const repo = cwd();
+    const home = path.join(cwd(), "home");
+    const env = { KIWI_HOME: home, KIWI_FORCE_ACCESS_MODE: "stub", PATH: process.env.PATH };
+    createRun(repo, [{ ...step, requiredGates: [] }], { ...initiative, repoPath: repo });
+    writeExecutionConfig(repo, env);
+
+    const preview = createRuntimeExecutionServices({ env }).previews.build({
+      cwd: repo,
+      runId: "run_demo",
+    });
+
+    expect(preview.steps[0]?.selectedModelId).toBe("stub-strong");
+  });
+
   it("materializes successful attempt diffs into the current working tree by default", async () => {
     const repo = cwd();
     execFileSync("git", ["init", "-b", "feature"], { cwd: repo, stdio: "ignore" });

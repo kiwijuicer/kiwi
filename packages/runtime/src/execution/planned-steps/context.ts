@@ -29,18 +29,18 @@ export class ExecutionRunContext {
 }
 
 export class ExecutionContextLoader {
-  constructor(private readonly core: CoreServices) {}
+  constructor(
+    private readonly core: CoreServices,
+    private readonly env?: Record<string, string | undefined>,
+  ) {}
 
   load(input: Pick<ExecutePlannedStepInput, "cwd" | "runId" | "now">): ExecutionRunContext {
-    const policyPath = this.core.config.policyPath(input.cwd);
-    const registryPath = this.core.config.modelRegistryPath(input.cwd);
-
     return new ExecutionRunContext(
       input.cwd,
       input.runId,
       input.now ?? new Date(),
-      this.core.config.loadPolicy(policyPath),
-      this.core.config.loadRegistry(registryPath),
+      this.core.config.loadEffectivePolicy(input.cwd, this.env ? { env: this.env } : undefined),
+      this.core.config.loadEffectiveRegistry(input.cwd, this.env ? { env: this.env } : undefined),
       this.core.runs.loadInitiative(input.runId, input.cwd),
       this.core.runs.loadTaskGraph(input.runId, input.cwd),
     );

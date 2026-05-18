@@ -42,6 +42,7 @@ export class StepAttemptExecutor {
       cwd: session.cwd,
       policy: session.context.policy,
       registryModels: session.context.registry.models,
+      env: this.policyResolver.environment(),
     });
     const orchestratorInput: Parameters<StepAttemptOrchestrator<SandboxCommandPolicy>["execute"]>[0] = {
       cwd: session.cwd,

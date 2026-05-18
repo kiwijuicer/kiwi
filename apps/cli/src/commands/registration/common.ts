@@ -37,7 +37,7 @@ export function mapErrorToHelp(error: unknown): string | null {
     return "Run `kiwi doctor`, then log in/configure a real planner. Use `--allow-stub` only for tests/dev.";
   }
   if (message.includes("No reviewer model with an available access mode")) {
-    return "Check `.kiwi/model-registry.yaml` and run `kiwi doctor`.";
+    return "Check `~/.kiwi/defaults/model-registry.yaml` and any workspace `.kiwi/model-registry.yaml` override, then run `kiwi doctor`.";
   }
   if (hasErrorCode(error, "provider_auth")) {
     return "Run `claude` and `/login` (or `codex login` / `cursor-agent status`).";

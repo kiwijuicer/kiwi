@@ -272,7 +272,7 @@ export class ProviderReviewEngine implements ReviewEngine {
     });
 
     if (!selected) {
-      throw new Error("No reviewer model with an available access mode is enabled in .kiwi/model-registry.yaml");
+      throw new Error("No reviewer model with an available access mode is enabled in the effective model registry");
     }
     const { model } = selected;
 

@@ -8,6 +8,17 @@ import { runInit } from "../../commands/setup/init";
 import { runPlan } from "../../commands/planning/plan";
 import { runStatus } from "../../commands/runs/status";
 
+function testEnv(cwd: string, env: Record<string, string | undefined> = {}): Record<string, string | undefined> {
+  return {
+    ...env,
+    KIWI_HOME: env.KIWI_HOME ?? path.join(path.dirname(cwd), `${path.basename(cwd)}-home`),
+  };
+}
+
+async function init(cwd: string): Promise<void> {
+  await runInit({ env: testEnv(cwd) }, cwd);
+}
+
 function fixtureInitiative(id: string, title: string): Initiative {
   return {
     id,
@@ -146,12 +157,12 @@ describe("kiwi status", () => {
 
   it("prints compact run summary by default", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-status-compact-"));
-    await runInit({}, cwd);
+    await init(cwd);
     await runPlan(
       "# Feature: Compact Status\n\n## Analyze\n## Implement",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T04:00:00.000Z"),
         runIdSuffix: "s000",
         initiativeIdSuffix: "s000",
@@ -172,12 +183,12 @@ describe("kiwi status", () => {
 
   it("prints detailed run summary with title, plan, step count, and artifact paths behind verbose", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-status-details-"));
-    await runInit({}, cwd);
+    await init(cwd);
     await runPlan(
       "# Feature: Status Details\n\n## Analyze\n## Plan\n## Implement\n## Validate",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T04:00:00.000Z"),
         runIdSuffix: "s001",
         initiativeIdSuffix: "s001",
@@ -265,12 +276,12 @@ describe("kiwi status", () => {
 
   it("supports selected run view", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-status-select-"));
-    await runInit({}, cwd);
+    await init(cwd);
     await runPlan(
       "Ticket A",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T04:00:00.000Z"),
         runIdSuffix: "a001",
         initiativeIdSuffix: "a001",
@@ -282,7 +293,7 @@ describe("kiwi status", () => {
       "Ticket B",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T04:00:01.000Z"),
         runIdSuffix: "b002",
         initiativeIdSuffix: "b002",
@@ -303,12 +314,12 @@ describe("kiwi status", () => {
 
   it("prints valid runs and reports corrupt folders without failing", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-status-corrupt-"));
-    await runInit({}, cwd);
+    await init(cwd);
     await runPlan(
       "Ticket A",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T04:00:00.000Z"),
         runIdSuffix: "a001",
         initiativeIdSuffix: "a001",

@@ -11,6 +11,8 @@
 <workspace>/.kiwi/runs/<run-id>/
 ```
 
+Shared policy and model defaults live under `~/.kiwi/defaults/`. Workspace-specific run state stays under `<workspace>/.kiwi/`; optional overrides can be added as `<workspace>/.kiwi/policy.yaml` and `<workspace>/.kiwi/model-registry.yaml`. Kiwi commands require the shared defaults, so run `kiwi init` before relying on workspace overrides.
+
 For a single repo, `<workspace>` is usually the repo root. For a multi-repo workspace like `/Users/norberthanauer/Projects/voice`, `<workspace>` is the parent workspace and `--repo` selects the target repo.
 
 ## Standard Flow
@@ -27,9 +29,10 @@ kiwi evidence manifest <run-id> --workspace /Users/norberthanauer/Projects/voice
 kiwi operator snapshot <run-id> --workspace /Users/norberthanauer/Projects/voice
 ```
 
-Plain `kiwi init` prepares `.kiwi` plus Cursor, Claude Code, and Codex MCP project configs by default.
+Plain `kiwi init` creates missing `~/.kiwi/defaults/` files, prepares workspace `.kiwi` state, and writes Cursor, Claude Code, and Codex MCP project configs by default.
 Use `--mcp none` to skip MCP config or `--mcp cursor|claude|codex` to target one client.
 Generated kiwi and MCP config paths are added to local git ignore/exclude rules.
+Set `KIWI_HOME=/custom/path` before `kiwi init` and later kiwi commands to use a non-default shared home.
 
 `kiwi plan` accepts either a file path or inline text:
 

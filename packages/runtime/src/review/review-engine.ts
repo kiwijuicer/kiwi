@@ -180,7 +180,7 @@ export function selectReviewerModel(models: ModelEntry[], riskHigh: boolean): Mo
   const enabled = models.filter((model) => model.enabled && model.roles.includes(ContractValues.Reviewer));
 
   if (enabled.length === 0) {
-    throw new Error("No enabled reviewer model found in .kiwi/model-registry.yaml");
+    throw new Error("No enabled reviewer model found in the effective model registry");
   }
   const targetCapability = riskHigh ? ContractValues.Frontier : ContractValues.Strong;
   const exact = enabled.find((model) => model.capability === targetCapability);

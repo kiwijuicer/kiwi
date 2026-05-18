@@ -524,8 +524,8 @@ kiwi/
       agents.md
   .kiwi/
     config.yaml
-    policy.yaml
-    .kiwi/model-registry.yaml
+    policy.yaml                # optional workspace override
+    model-registry.yaml        # optional workspace override
   AGENTS.md
   package.json
   pnpm-workspace.yaml

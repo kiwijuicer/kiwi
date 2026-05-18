@@ -42,6 +42,7 @@ export class StepRunnerSelector {
       registryModels: params.registryModels,
       step: params.step,
       preferenceByRole: params.policy.routing.providerPreference,
+      env: this.policyResolver.environment(),
     });
   }
 
@@ -83,6 +84,7 @@ export class StepRunnerSelector {
       const selected = this.researcherProviderRegistry.select({
         registryModels: params.registryModels,
         preferenceByRole: params.policy.routing.providerPreference,
+        env: this.policyResolver.environment(),
       });
 
       return {
@@ -172,10 +174,11 @@ export class StepRunnerSelector {
     const selection = this.researcherProviderRegistry.select({
       registryModels: params.registryModels,
       preferenceByRole: params.policy.routing.providerPreference,
+      env: this.policyResolver.environment(),
     });
 
     if (!selection) {
-      throw new Error("No enabled researcher model with an available access mode found in .kiwi/model-registry.yaml");
+      throw new Error("No enabled researcher model with an available access mode found in the effective model registry");
     }
 
     return selection;
@@ -208,7 +211,7 @@ export class StepRunnerSelector {
   private assertCodexSelection(stepId: string, selectedModel: ModelEntry | null): void {
     if (!selectedModel || selectedModel.accessMode !== AccessModes.CodexCli) {
       throw new Error(
-        `Codex runner selected for ${stepId}, but no matching codex-cli model is available in .kiwi/model-registry.yaml`,
+        `Codex runner selected for ${stepId}, but no matching codex-cli model is available in the effective model registry`,
       );
     }
     if (!selectedModel.providerModel) {

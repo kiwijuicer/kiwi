@@ -2,20 +2,40 @@ import { execFileSync } from "child_process";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
-import { describe, expect, it } from "vitest";
-import { appendModelInvocation, kiwiModelRegistryPath, kiwiPolicyPath, listStepAttemptEvidence } from "@kiwi/core";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  appendModelInvocation,
+  kiwiHomeModelRegistryPath,
+  kiwiHomePolicyPath,
+  kiwiModelRegistryPath,
+  kiwiPolicyPath,
+  listStepAttemptEvidence,
+} from "@kiwi/core";
 import type { RunExecutionPreview } from "@kiwi/runtime";
 import { handleMcpRequest } from "..";
 import { createMcpPreviewToken, latestValidPreviewToken, normalizePreviewInput } from "../tools/preview-tokens";
+
+let previousKiwiHome: string | undefined;
+
+beforeEach(() => {
+  previousKiwiHome = process.env.KIWI_HOME;
+  process.env.KIWI_HOME = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-ux-home-"));
+});
+
+afterEach(() => {
+  if (previousKiwiHome === undefined) {
+    delete process.env.KIWI_HOME;
+  } else {
+    process.env.KIWI_HOME = previousKiwiHome;
+  }
+});
 
 function setupRepo(options: { ignoreKiwi?: boolean } = {}): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-ux-"));
   mkdirSync(path.join(cwd, ".kiwi", "runs"), { recursive: true });
   mkdirSync(path.join(cwd, ".kiwi", "logs"), { recursive: true });
   writeFileSync(path.join(cwd, ".kiwi", "config.yaml"), 'version: "1"\n', "utf-8");
-  writeFileSync(
-    kiwiPolicyPath(cwd),
-    `version: "1"
+  const policyYaml = `version: "1"
 project:
   name: kiwi
   language: typescript
@@ -44,21 +64,21 @@ commandProfiles:
     networkPolicy: disabled
     timeoutMs: 1000
     maxOutputBytes: 4096
-`,
-    "utf-8",
-  );
-  writeFileSync(
-    kiwiModelRegistryPath(cwd),
-    `version: "1"
+`;
+  const registryYaml = `version: "1"
 models:
   - id: stub-frontier
     provider: stub
     capability: frontier
     roles: [planner, reviewer]
     enabled: true
-`,
-    "utf-8",
-  );
+`;
+  mkdirSync(path.dirname(kiwiHomePolicyPath()), { recursive: true });
+  mkdirSync(path.dirname(kiwiHomeModelRegistryPath()), { recursive: true });
+  writeFileSync(kiwiHomePolicyPath(), policyYaml, "utf-8");
+  writeFileSync(kiwiHomeModelRegistryPath(), registryYaml, "utf-8");
+  writeFileSync(kiwiPolicyPath(cwd), policyYaml, "utf-8");
+  writeFileSync(kiwiModelRegistryPath(cwd), registryYaml, "utf-8");
   execFileSync("git", ["init", "-b", "feature"], { cwd, stdio: "ignore" });
   execFileSync("git", ["config", "user.email", "kiwi@example.test"], { cwd, stdio: "ignore" });
   execFileSync("git", ["config", "user.name", "kiwi"], { cwd, stdio: "ignore" });
@@ -375,7 +395,11 @@ describe("MCP UX safety tools", () => {
     expect(nextParsed.nextAction.recommendedToolCall.name).toBe("kiwi_run");
     expect(nextParsed.nextAction.recommendedToolCall.arguments.previewToken).toBe(token);
 
-    writeFileSync(kiwiPolicyPath(cwd), `${readFileSync(kiwiPolicyPath(cwd), "utf-8")}\n# changed\n`, "utf-8");
+    writeFileSync(
+      kiwiPolicyPath(cwd),
+      readFileSync(kiwiPolicyPath(cwd), "utf-8").replace("test: node -e 0", "test: node -e 1"),
+      "utf-8",
+    );
     const run = await handleMcpRequest(
       {
         id: 4,
@@ -393,6 +417,41 @@ describe("MCP UX safety tools", () => {
         recommendedToolCall: { name: "kiwi_preview_run" },
       },
     });
+  });
+
+  it("rejects stale preview tokens after home policy defaults change", async () => {
+    const cwd = setupRepo();
+    const runId = await planRun(cwd);
+    const command = "node -e 0";
+    const token = await previewRun(cwd, runId, { command });
+    const homePolicyPath = kiwiHomePolicyPath();
+
+    mkdirSync(path.dirname(homePolicyPath), { recursive: true });
+    writeFileSync(
+      homePolicyPath,
+      `${readFileSync(kiwiPolicyPath(cwd), "utf-8")}
+execution:
+  owner: kiwi-codex-cli
+  isolation: direct
+  sandbox: workspace-write
+  forbidStaging: true
+  forbidCommits: true
+  forbidPushes: true
+`,
+      "utf-8",
+    );
+
+    const run = await handleMcpRequest(
+      {
+        id: 4,
+        method: "tools/call",
+        params: { name: "kiwi_run", arguments: { runId, previewToken: token, command } },
+      },
+      cwd,
+    );
+
+    expect(run.error?.code).toBe(-32010);
+    expect(run.error?.message).toContain("Stale previewToken");
   });
 
   it("rejects command changes after preview confirmation", async () => {

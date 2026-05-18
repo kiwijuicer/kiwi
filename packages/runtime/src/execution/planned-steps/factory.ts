@@ -32,7 +32,7 @@ export function createRuntimeExecutionServices(
 ): RuntimeExecutionServices {
   const core = dependencies.core ?? createCoreServices();
   const sandbox = dependencies.sandbox ?? createSandboxServices();
-  const contextLoader = new ExecutionContextLoader(core);
+  const contextLoader = new ExecutionContextLoader(core, dependencies.env);
   const policyResolver = new ExecutionPolicyResolver(dependencies.env);
   const schedulerPolicy = new SchedulerPolicyService();
   const operatorPolicy = new OperatorPolicyService();

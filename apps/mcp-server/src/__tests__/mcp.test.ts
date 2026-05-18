@@ -4,8 +4,8 @@ import { AddressInfo } from "net";
 import { execFileSync } from "child_process";
 import os from "os";
 import path from "path";
-import { describe, expect, it } from "vitest";
-import { kiwiModelRegistryPath, kiwiPolicyPath } from "@kiwi/core";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { kiwiHomeModelRegistryPath, kiwiHomePolicyPath, kiwiModelRegistryPath, kiwiPolicyPath } from "@kiwi/core";
 import {
   createMcpMessageDrainer,
   handleMcpRequest,
@@ -13,6 +13,21 @@ import {
   resolveMcpBootstrapOptions,
   startHttpMcpServer,
 } from "..";
+
+let previousKiwiHome: string | undefined;
+
+beforeEach(() => {
+  previousKiwiHome = process.env.KIWI_HOME;
+  process.env.KIWI_HOME = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-home-"));
+});
+
+afterEach(() => {
+  if (previousKiwiHome === undefined) {
+    delete process.env.KIWI_HOME;
+  } else {
+    process.env.KIWI_HOME = previousKiwiHome;
+  }
+});
 
 function setupRepo(): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-"));
@@ -35,9 +50,7 @@ function writeKiwiConfig(cwd: string): void {
   mkdirSync(path.join(cwd, ".kiwi", "runs"), { recursive: true });
   mkdirSync(path.join(cwd, ".kiwi", "logs"), { recursive: true });
   writeFileSync(path.join(cwd, ".kiwi", "config.yaml"), 'version: "1"\n', "utf-8");
-  writeFileSync(
-    kiwiPolicyPath(cwd),
-    `version: "1"
+  const policyYaml = `version: "1"
 project:
   name: kiwi
   language: typescript
@@ -66,21 +79,21 @@ commandProfiles:
     networkPolicy: disabled
     timeoutMs: 1000
     maxOutputBytes: 4096
-`,
-    "utf-8",
-  );
-  writeFileSync(
-    kiwiModelRegistryPath(cwd),
-    `version: "1"
+`;
+  const registryYaml = `version: "1"
 models:
   - id: stub-frontier
     provider: stub
     capability: frontier
     roles: [planner, reviewer]
     enabled: true
-`,
-    "utf-8",
-  );
+`;
+  mkdirSync(path.dirname(kiwiHomePolicyPath()), { recursive: true });
+  mkdirSync(path.dirname(kiwiHomeModelRegistryPath()), { recursive: true });
+  writeFileSync(kiwiHomePolicyPath(), policyYaml, "utf-8");
+  writeFileSync(kiwiHomeModelRegistryPath(), registryYaml, "utf-8");
+  writeFileSync(kiwiPolicyPath(cwd), policyYaml, "utf-8");
+  writeFileSync(kiwiModelRegistryPath(cwd), registryYaml, "utf-8");
 }
 
 function setupWorkspace(): { root: string; core: string; agent: string } {

@@ -6,15 +6,22 @@ import { runExplain } from "../../commands/planning/explain";
 import { runInit } from "../../commands/setup/init";
 import { runPlan } from "../../commands/planning/plan";
 
+function testEnv(cwd: string, env: Record<string, string | undefined> = {}): Record<string, string | undefined> {
+  return {
+    ...env,
+    KIWI_HOME: env.KIWI_HOME ?? path.join(path.dirname(cwd), `${path.basename(cwd)}-home`),
+  };
+}
+
 describe("kiwi explain", () => {
   it("prints subplan tree output", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-explain-"));
-    await runInit({}, cwd);
+    await runInit({ env: testEnv(cwd) }, cwd);
     await runPlan(
       "# Feature: Explain Tree\n\n## Analyze\n## Implement\n## Validate",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-06T10:00:00.000Z"),
         runIdSuffix: "x001",
         initiativeIdSuffix: "x001",

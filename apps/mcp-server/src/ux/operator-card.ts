@@ -1,6 +1,6 @@
 import { existsSync } from "fs";
 import { ContractValues } from "@kiwi/contracts";
-import { getRunStatusSummary, kiwiPolicyPath, loadInitiative, loadPolicy, resolveRunArtifactPath } from "@kiwi/core";
+import { getRunStatusSummary, loadEffectivePolicy, loadInitiative, resolveRunArtifactPath } from "@kiwi/core";
 import { readExecutionRepoState } from "@kiwi/runtime";
 import { type McpMutationScope, type McpNextAction, mutationScope, toolCall } from ".";
 
@@ -52,7 +52,7 @@ export function buildOperatorCard(params: {
   })();
   const policy = (() => {
     try {
-      return loadPolicy(kiwiPolicyPath(params.cwd));
+      return loadEffectivePolicy(params.cwd);
     } catch {
       return null;
     }

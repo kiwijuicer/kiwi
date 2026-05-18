@@ -17,6 +17,14 @@ import { runRulesSync } from "../../commands/setup/rules";
 import { runStatus } from "../../commands/runs/status";
 
 let previousForceAccessMode: string | undefined;
+let previousKiwiHome: string | undefined;
+
+function commandEnv(env: Record<string, string | undefined> = {}): Record<string, string | undefined> {
+  return {
+    ...env,
+    KIWI_HOME: env.KIWI_HOME ?? process.env.KIWI_HOME,
+  };
+}
 
 function writeFastPolicy(cwd: string): void {
   writeFileSync(
@@ -82,7 +90,9 @@ function initSafeGitRepo(cwd: string): void {
 describe("kiwi operator flow", () => {
   beforeEach(() => {
     previousForceAccessMode = process.env.KIWI_FORCE_ACCESS_MODE;
+    previousKiwiHome = process.env.KIWI_HOME;
     process.env.KIWI_FORCE_ACCESS_MODE = "stub";
+    process.env.KIWI_HOME = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-home-"));
   });
 
   afterEach(() => {
@@ -90,6 +100,11 @@ describe("kiwi operator flow", () => {
       delete process.env.KIWI_FORCE_ACCESS_MODE;
     } else {
       process.env.KIWI_FORCE_ACCESS_MODE = previousForceAccessMode;
+    }
+    if (previousKiwiHome === undefined) {
+      delete process.env.KIWI_HOME;
+    } else {
+      process.env.KIWI_HOME = previousKiwiHome;
     }
   });
 
@@ -102,7 +117,7 @@ describe("kiwi operator flow", () => {
       "# Feature: Operator\n\n## Validate",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: commandEnv({ PATH: "/empty" }),
         now: new Date("2026-05-04T09:00:00.000Z"),
         runIdSuffix: "op01",
         initiativeIdSuffix: "op01",
@@ -196,7 +211,7 @@ describe("kiwi operator flow", () => {
       "# Feature: Dependencies\n\n## First\n\n## Second",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: commandEnv({ PATH: "/empty" }),
         now: new Date("2026-05-04T09:10:00.000Z"),
         runIdSuffix: "deps",
         initiativeIdSuffix: "deps",
@@ -239,7 +254,7 @@ describe("kiwi operator flow", () => {
       "# Feature: Run Progress\n\n## Validate",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: commandEnv({ PATH: "/empty" }),
         now: new Date("2026-05-04T12:00:00.000Z"),
         runIdSuffix: "r001",
         initiativeIdSuffix: "r001",
@@ -300,7 +315,7 @@ describe("kiwi operator flow", () => {
       "# Feature: Workspace Attempt\n\n## Implement",
       {
         allowStub: true,
-        env: { PATH: "/empty" },
+        env: commandEnv({ PATH: "/empty" }),
         workspace,
         repo: "voice-core",
         now: new Date("2026-05-04T10:00:00.000Z"),

@@ -122,7 +122,7 @@ export function selectPlannerModel(models: ModelEntry[]): ModelEntry {
     ) ?? models.find((model) => model.enabled && model.roles.includes(ContractValues.Planner));
 
   if (!candidate) {
-    throw new Error("No enabled planner model found in .kiwi/model-registry.yaml");
+    throw new Error("No enabled planner model found in the effective model registry");
   }
 
   return candidate;

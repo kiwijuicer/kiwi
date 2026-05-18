@@ -17,6 +17,8 @@ import {
 import {
   kiwiModelRegistryPath,
   kiwiPolicyPath,
+  loadEffectivePolicy,
+  loadEffectiveRegistry,
   loadKiwiConfig,
   loadPolicy,
   loadRegistry,
@@ -83,6 +85,8 @@ export class KiwiConfigRepository {
     private readonly deps: {
       kiwiPolicyPath: typeof kiwiPolicyPath;
       kiwiModelRegistryPath: typeof kiwiModelRegistryPath;
+      loadEffectivePolicy: typeof loadEffectivePolicy;
+      loadEffectiveRegistry: typeof loadEffectiveRegistry;
       loadPolicy: typeof loadPolicy;
       loadRegistry: typeof loadRegistry;
       loadKiwiConfig: typeof loadKiwiConfig;
@@ -90,6 +94,8 @@ export class KiwiConfigRepository {
     } = {
       kiwiPolicyPath,
       kiwiModelRegistryPath,
+      loadEffectivePolicy,
+      loadEffectiveRegistry,
       loadPolicy,
       loadRegistry,
       loadKiwiConfig,
@@ -103,6 +109,20 @@ export class KiwiConfigRepository {
 
   modelRegistryPath(cwd: string): string {
     return this.deps.kiwiModelRegistryPath(cwd);
+  }
+
+  loadEffectivePolicy(
+    workspacePath: string,
+    opts?: Parameters<typeof loadEffectivePolicy>[1],
+  ): ReturnType<typeof loadEffectivePolicy> {
+    return this.deps.loadEffectivePolicy(workspacePath, opts);
+  }
+
+  loadEffectiveRegistry(
+    workspacePath: string,
+    opts?: Parameters<typeof loadEffectiveRegistry>[1],
+  ): ReturnType<typeof loadEffectiveRegistry> {
+    return this.deps.loadEffectiveRegistry(workspacePath, opts);
   }
 
   loadPolicy(path: string): ReturnType<typeof loadPolicy> {
