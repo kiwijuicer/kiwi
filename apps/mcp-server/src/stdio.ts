@@ -1,9 +1,18 @@
-import { Buffer } from "buffer";
 import { debugLog } from "./debug-log";
 import { defaultServerCwd, handleMcpMessage } from "./protocol";
 
+const MAX_STDIO_MESSAGE_BYTES = 4 * 1024 * 1024;
+
 function encodeStdioMessage(payload: unknown): string {
   return `${JSON.stringify(payload)}\n`;
+}
+
+function writeInvalidRequest(writeResponse: (payload: unknown) => void): void {
+  writeResponse({
+    jsonrpc: "2.0",
+    id: null,
+    error: { code: -32600, message: "Invalid request" },
+  });
 }
 
 async function handleParsedMcpMessage(
@@ -23,6 +32,7 @@ export function createMcpMessageDrainer(
   writeResponse: (payload: unknown) => void,
 ): (chunk: Buffer) => Promise<void> {
   let buffer = Buffer.alloc(0);
+  let discardingOversizedLine = false;
 
   return async function drainMessages(chunk: Buffer): Promise<void> {
     buffer = Buffer.concat([buffer, chunk]);
@@ -31,8 +41,33 @@ export function createMcpMessageDrainer(
     for (;;) {
       const newline = buffer.indexOf("\n");
 
+      if (discardingOversizedLine) {
+        if (newline < 0) {
+          buffer = Buffer.alloc(0);
+
+          return;
+        }
+        buffer = buffer.subarray(newline + 1);
+        discardingOversizedLine = false;
+        continue;
+      }
+
       if (newline < 0) {
+        if (buffer.length > MAX_STDIO_MESSAGE_BYTES) {
+          debugLog("stdio_line_too_large", { bufferedBytes: buffer.length, maxBytes: MAX_STDIO_MESSAGE_BYTES });
+          buffer = Buffer.alloc(0);
+          discardingOversizedLine = true;
+          writeInvalidRequest(writeResponse);
+        }
+
         return;
+      }
+
+      if (newline > MAX_STDIO_MESSAGE_BYTES) {
+        debugLog("stdio_line_too_large", { bufferedBytes: newline, maxBytes: MAX_STDIO_MESSAGE_BYTES });
+        buffer = buffer.subarray(newline + 1);
+        writeInvalidRequest(writeResponse);
+        continue;
       }
 
       const body = buffer.subarray(0, newline).toString("utf-8").replace(/\r$/, "");

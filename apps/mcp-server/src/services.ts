@@ -6,7 +6,7 @@ interface McpServerServices {
   runtime: RuntimeServices;
 }
 
-export function createMcpServerServices(): McpServerServices {
+function createMcpServerServices(): McpServerServices {
   const core = createCoreServices();
 
   return {

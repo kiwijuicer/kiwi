@@ -7,6 +7,7 @@ const RUN_ID_SCHEMA = {
     repoPath: { type: "string" },
   },
   required: ["runId"],
+  additionalProperties: false,
 } as const;
 
 const NO_AUTO_COMMIT_NOTE =
@@ -84,6 +85,7 @@ const TOOL_SPECS = [
       properties: {
         ...WORKSPACE_PROPERTIES,
       },
+      additionalProperties: false,
     },
   },
   {
@@ -107,6 +109,7 @@ const TOOL_SPECS = [
         allowStub: { type: "boolean", description: "Allow the stub planner provider in tests/dev fixtures." },
       },
       anyOf: [{ required: ["ticket"] }, { required: ["rawInput"] }],
+      additionalProperties: false,
     },
   },
   {
@@ -124,6 +127,7 @@ const TOOL_SPECS = [
         runId: runIdProperty,
         ...WORKSPACE_PROPERTIES,
       },
+      additionalProperties: false,
     },
   },
   {
@@ -150,6 +154,7 @@ const TOOL_SPECS = [
         ...WORKSPACE_PROPERTIES,
       },
       required: ["runId", "previewToken"],
+      additionalProperties: false,
     },
   },
   {
@@ -175,6 +180,7 @@ const TOOL_SPECS = [
         ...WORKSPACE_PROPERTIES,
       },
       required: ["runId"],
+      additionalProperties: false,
     },
   },
   {
@@ -196,6 +202,7 @@ const TOOL_SPECS = [
         ...WORKSPACE_PROPERTIES,
       },
       required: ["runId", "stepId", "previewToken"],
+      additionalProperties: false,
     },
   },
   {
@@ -215,6 +222,7 @@ const TOOL_SPECS = [
         ...WORKSPACE_PROPERTIES,
       },
       required: ["runId"],
+      additionalProperties: false,
     },
   },
   {
@@ -234,6 +242,7 @@ const TOOL_SPECS = [
         ...WORKSPACE_PROPERTIES,
       },
       required: ["runId"],
+      additionalProperties: false,
     },
   },
   {
@@ -288,6 +297,7 @@ const TOOL_SPECS = [
         ...WORKSPACE_PROPERTIES,
       },
       required: ["runId"],
+      additionalProperties: false,
     },
   },
   {
@@ -313,6 +323,7 @@ const TOOL_SPECS = [
         ...WORKSPACE_PROPERTIES,
       },
       required: ["runId", "attemptId", "approvedBy"],
+      additionalProperties: false,
     },
   },
   {
@@ -356,6 +367,7 @@ const TOOL_SPECS = [
         ...WORKSPACE_PROPERTIES,
       },
       required: ["runId"],
+      additionalProperties: false,
     },
   },
 ] as const;

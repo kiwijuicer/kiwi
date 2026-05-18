@@ -15,7 +15,21 @@ function runsRoot(cwd: string): string {
   return path.join(cwd, ".kiwi", "runs");
 }
 
+const RUN_ID_PATTERN = /^run_[a-z0-9_]+$/;
+
+export function isValidRunId(runId: string): boolean {
+  return RUN_ID_PATTERN.test(runId);
+}
+
+function assertValidRunId(runId: string): void {
+  if (!isValidRunId(runId)) {
+    throw new Error("runId must look like run_<value>");
+  }
+}
+
 function runDir(runId: string, cwd: string): string {
+  assertValidRunId(runId);
+
   return path.join(runsRoot(cwd), runId);
 }
 
@@ -168,7 +182,7 @@ export function listRunManifests(cwd: string): RunManifest[] {
     return [];
   }
 
-  const runIds = listRunIds(cwd);
+  const runIds = listRunIds(cwd).filter(isValidRunId);
 
   const manifests: RunManifest[] = [];
 

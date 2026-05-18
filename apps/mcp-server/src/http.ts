@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { createServer, IncomingMessage, Server, ServerResponse } from "http";
 import { debugLog } from "./debug-log";
 import { defaultServerCwd, handleMcpMessage } from "./protocol";
@@ -67,7 +68,15 @@ function applyCorsHeaders(request: IncomingMessage, response: ServerResponse, al
 }
 
 function isAuthorized(request: IncomingMessage, authToken: string): boolean {
-  return request.headers.authorization === `Bearer ${authToken}`;
+  const authorization = request.headers.authorization;
+
+  if (typeof authorization !== "string") {
+    return false;
+  }
+  const actual = Buffer.from(authorization, "utf-8");
+  const expected = Buffer.from(`Bearer ${authToken}`, "utf-8");
+
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 function sendJson(response: ServerResponse, statusCode: number, payload: unknown): void {

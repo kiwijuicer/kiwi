@@ -3,7 +3,7 @@ import { parsePort, startHttpMcpServer, type HttpMcpServerOptions } from "./http
 import { startMcpServer } from "./stdio";
 import { McpTransportNames, type McpTransportName } from "./constants";
 
-export interface McpBootstrapOptions {
+interface McpBootstrapOptions {
   cwd: string;
   transport: McpTransportName;
   http: HttpMcpServerOptions;
@@ -11,12 +11,12 @@ export interface McpBootstrapOptions {
 
 type BootstrapEnv = Record<string, string | undefined>;
 
-export interface McpServerBootstrapTransports {
+interface McpServerBootstrapTransports {
   startStdio(cwd: string): void;
   startHttp(options: HttpMcpServerOptions): unknown;
 }
 
-export interface McpServerBootstrapConfig {
+interface McpServerBootstrapConfig {
   transports?: Partial<McpServerBootstrapTransports>;
 }
 

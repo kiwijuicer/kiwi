@@ -239,6 +239,29 @@ describe("run status summary", () => {
     expect(summary.latest[0]?.artifactPaths.taskGraph).toBe(".kiwi/runs/run_20260504_040000_a001/plan/task-graph.json");
   });
 
+  it("ignores non-run folders when listing status", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-core-status-invalid-"));
+
+    savePlannedRun({
+      runId: "run_20260504_040000_valid",
+      initiative: fixtureInitiative("init_20260504_040000_valid", "Feature Valid"),
+      taskGraph: fixtureTaskGraph(
+        "run_20260504_040000_valid",
+        "init_20260504_040000_valid",
+        "plan_20260504_040000_valid",
+      ),
+      cwd,
+      now: new Date("2026-05-04T04:00:00.000Z"),
+    });
+    mkdirSync(path.join(cwd, ".kiwi", "runs", "legacy-run"), { recursive: true });
+
+    const summary = getRunStatusSummary(cwd);
+
+    expect(summary.total).toBe(1);
+    expect(summary.corrupt).toEqual([]);
+    expect(summary.latest[0]?.runId).toBe("run_20260504_040000_valid");
+  });
+
   it("derives step state, active activity, and edited files from run evidence", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-core-status-detail-"));
     const runId = "run_20260504_040000_detail";

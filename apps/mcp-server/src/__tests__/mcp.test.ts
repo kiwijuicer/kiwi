@@ -247,8 +247,13 @@ describe("MCP server", () => {
     expect(tools.error).toBeUndefined();
     expect(JSON.stringify(tools.result)).toContain("kiwi_plan");
     expect(JSON.stringify(tools.result)).toContain("inputSchema");
-    const listedTools = (tools.result as { tools: Array<{ name: string; annotations?: unknown }> }).tools;
+    const listedTools = (
+      tools.result as {
+        tools: Array<{ name: string; annotations?: unknown; inputSchema?: { additionalProperties?: boolean } }>;
+      }
+    ).tools;
     expect(listedTools.every((tool) => tool.annotations)).toBe(true);
+    expect(listedTools.every((tool) => tool.inputSchema?.additionalProperties === false)).toBe(true);
     expect(listedTools.find((tool) => tool.name === "kiwi_next")?.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,
@@ -325,6 +330,41 @@ describe("MCP server", () => {
 
     expect(responses).toHaveLength(1);
     expect((responses[0] as Array<{ id: number }>).map((response) => response.id)).toEqual([1, 2]);
+  });
+
+  it("rejects oversized stdio lines and continues after the newline", async () => {
+    const responses: unknown[] = [];
+    const drain = createMcpMessageDrainer(setupRepo(), (response) => responses.push(response));
+    const oversizedLine = Buffer.alloc(4 * 1024 * 1024 + 1, "x");
+
+    await drain(
+      Buffer.concat([
+        oversizedLine,
+        Buffer.from("\n", "utf-8"),
+        lineMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+      ]),
+    );
+
+    expect(responses).toHaveLength(2);
+    expect(responses[0]).toMatchObject({ error: { code: -32600, message: "Invalid request" } });
+    expect(responses[1]).toMatchObject({ id: 1, result: { serverInfo: { name: "kiwi" } } });
+  });
+
+  it("discards split oversized stdio lines until the newline", async () => {
+    const responses: unknown[] = [];
+    const drain = createMcpMessageDrainer(setupRepo(), (response) => responses.push(response));
+
+    await drain(Buffer.alloc(4 * 1024 * 1024 + 1, "x"));
+    await drain(
+      Buffer.concat([
+        Buffer.from("still-discarded\n", "utf-8"),
+        lineMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+      ]),
+    );
+
+    expect(responses).toHaveLength(2);
+    expect(responses[0]).toMatchObject({ error: { code: -32600, message: "Invalid request" } });
+    expect(responses[1]).toMatchObject({ id: 1, result: { serverInfo: { name: "kiwi" } } });
   });
 
   it("serves streamable HTTP POST requests", async ({ skip }) => {
@@ -474,6 +514,33 @@ describe("MCP server", () => {
       const response = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
         method: "POST",
         headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+      });
+
+      expect(response.status).toBe(401);
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+  });
+
+  it("rejects wrong bearer tokens", async ({ skip }) => {
+    const server = await startLoopbackHttpServer(setupRepo(), skip);
+
+    if (!server) {
+      return;
+    }
+
+    try {
+      const address = server.address() as AddressInfo;
+      const response = await fetch(`http://127.0.0.1:${address.port}/mcp`, {
+        method: "POST",
+        headers: {
+          authorization: "Bearer wrong-token",
           accept: "application/json",
           "content-type": "application/json",
         },
@@ -771,6 +838,18 @@ describe("MCP server", () => {
     expect(missing.error?.data).toMatchObject({ category: "resource_not_found" });
   });
 
+  it("rejects path traversal run ids in resource URIs", async () => {
+    const cwd = setupRepo();
+    const escaped = await handleMcpRequest(
+      { id: 1, method: "resources/read", params: { uri: "kiwi://runs/../artifacts/config.yaml" } },
+      cwd,
+    );
+
+    expect(escaped.error?.code).toBe(-32002);
+    expect(escaped.error?.data).toMatchObject({ category: "resource_not_found" });
+    expect(JSON.stringify(escaped.result ?? "")).not.toContain('version: "1"');
+  });
+
   it("previews Codex model switching before running", async () => {
     const cwd = setupRepo();
     writeFileSync(
@@ -1008,6 +1087,10 @@ models:
     );
     expect(run.error).toBeUndefined();
     expect(JSON.stringify(run.result)).toContain("completed");
+    const runParsed = toolJson(run) as {
+      steps: Array<{ stepId: string }>;
+      summary: { totalEstimatedCostUsd: number; nextAction: string };
+    };
     const notificationText = JSON.stringify(notifications);
     expect(notificationText).toContain("phase=run status=started");
     expect(notificationText).toContain("phase=routing status=selected");
@@ -1015,7 +1098,15 @@ models:
     expect(notificationText).toContain("phase=gate status=");
     expect(notificationText).toContain("phase=review status=completed");
     expect(notificationText).toContain("run-progress");
-    const runParsed = toolJson(run) as { summary: { totalEstimatedCostUsd: number; nextAction: string } };
+    const routingStepIndices = notifications
+      .map((notification) => (notification as { params?: { message?: unknown } }).params?.message)
+      .filter((message): message is string => typeof message === "string" && message.includes("phase=routing"))
+      .map((message) => Number(message.match(/stepIndex=(\d+)/)?.[1] ?? 0))
+      .filter((index) => index > 0);
+
+    expect(routingStepIndices).toHaveLength(runParsed.steps.length);
+    expect(new Set(routingStepIndices).size).toBe(routingStepIndices.length);
+    expect(runParsed.steps.map((step) => step.stepId)).toEqual([...runParsed.steps.map((step) => step.stepId)].sort());
     expect(runParsed.summary.totalEstimatedCostUsd).toBe(0);
 
     const worktrees = path.join(workspace.root, ".kiwi", "runs", parsed.runId, "worktrees");

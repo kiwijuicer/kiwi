@@ -2,6 +2,7 @@ import { Dirent, existsSync, readFileSync, readdirSync } from "fs";
 import path from "path";
 import {
   getRunStatusSummary,
+  isValidRunId,
   listRunIds,
   listStepAttemptEvidence,
   loadInitiative,
@@ -146,7 +147,7 @@ export function listResourceTemplates(): McpResourceTemplate[] {
 }
 
 export function listResources(cwd: string): McpResource[] {
-  const runs = listRunIds(cwd);
+  const runs = listRunIds(cwd).filter(isValidRunId);
   const concreteRuns: McpResource[] = [
     { uri: "kiwi://runs", name: "Runs", mimeType: "application/json" },
     ...runs.map((runId) => ({
@@ -155,7 +156,7 @@ export function listResources(cwd: string): McpResource[] {
       mimeType: "application/json",
     })),
   ];
-  const dynamic = listRunIds(cwd).flatMap((runId) =>
+  const dynamic = runs.flatMap((runId) =>
     ["plan", "previews", "steps", "final"].flatMap((relativeDir) =>
       collectFiles({ cwd, runId, relativeDir }).map((file) => ({
         uri: `kiwi://runs/${runId}/artifacts/${encodeURIComponent(file.ref)}`,
@@ -166,6 +167,12 @@ export function listResources(cwd: string): McpResource[] {
   );
 
   return [...concreteRuns, ...dynamic];
+}
+
+function assertReadableRunId(runId: string, uri: string): void {
+  if (!isValidRunId(runId)) {
+    throw new McpResourceNotFoundError(`Unsupported resource URI: ${uri}`, { uri });
+  }
 }
 
 function readJsonRunArtifact(runId: string, ref: string, cwd: string): unknown {
@@ -290,6 +297,7 @@ function readResource(uri: string, cwd: string): McpResourceContent {
   if (!runId) {
     throw new McpResourceNotFoundError(`Unsupported resource URI: ${uri}`, { uri });
   }
+  assertReadableRunId(runId, uri);
 
   const named = readNamedRunResource(uri, runId, tail, cwd);
 

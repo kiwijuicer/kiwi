@@ -164,28 +164,32 @@ function diffTool(context: DispatchContext): unknown {
   );
 }
 
-function applyTool(context: DispatchContext): unknown {
-  return withOperatorCard(
-    {
-      schemaVersion: "2",
-      kind: "patch_apply_result",
-      apply: applyRunDiff({
-        cwd: context.workspacePath,
-        runId: context.runId,
-        ...(typeof context.args.stepId === "string" ? { stepId: context.args.stepId } : {}),
-      }),
-    },
-    {
-      cwd: context.workspacePath,
-      runId: context.runId,
-      lastAction: "kiwi_apply",
-      mutationScope: mutationScope({
-        riskLabel: "APPLIES_PATCH",
-        workspacePath: context.workspacePath,
-        repoPath: context.repoPath,
-        executionMode: null,
-      }),
-    },
+function applyTool(context: DispatchContext): Promise<unknown> {
+  return services().core.locks.withLock(
+    { cwd: context.workspacePath, runId: context.runId, operation: "mcp_apply" },
+    () =>
+      withOperatorCard(
+        {
+          schemaVersion: "2",
+          kind: "patch_apply_result",
+          apply: applyRunDiff({
+            cwd: context.workspacePath,
+            runId: context.runId,
+            ...(typeof context.args.stepId === "string" ? { stepId: context.args.stepId } : {}),
+          }),
+        },
+        {
+          cwd: context.workspacePath,
+          runId: context.runId,
+          lastAction: "kiwi_apply",
+          mutationScope: mutationScope({
+            riskLabel: "APPLIES_PATCH",
+            workspacePath: context.workspacePath,
+            repoPath: context.repoPath,
+            executionMode: null,
+          }),
+        },
+      ),
   );
 }
 

@@ -301,6 +301,12 @@ function findStartIndex(params: { taskGraph: TaskGraph; fromStep?: string | unde
   return params.fromStep ? params.taskGraph.steps.findIndex((step) => step.stepId === params.fromStep) : 0;
 }
 
+function previewStepIndex(record: PreviewTokenRecord, stepId: string): number | undefined {
+  const index = record.previewStepIds.indexOf(stepId);
+
+  return index >= 0 ? index + 1 : undefined;
+}
+
 function throwStalePreviewStep(context: RunToolLockedContext): never {
   throw new ToolActionRequiredError(`Stale previewToken: step not found: ${context.fromStep}`, {
     category: "stale_preview",
@@ -326,7 +332,19 @@ async function runScheduledPreviewSteps(context: RunToolExecutionContext): Promi
       ...(typeof context.args.command === "string" ? { command: context.args.command } : {}),
     },
     runStep: async (_scheduledRunId, stepId, attemptOptions) => {
-      const stepIndex = context.steps.length + 1;
+      const progressContext: {
+        stepIndex?: number;
+        stepCount: number;
+        previewStep: RunExecutionPreview["steps"][number] | null;
+      } = {
+        stepCount: context.previewRecord.previewStepIds.length,
+        previewStep: context.previewStepsById.get(stepId) ?? null,
+      };
+      const stepIndex = previewStepIndex(context.previewRecord, stepId);
+
+      if (stepIndex !== undefined) {
+        progressContext.stepIndex = stepIndex;
+      }
       context.steps.push(
         await runStepToolUnlocked(
           {
@@ -337,11 +355,7 @@ async function runScheduledPreviewSteps(context: RunToolExecutionContext): Promi
           },
           context.workspacePath,
           context.callOptions,
-          {
-            stepIndex,
-            stepCount: context.previewRecord.previewStepIds.length,
-            previewStep: context.previewStepsById.get(stepId) ?? null,
-          },
+          progressContext,
           attemptOptions,
         ),
       );
@@ -389,6 +403,12 @@ async function runPreviewSteps(context: RunToolExecutionContext, startIndex: num
 
 function runExecutionResult(context: RunToolExecutionContext): unknown {
   const run = services().core.runStatus.summary(context.workspacePath, context.runId).latest[0];
+  const order = new Map(context.previewRecord.previewStepIds.map((stepId, index) => [stepId, index]));
+  const steps = [...context.steps].sort(
+    (left, right) =>
+      (order.get(left.stepId) ?? Number.MAX_SAFE_INTEGER) - (order.get(right.stepId) ?? Number.MAX_SAFE_INTEGER),
+  );
+
   context.callOptions.onProgress?.(
     progressLine({ phase: "run", status: run?.currentStatus ?? "missing", runId: context.runId }),
     100,
@@ -400,7 +420,7 @@ function runExecutionResult(context: RunToolExecutionContext): unknown {
       kind: "run_execution_result",
       runId: context.runId,
       status: run?.currentStatus ?? "missing",
-      steps: context.steps,
+      steps,
       summary: buildRunCompletionSummary({ cwd: context.workspacePath, runId: context.runId }),
     },
     {

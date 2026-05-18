@@ -81,6 +81,24 @@ describe("run store", () => {
     expect(existsSync(path.join(cwd, ".kiwi", "runs", "run_demo", "final"))).toBe(true);
   });
 
+  it("ignores invalid run directories when listing manifests", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-run-store-invalid-"));
+
+    savePlannedRun({
+      runId: "run_demo",
+      initiative: fixtureInitiative(),
+      taskGraph: fixtureTaskGraph(),
+      cwd,
+    });
+    mkdirSync(path.join(cwd, ".kiwi", "runs", "legacy-run"), { recursive: true });
+    writeFileSync(path.join(cwd, ".kiwi", "runs", "legacy-run", "run.json"), "not json", "utf-8");
+
+    const listed = listRunManifests(cwd);
+
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.runId).toBe("run_demo");
+  });
+
   it("writes deterministic manifest timestamp when now is injected", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-run-store-time-"));
     const now = new Date("2026-05-03T19:00:00.000Z");
@@ -138,6 +156,7 @@ describe("run store", () => {
   it("prevents path traversal in run artifact paths", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-run-store-paths-"));
 
+    expect(() => resolveRunArtifactPath("..", "config.yaml", cwd)).toThrow("runId must look like run_<value>");
     expect(() => resolveRunArtifactPath("run_demo", "../outside.json", cwd)).toThrow(
       "artifact path escapes run directory",
     );

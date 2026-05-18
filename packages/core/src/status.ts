@@ -10,7 +10,14 @@ import {
   StepType,
 } from "@kiwi/contracts";
 import { RunCorruptError, RunNotFoundError } from "./errors";
-import { listRunIds, loadInitiative, loadRunManifest, loadTaskGraph, resolveRunArtifactPath } from "./run-store";
+import {
+  isValidRunId,
+  listRunIds,
+  loadInitiative,
+  loadRunManifest,
+  loadTaskGraph,
+  resolveRunArtifactPath,
+} from "./run-store";
 import { latestAttemptByStep, listStepAttemptEvidence, StepAttemptEvidence } from "./lifecycle";
 
 const RunStatusSentinels = {
@@ -482,7 +489,7 @@ function loadRunStatusEntry(runId: string, cwd: string): RunStatusEntry {
 }
 
 export function getRunStatusSummary(cwd: string, runId?: string): RunStatusSummary {
-  const runIds = listRunIds(cwd);
+  const runIds = listRunIds(cwd).filter(isValidRunId);
 
   if (runId && !runIds.includes(runId)) {
     throw new RunNotFoundError(runId);

@@ -17,12 +17,12 @@ export interface RunStepToolResult {
   materializedDiff: unknown;
 }
 
-export interface InternalAttemptOptions {
+interface InternalAttemptOptions {
   attemptId?: string;
   command?: string;
 }
 
-export interface RunStepProgressContext {
+interface RunStepProgressContext {
   stepIndex?: number;
   stepCount?: number;
   previewStep?: RunExecutionPreviewStep | null;

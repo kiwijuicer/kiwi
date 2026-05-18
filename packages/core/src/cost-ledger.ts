@@ -40,7 +40,6 @@ export const AuditEventTypes = {
   PrDraftPublished: "pr_draft_published",
   McpPreviewCreated: "mcp_preview_created",
   McpPreviewConsumed: "mcp_preview_consumed",
-  McpPreviewInvalidated: "mcp_preview_invalidated",
   McpPreviewPruned: "mcp_preview_pruned",
   GateCommandExecuted: "gate_command_executed",
   GateCommandBlocked: "gate_command_blocked",

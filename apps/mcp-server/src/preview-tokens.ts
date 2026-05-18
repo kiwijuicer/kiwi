@@ -353,15 +353,6 @@ export function consumeMcpPreviewToken(params: {
       stepId: params.stepId ?? null,
     },
   });
-  appendAuditEvent(params.cwd, {
-    eventType: "mcp_preview_invalidated",
-    runId: params.runId,
-    timestamp: consumedAt,
-    payload: {
-      token: params.record.token,
-      reason: "consumed",
-    },
-  });
 
   return consumedRecord;
 }
