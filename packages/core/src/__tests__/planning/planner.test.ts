@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { KiwiPolicy, Step } from "@kiwi/contracts";
-import { buildDeterministicTaskGraph, createInitiativeFromInput, deriveSubPlansFromSteps } from "../../planning/planner";
+import {
+  buildDeterministicTaskGraph,
+  createInitiativeFromInput,
+  deriveSubPlansFromSteps,
+} from "../../planning/planner";
 
 const policy: KiwiPolicy = {
   version: "1",

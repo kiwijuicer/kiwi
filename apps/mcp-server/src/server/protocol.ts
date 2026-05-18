@@ -88,7 +88,10 @@ function workspacePathForRecovery(args: Record<string, unknown>, cwd: string): s
   return typeof args.workspacePath === "string" && args.workspacePath.length > 0 ? args.workspacePath : cwd;
 }
 
-function recoveryForRequest(request: JsonRpcRequest, cwd: string): {
+function recoveryForRequest(
+  request: JsonRpcRequest,
+  cwd: string,
+): {
   reason: string;
   recommendedToolCall: ReturnType<typeof toolCall>;
   safeAlternatives: ReturnType<typeof safeReadOnlyToolCalls>;

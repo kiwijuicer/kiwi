@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { KiwiPolicy, TaskGraph } from "@kiwi/contracts";
 import { CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../../integrations/codex/client";
 import { CodexCliPlannerProvider } from "../../integrations/codex/planner-provider";
-import { CursorAgentCliInvocation, CursorAgentCliResult, CursorAgentCliRunner } from "../../integrations/cursor-agent/client";
+import {
+  CursorAgentCliInvocation,
+  CursorAgentCliResult,
+  CursorAgentCliRunner,
+} from "../../integrations/cursor-agent/client";
 import { CursorAgentPlannerProvider } from "../../integrations/cursor-agent/planner-provider";
 import { PlannerProviderInput, runPlannerProviderWithRetries } from "../../providers/planner";
 

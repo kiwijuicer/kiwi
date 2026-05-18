@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
-    "test:live": "vitest run src/__tests__/anthropic-planner-provider.live.test.ts",
+    "test:live": "vitest run src/__tests__/integrations/anthropic-planner-provider.live.test.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },

@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { KiwiPolicy } from "@kiwi/contracts";
-import { ClaudeCodeCliInvocation, ClaudeCodeCliResult, ClaudeCodeCliRunner } from "../../integrations/claude-code/client";
+import {
+  ClaudeCodeCliInvocation,
+  ClaudeCodeCliResult,
+  ClaudeCodeCliRunner,
+} from "../../integrations/claude-code/client";
 import { ClaudeCodeCliReviewerProvider } from "../../integrations/claude-code/reviewer-provider";
 import { CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../../integrations/codex/client";
 import { CodexCliResearcherProvider } from "../../integrations/codex/researcher-provider";
 import { CodexCliReviewerProvider } from "../../integrations/codex/reviewer-provider";
-import { CursorAgentCliInvocation, CursorAgentCliResult, CursorAgentCliRunner } from "../../integrations/cursor-agent/client";
+import {
+  CursorAgentCliInvocation,
+  CursorAgentCliResult,
+  CursorAgentCliRunner,
+} from "../../integrations/cursor-agent/client";
 import { CursorAgentResearcherProvider } from "../../integrations/cursor-agent/researcher-provider";
 import { CursorAgentReviewerProvider } from "../../integrations/cursor-agent/reviewer-provider";
 import { ResearcherProviderInput, runResearcherProviderWithRetries } from "../../providers/researcher";

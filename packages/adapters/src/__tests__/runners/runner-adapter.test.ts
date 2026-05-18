@@ -6,7 +6,11 @@ import { SandboxCommandPolicy } from "@kiwi/sandbox";
 import { buildCodexCliArgs, CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../../integrations/codex/client";
 import { CodexCliRunnerAdapter } from "../../integrations/codex/runner-adapter";
 import { CursorAgentRunnerAdapter } from "../../integrations/cursor-agent/runner-adapter";
-import { CursorAgentCliInvocation, CursorAgentCliResult, CursorAgentCliRunner } from "../../integrations/cursor-agent/client";
+import {
+  CursorAgentCliInvocation,
+  CursorAgentCliResult,
+  CursorAgentCliRunner,
+} from "../../integrations/cursor-agent/client";
 import { buildRunnerEnv } from "../../runners/env";
 import { LocalShellRunnerAdapter } from "../../runners/local-shell";
 import { StubExternalRunnerAdapter } from "../../runners/stub-external";

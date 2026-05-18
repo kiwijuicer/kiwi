@@ -1,21 +1,7 @@
 {
-  "generatedAt": "2026-05-16T18:30:33.537Z",
+  "generatedAt": "2026-05-18T15:27:04.689Z",
   "maxLooseTopLevelFunctions": 4,
   "files": {
-    "apps/cli/src/commands/setup/doctor.ts": {
-      "looseTopLevelFunctions": 6,
-      "exportedLooseTopLevelFunctions": 1,
-      "cohesiveContainers": 0,
-      "functions": [
-        "printAccessModeProbes",
-        "printInitializedWorkspaceDiagnostics",
-        "printRegistryAccessModes",
-        "printRoleCounts",
-        "printRunnerRegistry",
-        "runDoctor"
-      ],
-      "exportedFunctions": ["runDoctor"]
-    },
     "apps/cli/src/commands/planning/plan.ts": {
       "looseTopLevelFunctions": 8,
       "exportedLooseTopLevelFunctions": 1,
@@ -87,14 +73,47 @@
       "functions": ["auditPath", "formatEvent", "matches", "parseLine", "parseSince", "readNewLines", "runTail"],
       "exportedFunctions": ["runTail"]
     },
+    "apps/cli/src/commands/setup/doctor.ts": {
+      "looseTopLevelFunctions": 6,
+      "exportedLooseTopLevelFunctions": 1,
+      "cohesiveContainers": 0,
+      "functions": [
+        "printAccessModeProbes",
+        "printInitializedWorkspaceDiagnostics",
+        "printRegistryAccessModes",
+        "printRoleCounts",
+        "printRunnerRegistry",
+        "runDoctor"
+      ],
+      "exportedFunctions": ["runDoctor"]
+    },
+    "apps/mcp-server/src/server/protocol.ts": {
+      "looseTopLevelFunctions": 11,
+      "exportedLooseTopLevelFunctions": 3,
+      "cohesiveContainers": 0,
+      "functions": [
+        "defaultServerCwd",
+        "errorResponseFor",
+        "handleMcpMessage",
+        "handleMcpRequest",
+        "invalidRequestResponse",
+        "isJsonRpcRequest",
+        "progressSender",
+        "progressTokenFor",
+        "recoveryForRequest",
+        "requestArgs",
+        "workspacePathForRecovery"
+      ],
+      "exportedFunctions": ["defaultServerCwd", "handleMcpMessage", "handleMcpRequest"]
+    },
     "apps/mcp-server/src/tools/core-dispatch.ts": {
-      "looseTopLevelFunctions": 14,
+      "looseTopLevelFunctions": 15,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
       "functions": [
         "applyTool",
-        "approvalRequiredFilesForAttempt",
         "approvalValidationError",
+        "assertMcpApplyTargetSafe",
         "callCoreTool",
         "costTool",
         "diffTool",
@@ -105,85 +124,10 @@
         "publishPrDraftMcpTool",
         "recordMcpApproval",
         "requestApprovalTool",
+        "services",
         "statusTool"
       ],
       "exportedFunctions": ["callCoreTool"]
-    },
-    "apps/mcp-server/src/tools/preview-tokens.ts": {
-      "looseTopLevelFunctions": 13,
-      "exportedLooseTopLevelFunctions": 4,
-      "cohesiveContainers": 0,
-      "functions": [
-        "createMcpPreviewToken",
-        "fingerprintState",
-        "hashPolicy",
-        "hashRegistry",
-        "latestValidPreviewToken",
-        "loadPreviewRecord",
-        "normalizePreviewInput",
-        "previewDir",
-        "previewPath",
-        "rejectStale",
-        "sha256",
-        "stateHash",
-        "validateMcpPreviewToken"
-      ],
-      "exportedFunctions": [
-        "createMcpPreviewToken",
-        "latestValidPreviewToken",
-        "normalizePreviewInput",
-        "validateMcpPreviewToken"
-      ]
-    },
-    "apps/mcp-server/src/server/protocol.ts": {
-      "looseTopLevelFunctions": 6,
-      "exportedLooseTopLevelFunctions": 3,
-      "cohesiveContainers": 0,
-      "functions": [
-        "defaultServerCwd",
-        "handleMcpMessage",
-        "handleMcpRequest",
-        "isJsonRpcRequest",
-        "progressSender",
-        "progressTokenFor"
-      ],
-      "exportedFunctions": ["defaultServerCwd", "handleMcpMessage", "handleMcpRequest"]
-    },
-    "apps/mcp-server/src/resources/index.ts": {
-      "looseTopLevelFunctions": 12,
-      "exportedLooseTopLevelFunctions": 3,
-      "cohesiveContainers": 0,
-      "functions": [
-        "asContent",
-        "collectFiles",
-        "listResourceTemplates",
-        "listResources",
-        "mimeTypeForRef",
-        "readAttemptResource",
-        "readDirectRunFileResource",
-        "readJsonRunArtifact",
-        "readMcpResource",
-        "readNamedRunResource",
-        "readResource",
-        "readTextRunArtifact"
-      ],
-      "exportedFunctions": ["listResourceTemplates", "listResources", "readMcpResource"]
-    },
-    "apps/mcp-server/src/tools/run-tools.ts": {
-      "looseTopLevelFunctions": 8,
-      "exportedLooseTopLevelFunctions": 3,
-      "cohesiveContainers": 0,
-      "functions": [
-        "assertMcpDirectExecutionSafe",
-        "emitPostAttemptProgress",
-        "nextRunAction",
-        "parseMaxConcurrency",
-        "previewRunTool",
-        "runStepTool",
-        "runStepToolUnlocked",
-        "runTool"
-      ],
-      "exportedFunctions": ["previewRunTool", "runStepTool", "runTool"]
     },
     "apps/mcp-server/src/tools/helpers.ts": {
       "looseTopLevelFunctions": 7,
@@ -207,29 +151,111 @@
         "toolArguments"
       ]
     },
-    "apps/mcp-server/src/ux/index.ts": {
-      "looseTopLevelFunctions": 8,
-      "exportedLooseTopLevelFunctions": 7,
+    "apps/mcp-server/src/tools/next-action.ts": {
+      "looseTopLevelFunctions": 10,
+      "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
       "functions": [
-        "compactObject",
-        "defaultNextAction",
-        "mutationScope",
-        "resourceLinks",
-        "safeReadOnlyToolCalls",
-        "toolCall",
-        "uniqueSorted",
-        "workspaceToolArgs"
+        "blockedPreviewReasons",
+        "completedRunAction",
+        "configuredApprovedBy",
+        "failedRunAction",
+        "hasArtifact",
+        "missingRunAction",
+        "needsApprovalAction",
+        "nextTool",
+        "resolveNextAction",
+        "runnableRunAction"
+      ],
+      "exportedFunctions": ["nextTool"]
+    },
+    "apps/mcp-server/src/tools/preview-tokens.ts": {
+      "looseTopLevelFunctions": 18,
+      "exportedLooseTopLevelFunctions": 6,
+      "cohesiveContainers": 0,
+      "functions": [
+        "consumeMcpPreviewToken",
+        "createMcpPreviewToken",
+        "fingerprintState",
+        "hashPolicy",
+        "hashRegistry",
+        "latestValidPreviewToken",
+        "listPreviewRecords",
+        "loadPreviewRecord",
+        "normalizePreviewInput",
+        "previewDir",
+        "previewInputFingerprint",
+        "previewInputToolArgs",
+        "previewPath",
+        "prunePreviewTokens",
+        "rejectStale",
+        "sha256",
+        "stateHash",
+        "validateMcpPreviewToken"
       ],
       "exportedFunctions": [
-        "defaultNextAction",
-        "mutationScope",
-        "resourceLinks",
-        "safeReadOnlyToolCalls",
-        "toolCall",
-        "uniqueSorted",
-        "workspaceToolArgs"
+        "consumeMcpPreviewToken",
+        "createMcpPreviewToken",
+        "latestValidPreviewToken",
+        "normalizePreviewInput",
+        "previewInputToolArgs",
+        "validateMcpPreviewToken"
       ]
+    },
+    "apps/mcp-server/src/tools/run-step-execution.ts": {
+      "looseTopLevelFunctions": 12,
+      "exportedLooseTopLevelFunctions": 1,
+      "cohesiveContainers": 0,
+      "functions": [
+        "buildStepInput",
+        "emitPostAttemptProgress",
+        "emitRoutingProgress",
+        "emitStepResultProgress",
+        "emitStepStartProgress",
+        "executePlannedStep",
+        "latestCompletedAttempt",
+        "resolvePreviewStep",
+        "runStepToolUnlocked",
+        "services",
+        "skippedCompletedResult",
+        "toRunStepToolResult"
+      ],
+      "exportedFunctions": ["runStepToolUnlocked"]
+    },
+    "apps/mcp-server/src/tools/run-tools.ts": {
+      "looseTopLevelFunctions": 20,
+      "exportedLooseTopLevelFunctions": 3,
+      "cohesiveContainers": 0,
+      "functions": [
+        "assertMcpCommandOverrideAllowed",
+        "assertMcpDirectExecutionSafe",
+        "blockedPreviewAction",
+        "buildPreviewFromRecord",
+        "executeRunToolLocked",
+        "findStartIndex",
+        "isMcpCommandOverrideEnabled",
+        "nextRunAction",
+        "previewRunTool",
+        "previewStepIndex",
+        "previewStepViews",
+        "runExecutionResult",
+        "runPreviewSteps",
+        "runScheduledPreviewSteps",
+        "runSequentialPreviewSteps",
+        "runStepTool",
+        "runTool",
+        "services",
+        "throwStalePreviewStep",
+        "validateRunToolPreview"
+      ],
+      "exportedFunctions": ["previewRunTool", "runStepTool", "runTool"]
+    },
+    "apps/mcp-server/src/ux/index.ts": {
+      "looseTopLevelFunctions": 5,
+      "exportedLooseTopLevelFunctions": 4,
+      "cohesiveContainers": 0,
+      "functions": ["compactObject", "mutationScope", "safeReadOnlyToolCalls", "toolCall", "workspaceToolArgs"],
+      "exportedFunctions": ["mutationScope", "safeReadOnlyToolCalls", "toolCall", "workspaceToolArgs"]
     },
     "packages/adapters/src/integrations/anthropic/common.ts": {
       "looseTopLevelFunctions": 11,
@@ -361,19 +387,6 @@
         "saveKiwiConfig"
       ]
     },
-    "packages/core/src/ledger/cost-ledger.ts": {
-      "looseTopLevelFunctions": 5,
-      "exportedLooseTopLevelFunctions": 4,
-      "cohesiveContainers": 0,
-      "functions": [
-        "appendAuditEvent",
-        "auditLogPath",
-        "loadPlannerCostReport",
-        "readAuditEvents",
-        "writePlannerCostReport"
-      ],
-      "exportedFunctions": ["appendAuditEvent", "loadPlannerCostReport", "readAuditEvents", "writePlannerCostReport"]
-    },
     "packages/core/src/ids.ts": {
       "looseTopLevelFunctions": 9,
       "exportedLooseTopLevelFunctions": 4,
@@ -391,22 +404,18 @@
       ],
       "exportedFunctions": ["generateInitiativeId", "generatePlanId", "generateRunId", "generateStepId"]
     },
-    "packages/core/src/runs/lifecycle/evidence-collection.ts": {
-      "looseTopLevelFunctions": 9,
-      "exportedLooseTopLevelFunctions": 3,
+    "packages/core/src/ledger/cost-ledger.ts": {
+      "looseTopLevelFunctions": 5,
+      "exportedLooseTopLevelFunctions": 4,
       "cohesiveContainers": 0,
       "functions": [
-        "assertStepDependenciesCompleted",
-        "attemptEvidence",
-        "latestAttemptByStep",
-        "listStepAttemptEvidence",
-        "stepAttemptEvidence",
-        "tryReadAttemptSummary",
-        "tryReadGateResults",
-        "tryReadReview",
-        "tryReadSchedulerDecision"
+        "appendAuditEvent",
+        "auditLogPath",
+        "loadPlannerCostReport",
+        "readAuditEvents",
+        "writePlannerCostReport"
       ],
-      "exportedFunctions": ["assertStepDependenciesCompleted", "latestAttemptByStep", "listStepAttemptEvidence"]
+      "exportedFunctions": ["appendAuditEvent", "loadPlannerCostReport", "readAuditEvents", "writePlannerCostReport"]
     },
     "packages/core/src/ledger/model-invocations.ts": {
       "looseTopLevelFunctions": 9,
@@ -451,36 +460,22 @@
       ],
       "exportedFunctions": ["planRun", "selectPlannerModel"]
     },
-    "packages/core/src/runs/store.ts": {
-      "looseTopLevelFunctions": 13,
-      "exportedLooseTopLevelFunctions": 9,
+    "packages/core/src/runs/lifecycle/evidence-collection.ts": {
+      "looseTopLevelFunctions": 9,
+      "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
       "functions": [
-        "assertSafeArtifactRelativePath",
-        "ensureRunLayout",
-        "isInitialized",
-        "listRunIds",
-        "listRunManifests",
-        "loadInitiative",
-        "loadRunManifest",
-        "loadTaskGraph",
-        "readJson",
-        "resolveRunArtifactPath",
-        "runDir",
-        "runsRoot",
-        "savePlannedRun"
+        "assertStepDependenciesCompleted",
+        "attemptEvidence",
+        "latestAttemptByStep",
+        "listStepAttemptEvidence",
+        "stepAttemptEvidence",
+        "tryReadAttemptSummary",
+        "tryReadGateResults",
+        "tryReadReview",
+        "tryReadSchedulerDecision"
       ],
-      "exportedFunctions": [
-        "ensureRunLayout",
-        "isInitialized",
-        "listRunIds",
-        "listRunManifests",
-        "loadInitiative",
-        "loadRunManifest",
-        "loadTaskGraph",
-        "resolveRunArtifactPath",
-        "savePlannedRun"
-      ]
+      "exportedFunctions": ["assertStepDependenciesCompleted", "latestAttemptByStep", "listStepAttemptEvidence"]
     },
     "packages/core/src/runs/status.ts": {
       "looseTopLevelFunctions": 14,
@@ -503,6 +498,40 @@
         "parseDiffEditedFiles"
       ],
       "exportedFunctions": ["getRunStatusSummary"]
+    },
+    "packages/core/src/runs/store.ts": {
+      "looseTopLevelFunctions": 15,
+      "exportedLooseTopLevelFunctions": 10,
+      "cohesiveContainers": 0,
+      "functions": [
+        "assertSafeArtifactRelativePath",
+        "assertValidRunId",
+        "ensureRunLayout",
+        "isInitialized",
+        "isValidRunId",
+        "listRunIds",
+        "listRunManifests",
+        "loadInitiative",
+        "loadRunManifest",
+        "loadTaskGraph",
+        "readJson",
+        "resolveRunArtifactPath",
+        "runDir",
+        "runsRoot",
+        "savePlannedRun"
+      ],
+      "exportedFunctions": [
+        "ensureRunLayout",
+        "isInitialized",
+        "isValidRunId",
+        "listRunIds",
+        "listRunManifests",
+        "loadInitiative",
+        "loadRunManifest",
+        "loadTaskGraph",
+        "resolveRunArtifactPath",
+        "savePlannedRun"
+      ]
     },
     "packages/core/src/workspace/index.ts": {
       "looseTopLevelFunctions": 12,
@@ -576,30 +605,6 @@
       ],
       "exportedFunctions": ["publishPrDraft"]
     },
-    "packages/runtime/src/registries/access-mode-resolver.ts": {
-      "looseTopLevelFunctions": 10,
-      "exportedLooseTopLevelFunctions": 5,
-      "cohesiveContainers": 0,
-      "functions": [
-        "accessModeOrderForRole",
-        "claudeCodeAuthAvailable",
-        "cursorAgentAuthAvailable",
-        "errorOutput",
-        "evaluateAccessModeAvailability",
-        "preferredAccessModes",
-        "selectEnabledModelByAccessMode",
-        "selectedProbeEnv",
-        "stubAccessAllowed",
-        "which"
-      ],
-      "exportedFunctions": [
-        "accessModeOrderForRole",
-        "evaluateAccessModeAvailability",
-        "preferredAccessModes",
-        "selectEnabledModelByAccessMode",
-        "stubAccessAllowed"
-      ]
-    },
     "packages/runtime/src/execution/diff-workflow.ts": {
       "looseTopLevelFunctions": 7,
       "exportedLooseTopLevelFunctions": 3,
@@ -614,49 +619,6 @@
         "selectedAttempts"
       ],
       "exportedFunctions": ["applyRunDiff", "buildRunDiff", "formatRunDiff"]
-    },
-    "packages/runtime/src/lifecycle/finalize.ts": {
-      "looseTopLevelFunctions": 5,
-      "exportedLooseTopLevelFunctions": 1,
-      "cohesiveContainers": 0,
-      "functions": [
-        "collectFinalEvidence",
-        "evidenceFailureReasons",
-        "finalizeRun",
-        "requiredGateTypes",
-        "writeFinalSummary"
-      ],
-      "exportedFunctions": ["finalizeRun"]
-    },
-    "packages/runtime/src/gates/quality-gates.ts": {
-      "looseTopLevelFunctions": 12,
-      "exportedLooseTopLevelFunctions": 9,
-      "cohesiveContainers": 0,
-      "functions": [
-        "createGateResult",
-        "evaluateForbiddenFiles",
-        "extractDiffFiles",
-        "loadGateResults",
-        "pathMatches",
-        "runForbiddenFileGate",
-        "runSecretsScanGate",
-        "saveGateResults",
-        "scanForSecrets",
-        "summarizeGateResults",
-        "wildcardPatternToRegExp",
-        "writeGateReport"
-      ],
-      "exportedFunctions": [
-        "createGateResult",
-        "evaluateForbiddenFiles",
-        "extractDiffFiles",
-        "loadGateResults",
-        "runForbiddenFileGate",
-        "runSecretsScanGate",
-        "saveGateResults",
-        "scanForSecrets",
-        "summarizeGateResults"
-      ]
     },
     "packages/runtime/src/execution/step-attempt-artifacts.ts": {
       "looseTopLevelFunctions": 7,
@@ -715,6 +677,73 @@
         "ensureRunnerMatchesDecision",
         "ensureWorktreeIsNotSource",
         "executeStepRunner"
+      ]
+    },
+    "packages/runtime/src/gates/quality-gates.ts": {
+      "looseTopLevelFunctions": 12,
+      "exportedLooseTopLevelFunctions": 9,
+      "cohesiveContainers": 0,
+      "functions": [
+        "createGateResult",
+        "evaluateForbiddenFiles",
+        "extractDiffFiles",
+        "loadGateResults",
+        "pathMatches",
+        "runForbiddenFileGate",
+        "runSecretsScanGate",
+        "saveGateResults",
+        "scanForSecrets",
+        "summarizeGateResults",
+        "wildcardPatternToRegExp",
+        "writeGateReport"
+      ],
+      "exportedFunctions": [
+        "createGateResult",
+        "evaluateForbiddenFiles",
+        "extractDiffFiles",
+        "loadGateResults",
+        "runForbiddenFileGate",
+        "runSecretsScanGate",
+        "saveGateResults",
+        "scanForSecrets",
+        "summarizeGateResults"
+      ]
+    },
+    "packages/runtime/src/lifecycle/finalize.ts": {
+      "looseTopLevelFunctions": 5,
+      "exportedLooseTopLevelFunctions": 1,
+      "cohesiveContainers": 0,
+      "functions": [
+        "collectFinalEvidence",
+        "evidenceFailureReasons",
+        "finalizeRun",
+        "requiredGateTypes",
+        "writeFinalSummary"
+      ],
+      "exportedFunctions": ["finalizeRun"]
+    },
+    "packages/runtime/src/registries/access-mode-resolver.ts": {
+      "looseTopLevelFunctions": 10,
+      "exportedLooseTopLevelFunctions": 5,
+      "cohesiveContainers": 0,
+      "functions": [
+        "accessModeOrderForRole",
+        "claudeCodeAuthAvailable",
+        "cursorAgentAuthAvailable",
+        "errorOutput",
+        "evaluateAccessModeAvailability",
+        "preferredAccessModes",
+        "selectEnabledModelByAccessMode",
+        "selectedProbeEnv",
+        "stubAccessAllowed",
+        "which"
+      ],
+      "exportedFunctions": [
+        "accessModeOrderForRole",
+        "evaluateAccessModeAvailability",
+        "preferredAccessModes",
+        "selectEnabledModelByAccessMode",
+        "stubAccessAllowed"
       ]
     },
     "packages/sandbox/src/commands/artifacts.ts": {

@@ -12,7 +12,12 @@ import {
   RunnerExecutionStatuses,
   StepAttemptStatus,
 } from "@kiwi/contracts";
-import { runForbiddenFileGate, runSecretsScanGate, saveGateResults, summarizeGateResults } from "../../gates/quality-gates";
+import {
+  runForbiddenFileGate,
+  runSecretsScanGate,
+  saveGateResults,
+  summarizeGateResults,
+} from "../../gates/quality-gates";
 import type { AttemptDiff } from "../../review/review-engine";
 import type { ExecuteStepAttemptInput, StepRunnerExecutionStatus } from "../step-runner-types";
 import { auditDiffGatesExecuted } from "./audit";
