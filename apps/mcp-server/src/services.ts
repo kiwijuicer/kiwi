@@ -15,8 +15,12 @@ export function createMcpServerServices(): McpServerServices {
   };
 }
 
-const mcpServerServices = createMcpServerServices();
+let mcpServerServices: McpServerServices | null = null;
 
 export function getMcpServerServices(): McpServerServices {
+  if (!mcpServerServices) {
+    mcpServerServices = createMcpServerServices();
+  }
+
   return mcpServerServices;
 }

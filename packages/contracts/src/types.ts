@@ -44,6 +44,7 @@ import type {
   NetworkPolicySchema,
   PolicyRoutingOverrideSchema,
   ProviderPreferenceSchema,
+  ProgressStatusSchema,
   PrDraftArtifactSchema,
   ReviewIssueSchema,
   ReviewIssueSeveritySchema,
@@ -94,6 +95,7 @@ export type RunnerName = z.infer<typeof RunnerNameSchema>;
 export type StepType = z.infer<typeof StepTypeSchema>;
 export type StepStatus = z.infer<typeof StepStatusSchema>;
 export type RunStatus = z.infer<typeof RunStatusSchema>;
+export type ProgressStatus = z.infer<typeof ProgressStatusSchema>;
 export type StepAttemptStatus = z.infer<typeof StepAttemptStatusSchema>;
 export type ArtifactType = z.infer<typeof ArtifactTypeSchema>;
 export type GateType = z.infer<typeof GateTypeSchema>;

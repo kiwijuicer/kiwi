@@ -50,11 +50,35 @@ const WORKSPACE_PROPERTIES = {
   repoPath: repoPathProperty,
 } as const;
 
+function describeTool(params: {
+  risk: string;
+  when: string;
+  requires: string;
+  returns: string;
+  next?: string;
+  includeSafetyNote?: boolean;
+}): string {
+  return [
+    params.includeSafetyNote ? NO_AUTO_COMMIT_NOTE : null,
+    `${params.risk}.`,
+    `When to use: ${params.when}.`,
+    `Requires: ${params.requires}.`,
+    `Returns: ${params.returns}.`,
+    params.next ? `Next: ${params.next}.` : null,
+  ]
+    .filter((entry): entry is string => entry !== null)
+    .join(" ");
+}
+
 const TOOL_SPECS = [
   {
     name: "kiwi_doctor",
-    description:
-      "READ_ONLY. When to use: first tool for any kiwi task or when workspace/repo readiness is unclear. Requires: optional workspacePath plus repoId or repoPath for multi-repo workspaces. Returns: readiness, warnings, safeToPlan, safeToRun, and the first safe tool call.",
+    description: describeTool({
+      risk: "READ_ONLY",
+      when: "first tool for any kiwi task or when workspace/repo readiness is unclear",
+      requires: "optional workspacePath plus repoId or repoPath for multi-repo workspaces",
+      returns: "readiness, warnings, safeToPlan, safeToRun, and the first safe tool call",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -64,7 +88,14 @@ const TOOL_SPECS = [
   },
   {
     name: "kiwi_plan",
-    description: `WRITES_RUN_ARTIFACTS. When to use: create a TaskGraph from a ticket/rawInput after kiwi_doctor is safeToPlan. Requires: ticket or rawInput. Returns: run id, plan summary, cost forecast, and operatorCard. Next: call kiwi_preview_run or kiwi_next. ${NO_AUTO_COMMIT_NOTE}`,
+    description: describeTool({
+      includeSafetyNote: true,
+      risk: "WRITES_RUN_ARTIFACTS",
+      when: "create a TaskGraph from a ticket/rawInput after kiwi_doctor is safeToPlan",
+      requires: "ticket or rawInput",
+      returns: "run id, plan summary, cost forecast, and operatorCard",
+      next: "call kiwi_preview_run or kiwi_next",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -80,8 +111,13 @@ const TOOL_SPECS = [
   },
   {
     name: "kiwi_status",
-    description:
-      "READ_ONLY. When to use: inspect current run state or list runs. Requires: optional runId. Returns: status and operatorCard for run-specific calls. Next: prefer kiwi_next for action selection.",
+    description: describeTool({
+      risk: "READ_ONLY",
+      when: "inspect current run state or list runs",
+      requires: "optional runId",
+      returns: "status and operatorCard for run-specific calls",
+      next: "prefer kiwi_next for action selection",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -92,7 +128,13 @@ const TOOL_SPECS = [
   },
   {
     name: "kiwi_run",
-    description: `MUTATES_WORKTREE. When to use: execute the exact plan after kiwi_preview_run has shown the decision card and user confirmed. Requires: runId and fresh previewToken. Returns: step results, final run state, and operatorCard. ${NO_AUTO_COMMIT_NOTE}`,
+    description: describeTool({
+      includeSafetyNote: true,
+      risk: "MUTATES_WORKTREE",
+      when: "execute the exact plan after kiwi_preview_run has shown the decision card and user confirmed",
+      requires: "runId and fresh previewToken",
+      returns: "step results, final run state, and operatorCard",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -112,8 +154,14 @@ const TOOL_SPECS = [
   },
   {
     name: "kiwi_preview_run",
-    description:
-      "WRITES_RUN_ARTIFACTS. When to use: always before kiwi_run or kiwi_run_step. Requires: runId. Returns: decision card, step order, model/runner choices, cost, gates, mutation scope, and fresh previewToken. Next: ask the user to confirm, then call the returned recommendedToolCall.",
+    description: describeTool({
+      includeSafetyNote: true,
+      risk: "WRITES_RUN_ARTIFACTS",
+      when: "always before kiwi_run or kiwi_run_step",
+      requires: "runId",
+      returns: "decision card, step order, model/runner choices, cost, gates, mutation scope, and fresh previewToken",
+      next: "ask the user to confirm, then call the returned recommendedToolCall",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -131,7 +179,13 @@ const TOOL_SPECS = [
   },
   {
     name: "kiwi_run_step",
-    description: `MUTATES_WORKTREE. When to use: advanced single-step execution only after previewing that step. Requires: runId, stepId, fresh previewToken. Returns: attempt result and operatorCard. ${NO_AUTO_COMMIT_NOTE}`,
+    description: describeTool({
+      includeSafetyNote: true,
+      risk: "MUTATES_WORKTREE",
+      when: "advanced single-step execution only after previewing that step",
+      requires: "runId, stepId, fresh previewToken",
+      returns: "attempt result and operatorCard",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -146,8 +200,12 @@ const TOOL_SPECS = [
   },
   {
     name: "kiwi_diff",
-    description:
-      "READ_ONLY. When to use: inspect generated patches or failure evidence. Requires: runId; optional stepId or all. Returns: patch stats and diff text.",
+    description: describeTool({
+      risk: "READ_ONLY",
+      when: "inspect generated patches or failure evidence",
+      requires: "runId; optional stepId or all",
+      returns: "patch stats and diff text",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -161,7 +219,13 @@ const TOOL_SPECS = [
   },
   {
     name: "kiwi_apply",
-    description: `APPLIES_PATCH. When to use: apply a persisted kiwi patch to the source repo after inspecting kiwi_diff. Requires: runId. Unsafe apply overrides are not exposed over MCP. Returns: apply result and operatorCard. ${NO_AUTO_COMMIT_NOTE}`,
+    description: describeTool({
+      includeSafetyNote: true,
+      risk: "APPLIES_PATCH",
+      when: "apply a persisted kiwi patch to the source repo after inspecting kiwi_diff",
+      requires: "runId. Unsafe apply overrides are not exposed over MCP",
+      returns: "apply result and operatorCard",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -174,25 +238,43 @@ const TOOL_SPECS = [
   },
   {
     name: "kiwi_finalize",
-    description: `WRITES_RUN_ARTIFACTS. When to use: after run completion to write final verdict, summary, and cost report. Requires: runId. Returns: finalization result and operatorCard. ${NO_AUTO_COMMIT_NOTE}`,
+    description: describeTool({
+      includeSafetyNote: true,
+      risk: "WRITES_RUN_ARTIFACTS",
+      when: "after run completion to write final verdict, summary, and cost report",
+      requires: "runId",
+      returns: "finalization result and operatorCard",
+    }),
     inputSchema: RUN_ID_SCHEMA,
   },
   {
     name: "kiwi_cost",
-    description:
-      "READ_ONLY. When to use: inspect deterministic cost and model usage. Requires: runId. Returns: cost summary and operatorCard.",
+    description: describeTool({
+      risk: "READ_ONLY",
+      when: "inspect deterministic cost and model usage",
+      requires: "runId",
+      returns: "cost summary and operatorCard",
+    }),
     inputSchema: RUN_ID_SCHEMA,
   },
   {
     name: "kiwi_explain",
-    description:
-      "READ_ONLY. When to use: explain why models/runners/gates were selected. Requires: runId. Returns: routing, gates, cost summary, and operatorCard.",
+    description: describeTool({
+      risk: "READ_ONLY",
+      when: "explain why models/runners/gates were selected",
+      requires: "runId",
+      returns: "routing, gates, cost summary, and operatorCard",
+    }),
     inputSchema: RUN_ID_SCHEMA,
   },
   {
     name: "kiwi_next",
-    description:
-      "READ_ONLY. When to use: default router after every run-related tool, error, or user interruption. Requires: runId. Returns: one exact recommendedToolCall, why it is safe now, expected mutation, and safe alternatives.",
+    description: describeTool({
+      risk: "READ_ONLY",
+      when: "default router after every run-related tool, error, or user interruption",
+      requires: "runId",
+      returns: "one exact recommendedToolCall, why it is safe now, expected mutation, and safe alternatives",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -210,8 +292,13 @@ const TOOL_SPECS = [
   },
   {
     name: "kiwi_request_approval",
-    description:
-      "WRITES_RUN_ARTIFACTS. When to use: only when kiwi_next says the run needs approval. Requires: runId, attemptId, and an explicit approvedBy identity; placeholder identities are rejected. Returns: approval evidence and operatorCard.",
+    description: describeTool({
+      includeSafetyNote: true,
+      risk: "WRITES_RUN_ARTIFACTS",
+      when: "only when kiwi_next says the run needs approval",
+      requires: "runId, attemptId, and an explicit approvedBy identity; placeholder identities are rejected",
+      returns: "approval evidence and operatorCard",
+    }),
     inputSchema: {
       type: "object",
       properties: {
@@ -230,20 +317,35 @@ const TOOL_SPECS = [
   },
   {
     name: "kiwi_evidence_manifest",
-    description:
-      "WRITES_RUN_ARTIFACTS. When to use: after finalization to hash run evidence and write audit snapshot. Requires: runId. Returns: manifest artifact and operatorCard.",
+    description: describeTool({
+      includeSafetyNote: true,
+      risk: "WRITES_RUN_ARTIFACTS",
+      when: "after finalization to hash run evidence and write audit snapshot",
+      requires: "runId",
+      returns: "manifest artifact and operatorCard",
+    }),
     inputSchema: RUN_ID_SCHEMA,
   },
   {
     name: "kiwi_operator_snapshot",
-    description:
-      "WRITES_RUN_ARTIFACTS. When to use: after evidence is ready or when the operator view should be refreshed. Requires: runId. Returns: snapshot artifact and operatorCard.",
+    description: describeTool({
+      includeSafetyNote: true,
+      risk: "WRITES_RUN_ARTIFACTS",
+      when: "after evidence is ready or when the operator view should be refreshed",
+      requires: "runId",
+      returns: "snapshot artifact and operatorCard",
+    }),
     inputSchema: RUN_ID_SCHEMA,
   },
   {
     name: "kiwi_publish_pr_draft",
-    description:
-      "PUSHES_BRANCH. When to use: only when the user explicitly requested PR draft publishing. Requires: runId and local git auth. Returns: branch push result, Bitbucket create-PR URL, and operatorCard. Does not store API credentials.",
+    description: describeTool({
+      includeSafetyNote: true,
+      risk: "PUSHES_BRANCH",
+      when: "only when the user explicitly requested PR draft publishing",
+      requires: "runId and local git auth",
+      returns: "branch push result, Bitbucket create-PR URL, and operatorCard. Does not store API credentials",
+    }),
     inputSchema: {
       type: "object",
       properties: {

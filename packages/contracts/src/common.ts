@@ -29,6 +29,15 @@ export const STEP_TYPE_VALUES = [
 ] as const;
 export const STEP_STATUS_VALUES = ["pending", "running", "completed", "failed", "skipped"] as const;
 export const RUN_STATUS_VALUES = ["planned", "running", "needs_approval", "completed", "failed", "cancelled"] as const;
+export const PROGRESS_STATUS_VALUES = [
+  "started",
+  "selected",
+  "running",
+  "completed",
+  "failed",
+  "blocked",
+  "skipped",
+] as const;
 export const STEP_ATTEMPT_STATUS_VALUES = [
   "pending",
   "running",
@@ -170,6 +179,16 @@ export const RunStatuses = {
   Completed: "completed",
   Failed: "failed",
   Cancelled: "cancelled",
+} as const;
+
+export const ProgressStatuses = {
+  Started: "started",
+  Selected: "selected",
+  Running: "running",
+  Completed: "completed",
+  Failed: "failed",
+  Blocked: "blocked",
+  Skipped: "skipped",
 } as const;
 
 export const StepAttemptStatuses = {
@@ -367,6 +386,7 @@ export const RunnerNameSchema = enumFrom(RUNNER_NAME_VALUES);
 export const StepTypeSchema = enumFrom(STEP_TYPE_VALUES);
 export const StepStatusSchema = enumFrom(STEP_STATUS_VALUES);
 export const RunStatusSchema = enumFrom(RUN_STATUS_VALUES);
+export const ProgressStatusSchema = enumFrom(PROGRESS_STATUS_VALUES);
 export const StepAttemptStatusSchema = enumFrom(STEP_ATTEMPT_STATUS_VALUES);
 export const ArtifactTypeSchema = enumFrom(ARTIFACT_TYPE_VALUES);
 export const GateTypeSchema = enumFrom(GATE_TYPE_VALUES);

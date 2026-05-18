@@ -98,18 +98,3 @@ export function mutationScope(params: {
     changedFiles: params.changedFiles ?? [],
   };
 }
-
-export function resourceLinks(runId: string): Array<{ name: string; uri: string }> {
-  return [
-    { name: "status", uri: `kiwi://runs/${runId}` },
-    { name: "taskGraph", uri: `kiwi://runs/${runId}/task-graph` },
-    { name: "attempts", uri: `kiwi://runs/${runId}/attempts` },
-    { name: "finalSummary", uri: `kiwi://runs/${runId}/final-summary` },
-    { name: "evidenceManifest", uri: `kiwi://runs/${runId}/evidence-manifest` },
-    { name: "operatorSnapshot", uri: `kiwi://runs/${runId}/operator-snapshot` },
-  ];
-}
-
-export function uniqueSorted(values: string[]): string[] {
-  return Array.from(new Set(values)).sort();
-}

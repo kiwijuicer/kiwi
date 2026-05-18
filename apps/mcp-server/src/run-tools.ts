@@ -1,4 +1,11 @@
-import { ContractValues, RiskProfiles, RunStatuses, StepAttemptStatuses, StepStatuses } from "@kiwi/contracts";
+import {
+  ContractValues,
+  ProgressStatuses,
+  RiskProfiles,
+  RunStatuses,
+  StepAttemptStatuses,
+  StepStatuses,
+} from "@kiwi/contracts";
 import { buildRunCompletionSummary } from "@kiwi/ops";
 import {
   assertDirectExecutionSafe,
@@ -20,12 +27,14 @@ import {
 import { ToolActionRequiredError } from "./tool-errors";
 import { errorMessage, previewConfirmationSummary, progressLine, type ToolCallOptions } from "./tool-helpers";
 import { mutationScope, safeReadOnlyToolCalls, toolCall, type McpNextAction, workspaceToolArgs } from "./ux";
-import { McpToolProgressStatuses } from "./constants";
 import { getMcpServerServices } from "./services";
 import { workspaceArgs } from "./workspace";
 
-const mcpServices = getMcpServerServices();
 const MCP_COMMAND_OVERRIDE_ENV = "KIWI_ALLOW_MCP_COMMAND_OVERRIDE";
+
+function services(): ReturnType<typeof getMcpServerServices> {
+  return getMcpServerServices();
+}
 
 interface RunStepToolResult {
   stepId: string;
@@ -104,7 +113,7 @@ function assertMcpCommandOverrideAllowed(params: {
   if (typeof params.args.command !== "string") {
     return;
   }
-  const initiative = mcpServices.core.runs.loadInitiative(params.runId, params.workspacePath);
+  const initiative = services().core.runs.loadInitiative(params.runId, params.workspacePath);
 
   if (initiative.riskProfile === RiskProfiles.Dev || isMcpCommandOverrideEnabled()) {
     return;
@@ -140,8 +149,8 @@ function emitPostAttemptProgress(params: {
   if (!params.options.onProgress) {
     return;
   }
-  const evidence = mcpServices.core.evidence
-    .listStepAttempts(params.workspacePath, params.runId)
+  const evidence = services()
+    .core.evidence.listStepAttempts(params.workspacePath, params.runId)
     .find((entry) => entry.stepId === params.stepId && entry.attemptId === params.attemptId);
 
   if (!evidence) {
@@ -165,7 +174,7 @@ function emitPostAttemptProgress(params: {
     params.options.onProgress(
       progressLine({
         phase: "review",
-        status: ContractValues.Completed,
+        status: ProgressStatuses.Completed,
         stepId: params.stepId,
         attemptId: params.attemptId,
         verdict: evidence.reviewVerdict.verdict,
@@ -183,7 +192,7 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
   const fromStep = typeof args.fromStep === "string" ? args.fromStep : undefined;
   const maxConcurrency = args.maxConcurrency as number | undefined;
   const previewInput = normalizePreviewInput({ fromStep, maxConcurrency });
-  const preview = mcpServices.runtime.execution.previews.build({
+  const preview = services().runtime.execution.previews.build({
     cwd: workspace.workspacePath,
     runId,
     ...(fromStep ? { fromStep } : {}),
@@ -191,7 +200,7 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
   });
 
   if (preview.executionIsolation === "direct") {
-    const initiative = mcpServices.core.runs.loadInitiative(runId, workspace.workspacePath);
+    const initiative = services().core.runs.loadInitiative(runId, workspace.workspacePath);
     assertMcpDirectExecutionSafe({
       workspacePath: workspace.workspacePath,
       repoPath: initiative.repoPath || workspace.workspacePath,
@@ -304,7 +313,7 @@ function buildPreviewFromRecord(params: {
   runId: string;
   previewInput: ReturnType<typeof normalizePreviewInput>;
 }): RunExecutionPreview {
-  return mcpServices.runtime.execution.previews.build({
+  return services().runtime.execution.previews.build({
     cwd: params.workspacePath,
     runId: params.runId,
     ...(params.previewInput.fromStep ? { fromStep: params.previewInput.fromStep } : {}),
@@ -315,8 +324,8 @@ function buildPreviewFromRecord(params: {
 }
 
 function latestCompletedAttempt(params: { workspacePath: string; runId: string; stepId: string }) {
-  const latest = mcpServices.core.evidence
-    .latestAttemptByStep(mcpServices.core.evidence.listStepAttempts(params.workspacePath, params.runId))
+  const latest = services()
+    .core.evidence.latestAttemptByStep(services().core.evidence.listStepAttempts(params.workspacePath, params.runId))
     .get(params.stepId);
 
   return latest?.attempt.status === StepAttemptStatuses.Completed ? latest : null;
@@ -347,15 +356,15 @@ async function runStepToolUnlocked(
   }
   const preview =
     progressContext.previewStep ??
-    mcpServices.runtime.execution.previews
-      .build({ cwd: workspacePath, runId })
+    services()
+      .runtime.execution.previews.build({ cwd: workspacePath, runId })
       .steps.find((step) => step.stepId === stepId);
 
   if (preview) {
     options.onProgress?.(
       progressLine({
         phase: "routing",
-        status: McpToolProgressStatuses.Selected,
+        status: ProgressStatuses.Selected,
         stepId,
         model: preview.selectedModelId,
         providerModel: preview.selectedProviderModel,
@@ -372,12 +381,12 @@ async function runStepToolUnlocked(
   const completedAttempt = latestCompletedAttempt({ workspacePath, runId, stepId });
 
   if (completedAttempt) {
-    const runStatus = mcpServices.core.runStatus.summary(workspacePath, runId).latest[0]?.currentStatus ?? "missing";
+    const runStatus = services().core.runStatus.summary(workspacePath, runId).latest[0]?.currentStatus ?? "missing";
 
     options.onProgress?.(
       progressLine({
         phase: "step",
-        status: StepStatuses.Skipped,
+        status: ProgressStatuses.Skipped,
         stepId,
         attemptId: completedAttempt.attemptId,
         reason: "already_completed",
@@ -404,7 +413,7 @@ async function runStepToolUnlocked(
   options.onProgress?.(
     progressLine({
       phase: "step",
-      status: McpToolProgressStatuses.Started,
+      status: ProgressStatuses.Started,
       stepId,
       stepIndex: progressContext.stepIndex,
       stepCount: progressContext.stepCount,
@@ -414,7 +423,7 @@ async function runStepToolUnlocked(
   options.onProgress?.(
     progressLine({
       phase: "gate",
-      status: ContractValues.Running,
+      status: ProgressStatuses.Running,
       stepId,
       stepIndex: progressContext.stepIndex,
       stepCount: progressContext.stepCount,
@@ -423,12 +432,12 @@ async function runStepToolUnlocked(
   let result: ExecutePlannedStepResult;
 
   try {
-    result = await mcpServices.runtime.execution.plannedSteps.execute(input);
+    result = await services().runtime.execution.plannedSteps.execute(input);
   } catch (error) {
     options.onProgress?.(
       progressLine({
         phase: "step",
-        status: ContractValues.Failed,
+        status: ProgressStatuses.Failed,
         stepId,
         stepIndex: progressContext.stepIndex,
         stepCount: progressContext.stepCount,
@@ -480,7 +489,7 @@ export async function runStepTool(
   const stepId = String(args.stepId ?? "");
   const workspace = workspaceArgs(args, cwd, false);
 
-  return mcpServices.core.locks.withLock(
+  return services().core.locks.withLock(
     {
       cwd: workspace.workspacePath,
       runId,
@@ -560,7 +569,7 @@ export async function runTool(
   const fromStep = typeof args.fromStep === "string" ? args.fromStep : undefined;
   const maxConcurrency = args.maxConcurrency as number | undefined;
 
-  return mcpServices.core.locks.withLock(
+  return services().core.locks.withLock(
     {
       cwd: workspace.workspacePath,
       runId,
@@ -582,7 +591,7 @@ export async function runTool(
         });
       }
       assertMcpCommandOverrideAllowed({ args, workspacePath: workspace.workspacePath, runId });
-      const taskGraph = mcpServices.core.runs.loadTaskGraph(runId, workspace.workspacePath);
+      const taskGraph = services().core.runs.loadTaskGraph(runId, workspace.workspacePath);
       const preview = buildPreviewFromRecord({
         workspacePath: workspace.workspacePath,
         runId,
@@ -590,7 +599,7 @@ export async function runTool(
       });
       const previewStepsById = new Map(preview.steps.map((step) => [step.stepId, step]));
       const steps: RunStepToolResult[] = [];
-      callOptions.onProgress?.(progressLine({ phase: "run", status: McpToolProgressStatuses.Started, runId }), 0);
+      callOptions.onProgress?.(progressLine({ phase: "run", status: ProgressStatuses.Started, runId }), 0);
       const startIndex = fromStep ? taskGraph.steps.findIndex((step) => step.stepId === fromStep) : 0;
 
       if (startIndex < 0) {
@@ -662,7 +671,7 @@ export async function runTool(
               },
             ),
           );
-          const status = mcpServices.core.runStatus.summary(workspace.workspacePath, runId).latest[0]?.currentStatus;
+          const status = services().core.runStatus.summary(workspace.workspacePath, runId).latest[0]?.currentStatus;
 
           if (status === ContractValues.Failed || status === RunStatuses.NeedsApproval) {
             break;
@@ -670,7 +679,7 @@ export async function runTool(
         }
       }
 
-      const run = mcpServices.core.runStatus.summary(workspace.workspacePath, runId).latest[0];
+      const run = services().core.runStatus.summary(workspace.workspacePath, runId).latest[0];
       callOptions.onProgress?.(progressLine({ phase: "run", status: run?.currentStatus ?? "missing", runId }), 100);
 
       return withOperatorCard(

@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import { ContractValues } from "@kiwi/contracts";
 import { getRunStatusSummary, kiwiPolicyPath, loadInitiative, loadPolicy, resolveRunArtifactPath } from "@kiwi/core";
 import { readExecutionRepoState } from "@kiwi/runtime";
-import { type McpMutationScope, type McpNextAction, mutationScope, resourceLinks, toolCall, uniqueSorted } from "./ux";
+import { type McpMutationScope, type McpNextAction, mutationScope, toolCall } from "./ux";
 
 interface OperatorCard {
   schemaVersion: "2";
@@ -16,6 +16,21 @@ interface OperatorCard {
   mutationScope: McpMutationScope;
   warnings: string[];
   resources: Array<{ name: string; uri: string }>;
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return Array.from(new Set(values)).sort();
+}
+
+function resourceLinks(runId: string): Array<{ name: string; uri: string }> {
+  return [
+    { name: "status", uri: `kiwi://runs/${runId}` },
+    { name: "taskGraph", uri: `kiwi://runs/${runId}/task-graph` },
+    { name: "attempts", uri: `kiwi://runs/${runId}/attempts` },
+    { name: "finalSummary", uri: `kiwi://runs/${runId}/final-summary` },
+    { name: "evidenceManifest", uri: `kiwi://runs/${runId}/evidence-manifest` },
+    { name: "operatorSnapshot", uri: `kiwi://runs/${runId}/operator-snapshot` },
+  ];
 }
 
 export function buildOperatorCard(params: {

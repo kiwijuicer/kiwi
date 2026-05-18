@@ -1,9 +1,9 @@
 import { publishPrDraft } from "@kiwi/ops";
 import { getMcpServerServices } from "./services";
 
-const mcpServices = getMcpServerServices();
-
 export function publishPrDraftTool(args: Record<string, unknown>, workspacePath: string): Promise<unknown> {
+  const mcpServices = getMcpServerServices();
+
   return mcpServices.core.locks.withLock(
     { cwd: workspacePath, runId: String(args.runId ?? ""), operation: "mcp_publish_pr_draft" },
     () => {

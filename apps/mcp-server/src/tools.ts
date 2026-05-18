@@ -1,5 +1,5 @@
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
-import { ContractValues } from "@kiwi/contracts";
+import { ContractValues, ProgressStatuses } from "@kiwi/contracts";
 import { resolvePlannerProvider } from "@kiwi/runtime";
 import {
   buildRunCostForecast,
@@ -10,7 +10,6 @@ import {
   planRun,
 } from "@kiwi/core";
 import { callCoreTool } from "./core-tool-dispatch";
-import { McpToolProgressStatuses } from "./constants";
 import { doctorTool } from "./doctor";
 import { withOperatorCard } from "./operator-card";
 import { previewRunTool, runStepTool, runTool } from "./run-tools";
@@ -36,7 +35,7 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
   options.onProgress?.(
     progressLine({
       phase: ContractValues.Planner,
-      status: McpToolProgressStatuses.Started,
+      status: ProgressStatuses.Started,
       model: resolution.model.id,
       providerModel: resolution.model.providerModel ?? null,
       provider: resolution.provider.name,
@@ -44,7 +43,7 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     0,
   );
   const heartbeat = startHeartbeat(
-    progressLine({ phase: ContractValues.Planner, status: ContractValues.Running }),
+    progressLine({ phase: ContractValues.Planner, status: ProgressStatuses.Running }),
     options.onProgress,
   );
   let planned: Awaited<ReturnType<typeof planRun>>;
@@ -70,7 +69,7 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
   options.onProgress?.(
     progressLine({
       phase: ContractValues.Planner,
-      status: ContractValues.Completed,
+      status: ProgressStatuses.Completed,
       runId: planned.runId,
       steps: planned.taskGraph.steps.length,
     }),

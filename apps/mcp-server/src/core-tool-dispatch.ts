@@ -22,7 +22,9 @@ import { ToolActionRequiredError } from "./tool-errors";
 import type { ToolCallOptions } from "./tool-helpers";
 import { mutationScope, safeReadOnlyToolCalls, toolCall } from "./ux";
 
-const mcpServices = getMcpServerServices();
+function services(): ReturnType<typeof getMcpServerServices> {
+  return getMcpServerServices();
+}
 
 interface CoreToolHandlers {
   previewRunTool(args: Record<string, unknown>, cwd: string): unknown;
@@ -188,7 +190,7 @@ function applyTool(context: DispatchContext): unknown {
 }
 
 function finalizeTool(context: DispatchContext): unknown {
-  return mcpServices.core.locks.withLock(
+  return services().core.locks.withLock(
     { cwd: context.workspacePath, runId: context.runId, operation: "mcp_finalize" },
     () => {
       context.options.onProgress?.(`finalize started runId=${context.runId}`, 0);
@@ -249,7 +251,7 @@ function explainTool(context: DispatchContext): unknown {
 }
 
 function requestApprovalTool(context: DispatchContext): unknown {
-  return mcpServices.core.locks.withLock(
+  return services().core.locks.withLock(
     {
       cwd: context.workspacePath,
       runId: context.runId,
@@ -278,7 +280,7 @@ function requestApprovalTool(context: DispatchContext): unknown {
 }
 
 function evidenceManifestTool(context: DispatchContext): unknown {
-  return mcpServices.core.locks.withLock(
+  return services().core.locks.withLock(
     { cwd: context.workspacePath, runId: context.runId, operation: "mcp_evidence_manifest" },
     () =>
       withOperatorCard(
@@ -303,7 +305,7 @@ function evidenceManifestTool(context: DispatchContext): unknown {
 }
 
 function operatorSnapshotTool(context: DispatchContext): unknown {
-  return mcpServices.core.locks.withLock(
+  return services().core.locks.withLock(
     { cwd: context.workspacePath, runId: context.runId, operation: "mcp_operator_snapshot" },
     () =>
       withOperatorCard(

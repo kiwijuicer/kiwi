@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "crypto";
-import { existsSync, readdirSync, readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, unlinkSync } from "fs";
 import path from "path";
 import {
   appendAuditEvent,
@@ -15,6 +15,8 @@ import type { ExecutionIsolation } from "@kiwi/contracts";
 import { DEFAULT_MAX_CONCURRENCY, readExecutionRepoState, type RunExecutionPreview } from "@kiwi/runtime";
 import { ToolActionRequiredError } from "./tool-errors";
 import { safeReadOnlyToolCalls, toolCall } from "./ux";
+
+const PREVIEW_TOKEN_RETENTION_LIMIT = 25;
 
 interface McpPreviewInput {
   fromStep: string | null;
@@ -130,6 +132,79 @@ function stateHash(fingerprints: McpPreviewFingerprints, previewInput: McpPrevie
   return sha256(JSON.stringify({ fingerprints, previewInput: previewInputFingerprint(previewInput) }));
 }
 
+function previewDir(cwd: string, runId: string): string {
+  return resolveRunArtifactPath(runId, "previews", cwd);
+}
+
+function listPreviewRecords(cwd: string, runId: string): Array<{ path: string; record: McpPreviewTokenRecord }> {
+  const dir = previewDir(cwd, runId);
+
+  if (!existsSync(dir)) {
+    return [];
+  }
+
+  return readdirSync(dir)
+    .filter((entry) => entry.endsWith(".json"))
+    .map((entry) => {
+      try {
+        return {
+          path: path.join(dir, entry),
+          record: readJson(path.join(dir, entry)) as McpPreviewTokenRecord,
+        };
+      } catch {
+        return null;
+      }
+    })
+    .filter(
+      (entry): entry is { path: string; record: McpPreviewTokenRecord } =>
+        entry !== null && typeof entry.record.token === "string" && typeof entry.record.createdAt === "string",
+    )
+    .sort((a, b) => b.record.createdAt.localeCompare(a.record.createdAt));
+}
+
+function prunePreviewTokens(params: { cwd: string; runId: string; keepToken: string }): void {
+  const records = listPreviewRecords(params.cwd, params.runId);
+
+  if (records.length <= PREVIEW_TOKEN_RETENTION_LIMIT) {
+    return;
+  }
+
+  const kept = new Set<string>([params.keepToken]);
+
+  for (const entry of records) {
+    if (kept.size >= PREVIEW_TOKEN_RETENTION_LIMIT) {
+      break;
+    }
+    kept.add(entry.record.token);
+  }
+
+  const prunedTokens: string[] = [];
+
+  for (const entry of records) {
+    if (kept.has(entry.record.token)) {
+      continue;
+    }
+    unlinkSync(entry.path);
+    prunedTokens.push(entry.record.token);
+  }
+
+  if (prunedTokens.length === 0) {
+    return;
+  }
+
+  appendAuditEvent(params.cwd, {
+    eventType: "mcp_preview_pruned",
+    runId: params.runId,
+    timestamp: new Date().toISOString(),
+    payload: {
+      keepLimit: PREVIEW_TOKEN_RETENTION_LIMIT,
+      keptToken: params.keepToken,
+      prunedCount: prunedTokens.length,
+      prunedTokens,
+    },
+  });
+}
+
 export function createMcpPreviewToken(params: {
   cwd: string;
   runId: string;
@@ -166,6 +241,7 @@ export function createMcpPreviewToken(params: {
       stepIds: record.previewStepIds,
     },
   });
+  prunePreviewTokens({ cwd: params.cwd, runId: params.runId, keepToken: token });
 
   return record;
 }
@@ -290,31 +366,16 @@ export function consumeMcpPreviewToken(params: {
   return consumedRecord;
 }
 
-function previewDir(cwd: string, runId: string): string {
-  return resolveRunArtifactPath(runId, "previews", cwd);
-}
-
 export function latestValidPreviewToken(params: {
   cwd: string;
   runId: string;
   previewInput: McpPreviewInput;
 }): McpPreviewTokenRecord | null {
-  const dir = previewDir(params.cwd, params.runId);
+  const records = listPreviewRecords(params.cwd, params.runId);
 
-  if (!existsSync(dir)) {
+  if (records.length === 0) {
     return null;
   }
-  const records = readdirSync(dir)
-    .filter((entry) => entry.endsWith(".json"))
-    .map((entry) => {
-      try {
-        return readJson(path.join(dir, entry)) as McpPreviewTokenRecord;
-      } catch {
-        return null;
-      }
-    })
-    .filter((entry): entry is McpPreviewTokenRecord => entry !== null)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   let current: ReturnType<typeof fingerprintState>;
 
@@ -324,7 +385,7 @@ export function latestValidPreviewToken(params: {
     return null;
   }
 
-  for (const record of records) {
+  for (const { record } of records) {
     const currentHash = stateHash(current.fingerprints, record.previewInput);
 
     if (record.consumedAt) {

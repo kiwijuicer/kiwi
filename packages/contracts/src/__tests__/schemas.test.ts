@@ -16,6 +16,7 @@ import {
   ModelInvocationRecordSchema,
   ModelRegistrySchema,
   ModelUsageSummarySchema,
+  ProgressStatusSchema,
   PrDraftArtifactSchema,
   ReviewVerdictSchema,
   RunAuditSnapshotSchema,
@@ -40,6 +41,12 @@ describe("contracts schemas", () => {
       evolutionMode: "breaking_allowed",
     });
     expect(parsed.schemaVersion).toBe("1");
+  });
+
+  it("parses progress statuses", () => {
+    expect(ProgressStatusSchema.parse("started")).toBe("started");
+    expect(ProgressStatusSchema.parse("selected")).toBe("selected");
+    expect(ProgressStatusSchema.parse("skipped")).toBe("skipped");
   });
 
   it("parses a minimal initiative", () => {

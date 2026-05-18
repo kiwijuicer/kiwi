@@ -1,10 +1,12 @@
 import { execFileSync } from "child_process";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { kiwiModelRegistryPath, kiwiPolicyPath, listStepAttemptEvidence } from "@kiwi/core";
+import type { RunExecutionPreview } from "@kiwi/runtime";
 import { handleMcpRequest } from "../index";
+import { createMcpPreviewToken, latestValidPreviewToken, normalizePreviewInput } from "../preview-tokens";
 
 function setupRepo(options: { ignoreKiwi?: boolean } = {}): string {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-ux-"));
@@ -119,6 +121,13 @@ describe("MCP UX safety tools", () => {
     expect(payload).toContain("kiwi_doctor");
     expect(payload).toContain("kiwi_next");
     expect(payload).toContain("READ_ONLY");
+    const listedTools = (tools.result as { tools: Array<{ name: string; description: string }> }).tools;
+    const runDescription = listedTools.find((tool) => tool.name === "kiwi_run")?.description ?? "";
+    const planDescription = listedTools.find((tool) => tool.name === "kiwi_plan")?.description ?? "";
+    const safetyNote = "Do not stage, commit, tag, or push unless the user explicitly requested that git operation.";
+
+    expect(runDescription.startsWith(safetyNote)).toBe(true);
+    expect(planDescription.startsWith(safetyNote)).toBe(true);
   });
 
   it("returns doctor diagnostics for initialized, dirty, and missing workspaces", async () => {
@@ -248,6 +257,7 @@ describe("MCP UX safety tools", () => {
     );
     expect(firstRun.error).toBeUndefined();
     const attemptsAfterFirstRun = listStepAttemptEvidence(cwd, runId);
+    expect(latestValidPreviewToken({ cwd, runId, previewInput: normalizePreviewInput({}) })).toBeNull();
 
     const reusedToken = await handleMcpRequest(
       {
@@ -274,6 +284,43 @@ describe("MCP UX safety tools", () => {
     expect(secondParsed.steps.length).toBeGreaterThan(0);
     expect(secondParsed.steps.every((step) => step.status === "skipped")).toBe(true);
     expect(listStepAttemptEvidence(cwd, runId)).toHaveLength(attemptsAfterFirstRun.length);
+  });
+
+  it("prunes old preview token files while keeping the newest 25", async () => {
+    const cwd = setupRepo();
+    const runId = await planRun(cwd);
+    const tokens: string[] = [];
+    const preview = {
+      runId,
+      executionOwner: "kiwi-codex-cli",
+      executionIsolation: "direct",
+      maxConcurrency: 2,
+      subPlans: [],
+      steps: [{ stepId: "step_001" }],
+    } as unknown as RunExecutionPreview;
+    const previewInput = normalizePreviewInput({});
+
+    for (let index = 0; index < 30; index += 1) {
+      tokens.push(
+        createMcpPreviewToken({
+          cwd,
+          runId,
+          preview,
+          previewInput,
+          now: new Date(Date.UTC(2026, 0, 1, 0, 0, index)),
+        }).token,
+      );
+    }
+
+    const previewDir = path.join(cwd, ".kiwi", "runs", runId, "previews");
+    const files = readdirSync(previewDir)
+      .filter((entry) => entry.endsWith(".json"))
+      .sort();
+
+    expect(files).toHaveLength(25);
+    expect(files).toContain(`${tokens.at(-1)}.json`);
+    expect(files).not.toContain(`${tokens[0]}.json`);
+    expect(latestValidPreviewToken({ cwd, runId, previewInput })?.token).toBe(tokens.at(-1));
   });
 
   it("rejects command overrides for production-risk runs without server opt-in", async () => {
