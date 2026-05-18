@@ -18,6 +18,21 @@ import { validateToolArguments } from "./tool-input-schemas";
 import { toolCall, type McpNextAction, mutationScope } from "./ux";
 import { workspaceArgs } from "./workspace";
 
+function planNextAction(planned: Awaited<ReturnType<typeof planRun>>): McpNextAction {
+  return {
+    recommendedToolCall: toolCall("kiwi_preview_run", {
+      workspacePath: planned.workspacePath,
+      repoId: planned.repoId,
+      repoPath: planned.repoPath,
+      runId: planned.runId,
+    }),
+    whyThisTool: "Planning wrote run artifacts; preview is the required read-only step before any execution.",
+    requiresUserConfirmation: false,
+    expectedMutation: "READ_ONLY",
+    expectedAfter: "Show the preview decision card and ask the user before running.",
+  };
+}
+
 async function planTool(args: Record<string, unknown>, cwd: string, options: ToolCallOptions = {}): Promise<unknown> {
   const rawInput = String(args.ticket ?? args.rawInput ?? "");
   const workspace = workspaceArgs(args, cwd, true);
@@ -79,18 +94,7 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     taskGraph: planned.taskGraph,
     plannerCostUsd: planned.plannerOutput.cost.estimatedUsd,
   });
-  const nextAction: McpNextAction = {
-    recommendedToolCall: toolCall("kiwi_preview_run", {
-      workspacePath: planned.workspacePath,
-      repoId: planned.repoId,
-      repoPath: planned.repoPath,
-      runId: planned.runId,
-    }),
-    whyThisTool: "Planning wrote run artifacts; preview is the required read-only step before any execution.",
-    requiresUserConfirmation: false,
-    expectedMutation: "READ_ONLY",
-    expectedAfter: "Show the preview decision card and ask the user before running.",
-  };
+  const nextAction = planNextAction(planned);
 
   return withOperatorCard(
     {

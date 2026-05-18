@@ -1,21 +1,10 @@
-import {
-  ContractValues,
-  ProgressStatuses,
-  RiskProfiles,
-  RunStatuses,
-  StepAttemptStatuses,
-  StepStatuses,
-} from "@kiwi/contracts";
+import { ContractValues, ProgressStatuses, RiskProfiles, RunStatuses, type TaskGraph } from "@kiwi/contracts";
 import { buildRunCompletionSummary } from "@kiwi/ops";
 import {
   assertDirectExecutionSafe,
   DirectExecutionUnsafeError,
-  type ExecutePlannedStepInput,
-  type ExecutePlannedStepResult,
   type RunExecutionPreview,
-  type RunExecutionPreviewStep,
   runScheduledSubPlans,
-  splitCommandLine,
 } from "@kiwi/runtime";
 import { withOperatorCard } from "./operator-card";
 import {
@@ -24,8 +13,9 @@ import {
   normalizePreviewInput,
   validateMcpPreviewToken,
 } from "./preview-tokens";
+import { runStepToolUnlocked, type RunStepToolResult } from "./run-step-execution";
 import { ToolActionRequiredError } from "./tool-errors";
-import { errorMessage, previewConfirmationSummary, progressLine, type ToolCallOptions } from "./tool-helpers";
+import { previewConfirmationSummary, progressLine, type ToolCallOptions } from "./tool-helpers";
 import { mutationScope, safeReadOnlyToolCalls, toolCall, type McpNextAction, workspaceToolArgs } from "./ux";
 import { getMcpServerServices } from "./services";
 import { workspaceArgs } from "./workspace";
@@ -34,15 +24,6 @@ const MCP_COMMAND_OVERRIDE_ENV = "KIWI_ALLOW_MCP_COMMAND_OVERRIDE";
 
 function services(): ReturnType<typeof getMcpServerServices> {
   return getMcpServerServices();
-}
-
-interface RunStepToolResult {
-  stepId: string;
-  attemptId: string;
-  status: string;
-  nextAction: unknown;
-  runStatus: string;
-  materializedDiff: unknown;
 }
 
 function nextRunAction(params: {
@@ -135,55 +116,6 @@ function assertMcpCommandOverrideAllowed(params: {
         "Retry without command, use a dev-risk run, or start the MCP server with KIWI_ALLOW_MCP_COMMAND_OVERRIDE=1.",
     },
   });
-}
-
-function emitPostAttemptProgress(params: {
-  workspacePath: string;
-  runId: string;
-  stepId: string;
-  attemptId: string;
-  options: ToolCallOptions;
-  stepIndex?: number | undefined;
-  stepCount?: number | undefined;
-}): void {
-  if (!params.options.onProgress) {
-    return;
-  }
-  const evidence = services()
-    .core.evidence.listStepAttempts(params.workspacePath, params.runId)
-    .find((entry) => entry.stepId === params.stepId && entry.attemptId === params.attemptId);
-
-  if (!evidence) {
-    return;
-  }
-  for (const gate of evidence.gateResults) {
-    params.options.onProgress(
-      progressLine({
-        phase: "gate",
-        status: gate.status,
-        stepId: params.stepId,
-        attemptId: params.attemptId,
-        gate: gate.gateType,
-        reason: gate.reason,
-        stepIndex: params.stepIndex,
-        stepCount: params.stepCount,
-      }),
-    );
-  }
-  if (evidence.reviewVerdict) {
-    params.options.onProgress(
-      progressLine({
-        phase: "review",
-        status: ProgressStatuses.Completed,
-        stepId: params.stepId,
-        attemptId: params.attemptId,
-        verdict: evidence.reviewVerdict.verdict,
-        safeToContinue: evidence.reviewVerdict.safeToContinue,
-        stepIndex: params.stepIndex,
-        stepCount: params.stepCount,
-      }),
-    );
-  }
 }
 
 export function previewRunTool(args: Record<string, unknown>, cwd: string): unknown {
@@ -303,11 +235,6 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
   );
 }
 
-interface InternalAttemptOptions {
-  attemptId?: string;
-  command?: string;
-}
-
 function buildPreviewFromRecord(params: {
   workspacePath: string;
   runId: string;
@@ -323,161 +250,205 @@ function buildPreviewFromRecord(params: {
   });
 }
 
-function latestCompletedAttempt(params: { workspacePath: string; runId: string; stepId: string }) {
-  const latest = services()
-    .core.evidence.latestAttemptByStep(services().core.evidence.listStepAttempts(params.workspacePath, params.runId))
-    .get(params.stepId);
+type PreviewTokenRecord = ReturnType<typeof validateMcpPreviewToken>;
+type PreviewStepById = Map<string, RunExecutionPreview["steps"][number]>;
 
-  return latest?.attempt.status === StepAttemptStatuses.Completed ? latest : null;
+interface RunToolLockedContext {
+  args: Record<string, unknown>;
+  workspacePath: string;
+  repoPath: string | null;
+  runId: string;
+  fromStep?: string | undefined;
+  maxConcurrency?: number | undefined;
+  callOptions: ToolCallOptions;
 }
 
-async function runStepToolUnlocked(
-  args: Record<string, unknown>,
-  workspacePath: string,
-  options: ToolCallOptions = {},
-  progressContext: {
-    stepIndex?: number;
-    stepCount?: number;
-    previewStep?: RunExecutionPreviewStep | null;
-  } = {},
-  internalAttemptOptions: InternalAttemptOptions = {},
-): Promise<RunStepToolResult> {
-  const runId = String(args.runId ?? "");
-  const stepId = String(args.stepId ?? "");
-  const input: ExecutePlannedStepInput = { cwd: workspacePath, runId, stepId };
+interface RunToolExecutionContext extends RunToolLockedContext {
+  previewRecord: PreviewTokenRecord;
+  taskGraph: TaskGraph;
+  previewStepsById: PreviewStepById;
+  steps: RunStepToolResult[];
+}
 
-  const command = internalAttemptOptions.command ?? (typeof args.command === "string" ? args.command : undefined);
-
-  if (command) {
-    input.command = splitCommandLine(command);
-  }
-  if (internalAttemptOptions.attemptId) {
-    input.attemptId = internalAttemptOptions.attemptId;
-  }
-  const preview =
-    progressContext.previewStep ??
-    services()
-      .runtime.execution.previews.build({ cwd: workspacePath, runId })
-      .steps.find((step) => step.stepId === stepId);
-
-  if (preview) {
-    options.onProgress?.(
-      progressLine({
-        phase: "routing",
-        status: ProgressStatuses.Selected,
-        stepId,
-        model: preview.selectedModelId,
-        providerModel: preview.selectedProviderModel,
-        capability: preview.modelCapability,
-        runner: preview.runner,
-        isolation: preview.executionIsolation,
-        reason: preview.executorSelectionReason ?? preview.routingReason.join(","),
-        stepIndex: progressContext.stepIndex,
-        stepCount: progressContext.stepCount,
-      }),
-      0,
-    );
-  }
-  const completedAttempt = latestCompletedAttempt({ workspacePath, runId, stepId });
-
-  if (completedAttempt) {
-    const runStatus = services().core.runStatus.summary(workspacePath, runId).latest[0]?.currentStatus ?? "missing";
-
-    options.onProgress?.(
-      progressLine({
-        phase: "step",
-        status: ProgressStatuses.Skipped,
-        stepId,
-        attemptId: completedAttempt.attemptId,
-        reason: "already_completed",
-        runStatus,
-        stepIndex: progressContext.stepIndex,
-        stepCount: progressContext.stepCount,
-      }),
-      100,
-    );
-
-    return {
-      stepId,
-      attemptId: completedAttempt.attemptId,
-      status: StepStatuses.Skipped,
-      nextAction: {
-        type: "skipped",
-        reason: "already_completed",
-        completedAttemptId: completedAttempt.attemptId,
-      },
-      runStatus,
-      materializedDiff: null,
-    };
-  }
-  options.onProgress?.(
-    progressLine({
-      phase: "step",
-      status: ProgressStatuses.Started,
-      stepId,
-      stepIndex: progressContext.stepIndex,
-      stepCount: progressContext.stepCount,
+function validateRunToolPreview(context: RunToolLockedContext): PreviewTokenRecord {
+  const previewRecord = validateMcpPreviewToken({
+    cwd: context.workspacePath,
+    runId: context.runId,
+    previewToken: typeof context.args.previewToken === "string" ? context.args.previewToken : undefined,
+    previewInput: normalizePreviewInput({
+      fromStep: context.fromStep,
+      maxConcurrency: context.maxConcurrency,
     }),
-    0,
-  );
-  options.onProgress?.(
-    progressLine({
-      phase: "gate",
-      status: ProgressStatuses.Running,
-      stepId,
-      stepIndex: progressContext.stepIndex,
-      stepCount: progressContext.stepCount,
-    }),
-  );
-  let result: ExecutePlannedStepResult;
-
-  try {
-    result = await services().runtime.execution.plannedSteps.execute(input);
-  } catch (error) {
-    options.onProgress?.(
-      progressLine({
-        phase: "step",
-        status: ProgressStatuses.Failed,
-        stepId,
-        stepIndex: progressContext.stepIndex,
-        stepCount: progressContext.stepCount,
-        error: errorMessage(error),
-      }),
-      100,
-    );
-    throw error;
-  }
-  emitPostAttemptProgress({
-    workspacePath,
-    runId,
-    stepId,
-    attemptId: result.attemptId,
-    options,
-    stepIndex: progressContext.stepIndex,
-    stepCount: progressContext.stepCount,
   });
-  options.onProgress?.(
-    progressLine({
-      phase: "step",
-      status: result.status,
-      stepId,
-      attemptId: result.attemptId,
-      next: result.nextAction.type,
-      runStatus: result.runStatus,
-      stepIndex: progressContext.stepIndex,
-      stepCount: progressContext.stepCount,
-    }),
+
+  if (previewRecord.executionIsolation === "direct") {
+    assertMcpDirectExecutionSafe({
+      workspacePath: context.workspacePath,
+      repoPath: previewRecord.repoPath,
+      runId: context.runId,
+    });
+  }
+  assertMcpCommandOverrideAllowed({
+    args: context.args,
+    workspacePath: context.workspacePath,
+    runId: context.runId,
+  });
+
+  return previewRecord;
+}
+
+function findStartIndex(params: { taskGraph: TaskGraph; fromStep?: string | undefined }): number {
+  return params.fromStep ? params.taskGraph.steps.findIndex((step) => step.stepId === params.fromStep) : 0;
+}
+
+function throwStalePreviewStep(context: RunToolLockedContext): never {
+  throw new ToolActionRequiredError(`Stale previewToken: step not found: ${context.fromStep}`, {
+    category: "stale_preview",
+    recovery: {
+      reason: `step ${context.fromStep} is not in the current TaskGraph`,
+      recommendedToolCall: toolCall("kiwi_preview_run", {
+        workspacePath: context.workspacePath,
+        runId: context.runId,
+      }),
+      safeAlternatives: safeReadOnlyToolCalls({ workspacePath: context.workspacePath, runId: context.runId }),
+      userMessage: "The run changed since preview. Create and confirm a fresh preview before running.",
+    },
+  });
+}
+
+async function runScheduledPreviewSteps(context: RunToolExecutionContext): Promise<void> {
+  await runScheduledSubPlans<{ command?: string }>({
+    cwd: context.workspacePath,
+    runId: context.runId,
+    ...(context.fromStep ? { fromStep: context.fromStep } : {}),
+    ...(context.maxConcurrency !== undefined ? { maxGlobalConcurrency: context.maxConcurrency } : {}),
+    attemptOptions: {
+      ...(typeof context.args.command === "string" ? { command: context.args.command } : {}),
+    },
+    runStep: async (_scheduledRunId, stepId, attemptOptions) => {
+      const stepIndex = context.steps.length + 1;
+      context.steps.push(
+        await runStepToolUnlocked(
+          {
+            ...context.args,
+            workspacePath: context.workspacePath,
+            runId: context.runId,
+            stepId,
+          },
+          context.workspacePath,
+          context.callOptions,
+          {
+            stepIndex,
+            stepCount: context.previewRecord.previewStepIds.length,
+            previewStep: context.previewStepsById.get(stepId) ?? null,
+          },
+          attemptOptions,
+        ),
+      );
+    },
+  });
+}
+
+async function runSequentialPreviewSteps(context: RunToolExecutionContext, startIndex: number): Promise<void> {
+  const selectedSteps = context.taskGraph.steps.slice(startIndex);
+
+  for (const [index, step] of selectedSteps.entries()) {
+    context.steps.push(
+      await runStepToolUnlocked(
+        {
+          ...context.args,
+          workspacePath: context.workspacePath,
+          runId: context.runId,
+          stepId: step.stepId,
+        },
+        context.workspacePath,
+        context.callOptions,
+        {
+          stepIndex: index + 1,
+          stepCount: selectedSteps.length,
+          previewStep: context.previewStepsById.get(step.stepId) ?? null,
+        },
+      ),
+    );
+    const status = services().core.runStatus.summary(context.workspacePath, context.runId).latest[0]?.currentStatus;
+
+    if (status === ContractValues.Failed || status === RunStatuses.NeedsApproval) {
+      break;
+    }
+  }
+}
+
+async function runPreviewSteps(context: RunToolExecutionContext, startIndex: number): Promise<void> {
+  if (context.taskGraph.subPlans && context.taskGraph.subPlans.length > 1) {
+    await runScheduledPreviewSteps(context);
+
+    return;
+  }
+  await runSequentialPreviewSteps(context, startIndex);
+}
+
+function runExecutionResult(context: RunToolExecutionContext): unknown {
+  const run = services().core.runStatus.summary(context.workspacePath, context.runId).latest[0];
+  context.callOptions.onProgress?.(
+    progressLine({ phase: "run", status: run?.currentStatus ?? "missing", runId: context.runId }),
     100,
   );
 
-  return {
-    stepId,
-    attemptId: result.attemptId,
-    status: result.status,
-    nextAction: result.nextAction,
-    runStatus: result.runStatus,
-    materializedDiff: result.materializedDiff,
+  return withOperatorCard(
+    {
+      schemaVersion: "2",
+      kind: "run_execution_result",
+      runId: context.runId,
+      status: run?.currentStatus ?? "missing",
+      steps: context.steps,
+      summary: buildRunCompletionSummary({ cwd: context.workspacePath, runId: context.runId }),
+    },
+    {
+      cwd: context.workspacePath,
+      runId: context.runId,
+      lastAction: "kiwi_run",
+      mutationScope: mutationScope({
+        riskLabel: "MUTATES_WORKTREE",
+        workspacePath: context.workspacePath,
+        repoPath: context.repoPath,
+        executionMode: null,
+      }),
+    },
+  );
+}
+
+async function executeRunToolLocked(context: RunToolLockedContext): Promise<unknown> {
+  const previewRecord = validateRunToolPreview(context);
+  const taskGraph = services().core.runs.loadTaskGraph(context.runId, context.workspacePath);
+  const preview = buildPreviewFromRecord({
+    workspacePath: context.workspacePath,
+    runId: context.runId,
+    previewInput: previewRecord.previewInput,
+  });
+  const executionContext: RunToolExecutionContext = {
+    ...context,
+    previewRecord,
+    taskGraph,
+    previewStepsById: new Map(preview.steps.map((step) => [step.stepId, step])),
+    steps: [],
   };
+  context.callOptions.onProgress?.(
+    progressLine({ phase: "run", status: ProgressStatuses.Started, runId: context.runId }),
+    0,
+  );
+  const startIndex = findStartIndex({ taskGraph, fromStep: context.fromStep });
+
+  if (startIndex < 0) {
+    throwStalePreviewStep(context);
+  }
+  consumeMcpPreviewToken({
+    cwd: context.workspacePath,
+    runId: context.runId,
+    record: previewRecord,
+  });
+  await runPreviewSteps(executionContext, startIndex);
+
+  return runExecutionResult(executionContext);
 }
 
 export async function runStepTool(
@@ -575,134 +546,15 @@ export async function runTool(
       runId,
       operation: "mcp_run",
     },
-    async () => {
-      const previewRecord = validateMcpPreviewToken({
-        cwd: workspace.workspacePath,
-        runId,
-        previewToken: typeof args.previewToken === "string" ? args.previewToken : undefined,
-        previewInput: normalizePreviewInput({ fromStep, maxConcurrency }),
-      });
-
-      if (previewRecord.executionIsolation === "direct") {
-        assertMcpDirectExecutionSafe({
-          workspacePath: workspace.workspacePath,
-          repoPath: previewRecord.repoPath,
-          runId,
-        });
-      }
-      assertMcpCommandOverrideAllowed({ args, workspacePath: workspace.workspacePath, runId });
-      const taskGraph = services().core.runs.loadTaskGraph(runId, workspace.workspacePath);
-      const preview = buildPreviewFromRecord({
+    async () =>
+      executeRunToolLocked({
+        args,
         workspacePath: workspace.workspacePath,
+        repoPath: workspace.repo?.path ?? null,
         runId,
-        previewInput: previewRecord.previewInput,
-      });
-      const previewStepsById = new Map(preview.steps.map((step) => [step.stepId, step]));
-      const steps: RunStepToolResult[] = [];
-      callOptions.onProgress?.(progressLine({ phase: "run", status: ProgressStatuses.Started, runId }), 0);
-      const startIndex = fromStep ? taskGraph.steps.findIndex((step) => step.stepId === fromStep) : 0;
-
-      if (startIndex < 0) {
-        throw new ToolActionRequiredError(`Stale previewToken: step not found: ${fromStep}`, {
-          category: "stale_preview",
-          recovery: {
-            reason: `step ${fromStep} is not in the current TaskGraph`,
-            recommendedToolCall: toolCall("kiwi_preview_run", { workspacePath: workspace.workspacePath, runId }),
-            safeAlternatives: safeReadOnlyToolCalls({ workspacePath: workspace.workspacePath, runId }),
-            userMessage: "The run changed since preview. Create and confirm a fresh preview before running.",
-          },
-        });
-      }
-      consumeMcpPreviewToken({
-        cwd: workspace.workspacePath,
-        runId,
-        record: previewRecord,
-      });
-
-      if (taskGraph.subPlans && taskGraph.subPlans.length > 1) {
-        await runScheduledSubPlans<{ command?: string }>({
-          cwd: workspace.workspacePath,
-          runId,
-          ...(fromStep ? { fromStep } : {}),
-          ...(maxConcurrency !== undefined ? { maxGlobalConcurrency: maxConcurrency } : {}),
-          attemptOptions: {
-            ...(typeof args.command === "string" ? { command: args.command } : {}),
-          },
-          runStep: async (_scheduledRunId, stepId, attemptOptions) => {
-            const stepIndex = steps.length + 1;
-            steps.push(
-              await runStepToolUnlocked(
-                {
-                  ...args,
-                  workspacePath: workspace.workspacePath,
-                  runId,
-                  stepId,
-                },
-                workspace.workspacePath,
-                callOptions,
-                {
-                  stepIndex,
-                  stepCount: previewRecord.previewStepIds.length,
-                  previewStep: previewStepsById.get(stepId) ?? null,
-                },
-                attemptOptions,
-              ),
-            );
-          },
-        });
-      } else {
-        const selectedSteps = taskGraph.steps.slice(startIndex);
-
-        for (const [index, step] of selectedSteps.entries()) {
-          steps.push(
-            await runStepToolUnlocked(
-              {
-                ...args,
-                workspacePath: workspace.workspacePath,
-                runId,
-                stepId: step.stepId,
-              },
-              workspace.workspacePath,
-              callOptions,
-              {
-                stepIndex: index + 1,
-                stepCount: selectedSteps.length,
-                previewStep: previewStepsById.get(step.stepId) ?? null,
-              },
-            ),
-          );
-          const status = services().core.runStatus.summary(workspace.workspacePath, runId).latest[0]?.currentStatus;
-
-          if (status === ContractValues.Failed || status === RunStatuses.NeedsApproval) {
-            break;
-          }
-        }
-      }
-
-      const run = services().core.runStatus.summary(workspace.workspacePath, runId).latest[0];
-      callOptions.onProgress?.(progressLine({ phase: "run", status: run?.currentStatus ?? "missing", runId }), 100);
-
-      return withOperatorCard(
-        {
-          schemaVersion: "2",
-          kind: "run_execution_result",
-          runId,
-          status: run?.currentStatus ?? "missing",
-          steps,
-          summary: buildRunCompletionSummary({ cwd: workspace.workspacePath, runId }),
-        },
-        {
-          cwd: workspace.workspacePath,
-          runId,
-          lastAction: "kiwi_run",
-          mutationScope: mutationScope({
-            riskLabel: "MUTATES_WORKTREE",
-            workspacePath: workspace.workspacePath,
-            repoPath: workspace.repo?.path ?? null,
-            executionMode: null,
-          }),
-        },
-      );
-    },
+        fromStep,
+        maxConcurrency,
+        callOptions,
+      }),
   );
 }
