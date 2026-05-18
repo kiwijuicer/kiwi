@@ -7,10 +7,11 @@ Official MCP docs: https://developers.openai.com/codex/mcp
 From the Codex project terminal:
 
 ```bash
-kiwi init --mcp codex
+kiwi init
 ```
 
 This writes or merges project-scoped `.codex/config.toml` with a `kiwi` MCP server table and preserves other tables.
+Plain `kiwi init` also prepares Cursor and Claude Code MCP config by default; use `kiwi init --mcp codex` when you only want Codex.
 
 Manual setup is still possible after `make install`.
 

@@ -1,3 +1,4 @@
+import { execFileSync } from "child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
@@ -79,7 +80,7 @@ async function withKiwiMcpBin(value: string | undefined, fn: () => Promise<void>
 }
 
 describe("kiwi init", () => {
-  it("creates .kiwi and default config files only", async () => {
+  it("creates .kiwi, default config files, and all MCP configs by default", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-"));
 
     await runInit({}, cwd);
@@ -90,9 +91,9 @@ describe("kiwi init", () => {
     expect(existsSync(kiwiModelRegistryPath(cwd))).toBe(true);
     expect(existsSync(path.join(cwd, "kiwi-policy.yaml"))).toBe(false);
     expect(existsSync(path.join(cwd, "model-registry.yaml"))).toBe(false);
-    expect(existsSync(path.join(cwd, ".cursor", "mcp.json"))).toBe(false);
-    expect(existsSync(path.join(cwd, ".mcp.json"))).toBe(false);
-    expect(existsSync(path.join(cwd, ".codex", "config.toml"))).toBe(false);
+    expectMcpLaunchForWorkspace(readCursorMcpConfig(cwd).mcpServers?.kiwi, cwd);
+    expectMcpLaunchForWorkspace(readClaudeCodeMcpConfig(cwd).mcpServers?.kiwi, cwd);
+    expect(readCodexConfig(cwd).content).toContain("[mcp_servers.kiwi]");
   });
 
   it("is idempotent and preserves user-edited policy/registry by default", async () => {
@@ -342,14 +343,38 @@ models:
     expect(config).toContain("[mcp_servers.kiwi]");
   });
 
-  it("does not write MCP client config by default", async () => {
+  it("skips MCP client config with --mcp none", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-no-mcp-"));
 
-    await runInit({}, cwd);
+    await runInit({ mcp: "none" }, cwd);
 
     expect(existsSync(path.join(cwd, ".cursor", "mcp.json"))).toBe(false);
     expect(existsSync(path.join(cwd, ".mcp.json"))).toBe(false);
     expect(existsSync(path.join(cwd, ".codex", "config.toml"))).toBe(false);
+  });
+
+  it("reports selected MCP client readiness and next steps", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-readiness-"));
+    const logs: string[] = [];
+    const originalLog = console.log;
+    console.log = (...args: unknown[]) => {
+      logs.push(args.join(" "));
+    };
+
+    try {
+      await runInit({ env: { PATH: "/empty" } }, cwd);
+    } finally {
+      console.log = originalLog;
+    }
+
+    const output = logs.join("\n");
+    expect(output).toContain("MCP client readiness");
+    expect(output).toContain("Cursor");
+    expect(output).toContain("Claude Code");
+    expect(output).toContain("Codex");
+    expect(output).toContain("not detected");
+    expect(output).toContain("Install Codex CLI");
+    expect(output).toContain("kiwi doctor");
   });
 
   it("updates an existing gitignore with local Kiwi artifacts", async () => {
@@ -357,28 +382,52 @@ models:
     const gitignorePath = path.join(cwd, ".gitignore");
     writeFileSync(gitignorePath, "node_modules/\n.kiwi/\n", "utf-8");
 
-    await runInit({}, cwd);
+    await runInit({ mcp: "none" }, cwd);
 
     expect(readFileSync(gitignorePath, "utf-8")).toBe(["node_modules/", ".kiwi/", ""].join("\n"));
   });
 
-  it("adds MCP config entries to gitignore only when requested", async () => {
+  it("adds MCP config entries to gitignore by default", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-gitignore-mcp-"));
     const gitignorePath = path.join(cwd, ".gitignore");
     writeFileSync(gitignorePath, "node_modules/\n", "utf-8");
 
-    await runInit({ mcp: "all" }, cwd);
+    await runInit({}, cwd);
 
     expect(readFileSync(gitignorePath, "utf-8")).toBe(
       ["node_modules/", ".kiwi/", ".cursor/mcp.json", ".mcp.json", ".codex/config.toml", ""].join("\n"),
     );
   });
 
-  it("does not create gitignore when none exists", async () => {
+  it("uses local git exclude instead of dirtying tracked gitignore", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-git-exclude-"));
+    const gitignorePath = path.join(cwd, ".gitignore");
+    writeFileSync(gitignorePath, "node_modules/\n", "utf-8");
+    execFileSync("git", ["init"], { cwd, stdio: "ignore" });
+    execFileSync("git", ["checkout", "-b", "feature/test"], { cwd, stdio: "ignore" });
+    execFileSync("git", ["add", ".gitignore"], { cwd, stdio: "ignore" });
+    execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+      cwd,
+      stdio: "ignore",
+    });
+
+    await runInit({}, cwd);
+
+    expect(readFileSync(gitignorePath, "utf-8")).toBe("node_modules/\n");
+    const excludePath = execFileSync("git", ["-C", cwd, "rev-parse", "--git-path", "info/exclude"], {
+      encoding: "utf-8",
+    }).trim();
+    expect(readFileSync(path.join(cwd, excludePath), "utf-8")).toContain(".cursor/mcp.json");
+    expect(execFileSync("git", ["status", "--short"], { cwd, encoding: "utf-8" })).toBe("");
+  });
+
+  it("creates gitignore entries when none exists", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-no-gitignore-"));
 
     await runInit({}, cwd);
 
-    expect(existsSync(path.join(cwd, ".gitignore"))).toBe(false);
+    expect(readFileSync(path.join(cwd, ".gitignore"), "utf-8")).toBe(
+      [".kiwi/", ".cursor/mcp.json", ".mcp.json", ".codex/config.toml", ""].join("\n"),
+    );
   });
 });

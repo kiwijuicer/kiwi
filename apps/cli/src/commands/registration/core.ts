@@ -15,7 +15,7 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
     .command("init")
     .description("Initialize kiwi in current directory")
     .option("-f, --force", "Regenerate initialization files")
-    .option("--mcp <target>", "Write MCP client config: none|cursor|claude|codex|all", "none")
+    .option("--mcp <target>", "Write MCP client config: none|cursor|claude|codex|all", "all")
     .option("--workspace <path>", "Workspace control root to initialize")
     .action((opts: { force?: boolean; mcp?: string; workspace?: string }) => {
       runInit(withWorkspaceOptions(opts)).catch(handleCommandError);

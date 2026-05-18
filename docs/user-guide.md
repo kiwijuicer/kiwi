@@ -27,6 +27,10 @@ kiwi evidence manifest <run-id> --workspace /Users/norberthanauer/Projects/voice
 kiwi operator snapshot <run-id> --workspace /Users/norberthanauer/Projects/voice
 ```
 
+Plain `kiwi init` prepares `.kiwi` plus Cursor, Claude Code, and Codex MCP project configs by default.
+Use `--mcp none` to skip MCP config or `--mcp cursor|claude|codex` to target one client.
+Generated kiwi and MCP config paths are added to local git ignore/exclude rules.
+
 `kiwi plan` accepts either a file path or inline text:
 
 ```bash

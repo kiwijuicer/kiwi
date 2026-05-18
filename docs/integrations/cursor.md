@@ -7,10 +7,11 @@ Official MCP docs: https://docs.cursor.com/advanced/model-context-protocol
 From the Cursor project terminal:
 
 ```bash
-kiwi init --mcp cursor
+kiwi init
 ```
 
 This writes or merges `.cursor/mcp.json` with a `kiwi` MCP server entry and preserves other configured servers.
+Plain `kiwi init` also prepares Claude Code and Codex MCP config by default; use `kiwi init --mcp cursor` when you only want Cursor.
 
 Manual setup is still possible after `make install`.
 

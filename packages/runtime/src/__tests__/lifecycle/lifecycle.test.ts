@@ -22,7 +22,7 @@ import {
   StepRunnerExecutionOutput,
 } from "../../execution/step-attempt-orchestrator";
 import { executePlannedStep } from "../../execution/planned-steps";
-import { DirectExecutionUnsafeError } from "../../execution/direct-safety";
+import { DirectExecutionUnsafeError, readExecutionRepoState } from "../../execution/direct-safety";
 
 function cwd(): string {
   return mkdtempSync(path.join(os.tmpdir(), "kiwi-lifecycle-"));
@@ -304,6 +304,27 @@ describe("run lifecycle", () => {
         command: [process.execPath, "-e", "0"],
       }),
     ).rejects.toThrow("untracked non-kiwi files");
+  });
+
+  it("treats local kiwi MCP config files as kiwi state", () => {
+    const repo = cwd();
+    execFileSync("git", ["init", "-b", "feature"], { cwd: repo, stdio: "ignore" });
+    writeFileSync(path.join(repo, "README.md"), "old\n", "utf-8");
+    execFileSync("git", ["add", "README.md"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+    mkdirSync(path.join(repo, ".cursor"), { recursive: true });
+    mkdirSync(path.join(repo, ".codex"), { recursive: true });
+    writeFileSync(path.join(repo, ".cursor", "mcp.json"), "{}\n", "utf-8");
+    writeFileSync(path.join(repo, ".mcp.json"), "{}\n", "utf-8");
+    writeFileSync(path.join(repo, ".codex", "config.toml"), "\n", "utf-8");
+
+    const state = readExecutionRepoState(repo);
+
+    expect(state.untrackedFilePaths).toEqual([]);
+    expect(state.kiwiStateFiles).toBe(3);
   });
 
   it("records approval decisions", () => {

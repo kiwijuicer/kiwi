@@ -30,6 +30,8 @@ export class DirectExecutionUnsafeError extends Error {
   }
 }
 
+const LOCAL_KIWI_STATE_PATHS = new Set([".cursor/mcp.json", ".mcp.json", ".codex/config.toml"]);
+
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -55,7 +57,9 @@ function statusPath(line: string): string {
 }
 
 function isKiwiStatePath(filePath: string): boolean {
-  return filePath === ".kiwi" || filePath.startsWith(".kiwi/");
+  const normalized = filePath.replace(/\\/g, "/");
+
+  return normalized === ".kiwi" || normalized.startsWith(".kiwi/") || LOCAL_KIWI_STATE_PATHS.has(normalized);
 }
 
 function computeDirtyStateHash(repoPath: string, trackedDirtyFiles: string[], untrackedFilePaths: string[]): string {

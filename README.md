@@ -4,7 +4,7 @@ Local-first control plane for AI-assisted coding work.
 
 `kiwi` turns a ticket into a TaskGraph, lets an IDE assistant execute the planned steps through MCP safety gates, and keeps reproducible evidence under `.kiwi/runs/<run-id>/`.
 
-## MCP-first Quickstart
+## Quickstart
 
 Daily kiwi usage is meant to happen through your IDE assistant after kiwi has been installed and the workspace has been initialized.
 
@@ -36,11 +36,15 @@ In the project or workspace you want kiwi to control:
 
 ```bash
 cd /path/to/workspace
-kiwi init --mcp cursor
+kiwi init
 kiwi doctor
 ```
 
-Choose the MCP target for your IDE:
+By default, `kiwi init` writes project MCP config for Cursor, Claude Code, and Codex.
+It also prints which MCP clients were detected and what to do next when something is missing.
+It adds local kiwi and MCP config paths to git ignore/exclude rules so generated setup files do not block later runs.
+
+To limit or skip MCP config, pass an explicit target:
 
 ```bash
 kiwi init --mcp cursor
@@ -49,7 +53,6 @@ kiwi init --mcp codex
 kiwi init --mcp all
 ```
 
-`kiwi init --mcp <target>` writes the kiwi workspace files and the selected project MCP client config.
 Valid targets are `none`, `cursor`, `claude`, `codex`, and `all`.
 
 Restart or reload the IDE MCP client after initialization so it picks up the generated config.
@@ -98,7 +101,7 @@ Daily use does not require direct Anthropic/OpenAI API keys. Real model executio
 For a workspace with multiple repos:
 
 ```bash
-kiwi init --workspace /path/to/workspace --mcp cursor
+kiwi init --workspace /path/to/workspace
 kiwi workspace list --workspace /path/to/workspace
 kiwi doctor --workspace /path/to/workspace --repo <repo-id>
 ```
@@ -138,6 +141,7 @@ make install
 make install INSTALL_DEPS=0
 make rollback
 make uninstall
+kiwi init
 kiwi init --mcp <target>
 kiwi doctor
 kiwi workspace list

@@ -1,3 +1,4 @@
+import { execFileSync } from "child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
@@ -12,12 +13,13 @@ import {
 } from "../../config/constants";
 import { DEFAULT_MODEL_REGISTRY_YAML, DEFAULT_POLICY_YAML, defaultKiwiConfigYaml } from "../../config/default-config";
 
-type McpTarget = McpInitTarget;
+type ConcreteMcpTarget = Exclude<McpInitTarget, typeof McpInitTargets.None | typeof McpInitTargets.All>;
 
 interface InitOptions {
   force?: boolean;
   workspace?: string;
   mcp?: string;
+  env?: Record<string, string | undefined>;
 }
 
 interface McpServerLaunch {
@@ -42,13 +44,37 @@ interface GitignoreWriteResult {
 }
 
 const KIWI_GITIGNORE_ENTRY = ".kiwi/";
-const MCP_GITIGNORE_ENTRIES: Record<
-  Exclude<McpTarget, typeof McpInitTargets.None | typeof McpInitTargets.All>,
-  string
-> = {
+const MCP_GITIGNORE_ENTRIES: Record<ConcreteMcpTarget, string> = {
   cursor: ".cursor/mcp.json",
   claude: ".mcp.json",
   codex: ".codex/config.toml",
+};
+const ORDERED_MCP_TARGETS: ConcreteMcpTarget[] = [McpInitTargets.Cursor, McpInitTargets.Claude, McpInitTargets.Codex];
+const MCP_CLIENT_READINESS: Record<
+  ConcreteMcpTarget,
+  { label: string; binary: string; configPath: string; missingFix: string; readyFix: string }
+> = {
+  cursor: {
+    label: "Cursor",
+    binary: "cursor",
+    configPath: ".cursor/mcp.json",
+    missingFix: "Install Cursor or add the cursor CLI to PATH, then reload Cursor MCP tools.",
+    readyFix: "Reload Cursor MCP tools or restart the Cursor window.",
+  },
+  claude: {
+    label: "Claude Code",
+    binary: "claude",
+    configPath: ".mcp.json",
+    missingFix: "Install Claude Code, run `claude` and log in, then reload Claude MCP tools.",
+    readyFix: "Run `claude mcp list` or restart Claude Code.",
+  },
+  codex: {
+    label: "Codex",
+    binary: "codex",
+    configPath: ".codex/config.toml",
+    missingFix: "Install Codex CLI, run `codex login`, then reload Codex MCP tools.",
+    readyFix: "Run `codex mcp list` or restart Codex.",
+  },
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -312,16 +338,19 @@ function logConfigWrite(result: ConfigWriteResult | null, displayPath: string): 
   }
 }
 
-function resolveMcpTargets(
-  target: string | undefined,
-): Set<Exclude<McpTarget, typeof McpInitTargets.None | typeof McpInitTargets.All>> {
-  const value = target ?? McpInitTargets.None;
+function displayPath(targetCwd: string, filePath: string): string {
+  const relative = path.relative(targetCwd, filePath);
+  return relative && !relative.startsWith("..") ? relative : filePath;
+}
+
+function resolveMcpTargets(target: string | undefined): Set<ConcreteMcpTarget> {
+  const value = target ?? McpInitTargets.All;
 
   if (value === McpInitTargets.None) {
     return new Set();
   }
   if (value === McpInitTargets.All) {
-    return new Set([McpInitTargets.Cursor, McpInitTargets.Claude, McpInitTargets.Codex]);
+    return new Set(ORDERED_MCP_TARGETS);
   }
   if (value === McpInitTargets.Cursor || value === McpInitTargets.Claude || value === McpInitTargets.Codex) {
     return new Set([value]);
@@ -333,14 +362,15 @@ function normalizeGitignoreLine(line: string): string {
   return line.trim().replace(/^\//, "");
 }
 
-function writeGitignoreEntries(
-  targetCwd: string,
-  mcpTargets: Set<Exclude<McpTarget, typeof McpInitTargets.None | typeof McpInitTargets.All>>,
-): GitignoreWriteResult {
-  const gitignorePath = path.join(targetCwd, ".gitignore");
+function writeGitignoreEntries(targetCwd: string, mcpTargets: Set<ConcreteMcpTarget>): GitignoreWriteResult {
+  const gitignorePath = resolveLocalIgnorePath(targetCwd);
+  const entries = [KIWI_GITIGNORE_ENTRY, ...[...mcpTargets].map((target) => MCP_GITIGNORE_ENTRIES[target])];
 
   if (!existsSync(gitignorePath)) {
-    return { path: gitignorePath, status: GitignoreWriteStatuses.Missing };
+    mkdirSync(path.dirname(gitignorePath), { recursive: true });
+    writeFileSync(gitignorePath, `${entries.join("\n")}\n`, "utf-8");
+
+    return { path: gitignorePath, status: GitignoreWriteStatuses.Updated };
   }
 
   const current = readFileSync(gitignorePath, "utf-8");
@@ -350,7 +380,6 @@ function writeGitignoreEntries(
       .map(normalizeGitignoreLine)
       .filter((line) => line.length > 0 && !line.startsWith("#")),
   );
-  const entries = [KIWI_GITIGNORE_ENTRY, ...[...mcpTargets].map((target) => MCP_GITIGNORE_ENTRIES[target])];
   const missing = entries.filter((entry) => !existing.has(normalizeGitignoreLine(entry)));
 
   if (missing.length === 0) {
@@ -361,6 +390,70 @@ function writeGitignoreEntries(
   writeFileSync(gitignorePath, `${current}${separator}${missing.join("\n")}\n`, "utf-8");
 
   return { path: gitignorePath, status: GitignoreWriteStatuses.Updated };
+}
+
+function resolveGitInfoExcludePath(targetCwd: string): string | null {
+  try {
+    const output = execFileSync("git", ["-C", targetCwd, "rev-parse", "--git-path", "info/exclude"], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+
+    return path.isAbsolute(output) ? output : path.join(targetCwd, output);
+  } catch {
+    return null;
+  }
+}
+
+function resolveLocalIgnorePath(targetCwd: string): string {
+  return resolveGitInfoExcludePath(targetCwd) ?? path.join(targetCwd, ".gitignore");
+}
+
+function selectedProbeEnv(env: Record<string, string | undefined>): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    ...Object.fromEntries(
+      Object.entries(env).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+    ),
+  };
+}
+
+function binaryOnPath(binary: string, env: Record<string, string | undefined>): boolean {
+  if (env.KIWI_FAKE_BINARY_AVAILABLE === "1") {
+    return true;
+  }
+  try {
+    execFileSync(process.platform === "win32" ? "where" : "which", [binary], {
+      stdio: "ignore",
+      env: selectedProbeEnv(env),
+    });
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function logMcpReadiness(mcpTargets: Set<ConcreteMcpTarget>, env: Record<string, string | undefined>): void {
+  if (mcpTargets.size === 0) {
+    console.log(chalk.gray("•") + " MCP config skipped (--mcp none)");
+
+    return;
+  }
+
+  console.log(chalk.bold("\nMCP client readiness:"));
+  for (const target of ORDERED_MCP_TARGETS) {
+    if (!mcpTargets.has(target)) {
+      continue;
+    }
+    const client = MCP_CLIENT_READINESS[target];
+    const ready = binaryOnPath(client.binary, env);
+    const status = ready ? chalk.green("available") : chalk.yellow("not detected");
+    const next = ready ? client.readyFix : client.missingFix;
+    console.log(`  ${client.label.padEnd(12)} ${status} ${chalk.dim(client.configPath)}`);
+    console.log(`    next: ${next}`);
+  }
+  console.log(chalk.dim("  Run `kiwi doctor` for model runner and auth readiness."));
 }
 
 async function runInitInternal(
@@ -434,11 +527,13 @@ async function runInitInternal(
   logConfigWrite(cursorMcp, ".cursor/mcp.json");
   logConfigWrite(claudeMcp, ".mcp.json");
   logConfigWrite(codexMcp, ".codex/config.toml");
+  logMcpReadiness(mcpTargets, opts.env ?? process.env);
+  const ignoreDisplayPath = displayPath(targetCwd, gitignore.path);
   if (gitignore.status === GitignoreWriteStatuses.Updated) {
-    console.log(chalk.green("✓") + " .gitignore updated");
+    console.log(chalk.green("✓") + ` ${ignoreDisplayPath} updated`);
   }
   if (gitignore.status === GitignoreWriteStatuses.Preserved) {
-    console.log(chalk.gray("•") + " .gitignore preserved");
+    console.log(chalk.gray("•") + ` ${ignoreDisplayPath} preserved`);
   }
 }
 
@@ -482,10 +577,7 @@ class McpConfigWriter {
 }
 
 class GitignoreWriter {
-  write(
-    targetCwd: string,
-    mcpTargets: Set<Exclude<McpTarget, typeof McpInitTargets.None | typeof McpInitTargets.All>>,
-  ): GitignoreWriteResult {
+  write(targetCwd: string, mcpTargets: Set<ConcreteMcpTarget>): GitignoreWriteResult {
     return writeGitignoreEntries(targetCwd, mcpTargets);
   }
 }

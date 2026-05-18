@@ -7,10 +7,11 @@ Official MCP docs: https://code.claude.com/docs/en/mcp
 From the Claude Code project terminal:
 
 ```bash
-kiwi init --mcp claude
+kiwi init
 ```
 
 This writes or merges project-scoped `.mcp.json` with a `kiwi` MCP server entry and preserves other configured servers.
+Plain `kiwi init` also prepares Cursor and Codex MCP config by default; use `kiwi init --mcp claude` when you only want Claude Code.
 
 Manual setup is still possible after `make install`.
 
