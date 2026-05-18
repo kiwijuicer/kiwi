@@ -14,6 +14,15 @@ const OptionalRunIdSchema = WorkspaceSelectorSchema.extend({
   runId: z.string().min(1).optional(),
 });
 
+const BLOCKED_APPROVER_IDENTITIES = new Set(["mcp-operator", "local-operator", "operator", "system"]);
+const ApprovedBySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => !BLOCKED_APPROVER_IDENTITIES.has(value.toLowerCase()), {
+    message: "approvedBy must identify a real human/operator, not a placeholder identity",
+  });
+
 // Every leaf schema is .strict() so unknown MCP arguments (e.g. `forceUnsafe`,
 // `approved`, typos) are rejected with -32602 invalid_input instead of being
 // silently stripped. The base schemas stay non-strict so they remain extendable.
@@ -64,7 +73,7 @@ const ToolInputSchemas = {
   kiwi_request_approval: RunIdSchema.extend({
     attemptId: z.string().min(1),
     reason: z.string().min(1).optional(),
-    approvedBy: z.string().min(1),
+    approvedBy: ApprovedBySchema,
   }).strict(),
   kiwi_evidence_manifest: RunIdSchema.strict(),
   kiwi_operator_snapshot: RunIdSchema.strict(),

@@ -1,15 +1,22 @@
-import { ContractValues, RiskProfiles } from "@kiwi/contracts";
+import { ContractValues, RiskProfiles, RunStatuses, StepAttemptStatuses, StepStatuses } from "@kiwi/contracts";
 import { buildRunCompletionSummary } from "@kiwi/ops";
 import {
   assertDirectExecutionSafe,
   DirectExecutionUnsafeError,
   type ExecutePlannedStepInput,
   type ExecutePlannedStepResult,
+  type RunExecutionPreview,
+  type RunExecutionPreviewStep,
   runScheduledSubPlans,
   splitCommandLine,
 } from "@kiwi/runtime";
 import { withOperatorCard } from "./operator-card";
-import { createMcpPreviewToken, normalizePreviewInput, validateMcpPreviewToken } from "./preview-tokens";
+import {
+  consumeMcpPreviewToken,
+  createMcpPreviewToken,
+  normalizePreviewInput,
+  validateMcpPreviewToken,
+} from "./preview-tokens";
 import { ToolActionRequiredError } from "./tool-errors";
 import { errorMessage, previewConfirmationSummary, progressLine, type ToolCallOptions } from "./tool-helpers";
 import { mutationScope, safeReadOnlyToolCalls, toolCall, type McpNextAction, workspaceToolArgs } from "./ux";
@@ -21,6 +28,7 @@ const mcpServices = getMcpServerServices();
 const MCP_COMMAND_OVERRIDE_ENV = "KIWI_ALLOW_MCP_COMMAND_OVERRIDE";
 
 interface RunStepToolResult {
+  stepId: string;
   attemptId: string;
   status: string;
   nextAction: unknown;
@@ -291,11 +299,38 @@ interface InternalAttemptOptions {
   command?: string;
 }
 
+function buildPreviewFromRecord(params: {
+  workspacePath: string;
+  runId: string;
+  previewInput: ReturnType<typeof normalizePreviewInput>;
+}): RunExecutionPreview {
+  return mcpServices.runtime.execution.previews.build({
+    cwd: params.workspacePath,
+    runId: params.runId,
+    ...(params.previewInput.fromStep ? { fromStep: params.previewInput.fromStep } : {}),
+    ...(params.previewInput.maxConcurrencyExplicit === true
+      ? { maxConcurrency: params.previewInput.maxConcurrency }
+      : {}),
+  });
+}
+
+function latestCompletedAttempt(params: { workspacePath: string; runId: string; stepId: string }) {
+  const latest = mcpServices.core.evidence
+    .latestAttemptByStep(mcpServices.core.evidence.listStepAttempts(params.workspacePath, params.runId))
+    .get(params.stepId);
+
+  return latest?.attempt.status === StepAttemptStatuses.Completed ? latest : null;
+}
+
 async function runStepToolUnlocked(
   args: Record<string, unknown>,
   workspacePath: string,
   options: ToolCallOptions = {},
-  progressContext: { stepIndex?: number; stepCount?: number } = {},
+  progressContext: {
+    stepIndex?: number;
+    stepCount?: number;
+    previewStep?: RunExecutionPreviewStep | null;
+  } = {},
   internalAttemptOptions: InternalAttemptOptions = {},
 ): Promise<RunStepToolResult> {
   const runId = String(args.runId ?? "");
@@ -310,9 +345,11 @@ async function runStepToolUnlocked(
   if (internalAttemptOptions.attemptId) {
     input.attemptId = internalAttemptOptions.attemptId;
   }
-  const preview = mcpServices.runtime.execution.previews
-    .build({ cwd: workspacePath, runId })
-    .steps.find((step) => step.stepId === stepId);
+  const preview =
+    progressContext.previewStep ??
+    mcpServices.runtime.execution.previews
+      .build({ cwd: workspacePath, runId })
+      .steps.find((step) => step.stepId === stepId);
 
   if (preview) {
     options.onProgress?.(
@@ -331,6 +368,38 @@ async function runStepToolUnlocked(
       }),
       0,
     );
+  }
+  const completedAttempt = latestCompletedAttempt({ workspacePath, runId, stepId });
+
+  if (completedAttempt) {
+    const runStatus = mcpServices.core.runStatus.summary(workspacePath, runId).latest[0]?.currentStatus ?? "missing";
+
+    options.onProgress?.(
+      progressLine({
+        phase: "step",
+        status: StepStatuses.Skipped,
+        stepId,
+        attemptId: completedAttempt.attemptId,
+        reason: "already_completed",
+        runStatus,
+        stepIndex: progressContext.stepIndex,
+        stepCount: progressContext.stepCount,
+      }),
+      100,
+    );
+
+    return {
+      stepId,
+      attemptId: completedAttempt.attemptId,
+      status: StepStatuses.Skipped,
+      nextAction: {
+        type: "skipped",
+        reason: "already_completed",
+        completedAttemptId: completedAttempt.attemptId,
+      },
+      runStatus,
+      materializedDiff: null,
+    };
   }
   options.onProgress?.(
     progressLine({
@@ -393,6 +462,7 @@ async function runStepToolUnlocked(
   );
 
   return {
+    stepId,
     attemptId: result.attemptId,
     status: result.status,
     nextAction: result.nextAction,
@@ -432,7 +502,23 @@ export async function runStepTool(
         });
       }
       assertMcpCommandOverrideAllowed({ args, workspacePath: workspace.workspacePath, runId });
-      const result = await runStepToolUnlocked(args, workspace.workspacePath, options, { stepIndex: 1, stepCount: 1 });
+      const preview = buildPreviewFromRecord({
+        workspacePath: workspace.workspacePath,
+        runId,
+        previewInput: previewRecord.previewInput,
+      });
+      const previewStep = preview.steps.find((step) => step.stepId === stepId) ?? null;
+      consumeMcpPreviewToken({
+        cwd: workspace.workspacePath,
+        runId,
+        record: previewRecord,
+        stepId,
+      });
+      const result = await runStepToolUnlocked(args, workspace.workspacePath, options, {
+        stepIndex: 1,
+        stepCount: 1,
+        previewStep,
+      });
 
       return withOperatorCard(
         {
@@ -497,8 +583,32 @@ export async function runTool(
       }
       assertMcpCommandOverrideAllowed({ args, workspacePath: workspace.workspacePath, runId });
       const taskGraph = mcpServices.core.runs.loadTaskGraph(runId, workspace.workspacePath);
+      const preview = buildPreviewFromRecord({
+        workspacePath: workspace.workspacePath,
+        runId,
+        previewInput: previewRecord.previewInput,
+      });
+      const previewStepsById = new Map(preview.steps.map((step) => [step.stepId, step]));
       const steps: RunStepToolResult[] = [];
       callOptions.onProgress?.(progressLine({ phase: "run", status: McpToolProgressStatuses.Started, runId }), 0);
+      const startIndex = fromStep ? taskGraph.steps.findIndex((step) => step.stepId === fromStep) : 0;
+
+      if (startIndex < 0) {
+        throw new ToolActionRequiredError(`Stale previewToken: step not found: ${fromStep}`, {
+          category: "stale_preview",
+          recovery: {
+            reason: `step ${fromStep} is not in the current TaskGraph`,
+            recommendedToolCall: toolCall("kiwi_preview_run", { workspacePath: workspace.workspacePath, runId }),
+            safeAlternatives: safeReadOnlyToolCalls({ workspacePath: workspace.workspacePath, runId }),
+            userMessage: "The run changed since preview. Create and confirm a fresh preview before running.",
+          },
+        });
+      }
+      consumeMcpPreviewToken({
+        cwd: workspace.workspacePath,
+        runId,
+        record: previewRecord,
+      });
 
       if (taskGraph.subPlans && taskGraph.subPlans.length > 1) {
         await runScheduledSubPlans<{ command?: string }>({
@@ -521,19 +631,17 @@ export async function runTool(
                 },
                 workspace.workspacePath,
                 callOptions,
-                { stepIndex, stepCount: taskGraph.steps.length },
+                {
+                  stepIndex,
+                  stepCount: previewRecord.previewStepIds.length,
+                  previewStep: previewStepsById.get(stepId) ?? null,
+                },
                 attemptOptions,
               ),
             );
           },
         });
       } else {
-        const startIndex = fromStep ? taskGraph.steps.findIndex((step) => step.stepId === fromStep) : 0;
-
-        if (startIndex < 0) {
-          throw new Error(`Step not found: ${fromStep}`);
-        }
-
         const selectedSteps = taskGraph.steps.slice(startIndex);
 
         for (const [index, step] of selectedSteps.entries()) {
@@ -547,12 +655,16 @@ export async function runTool(
               },
               workspace.workspacePath,
               callOptions,
-              { stepIndex: index + 1, stepCount: selectedSteps.length },
+              {
+                stepIndex: index + 1,
+                stepCount: selectedSteps.length,
+                previewStep: previewStepsById.get(step.stepId) ?? null,
+              },
             ),
           );
           const status = mcpServices.core.runStatus.summary(workspace.workspacePath, runId).latest[0]?.currentStatus;
 
-          if (status === ContractValues.Failed || status === "needs_approval") {
+          if (status === ContractValues.Failed || status === RunStatuses.NeedsApproval) {
             break;
           }
         }

@@ -1,7 +1,7 @@
 import { toolArguments } from "./tool-helpers";
 import { callTool } from "./tools";
 import { listTools } from "./tool-definitions";
-import { listResources, listResourceTemplates, readMcpResource } from "./resources";
+import { listResources, listResourceTemplates, McpResourceNotFoundError, readMcpResource } from "./resources";
 import { asRecord, JsonRpcRequest, JsonRpcResponse, textContent } from "./json-rpc";
 import { ToolActionRequiredError } from "./tool-errors";
 import { ToolInputValidationError } from "./tool-input-schemas";
@@ -83,7 +83,7 @@ export async function handleMcpRequest(
         result: {
           protocolVersion,
           serverInfo: { name: "kiwi", version: "0.1.0" },
-          capabilities: { resources: {}, tools: {} },
+          capabilities: { resources: {}, tools: {}, progress: {} },
         },
       };
     }
@@ -132,6 +132,17 @@ export async function handleMcpRequest(
       };
     }
     if (error instanceof ToolActionRequiredError) {
+      return {
+        jsonrpc: "2.0",
+        id,
+        error: {
+          code: error.code,
+          message: error.message,
+          data: error.data,
+        },
+      };
+    }
+    if (error instanceof McpResourceNotFoundError) {
       return {
         jsonrpc: "2.0",
         id,

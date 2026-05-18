@@ -1,6 +1,14 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
-import { ContractValues, FinalVerdictSchema, GateStatus, RunStatus, Step, StepType } from "@kiwi/contracts";
+import {
+  ContractValues,
+  FinalVerdictSchema,
+  GateStatus,
+  RunStatus,
+  RunStatuses,
+  Step,
+  StepType,
+} from "@kiwi/contracts";
 import { RunCorruptError, RunNotFoundError } from "./errors";
 import { listRunIds, loadInitiative, loadRunManifest, loadTaskGraph, resolveRunArtifactPath } from "./run-store";
 import { latestAttemptByStep, listStepAttemptEvidence, StepAttemptEvidence } from "./lifecycle";
@@ -380,7 +388,7 @@ function deriveCurrentRunStatus(params: {
     return params.manifestStatus;
   }
   if (attempts.some((entry) => entry.attempt.status === ContractValues.Blocked)) {
-    return "needs_approval";
+    return RunStatuses.NeedsApproval;
   }
   if (attempts.some((entry) => entry.attempt.status === ContractValues.Failed)) {
     return ContractValues.Failed;
@@ -498,9 +506,9 @@ export function getRunStatusSummary(cwd: string, runId?: string): RunStatusSumma
 
   return {
     total: entries.length + corrupt.length,
-    planned: entries.filter((entry) => entry.currentStatus === "planned").length,
+    planned: entries.filter((entry) => entry.currentStatus === RunStatuses.Planned).length,
     running: entries.filter((entry) => entry.currentStatus === ContractValues.Running).length,
-    needsApproval: entries.filter((entry) => entry.currentStatus === "needs_approval").length,
+    needsApproval: entries.filter((entry) => entry.currentStatus === RunStatuses.NeedsApproval).length,
     completed: entries.filter((entry) => entry.currentStatus === ContractValues.Completed).length,
     failed: entries.filter((entry) => entry.currentStatus === ContractValues.Failed).length,
     cancelled: entries.filter((entry) => entry.currentStatus === ContractValues.Cancelled).length,

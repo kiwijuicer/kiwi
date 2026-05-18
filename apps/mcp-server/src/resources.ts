@@ -32,6 +32,21 @@ interface McpResourceTemplate {
   mimeType?: string;
 }
 
+export class McpResourceNotFoundError extends Error {
+  readonly code = -32002 as const;
+  readonly data: {
+    category: "resource_not_found";
+    uri?: string;
+    ref?: string;
+  };
+
+  constructor(message: string, data: { uri?: string; ref?: string } = {}) {
+    super(message);
+    this.name = "McpResourceNotFoundError";
+    this.data = { category: "resource_not_found", ...data };
+  }
+}
+
 const MCP_RESOURCE_TEMPLATES = [
   { uriTemplate: "kiwi://runs/{runId}", name: "Run Status", mimeType: "application/json" },
   { uriTemplate: "kiwi://runs/{runId}/manifest", name: "Run Manifest", mimeType: "application/json" },
@@ -157,7 +172,7 @@ function readJsonRunArtifact(runId: string, ref: string, cwd: string): unknown {
   const target = resolveRunArtifactPath(runId, ref, cwd);
 
   if (!existsSync(target)) {
-    throw new Error(`Artifact not found: ${ref}`);
+    throw new McpResourceNotFoundError(`Artifact not found: ${ref}`, { ref });
   }
 
   return JSON.parse(readFileSync(target, "utf-8")) as unknown;
@@ -167,7 +182,7 @@ function readTextRunArtifact(runId: string, ref: string, cwd: string): string {
   const target = resolveRunArtifactPath(runId, ref, cwd);
 
   if (!existsSync(target)) {
-    throw new Error(`Artifact not found: ${ref}`);
+    throw new McpResourceNotFoundError(`Artifact not found: ${ref}`, { ref });
   }
 
   return readFileSync(target, "utf-8");
@@ -273,7 +288,7 @@ function readResource(uri: string, cwd: string): McpResourceContent {
   const tail = runMatch?.[2] ?? "";
 
   if (!runId) {
-    throw new Error(`Unsupported resource URI: ${uri}`);
+    throw new McpResourceNotFoundError(`Unsupported resource URI: ${uri}`, { uri });
   }
 
   const named = readNamedRunResource(uri, runId, tail, cwd);
@@ -305,7 +320,7 @@ function readResource(uri: string, cwd: string): McpResourceContent {
     return asContent(uri, readTextRunArtifact(runId, ref, cwd), mimeTypeForRef(ref));
   }
 
-  throw new Error(`Unsupported resource URI: ${uri}`);
+  throw new McpResourceNotFoundError(`Unsupported resource URI: ${uri}`, { uri });
 }
 
 export function readMcpResource(uri: string, cwd: string): McpResourceContent {

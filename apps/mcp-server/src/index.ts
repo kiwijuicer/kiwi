@@ -1,13 +1,7 @@
 export { handleMcpRequest, handleMcpMessage, defaultServerCwd } from "./protocol";
 export { createMcpMessageDrainer, startMcpServer } from "./stdio";
-export { startHttpMcpServer, parsePort, type HttpMcpServerOptions } from "./http";
-export {
-  McpServerBootstrap,
-  resolveMcpBootstrapOptions,
-  type McpBootstrapOptions,
-  type McpServerBootstrapConfig,
-} from "./bootstrap";
-export type { JsonRpcRequest, JsonRpcResponse } from "./json-rpc";
+export { startHttpMcpServer } from "./http";
+export { McpServerBootstrap, resolveMcpBootstrapOptions } from "./bootstrap";
 
 import { McpServerBootstrap, resolveMcpBootstrapOptions } from "./bootstrap";
 

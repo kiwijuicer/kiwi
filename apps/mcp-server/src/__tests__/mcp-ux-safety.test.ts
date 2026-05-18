@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { kiwiModelRegistryPath, kiwiPolicyPath } from "@kiwi/core";
+import { kiwiModelRegistryPath, kiwiPolicyPath, listStepAttemptEvidence } from "@kiwi/core";
 import { handleMcpRequest } from "../index";
 
 function setupRepo(options: { ignoreKiwi?: boolean } = {}): string {
@@ -232,6 +232,48 @@ describe("MCP UX safety tools", () => {
 
     expect(run.error).toBeUndefined();
     expect(JSON.stringify(run.result)).toContain("completed");
+  });
+
+  it("makes preview tokens single-use and skips already completed steps on fresh previews", async () => {
+    const cwd = setupRepo();
+    const runId = await planRun(cwd);
+    const firstToken = await previewRun(cwd, runId);
+    const firstRun = await handleMcpRequest(
+      {
+        id: 3,
+        method: "tools/call",
+        params: { name: "kiwi_run", arguments: { runId, previewToken: firstToken, command: "node -e 0" } },
+      },
+      cwd,
+    );
+    expect(firstRun.error).toBeUndefined();
+    const attemptsAfterFirstRun = listStepAttemptEvidence(cwd, runId);
+
+    const reusedToken = await handleMcpRequest(
+      {
+        id: 4,
+        method: "tools/call",
+        params: { name: "kiwi_run", arguments: { runId, previewToken: firstToken, command: "node -e 0" } },
+      },
+      cwd,
+    );
+    expect(reusedToken.error?.code).toBe(-32010);
+    expect(reusedToken.error?.message).toContain("already consumed");
+
+    const secondToken = await previewRun(cwd, runId);
+    const secondRun = await handleMcpRequest(
+      {
+        id: 5,
+        method: "tools/call",
+        params: { name: "kiwi_run", arguments: { runId, previewToken: secondToken, command: "node -e 0" } },
+      },
+      cwd,
+    );
+    expect(secondRun.error).toBeUndefined();
+    const secondParsed = toolJson(secondRun) as { steps: Array<{ status: string }> };
+    expect(secondParsed.steps.length).toBeGreaterThan(0);
+    expect(secondParsed.steps.every((step) => step.status === "skipped")).toBe(true);
+    expect(listStepAttemptEvidence(cwd, runId)).toHaveLength(attemptsAfterFirstRun.length);
   });
 
   it("rejects command overrides for production-risk runs without server opt-in", async () => {
@@ -560,5 +602,25 @@ describe("MCP UX safety tools", () => {
       category: "invalid_input",
     });
     expect(JSON.stringify(approval.error?.data)).toContain("approvedBy");
+  });
+
+  it("rejects placeholder approvedBy identities", async () => {
+    const cwd = setupRepo();
+    const runId = await planRun(cwd);
+    const approval = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "kiwi_request_approval",
+          arguments: { runId, attemptId: "attempt_manual", reason: "manual approval", approvedBy: "mcp-operator" },
+        },
+      },
+      cwd,
+    );
+
+    expect(approval.error?.code).toBe(-32602);
+    expect(approval.error?.data).toMatchObject({ category: "invalid_input" });
+    expect(JSON.stringify(approval.error?.data)).toContain("placeholder identity");
   });
 });

@@ -211,7 +211,7 @@ const TOOL_SPECS = [
   {
     name: "kiwi_request_approval",
     description:
-      "WRITES_RUN_ARTIFACTS. When to use: only when kiwi_next says the run needs approval. Requires: runId, attemptId, and an explicit approvedBy identity (the placeholder 'mcp-operator' is not accepted). Returns: approval evidence and operatorCard.",
+      "WRITES_RUN_ARTIFACTS. When to use: only when kiwi_next says the run needs approval. Requires: runId, attemptId, and an explicit approvedBy identity; placeholder identities are rejected. Returns: approval evidence and operatorCard.",
     inputSchema: {
       type: "object",
       properties: {
@@ -375,11 +375,11 @@ const TOOL_ANNOTATIONS: Record<ToolName, ToolAnnotations> = {
   },
 };
 
-export const TOOLS = TOOL_SPECS.map((tool) => ({
+const TOOL_DEFINITIONS = TOOL_SPECS.map((tool) => ({
   ...tool,
   annotations: TOOL_ANNOTATIONS[tool.name],
 }));
 
-export function listTools(): typeof TOOLS {
-  return TOOLS;
+export function listTools(): typeof TOOL_DEFINITIONS {
+  return TOOL_DEFINITIONS;
 }

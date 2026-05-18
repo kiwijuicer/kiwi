@@ -12,8 +12,7 @@ import {
   writeJsonSafely,
 } from "@kiwi/core";
 import type { ExecutionIsolation } from "@kiwi/contracts";
-import { DEFAULT_MAX_CONCURRENCY, type RunExecutionPreview } from "@kiwi/runtime";
-import { readRepoState } from "./repo-state";
+import { DEFAULT_MAX_CONCURRENCY, readExecutionRepoState, type RunExecutionPreview } from "@kiwi/runtime";
 import { ToolActionRequiredError } from "./tool-errors";
 import { safeReadOnlyToolCalls, toolCall } from "./ux";
 
@@ -44,6 +43,7 @@ interface McpPreviewTokenRecord {
   fingerprints: McpPreviewFingerprints;
   stateHash: string;
   previewStepIds: string[];
+  consumedAt?: string;
 }
 
 function sha256(value: string): string {
@@ -104,7 +104,7 @@ function hashRegistry(cwd: string): string {
 function fingerprintState(cwd: string, runId: string): { repoPath: string; fingerprints: McpPreviewFingerprints } {
   const initiative = loadInitiative(runId, cwd);
   const repoPath = initiative.repoPath || cwd;
-  const repoState = readRepoState(repoPath);
+  const repoState = readExecutionRepoState(repoPath);
 
   return {
     repoPath,
@@ -223,6 +223,9 @@ export function validateMcpPreviewToken(params: {
   if (record.runId !== params.runId) {
     rejectStale({ cwd: params.cwd, runId: params.runId, reason: "preview token belongs to a different run" });
   }
+  if (record.consumedAt) {
+    rejectStale({ cwd: params.cwd, runId: params.runId, reason: "preview token was already consumed" });
+  }
   const current = fingerprintState(params.cwd, params.runId);
   const currentHash = stateHash(current.fingerprints, record.previewInput);
 
@@ -248,17 +251,43 @@ export function validateMcpPreviewToken(params: {
       reason: `step ${params.stepId} was not included in the preview`,
     });
   }
+
+  return record;
+}
+
+export function consumeMcpPreviewToken(params: {
+  cwd: string;
+  runId: string;
+  record: McpPreviewTokenRecord;
+  stepId?: string | undefined;
+}): McpPreviewTokenRecord {
+  const consumedAt = new Date().toISOString();
+  const consumedRecord: McpPreviewTokenRecord = {
+    ...params.record,
+    consumedAt,
+  };
+
+  writeJsonSafely(previewPath(params.cwd, params.runId, params.record.token), consumedRecord);
   appendAuditEvent(params.cwd, {
     eventType: "mcp_preview_consumed",
     runId: params.runId,
-    timestamp: new Date().toISOString(),
+    timestamp: consumedAt,
     payload: {
-      token: record.token,
+      token: params.record.token,
       stepId: params.stepId ?? null,
     },
   });
+  appendAuditEvent(params.cwd, {
+    eventType: "mcp_preview_invalidated",
+    runId: params.runId,
+    timestamp: consumedAt,
+    payload: {
+      token: params.record.token,
+      reason: "consumed",
+    },
+  });
 
-  return record;
+  return consumedRecord;
 }
 
 function previewDir(cwd: string, runId: string): string {
@@ -298,6 +327,9 @@ export function latestValidPreviewToken(params: {
   for (const record of records) {
     const currentHash = stateHash(current.fingerprints, record.previewInput);
 
+    if (record.consumedAt) {
+      continue;
+    }
     if (currentHash !== record.stateHash) {
       continue;
     }

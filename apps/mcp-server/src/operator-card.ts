@@ -1,15 +1,8 @@
 import { existsSync } from "fs";
 import { ContractValues } from "@kiwi/contracts";
 import { getRunStatusSummary, kiwiPolicyPath, loadInitiative, loadPolicy, resolveRunArtifactPath } from "@kiwi/core";
-import { readRepoState } from "./repo-state";
-import {
-  type McpMutationScope,
-  type McpNextAction,
-  mutationScope,
-  resourceLinks,
-  toolCall,
-  uniqueSorted,
-} from "./ux";
+import { readExecutionRepoState } from "@kiwi/runtime";
+import { type McpMutationScope, type McpNextAction, mutationScope, resourceLinks, toolCall, uniqueSorted } from "./ux";
 
 interface OperatorCard {
   schemaVersion: "2";
@@ -51,7 +44,7 @@ export function buildOperatorCard(params: {
   })();
   const repoPath = initiative?.repoPath || params.cwd;
   const executionMode = policy?.execution?.isolation ?? "direct";
-  const repoState = readRepoState(repoPath);
+  const repoState = readExecutionRepoState(repoPath);
   const currentState = latest?.currentStatus ?? "missing";
 
   if (executionMode === "direct") {

@@ -8,8 +8,8 @@ import {
   loadPolicy,
   loadRegistry,
 } from "@kiwi/core";
-import { evaluateAccessModeAvailability } from "@kiwi/runtime";
-import { readRepoState } from "./repo-state";
+import { evaluateAccessModeAvailability, readExecutionRepoState } from "@kiwi/runtime";
+import { errorMessage } from "./tool-helpers";
 import { toolCall, workspaceToolArgs } from "./ux";
 import { workspaceArgs } from "./workspace";
 
@@ -19,15 +19,11 @@ interface FileStatus {
   error?: string;
 }
 
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function configStatus<T>(pathValue: string, load: () => T): { status: FileStatus; value: T | null } {
   try {
     return { status: { path: pathValue, loaded: true }, value: load() };
   } catch (error) {
-    return { status: { path: pathValue, loaded: false, error: errorText(error) }, value: null };
+    return { status: { path: pathValue, loaded: false, error: errorMessage(error) }, value: null };
   }
 }
 
@@ -48,7 +44,7 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
         )
       : null;
     const repoPath = workspace.repo?.path ?? null;
-    const repoState = repoPath ? readRepoState(repoPath) : null;
+    const repoState = repoPath ? readExecutionRepoState(repoPath) : null;
 
     if (!initialized) {
       warnings.push("workspace is not initialized");
@@ -122,7 +118,7 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
       safeToRun: false,
       warnings: ["workspace resolution failed"],
       nextFixes: ["Pass a valid workspacePath and, for multi-repo workspaces, repoId or repoPath."],
-      error: errorText(error),
+      error: errorMessage(error),
     };
   }
 }

@@ -1,4 +1,4 @@
-import { ContractValues, Step, SubPlan, TaskGraph } from "@kiwi/contracts";
+import { ContractValues, RunStatuses, Step, SubPlan, TaskGraph } from "@kiwi/contracts";
 import { getRunStatusSummary, latestAttemptByStep, listStepAttemptEvidence, loadTaskGraph } from "@kiwi/core";
 
 export interface RunScheduledSubPlansParams<TAttemptOptions extends object = Record<string, never>> {
@@ -253,7 +253,7 @@ function updateStoppedStatus<TAttemptOptions extends object>(
 ): void {
   const status = getRunStatusSummary(state.params.cwd, state.params.runId).latest[0]?.currentStatus;
 
-  if ((status === ContractValues.Failed || status === "needs_approval") && state.stoppedStatus === undefined) {
+  if ((status === ContractValues.Failed || status === RunStatuses.NeedsApproval) && state.stoppedStatus === undefined) {
     state.stoppedStatus = status;
     state.stoppedStepId = stepId;
   }

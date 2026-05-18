@@ -145,6 +145,14 @@ async function startLoopbackHttpServer(
 }
 
 describe("MCP server", () => {
+  it("declares tools, resources, and progress capabilities", async () => {
+    const initialized = await handleMcpRequest({ id: 1, method: "initialize", params: {} }, setupRepo());
+
+    expect(initialized.result).toMatchObject({
+      capabilities: { resources: {}, tools: {}, progress: {} },
+    });
+  });
+
   it("resolves stdio bootstrap options by default", () => {
     const options = resolveMcpBootstrapOptions(["node", "index.js"], { KIWI_WORKSPACE: "/workspace" });
 
@@ -184,26 +192,15 @@ describe("MCP server", () => {
     });
   });
 
-  it("resolves streamable HTTP bootstrap options", () => {
-    const options = resolveMcpBootstrapOptions(
-      ["node", "index.js", "--transport", "streamable-http", "--workspace", "/repo", "--path", "/custom"],
-      { KIWI_MCP_HTTP_TOKEN: "token" },
-    );
-
-    expect(options).toMatchObject({
-      cwd: "/repo",
-      transport: "streamable-http",
-      http: {
-        cwd: "/repo",
-        path: "/custom",
-        authToken: "token",
-      },
-    });
-  });
-
   it("rejects unknown bootstrap transports", () => {
     expect(() => resolveMcpBootstrapOptions(["node", "index.js", "--transport", "nonsense"], {})).toThrow(
       "Unsupported MCP transport: nonsense",
+    );
+  });
+
+  it("rejects removed streamable HTTP alias", () => {
+    expect(() => resolveMcpBootstrapOptions(["node", "index.js", "--transport", "streamable-http"], {})).toThrow(
+      "Expected one of: stdio, http",
     );
   });
 
@@ -734,10 +731,7 @@ describe("MCP server", () => {
     const taskGraphUri = `kiwi://runs/${parsed.runId}/artifacts/plan%2Ftask-graph.json`;
     expect(JSON.stringify(resources.result)).toContain(taskGraphUri);
 
-    const taskGraph = await handleMcpRequest(
-      { id: 5, method: "resources/read", params: { uri: taskGraphUri } },
-      cwd,
-    );
+    const taskGraph = await handleMcpRequest({ id: 5, method: "resources/read", params: { uri: taskGraphUri } }, cwd);
     expect(JSON.stringify(taskGraph.result)).toContain("Progress MCP");
   });
 
@@ -762,11 +756,19 @@ describe("MCP server", () => {
     const taskGraphUri = `kiwi://runs/${parsed.runId}/artifacts/plan%2Ftask-graph.json`;
     expect(JSON.stringify(resources.result)).toContain(taskGraphUri);
 
-    const taskGraph = await handleMcpRequest(
-      { id: 3, method: "resources/read", params: { uri: taskGraphUri } },
+    const taskGraph = await handleMcpRequest({ id: 3, method: "resources/read", params: { uri: taskGraphUri } }, cwd);
+    expect(JSON.stringify(taskGraph.result)).toContain("Resource MCP");
+  });
+
+  it("returns MCP resource not found errors for missing artifacts", async () => {
+    const cwd = setupRepo();
+    const missing = await handleMcpRequest(
+      { id: 1, method: "resources/read", params: { uri: "kiwi://runs/run_missing/artifacts/nope.json" } },
       cwd,
     );
-    expect(JSON.stringify(taskGraph.result)).toContain("Resource MCP");
+
+    expect(missing.error?.code).toBe(-32002);
+    expect(missing.error?.data).toMatchObject({ category: "resource_not_found" });
   });
 
   it("previews Codex model switching before running", async () => {

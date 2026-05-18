@@ -1,14 +1,7 @@
 export const McpTransportNames = {
   Stdio: "stdio",
   Http: "http",
-  StreamableHttp: "streamable-http",
 } as const;
-
-export const MCP_TRANSPORT_NAME_VALUES = [
-  McpTransportNames.Stdio,
-  McpTransportNames.Http,
-  McpTransportNames.StreamableHttp,
-] as const;
 
 export type McpTransportName = (typeof McpTransportNames)[keyof typeof McpTransportNames];
 

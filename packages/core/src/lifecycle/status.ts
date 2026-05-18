@@ -1,4 +1,4 @@
-import { ContractValues, RunManifest, RunManifestSchema, RunStatus } from "@kiwi/contracts";
+import { ContractValues, RunManifest, RunManifestSchema, RunStatus, RunStatuses } from "@kiwi/contracts";
 import { appendAuditEvent } from "../cost-ledger";
 import { loadRunManifest, loadTaskGraph, resolveRunArtifactPath } from "../run-store";
 import { latestAttemptByStep, listStepAttemptEvidence } from "./evidence-collection";
@@ -27,11 +27,11 @@ export function refreshRunStatusFromAttempts(params: { cwd: string; runId: strin
   const attempts = Array.from(latestAttemptByStep(listStepAttemptEvidence(params.cwd, params.runId)).values());
 
   if (attempts.length === 0) {
-    return updateRunStatus({ ...params, status: "planned" });
+    return updateRunStatus({ ...params, status: RunStatuses.Planned });
   }
 
   if (attempts.some((entry) => entry.attempt.status === ContractValues.Blocked)) {
-    return updateRunStatus({ ...params, status: "needs_approval" });
+    return updateRunStatus({ ...params, status: RunStatuses.NeedsApproval });
   }
   if (attempts.some((entry) => entry.attempt.status === ContractValues.Failed)) {
     return updateRunStatus({ ...params, status: ContractValues.Failed });

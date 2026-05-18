@@ -41,11 +41,11 @@ export function nextTool(args: Record<string, unknown>, cwd: string): unknown {
     ...previewInputToolArgs(previewInput),
   };
   let nextAction: McpNextAction = {
-    recommendedToolCall: toolCall("kiwi_status", baseArgs),
+    recommendedToolCall: toolCall("kiwi_doctor", baseArgs),
     whyThisTool: "The run is missing or cannot be resolved.",
     requiresUserConfirmation: false,
     expectedMutation: "READ_ONLY",
-    expectedAfter: "Inspect the run id or create a new plan.",
+    expectedAfter: "Inspect workspace readiness, then create a new plan if needed.",
   };
   let blockedBy: string[] = [];
 
@@ -71,7 +71,7 @@ export function nextTool(args: Record<string, unknown>, cwd: string): unknown {
         expectedAfter: "Show the preview decision card to the user before running.",
       };
     }
-  } else if (status === "needs_approval") {
+  } else if (status === RunStatuses.NeedsApproval) {
     const blockedAttempt = Array.from(
       latestAttemptByStep(listStepAttemptEvidence(workspace.workspacePath, runId)).values(),
     ).find((entry) => entry.attempt.status === ContractValues.Blocked);

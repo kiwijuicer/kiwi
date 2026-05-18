@@ -1,7 +1,7 @@
 import { defaultServerCwd } from "./protocol";
 import { parsePort, startHttpMcpServer, type HttpMcpServerOptions } from "./http";
 import { startMcpServer } from "./stdio";
-import { MCP_TRANSPORT_NAME_VALUES, McpTransportNames, type McpTransportName } from "./constants";
+import { McpTransportNames, type McpTransportName } from "./constants";
 
 export interface McpBootstrapOptions {
   cwd: string;
@@ -33,11 +33,11 @@ function cliOption(argv: string[], name: string): string | undefined {
 function resolveTransport(value: string | undefined): McpTransportName {
   const transport = value ?? McpTransportNames.Stdio;
 
-  if (MCP_TRANSPORT_NAME_VALUES.includes(transport as McpTransportName)) {
+  if (Object.values(McpTransportNames).includes(transport as McpTransportName)) {
     return transport as McpTransportName;
   }
 
-  throw new Error(`Unsupported MCP transport: ${transport}. Expected one of: stdio, http, streamable-http`);
+  throw new Error(`Unsupported MCP transport: ${transport}. Expected one of: stdio, http`);
 }
 
 export function resolveMcpBootstrapOptions(
