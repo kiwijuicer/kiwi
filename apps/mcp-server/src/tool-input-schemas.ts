@@ -14,60 +14,65 @@ const OptionalRunIdSchema = WorkspaceSelectorSchema.extend({
   runId: z.string().min(1).optional(),
 });
 
+// Every leaf schema is .strict() so unknown MCP arguments (e.g. `forceUnsafe`,
+// `approved`, typos) are rejected with -32602 invalid_input instead of being
+// silently stripped. The base schemas stay non-strict so they remain extendable.
 const ToolInputSchemas = {
-  kiwi_doctor: WorkspaceSelectorSchema,
+  kiwi_doctor: WorkspaceSelectorSchema.strict(),
   kiwi_plan: WorkspaceSelectorSchema.extend({
     ticket: z.string().min(1).optional(),
     rawInput: z.string().min(1).optional(),
     riskProfile: z.enum(["dev", "production"]).optional(),
     budgetProfile: z.enum(["tiny", "normal"]).optional(),
     allowStub: z.boolean().optional(),
-  }).refine((value) => Boolean(value.ticket || value.rawInput), {
-    message: "Either ticket or rawInput is required",
-    path: ["ticket"],
-  }),
-  kiwi_status: OptionalRunIdSchema,
+  })
+    .strict()
+    .refine((value) => Boolean(value.ticket || value.rawInput), {
+      message: "Either ticket or rawInput is required",
+      path: ["ticket"],
+    }),
+  kiwi_status: OptionalRunIdSchema.strict(),
   kiwi_run: RunIdSchema.extend({
     previewToken: z.string().min(1),
     fromStep: z.string().min(1).optional(),
     maxConcurrency: z.number().int().positive().optional(),
     command: z.string().min(1).optional(),
-  }),
+  }).strict(),
   kiwi_preview_run: RunIdSchema.extend({
     fromStep: z.string().min(1).optional(),
     maxConcurrency: z.number().int().positive().optional(),
-  }),
+  }).strict(),
   kiwi_run_step: RunIdSchema.extend({
     stepId: z.string().min(1),
     previewToken: z.string().min(1),
     command: z.string().min(1).optional(),
-  }),
+  }).strict(),
   kiwi_diff: RunIdSchema.extend({
     stepId: z.string().min(1).optional(),
     all: z.boolean().optional(),
-  }),
+  }).strict(),
   kiwi_apply: RunIdSchema.extend({
     stepId: z.string().min(1).optional(),
   }).strict(),
-  kiwi_finalize: RunIdSchema,
-  kiwi_cost: RunIdSchema,
-  kiwi_explain: RunIdSchema,
+  kiwi_finalize: RunIdSchema.strict(),
+  kiwi_cost: RunIdSchema.strict(),
+  kiwi_explain: RunIdSchema.strict(),
   kiwi_next: RunIdSchema.extend({
     fromStep: z.string().min(1).optional(),
     maxConcurrency: z.number().int().positive().optional(),
-  }),
+  }).strict(),
   kiwi_request_approval: RunIdSchema.extend({
     attemptId: z.string().min(1),
     reason: z.string().min(1).optional(),
     approvedBy: z.string().min(1),
-  }),
-  kiwi_evidence_manifest: RunIdSchema,
-  kiwi_operator_snapshot: RunIdSchema,
+  }).strict(),
+  kiwi_evidence_manifest: RunIdSchema.strict(),
+  kiwi_operator_snapshot: RunIdSchema.strict(),
   kiwi_publish_pr_draft: RunIdSchema.extend({
     remote: z.string().min(1).optional(),
     targetBranch: z.string().min(1).optional(),
     branchName: z.string().min(1).optional(),
-  }),
+  }).strict(),
 } as const;
 
 type ToolSchemaName = keyof typeof ToolInputSchemas;

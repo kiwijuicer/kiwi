@@ -131,35 +131,11 @@ function emitPostAttemptProgress(params: {
   }
 }
 
-function parseMaxConcurrency(args: Record<string, unknown>): number | undefined {
-  if (typeof args.maxConcurrency === "number") {
-    return args.maxConcurrency;
-  }
-  if (typeof args.maxConcurrency !== "string" || args.maxConcurrency.trim().length === 0) {
-    return undefined;
-  }
-  const parsed = Number.parseInt(args.maxConcurrency, 10);
-
-  if (Number.isNaN(parsed)) {
-    throw new Error(`kiwi_run maxConcurrency must be a positive integer; received ${args.maxConcurrency}`);
-  }
-
-  return parsed;
-}
-
 export function previewRunTool(args: Record<string, unknown>, cwd: string): unknown {
   const runId = String(args.runId ?? "");
-
-  if (!runId) {
-    throw new Error("kiwi_preview_run requires runId");
-  }
   const workspace = workspaceArgs(args, cwd, false);
   const fromStep = typeof args.fromStep === "string" ? args.fromStep : undefined;
-  const maxConcurrency = parseMaxConcurrency(args);
-
-  if (maxConcurrency !== undefined && (!Number.isInteger(maxConcurrency) || maxConcurrency <= 0)) {
-    throw new Error(`kiwi_preview_run maxConcurrency must be a positive integer; received ${maxConcurrency}`);
-  }
+  const maxConcurrency = args.maxConcurrency as number | undefined;
   const previewInput = normalizePreviewInput({ fromStep, maxConcurrency });
   const preview = mcpServices.runtime.execution.previews.build({
     cwd: workspace.workspacePath,
@@ -279,10 +255,6 @@ async function runStepToolUnlocked(
 ): Promise<RunStepToolResult> {
   const runId = String(args.runId ?? "");
   const stepId = String(args.stepId ?? "");
-
-  if (!runId || !stepId) {
-    throw new Error("kiwi_run_step requires runId and stepId");
-  }
   const input: ExecutePlannedStepInput = { cwd: workspacePath, runId, stepId };
 
   if (typeof args.command === "string") {
@@ -389,10 +361,6 @@ export async function runStepTool(
 ): Promise<unknown> {
   const runId = String(args.runId ?? "");
   const stepId = String(args.stepId ?? "");
-
-  if (!runId || !stepId) {
-    throw new Error("kiwi_run_step requires runId and stepId");
-  }
   const workspace = workspaceArgs(args, cwd, false);
 
   return mcpServices.core.locks.withLock(
@@ -454,17 +422,9 @@ export async function runTool(
   callOptions: ToolCallOptions = {},
 ): Promise<unknown> {
   const runId = String(args.runId ?? "");
-
-  if (!runId) {
-    throw new Error("kiwi_run requires runId");
-  }
   const workspace = workspaceArgs(args, cwd, false);
   const fromStep = typeof args.fromStep === "string" ? args.fromStep : undefined;
-  const maxConcurrency = parseMaxConcurrency(args);
-
-  if (maxConcurrency !== undefined && (!Number.isInteger(maxConcurrency) || maxConcurrency <= 0)) {
-    throw new Error(`kiwi_run maxConcurrency must be a positive integer; received ${maxConcurrency}`);
-  }
+  const maxConcurrency = args.maxConcurrency as number | undefined;
 
   return mcpServices.core.locks.withLock(
     {

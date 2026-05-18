@@ -21,12 +21,6 @@ import { workspaceArgs } from "./workspace";
 
 async function planTool(args: Record<string, unknown>, cwd: string, options: ToolCallOptions = {}): Promise<unknown> {
   const rawInput = String(args.ticket ?? args.rawInput ?? "");
-
-  if (!rawInput) {
-    throw new Error(
-      `kiwi_plan requires ticket or rawInput; received argument keys: ${Object.keys(args).sort().join(", ") || "(none)"}`,
-    );
-  }
   const workspace = workspaceArgs(args, cwd, true);
   const repo = workspace.repo!;
   const now = new Date();

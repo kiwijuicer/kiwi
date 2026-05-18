@@ -428,6 +428,56 @@ describe("MCP UX safety tools", () => {
     });
   });
 
+  it("rejects unknown arguments on mutating tools as invalid_input", async () => {
+    const cwd = setupRepo();
+    const runId = await planRun(cwd);
+
+    const runWithUnknown = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "kiwi_run",
+          arguments: { runId, previewToken: "preview_anything", forceUnsafe: true },
+        },
+      },
+      cwd,
+    );
+    expect(runWithUnknown.error?.code).toBe(-32602);
+    expect(runWithUnknown.error?.data).toMatchObject({ category: "invalid_input" });
+    expect(JSON.stringify(runWithUnknown.error?.data)).toContain("forceUnsafe");
+
+    const planWithUnknown = await handleMcpRequest(
+      {
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: { ticket: "# Strict\n\n## Plan", approved: true, allowStub: true },
+        },
+      },
+      cwd,
+    );
+    expect(planWithUnknown.error?.code).toBe(-32602);
+    expect(planWithUnknown.error?.data).toMatchObject({ category: "invalid_input" });
+    expect(JSON.stringify(planWithUnknown.error?.data)).toContain("approved");
+
+    const finalizeWithUnknown = await handleMcpRequest(
+      {
+        id: 4,
+        method: "tools/call",
+        params: {
+          name: "kiwi_finalize",
+          arguments: { runId, skipChecks: true },
+        },
+      },
+      cwd,
+    );
+    expect(finalizeWithUnknown.error?.code).toBe(-32602);
+    expect(finalizeWithUnknown.error?.data).toMatchObject({ category: "invalid_input" });
+    expect(JSON.stringify(finalizeWithUnknown.error?.data)).toContain("skipChecks");
+  });
+
   it("rejects kiwi_request_approval without an explicit approvedBy identity", async () => {
     const cwd = setupRepo();
     const runId = await planRun(cwd);
