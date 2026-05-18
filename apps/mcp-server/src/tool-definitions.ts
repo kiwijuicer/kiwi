@@ -38,6 +38,11 @@ const previewTokenProperty = {
   description:
     "Fresh token returned by kiwi_preview_run for the same run, fromStep, maxConcurrency, repo state, and policy.",
 } as const;
+const commandOverrideProperty = {
+  type: "string",
+  description:
+    "Optional override command for controlled dev execution. Rejected unless the run riskProfile is dev or KIWI_ALLOW_MCP_COMMAND_OVERRIDE=1 is set on the server.",
+} as const;
 
 const WORKSPACE_PROPERTIES = {
   workspacePath: workspacePathProperty,
@@ -99,7 +104,7 @@ const TOOL_SPECS = [
           minimum: 1,
           description: "Maximum concurrent scheduled steps; must match the preview.",
         },
-        command: { type: "string", description: "Optional override command for controlled test/dev execution." },
+        command: commandOverrideProperty,
         ...WORKSPACE_PROPERTIES,
       },
       required: ["runId", "previewToken"],
@@ -133,7 +138,7 @@ const TOOL_SPECS = [
         runId: runIdProperty,
         stepId: { type: "string", description: "Step id included in the preview token." },
         previewToken: previewTokenProperty,
-        command: { type: "string", description: "Optional override command for controlled test/dev execution." },
+        command: commandOverrideProperty,
         ...WORKSPACE_PROPERTIES,
       },
       required: ["runId", "stepId", "previewToken"],

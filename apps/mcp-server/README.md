@@ -13,6 +13,7 @@ KIWI_WORKSPACE=/Users/norberthanauer/Projects/voice \
 ```
 
 For single-repo use, set `KIWI_WORKSPACE` to the repo root or omit it when the client starts the server from the repo root.
+Stdio uses newline-delimited JSON messages; Content-Length framing is not supported.
 
 ## Start HTTP
 
@@ -181,6 +182,7 @@ For multi-repo work, start one server per workspace or set `KIWI_WORKSPACE` per 
 - Every tool definition includes MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) for client risk prompts.
 - `kiwi_next` is the default read-only router after every run-related tool, error, interruption, or uncertain state.
 - MCP `kiwi_run` and `kiwi_run_step` require a fresh `previewToken` from `kiwi_preview_run`.
+- MCP `command` overrides are accepted only for `riskProfile: "dev"` runs, unless the server is started with `KIWI_ALLOW_MCP_COMMAND_OVERRIDE=1`.
 - Preview tokens bind to run id, TaskGraph hash, policy hash, registry hash, repo branch, repo HEAD, dirty state, `fromStep`, and `maxConcurrency`. Kiwi-owned `.kiwi/` artifacts are ignored in the dirty-state fingerprint.
 - Direct execution is blocked on `main`/`master`, tracked dirty files, untracked non-Kiwi files, or non-git repos. Use worktree isolation for those states.
 - Action-required errors return `data.recovery.recommendedToolCall` instead of relying on the model to infer recovery.

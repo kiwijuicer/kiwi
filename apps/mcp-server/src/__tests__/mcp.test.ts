@@ -116,12 +116,6 @@ function toolJson(response: Awaited<ReturnType<typeof handleMcpRequest>>): unkno
   return JSON.parse(text) as unknown;
 }
 
-function framedMessage(value: unknown, separator = "\r\n\r\n"): Buffer {
-  const body = JSON.stringify(value);
-
-  return Buffer.from(`Content-Length: ${Buffer.byteLength(body, "utf-8")}${separator}${body}`, "utf-8");
-}
-
 function lineMessage(value: unknown): Buffer {
   return Buffer.from(`${JSON.stringify(value)}\n`, "utf-8");
 }
@@ -330,16 +324,6 @@ describe("MCP server", () => {
 
     expect(responses).toHaveLength(1);
     expect((responses[0] as Array<{ id: number }>).map((response) => response.id)).toEqual([1, 2]);
-  });
-
-  it("accepts legacy content-length stdio frames", async () => {
-    const responses: unknown[] = [];
-    const drain = createMcpMessageDrainer(setupRepo(), (response) => responses.push(response));
-
-    await drain(framedMessage({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }));
-
-    expect(responses).toHaveLength(1);
-    expect((responses[0] as { result: { serverInfo: { name: string } } }).result.serverInfo.name).toBe("kiwi");
   });
 
   it("serves streamable HTTP POST requests", async ({ skip }) => {

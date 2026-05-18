@@ -78,14 +78,14 @@ function toolJson(response: Awaited<ReturnType<typeof handleMcpRequest>>): unkno
   return JSON.parse(text) as unknown;
 }
 
-async function planRun(cwd: string): Promise<string> {
+async function planRun(cwd: string, riskProfile: "dev" | "production" = "dev"): Promise<string> {
   const planned = await handleMcpRequest(
     {
       id: 1,
       method: "tools/call",
       params: {
         name: "kiwi_plan",
-        arguments: { rawInput: "# UX Safety\n\n## Validate", allowStub: true },
+        arguments: { rawInput: "# UX Safety\n\n## Validate", riskProfile, allowStub: true },
       },
     },
     cwd,
@@ -234,6 +234,62 @@ describe("MCP UX safety tools", () => {
     expect(JSON.stringify(run.result)).toContain("completed");
   });
 
+  it("rejects command overrides for production-risk runs without server opt-in", async () => {
+    const cwd = setupRepo();
+    const runId = await planRun(cwd, "production");
+    const preview = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "kiwi_preview_run",
+          arguments: { runId },
+        },
+      },
+      cwd,
+    );
+    expect(preview.error).toBeUndefined();
+    const previewParsed = toolJson(preview) as { previewToken: string; steps: Array<{ stepId: string }> };
+    const command = "node -e 0";
+
+    const run = await handleMcpRequest(
+      {
+        id: 3,
+        method: "tools/call",
+        params: { name: "kiwi_run", arguments: { runId, previewToken: previewParsed.previewToken, command } },
+      },
+      cwd,
+    );
+    expect(run.error?.code).toBe(-32010);
+    expect(run.error?.data).toMatchObject({
+      category: "action_required",
+      recovery: {
+        recommendedToolCall: { name: "kiwi_next" },
+      },
+    });
+    expect(JSON.stringify(run.error?.data)).toContain("riskProfile is production");
+    expect(JSON.stringify(run.error?.data)).toContain("KIWI_ALLOW_MCP_COMMAND_OVERRIDE=1");
+
+    const runStep = await handleMcpRequest(
+      {
+        id: 4,
+        method: "tools/call",
+        params: {
+          name: "kiwi_run_step",
+          arguments: {
+            runId,
+            stepId: previewParsed.steps[0]?.stepId ?? "step_001",
+            previewToken: previewParsed.previewToken,
+            command,
+          },
+        },
+      },
+      cwd,
+    );
+    expect(runStep.error?.code).toBe(-32010);
+    expect(runStep.error?.data).toMatchObject({ category: "action_required" });
+  });
+
   it("rejects stale preview tokens after policy changes and recommends the next safe tool", async () => {
     const cwd = setupRepo();
     const runId = await planRun(cwd);
@@ -271,7 +327,9 @@ describe("MCP UX safety tools", () => {
 
   it("resumes approval only for the same blocked step and approval-required files", async () => {
     const previousIsolation = process.env.KIWI_EXECUTION_ISOLATION;
+    const previousCommandOverride = process.env.KIWI_ALLOW_MCP_COMMAND_OVERRIDE;
     process.env.KIWI_EXECUTION_ISOLATION = "worktree";
+    process.env.KIWI_ALLOW_MCP_COMMAND_OVERRIDE = "1";
     try {
       const cwd = setupRepo();
       writeFileSync(
@@ -389,6 +447,11 @@ describe("MCP UX safety tools", () => {
         delete process.env.KIWI_EXECUTION_ISOLATION;
       } else {
         process.env.KIWI_EXECUTION_ISOLATION = previousIsolation;
+      }
+      if (previousCommandOverride === undefined) {
+        delete process.env.KIWI_ALLOW_MCP_COMMAND_OVERRIDE;
+      } else {
+        process.env.KIWI_ALLOW_MCP_COMMAND_OVERRIDE = previousCommandOverride;
       }
     }
   });

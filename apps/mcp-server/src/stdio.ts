@@ -6,24 +6,6 @@ function encodeStdioMessage(payload: unknown): string {
   return `${JSON.stringify(payload)}\n`;
 }
 
-function findHeaderSeparator(buffer: Buffer): { index: number; length: number } | null {
-  const crlf = buffer.indexOf("\r\n\r\n");
-  const lf = buffer.indexOf("\n\n");
-
-  if (crlf < 0 && lf < 0) {
-    return null;
-  }
-  if (crlf >= 0 && (lf < 0 || crlf <= lf)) {
-    return { index: crlf, length: 4 };
-  }
-
-  return { index: lf, length: 2 };
-}
-
-function startsWithContentLength(buffer: Buffer): boolean {
-  return buffer.subarray(0, Math.min(buffer.length, 32)).toString("ascii").toLowerCase().startsWith("content-length:");
-}
-
 async function handleParsedMcpMessage(
   value: unknown,
   cwd: string,
@@ -42,50 +24,21 @@ export function createMcpMessageDrainer(
 ): (chunk: Buffer) => Promise<void> {
   let buffer = Buffer.alloc(0);
 
-  // eslint-disable-next-line sonarjs/cognitive-complexity
   return async function drainMessages(chunk: Buffer): Promise<void> {
     buffer = Buffer.concat([buffer, chunk]);
     debugLog("stdio_chunk", { bytes: chunk.length, bufferedBytes: buffer.length });
 
     for (;;) {
-      let body: string | null = null;
+      const newline = buffer.indexOf("\n");
 
-      if (startsWithContentLength(buffer)) {
-        const separator = findHeaderSeparator(buffer);
+      if (newline < 0) {
+        return;
+      }
 
-        if (!separator) {
-          return;
-        }
-
-        const header = buffer.subarray(0, separator.index).toString("ascii");
-        const match = header.match(/Content-Length:\s*(\d+)/i);
-
-        if (!match?.[1]) {
-          return;
-        }
-
-        const length = Number(match[1]);
-        const start = separator.index + separator.length;
-        const end = start + length;
-
-        if (buffer.length < end) {
-          return;
-        }
-
-        body = buffer.subarray(start, end).toString("utf-8");
-        buffer = buffer.subarray(end);
-      } else {
-        const newline = buffer.indexOf("\n");
-
-        if (newline < 0) {
-          return;
-        }
-
-        body = buffer.subarray(0, newline).toString("utf-8").replace(/\r$/, "");
-        buffer = buffer.subarray(newline + 1);
-        if (body.length === 0) {
-          continue;
-        }
+      const body = buffer.subarray(0, newline).toString("utf-8").replace(/\r$/, "");
+      buffer = buffer.subarray(newline + 1);
+      if (body.length === 0) {
+        continue;
       }
 
       let message: unknown;

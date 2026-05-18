@@ -1,4 +1,4 @@
-import { ContractValues } from "@kiwi/contracts";
+import { ContractValues, RiskProfiles } from "@kiwi/contracts";
 import { buildRunCompletionSummary } from "@kiwi/ops";
 import {
   assertDirectExecutionSafe,
@@ -18,6 +18,7 @@ import { createMcpServerServices } from "./services";
 import { workspaceArgs } from "./workspace";
 
 const mcpServices = createMcpServerServices();
+const MCP_COMMAND_OVERRIDE_ENV = "KIWI_ALLOW_MCP_COMMAND_OVERRIDE";
 
 interface RunStepToolResult {
   attemptId: string;
@@ -80,6 +81,42 @@ function assertMcpDirectExecutionSafe(params: { workspacePath: string; repoPath:
       },
     });
   }
+}
+
+function isMcpCommandOverrideEnabled(): boolean {
+  return process.env[MCP_COMMAND_OVERRIDE_ENV] === "1";
+}
+
+function assertMcpCommandOverrideAllowed(params: {
+  args: Record<string, unknown>;
+  workspacePath: string;
+  runId: string;
+}): void {
+  if (typeof params.args.command !== "string") {
+    return;
+  }
+  const initiative = mcpServices.core.runs.loadInitiative(params.runId, params.workspacePath);
+
+  if (initiative.riskProfile === RiskProfiles.Dev || isMcpCommandOverrideEnabled()) {
+    return;
+  }
+
+  throw new ToolActionRequiredError("MCP command override requires a dev-risk run or explicit server opt-in", {
+    category: "action_required",
+    recovery: {
+      reason: `run riskProfile is ${initiative.riskProfile}; command overrides are not bound into preview tokens`,
+      recommendedToolCall: toolCall("kiwi_next", {
+        workspacePath: params.workspacePath,
+        runId: params.runId,
+      }),
+      safeAlternatives: safeReadOnlyToolCalls({
+        workspacePath: params.workspacePath,
+        runId: params.runId,
+      }),
+      userMessage:
+        "Retry without command, use a dev-risk run, or start the MCP server with KIWI_ALLOW_MCP_COMMAND_OVERRIDE=1.",
+    },
+  });
 }
 
 function emitPostAttemptProgress(params: {
@@ -384,6 +421,7 @@ export async function runStepTool(
           runId,
         });
       }
+      assertMcpCommandOverrideAllowed({ args, workspacePath: workspace.workspacePath, runId });
       const result = await runStepToolUnlocked(args, workspace.workspacePath, options, { stepIndex: 1, stepCount: 1 });
 
       return withOperatorCard(
@@ -447,6 +485,7 @@ export async function runTool(
           runId,
         });
       }
+      assertMcpCommandOverrideAllowed({ args, workspacePath: workspace.workspacePath, runId });
       const taskGraph = mcpServices.core.runs.loadTaskGraph(runId, workspace.workspacePath);
       const steps: RunStepToolResult[] = [];
       callOptions.onProgress?.(progressLine({ phase: "run", status: McpToolProgressStatuses.Started, runId }), 0);
