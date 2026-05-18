@@ -2,98 +2,194 @@
 
 Local-first control plane for AI-assisted coding work.
 
-`kiwi` turns a ticket into a TaskGraph, runs scoped steps through local policy gates, and keeps reproducible evidence under `.kiwi/runs/<run-id>/`.
+`kiwi` turns a ticket into a TaskGraph, lets an IDE assistant execute the planned steps through MCP safety gates, and keeps reproducible evidence under `.kiwi/runs/<run-id>/`.
 
-## 5-minute Quickstart
+## MCP-first Quickstart
 
-From a fresh checkout, install the `kiwi` command globally with one command:
+Daily kiwi usage is meant to happen through your IDE assistant after kiwi has been installed and the workspace has been initialized.
+
+### 1. Install or update kiwi
+
+From the kiwi checkout:
 
 ```bash
 make install
+kiwi --version
 ```
 
-This bootstraps `pnpm` through Corepack when needed, installs dependencies, builds the CLI, writes `kiwi` to `~/.local/bin`, and adds that directory to `~/.zshrc` when it is missing from `PATH`. The installed command rebuilds from this checkout before each run, so it follows the current local source.
+This installs versioned local release wrappers:
 
-If dependencies are already installed and you only want to refresh the bin wrapper:
+- `~/.local/bin/kiwi`
+- `~/.local/bin/kiwi-mcp`
+
+If dependencies are already installed and you only want to refresh the release:
 
 ```bash
 make install INSTALL_DEPS=0
 ```
 
-From this repository:
+Ensure `~/.local/bin` is on `PATH`.
+
+### 2. Initialize a workspace for MCP
+
+In the project or workspace you want kiwi to control:
 
 ```bash
-pnpm install
-pnpm build
-pnpm kiwi init
-pnpm kiwi plan "# Fix the failing checkout test"
-pnpm kiwi status
+cd /path/to/workspace
+kiwi init --mcp cursor
+kiwi doctor
 ```
 
-For a multi-repo workspace such as `/Users/norberthanauer/Projects/voice`:
+Choose the MCP target for your IDE:
 
 ```bash
-pnpm build
-pnpm kiwi init --workspace /Users/norberthanauer/Projects/voice
-pnpm kiwi workspace list --workspace /Users/norberthanauer/Projects/voice
-pnpm kiwi plan ./ticket.md --workspace /Users/norberthanauer/Projects/voice --repo core
-pnpm kiwi run <run-id> --workspace /Users/norberthanauer/Projects/voice
-pnpm kiwi finalize <run-id> --workspace /Users/norberthanauer/Projects/voice
-pnpm kiwi evidence manifest <run-id> --workspace /Users/norberthanauer/Projects/voice
-pnpm kiwi operator snapshot <run-id> --workspace /Users/norberthanauer/Projects/voice
+kiwi init --mcp cursor
+kiwi init --mcp claude
+kiwi init --mcp codex
+kiwi init --mcp all
 ```
 
-The workspace root owns `.kiwi/runs`. The selected repo is copied into the per-attempt sandbox, so sibling repos are not pulled into a worktree.
-`kiwi init` also writes or merges MCP client config for Cursor, Claude Code, and Codex. Use `--no-cursor-mcp`, `--no-claude-code-mcp`, or `--no-codex-mcp` to skip a client.
+`kiwi init --mcp <target>` writes the kiwi workspace files and the selected project MCP client config.
+Valid targets are `none`, `cursor`, `claude`, `codex`, and `all`.
 
-## CLI Surface
+Restart or reload the IDE MCP client after initialization so it picks up the generated config.
 
-Core commands:
+### 3. Use kiwi from IDE chat
+
+Main prompt:
+
+```text
+Use kiwi for this ticket in repo <repo-id>. Run kiwi_doctor, plan it, follow kiwi_next, show me the preview confirmation summary before mutation, then finalize and report the evidence manifest path.
+```
+
+Short prompt once the workspace is initialized:
+
+```text
+Use kiwi for this ticket in repo <repo-id>; follow kiwi_next and ask before running.
+```
+
+The IDE assistant should use this MCP flow:
+
+```text
+kiwi_doctor
+-> kiwi_plan
+-> kiwi_next
+-> kiwi_preview_run
+-> show decision.confirmationSummary
+-> ask the developer to confirm
+-> run decision.nextAction.recommendedToolCall
+-> kiwi_next
+-> kiwi_finalize
+-> kiwi_evidence_manifest
+```
+
+## Why MCP is the normal path
+
+- The developer does not need to remember the full command sequence.
+- `kiwi_next` tells the IDE assistant the next safe tool call.
+- Mutating MCP tools require a fresh `previewToken` from `kiwi_preview_run`.
+- The assistant must show `decision.confirmationSummary` before running mutations.
+- Run artifacts, audit trails, costs, and evidence stay under `.kiwi/runs/<run-id>/`.
+
+Daily use does not require direct Anthropic/OpenAI API keys. Real model execution uses local CLI logins such as `claude`, `codex`, or `cursor-agent`. Bitbucket publishing uses local git auth; kiwi does not store Bitbucket tokens.
+
+## Multi-repo workspaces
+
+For a workspace with multiple repos:
 
 ```bash
-kiwi init [--workspace <path>]
-kiwi workspace list [--workspace <path>]
-kiwi plan <ticket|ticket-file> [--workspace <path>] [--repo <id|path>]
-kiwi status [run-id] [--workspace <path>]
-kiwi run <run-id> [--workspace <path>]
-kiwi attempt <run-id> <step-id> [--workspace <path>]
-kiwi finalize <run-id> [--workspace <path>]
-kiwi publish pr <run-id> [--workspace <path>] [--remote origin] [--target-branch main]
-kiwi evidence manifest <run-id> [--workspace <path>]
-kiwi operator snapshot <run-id> [--workspace <path>]
+kiwi init --workspace /path/to/workspace --mcp cursor
+kiwi workspace list --workspace /path/to/workspace
+kiwi doctor --workspace /path/to/workspace --repo <repo-id>
 ```
 
-Without `--workspace`, `kiwi` keeps the old single-repo behavior. In a known workspace, it detects repos from `*.code-workspace`; if more than one repo matches, pass `--repo`. The selector can be the listed id, such as `core`, or a folder path, such as `voice-core`.
+In IDE chat, include the target repo:
 
-## MCP / IDE Assistants
-
-For Cursor, Claude Code, and Codex, `kiwi init` writes project MCP config automatically. For other clients, build the MCP server and add this stdio server manually:
-
-```bash
-pnpm build
+```text
+Use kiwi for this ticket in repo <repo-id>; follow kiwi_next and ask before running.
 ```
 
-Use this local stdio server in Claude, Cursor, Codex, or PhpStorm AI Assistant:
+`repoId` maps to the ids shown by `kiwi workspace list`. You can also pass a repo path where the tool or prompt supports repo selection.
+
+## Manual MCP config
+
+`kiwi init --mcp <target>` is preferred. For clients that need manual config, point them at the installed stdio server:
 
 ```json
 {
   "mcpServers": {
     "kiwi": {
-      "command": "node",
-      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js"],
-      "env": {
-        "KIWI_WORKSPACE": "/Users/norberthanauer/Projects/voice"
-      }
+      "type": "stdio",
+      "command": "/Users/<you>/.local/bin/kiwi-mcp",
+      "args": ["--workspace", "/path/to/workspace"]
     }
   }
 }
 ```
 
-Ask the assistant to use `kiwi` to plan, run, finalize, and inspect evidence. For workspace tasks, include the target repo, for example: `Plan this for repo core in workspace /Users/norberthanauer/Projects/voice`.
+For multi-repo work, start one kiwi MCP server per workspace and pass the target repo in the MCP tool arguments or IDE prompt.
 
-Daily use does not require direct Anthropic/OpenAI API keys. Real model execution uses local CLI logins (`claude`, `codex`, `cursor-agent`). Bitbucket publishing uses your local git auth to push a branch and writes `final/pr-draft.json` plus a Bitbucket create-PR URL; Kiwi does not store Bitbucket tokens.
+## Setup and maintenance
 
-More detail:
+Common setup commands:
+
+```bash
+make install
+make install INSTALL_DEPS=0
+make rollback
+make uninstall
+kiwi init --mcp <target>
+kiwi doctor
+kiwi workspace list
+```
+
+Optional local runner installers:
+
+```bash
+make install-cursor-agent
+make install-claude-code
+```
+
+## CLI fallback / advanced use
+
+MCP is the recommended daily interface. Use the CLI when setting up, debugging, scripting, or operating without an IDE assistant.
+
+```bash
+kiwi init [--workspace <path>] [--mcp <target>]
+kiwi workspace list [--workspace <path>]
+kiwi doctor [--workspace <path>] [--repo <id|path>]
+kiwi plan <ticket|ticket-file> [--workspace <path>] [--repo <id|path>]
+kiwi status [run-id] [--workspace <path>]
+kiwi run <run-id> [--workspace <path>]
+kiwi finalize <run-id> [--workspace <path>]
+kiwi evidence manifest <run-id> [--workspace <path>]
+kiwi operator snapshot <run-id> [--workspace <path>]
+```
+
+Example:
+
+```bash
+kiwi plan ./ticket.md --workspace /path/to/workspace --repo <repo-id>
+kiwi run <run-id> --workspace /path/to/workspace
+kiwi finalize <run-id> --workspace /path/to/workspace
+kiwi evidence manifest <run-id> --workspace /path/to/workspace
+```
+
+## Developing kiwi itself
+
+Contributor workflow:
+
+```bash
+pnpm install
+pnpm build
+pnpm test
+pnpm typecheck
+pnpm kiwi:src --help
+```
+
+Installed-user docs should use `kiwi`, not `pnpm kiwi`.
+
+## More detail
 
 - [User guide](docs/user-guide.md)
 - [Claude integration](docs/integrations/claude.md)
