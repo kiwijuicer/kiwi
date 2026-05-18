@@ -45,7 +45,6 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     registryModels: registry.models,
     now: () => now,
     preferenceByRole: policy.routing.providerPreference,
-    ...(args.allowStub === true ? { allowStub: true } : {}),
   });
   options.onProgress?.(
     progressLine({

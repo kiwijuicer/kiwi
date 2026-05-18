@@ -52,6 +52,35 @@ function nextRunAction(params: {
   };
 }
 
+function blockedPreviewAction(params: {
+  workspacePath: string;
+  repoId?: string | null | undefined;
+  repoPath?: string | null | undefined;
+  runId: string;
+  blockedSteps: RunExecutionPreview["steps"];
+  fromStep?: string | undefined;
+  maxConcurrency?: number | undefined;
+  maxConcurrencyExplicit?: boolean | undefined;
+}): McpNextAction {
+  const blockedSummary = params.blockedSteps
+    .map((step) => `${step.stepId}${step.blockedReason ? `:${step.blockedReason}` : ""}`)
+    .join(",");
+
+  return {
+    recommendedToolCall: toolCall("kiwi_preview_run", {
+      ...workspaceToolArgs(params),
+      ...(params.fromStep ? { fromStep: params.fromStep } : {}),
+      ...(params.maxConcurrencyExplicit === true && params.maxConcurrency !== undefined
+        ? { maxConcurrency: params.maxConcurrency }
+        : {}),
+    }),
+    whyThisTool: `Execution is blocked by previewed step(s): ${blockedSummary}.`,
+    requiresUserConfirmation: false,
+    expectedMutation: "WRITES_RUN_ARTIFACTS",
+    expectedAfter: "Inspect the blocked preview decision, fix routing/budget/runner availability, then preview again.",
+  };
+}
+
 function assertMcpDirectExecutionSafe(params: { workspacePath: string; repoPath: string | null; runId: string }): void {
   if (!params.repoPath) {
     return;
@@ -118,6 +147,30 @@ function assertMcpCommandOverrideAllowed(params: {
   });
 }
 
+function previewStepViews(preview: RunExecutionPreview): Array<Record<string, unknown>> {
+  return preview.steps.map((step, index) => ({
+    index: index + 1,
+    count: preview.steps.length,
+    stepId: step.stepId,
+    title: step.title,
+    type: step.type,
+    status: step.status,
+    blockedReason: step.blockedReason ?? null,
+    agentRole: step.agentRole,
+    modelCapability: step.modelCapability,
+    runner: step.runner,
+    selectedModelId: step.selectedModelId,
+    selectedProviderModel: step.selectedProviderModel,
+    selectedAccessMode: step.selectedAccessMode,
+    executorSelectionReason: step.executorSelectionReason,
+    estimatedAttemptCostUsd: step.estimatedAttemptCostUsd,
+    requiredGates: step.requiredGates,
+    routingReason: step.routingReason,
+    reviewDepth: step.reviewDepth,
+    contextLevel: step.contextLevel,
+  }));
+}
+
 export function previewRunTool(args: Record<string, unknown>, cwd: string): unknown {
   const runId = String(args.runId ?? "");
   const workspace = workspaceArgs(args, cwd, false);
@@ -146,16 +199,29 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
     previewInput,
   });
   const estimatedCostUsd = preview.steps.reduce((sum, step) => sum + step.estimatedAttemptCostUsd, 0);
-  const nextAction = nextRunAction({
-    workspacePath: workspace.workspacePath,
-    repoId: workspace.repo?.id,
-    repoPath: workspace.repo?.path,
-    runId,
-    previewToken: token.token,
-    fromStep,
-    maxConcurrency: previewInput.maxConcurrency,
-    maxConcurrencyExplicit: previewInput.maxConcurrencyExplicit,
-  });
+  const blockedSteps = preview.steps.filter((step) => step.status === ContractValues.Blocked);
+  const nextAction =
+    blockedSteps.length > 0
+      ? blockedPreviewAction({
+          workspacePath: workspace.workspacePath,
+          repoId: workspace.repo?.id,
+          repoPath: workspace.repo?.path,
+          runId,
+          blockedSteps,
+          fromStep,
+          maxConcurrency: previewInput.maxConcurrency,
+          maxConcurrencyExplicit: previewInput.maxConcurrencyExplicit,
+        })
+      : nextRunAction({
+          workspacePath: workspace.workspacePath,
+          repoId: workspace.repo?.id,
+          repoPath: workspace.repo?.path,
+          runId,
+          previewToken: token.token,
+          fromStep,
+          maxConcurrency: previewInput.maxConcurrency,
+          maxConcurrencyExplicit: previewInput.maxConcurrencyExplicit,
+        });
   const runScope = mutationScope({
     riskLabel: "MUTATES_WORKTREE",
     workspacePath: workspace.workspacePath,
@@ -182,13 +248,16 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
         repoPath: token.repoPath,
       },
       decision: {
-        requiresUserConfirmation: true,
-        confirmationSummary: previewConfirmationSummary({
-          stepCount: preview.steps.length,
-          repoPath: token.repoPath,
-          executionIsolation: preview.executionIsolation,
-          estimatedCostUsd,
-        }),
+        requiresUserConfirmation: blockedSteps.length === 0,
+        confirmationSummary:
+          blockedSteps.length > 0
+            ? `Cannot execute ${blockedSteps.length} blocked step(s): ${blockedSteps.map((step) => step.stepId).join(", ")}.`
+            : previewConfirmationSummary({
+                stepCount: preview.steps.length,
+                repoPath: token.repoPath,
+                executionIsolation: preview.executionIsolation,
+                estimatedCostUsd,
+              }),
         nextAction,
       },
       execution: {
@@ -202,27 +271,7 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
         estimatedCostUsd,
         currency: "USD",
       },
-      steps: preview.steps.map((step, index) => ({
-        index: index + 1,
-        count: preview.steps.length,
-        stepId: step.stepId,
-        title: step.title,
-        type: step.type,
-        status: step.status,
-        blockedReason: step.blockedReason ?? null,
-        agentRole: step.agentRole,
-        modelCapability: step.modelCapability,
-        runner: step.runner,
-        selectedModelId: step.selectedModelId,
-        selectedProviderModel: step.selectedProviderModel,
-        selectedAccessMode: step.selectedAccessMode,
-        executorSelectionReason: step.executorSelectionReason,
-        estimatedAttemptCostUsd: step.estimatedAttemptCostUsd,
-        requiredGates: step.requiredGates,
-        routingReason: step.routingReason,
-        reviewDepth: step.reviewDepth,
-        contextLevel: step.contextLevel,
-      })),
+      steps: previewStepViews(preview),
       safeAlternatives: safeReadOnlyToolCalls({ workspacePath: workspace.workspacePath, runId }),
     },
     {

@@ -58,12 +58,12 @@ Core tools:
 - `kiwi_doctor`: diagnose workspace/repo/config/git/client readiness.
 - `kiwi_plan`: create a planned run.
 - `kiwi_status`: read run status.
-- `kiwi_next`: read-only router that returns one exact `recommendedToolCall`, why it is safe now, expected mutation, and safe alternatives.
+- `kiwi_next`: read-only router that returns one executable `recommendedToolCall` when available, why it is safe now, expected mutation, and safe alternatives.
 - `kiwi_preview_run`: return the execution decision card: step order, selected models/runners, cost, gates, execution mode, mutation scope, confirmation summary, and a fresh `previewToken`.
 - `kiwi_run`: execute planned steps in order with a fresh `previewToken`.
 - `kiwi_run_step`: execute one planned step with a fresh `previewToken`.
 - `kiwi_diff`: read persisted attempt patch stats and diff.
-- `kiwi_apply`: apply a persisted worktree patch. Unsafe apply overrides are not exposed over MCP.
+- `kiwi_apply`: apply a persisted worktree patch with a fresh `previewToken`. Unsafe apply overrides are not exposed over MCP.
 - `kiwi_finalize`: write final verdict, summary, and cost report.
 - `kiwi_evidence_manifest`: write hashed evidence manifest and audit snapshot.
 - `kiwi_operator_snapshot`: write local operator HTML snapshot.
@@ -184,7 +184,7 @@ For multi-repo work, start one server per workspace or set `KIWI_WORKSPACE` per 
 - A run lock protects mutating operations.
 - Every tool definition includes MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) for client risk prompts.
 - `kiwi_next` is the default read-only router after every run-related tool, error, interruption, or uncertain state.
-- MCP `kiwi_run` and `kiwi_run_step` require a fresh `previewToken` from `kiwi_preview_run`.
+- MCP `kiwi_run`, `kiwi_run_step`, and `kiwi_apply` require a fresh `previewToken` from `kiwi_preview_run`.
 - MCP `command` overrides are accepted only for `riskProfile: "dev"` runs, unless the server is started with `KIWI_ALLOW_MCP_COMMAND_OVERRIDE=1`.
 - Preview tokens bind to run id, TaskGraph hash, policy hash, registry hash, repo branch, repo HEAD, dirty state, `fromStep`, and `maxConcurrency`. Kiwi-owned `.kiwi/` artifacts are ignored in the dirty-state fingerprint.
 - Direct execution is blocked on `main`/`master`, tracked dirty files, untracked non-Kiwi files, or non-git repos. Use worktree isolation for those states.

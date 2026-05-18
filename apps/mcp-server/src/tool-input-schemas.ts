@@ -15,11 +15,15 @@ const OptionalRunIdSchema = WorkspaceSelectorSchema.extend({
 });
 
 const BLOCKED_APPROVER_IDENTITIES = new Set(["mcp-operator", "local-operator", "operator", "system"]);
+export function isBlockedApproverIdentity(value: string): boolean {
+  return BLOCKED_APPROVER_IDENTITIES.has(value.toLowerCase());
+}
+
 const ApprovedBySchema = z
   .string()
   .trim()
   .min(1)
-  .refine((value) => !BLOCKED_APPROVER_IDENTITIES.has(value.toLowerCase()), {
+  .refine((value) => !isBlockedApproverIdentity(value), {
     message: "approvedBy must identify a real human/operator, not a placeholder identity",
   });
 
@@ -33,7 +37,6 @@ const ToolInputSchemas = {
     rawInput: z.string().min(1).optional(),
     riskProfile: z.enum(["dev", "production"]).optional(),
     budgetProfile: z.enum(["tiny", "normal"]).optional(),
-    allowStub: z.boolean().optional(),
   })
     .strict()
     .refine((value) => Boolean(value.ticket || value.rawInput), {
@@ -62,6 +65,7 @@ const ToolInputSchemas = {
   }).strict(),
   kiwi_apply: RunIdSchema.extend({
     stepId: z.string().min(1).optional(),
+    previewToken: z.string().min(1),
   }).strict(),
   kiwi_finalize: RunIdSchema.strict(),
   kiwi_cost: RunIdSchema.strict(),

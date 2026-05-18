@@ -563,7 +563,7 @@ describe("MCP server", () => {
         method: "tools/call",
         params: {
           name: "kiwi_plan",
-          arguments: { ticket: "# MCP Feature\n\n## Validate", allowStub: true },
+          arguments: { ticket: "# MCP Feature\n\n## Validate" },
         },
       },
       cwd,
@@ -663,7 +663,7 @@ describe("MCP server", () => {
         method: "tools/call",
         params: {
           name: "kiwi_plan",
-          arguments: { rawInput: "# Raw MCP\n\n## Plan", budgetProfile: "tiny", allowStub: true },
+          arguments: { rawInput: "# Raw MCP\n\n## Plan", budgetProfile: "tiny" },
         },
       },
       cwd,
@@ -707,7 +707,7 @@ describe("MCP server", () => {
         method: "tools/call",
         params: {
           name: "kiwi_plan",
-          arguments: JSON.stringify({ rawInput: "# String MCP\n\n## Plan", allowStub: true }),
+          arguments: JSON.stringify({ rawInput: "# String MCP\n\n## Plan" }),
         },
       },
       cwd,
@@ -721,7 +721,6 @@ describe("MCP server", () => {
           rawInput: "# Top Level MCP\n\n## Plan",
           riskProfile: "dev",
           budgetProfile: "tiny",
-          allowStub: true,
         },
       },
       cwd,
@@ -742,7 +741,7 @@ describe("MCP server", () => {
         params: {
           _meta: { progressToken: "plan-progress" },
           name: "kiwi_plan",
-          arguments: { rawInput: "# Progress MCP\n\n## Plan", allowStub: true },
+          arguments: { rawInput: "# Progress MCP\n\n## Plan" },
         },
       },
       cwd,
@@ -768,7 +767,7 @@ describe("MCP server", () => {
         method: "tools/call",
         params: {
           name: "kiwi_plan",
-          arguments: { rawInput: "# Progress omitted\n\n## Plan", allowStub: true },
+          arguments: { rawInput: "# Progress omitted\n\n## Plan" },
         },
       },
       cwd,
@@ -785,7 +784,7 @@ describe("MCP server", () => {
         params: {
           _meta: { progressToken: null },
           name: "kiwi_plan",
-          arguments: { rawInput: "# Progress null\n\n## Plan", allowStub: true },
+          arguments: { rawInput: "# Progress null\n\n## Plan" },
         },
       },
       cwd,
@@ -810,7 +809,7 @@ describe("MCP server", () => {
         method: "tools/call",
         params: {
           name: "kiwi_plan",
-          arguments: { rawInput: "# Resource MCP\n\n## Plan", allowStub: true },
+          arguments: { rawInput: "# Resource MCP\n\n## Plan" },
         },
       },
       cwd,
@@ -889,7 +888,7 @@ models:
           method: "tools/call",
           params: {
             name: "kiwi_plan",
-            arguments: { rawInput: "# Preview MCP\n\n## Implement\n## Validate", allowStub: true },
+            arguments: { rawInput: "# Preview MCP\n\n## Implement\n## Validate" },
           },
         },
         cwd,
@@ -987,7 +986,6 @@ models:
             rawInput: "# Workspace fallback rejected\n\n## Plan",
             riskProfile: "dev",
             budgetProfile: "tiny",
-            allowStub: true,
           },
         },
       },
@@ -1010,7 +1008,6 @@ models:
             rawInput: "# Workspace direct\n\n## Plan",
             riskProfile: "dev",
             budgetProfile: "tiny",
-            allowStub: true,
           },
         },
       },
@@ -1038,7 +1035,6 @@ models:
             workspacePath: workspace.root,
             repoId: "voice-core",
             ticket: "# Workspace MCP\n\n## Implement",
-            allowStub: true,
           },
         },
       },

@@ -9,6 +9,8 @@ import {
 } from "@kiwi/core";
 import { buildOperatorCard } from "./operator-card";
 import { latestValidPreviewToken, normalizePreviewInput, previewInputToolArgs } from "./preview-tokens";
+import { getMcpServerServices } from "./services";
+import { isBlockedApproverIdentity } from "./tool-input-schemas";
 import { safeReadOnlyToolCalls, toolCall, type McpNextAction, mutationScope, workspaceToolArgs } from "./ux";
 import { workspaceArgs } from "./workspace";
 
@@ -30,6 +32,7 @@ interface NextActionContext {
     token: string;
     previewInput: ReturnType<typeof normalizePreviewInput>;
   } | null;
+  validPreviewBlockedBy: string[];
 }
 
 function missingRunAction(context: NextActionContext): NextActionDecision {
@@ -47,6 +50,19 @@ function missingRunAction(context: NextActionContext): NextActionDecision {
 
 function runnableRunAction(context: NextActionContext): NextActionDecision {
   if (context.validPreview) {
+    if (context.validPreviewBlockedBy.length > 0) {
+      return {
+        nextAction: {
+          recommendedToolCall: toolCall("kiwi_preview_run", context.previewArgs),
+          whyThisTool: "The latest preview is blocked; inspect the preview decision before mutating.",
+          requiresUserConfirmation: false,
+          expectedMutation: "WRITES_RUN_ARTIFACTS",
+          expectedAfter: "Show blocked steps and fix routing, budget, or runner availability before running.",
+        },
+        blockedBy: context.validPreviewBlockedBy,
+      };
+    }
+
     return {
       nextAction: {
         recommendedToolCall: toolCall("kiwi_run", {
@@ -118,20 +134,62 @@ function needsApprovalAction(context: NextActionContext): NextActionDecision {
       blockedBy: [`attempt ${attemptId} needs explicit approval`],
     };
   }
+  const approvedBy = configuredApprovedBy();
 
   return {
     nextAction: {
-      recommendedToolCall: toolCall("kiwi_request_approval", {
-        ...context.baseArgs,
-        attemptId,
-      }),
-      whyThisTool: "The latest attempt is blocked on an explicit approval decision.",
+      recommendedToolCall: approvedBy
+        ? toolCall("kiwi_request_approval", {
+            ...context.baseArgs,
+            attemptId,
+            approvedBy,
+          })
+        : null,
+      whyThisTool: approvedBy
+        ? "The latest attempt is blocked on an explicit approval decision."
+        : "The latest attempt needs approval, but no explicit approvedBy identity is configured.",
       requiresUserConfirmation: true,
       expectedMutation: "WRITES_RUN_ARTIFACTS",
-      expectedAfter: "Approval evidence is recorded; call kiwi_next again.",
+      expectedAfter: approvedBy
+        ? "Approval evidence is recorded; call kiwi_next again."
+        : "Call kiwi_request_approval with runId, attemptId, and approvedBy after the user approves.",
     },
-    blockedBy: [`attempt ${attemptId} needs explicit approval`],
+    blockedBy: [
+      `attempt ${attemptId} needs explicit approval`,
+      ...(approvedBy ? [] : ["approvedBy identity is required before kiwi_request_approval"]),
+    ],
   };
+}
+
+function configuredApprovedBy(): string | null {
+  const value = process.env.KIWI_MCP_APPROVED_BY?.trim();
+
+  if (!value || isBlockedApproverIdentity(value)) {
+    return null;
+  }
+
+  return value;
+}
+
+function blockedPreviewReasons(params: {
+  workspacePath: string;
+  runId: string;
+  previewInput: ReturnType<typeof normalizePreviewInput>;
+}): string[] {
+  try {
+    const preview = getMcpServerServices().runtime.execution.previews.build({
+      cwd: params.workspacePath,
+      runId: params.runId,
+      ...(params.previewInput.fromStep ? { fromStep: params.previewInput.fromStep } : {}),
+      maxConcurrency: params.previewInput.maxConcurrency,
+    });
+
+    return preview.steps
+      .filter((step) => step.status === ContractValues.Blocked)
+      .map((step) => `${step.stepId}${step.blockedReason ? `: ${step.blockedReason}` : ""}`);
+  } catch (error) {
+    return [`preview could not be rebuilt: ${error instanceof Error ? error.message : String(error)}`];
+  }
 }
 
 function failedRunAction(context: NextActionContext): NextActionDecision {
@@ -216,6 +274,9 @@ export function nextTool(args: Record<string, unknown>, cwd: string): unknown {
   const latest = getRunStatusSummary(workspace.workspacePath, runId).latest[0];
   const status = latest?.currentStatus ?? "missing";
   const validPreview = latestValidPreviewToken({ cwd: workspace.workspacePath, runId, previewInput });
+  const validPreviewBlockedBy = validPreview
+    ? blockedPreviewReasons({ workspacePath: workspace.workspacePath, runId, previewInput: validPreview.previewInput })
+    : [];
   const baseArgs = workspaceToolArgs({
     workspacePath: workspace.workspacePath,
     repoId: workspace.repo?.id,
@@ -232,6 +293,7 @@ export function nextTool(args: Record<string, unknown>, cwd: string): unknown {
     baseArgs,
     previewArgs,
     validPreview,
+    validPreviewBlockedBy,
   });
 
   return {

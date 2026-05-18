@@ -42,7 +42,7 @@ const previewTokenProperty = {
 const commandOverrideProperty = {
   type: "string",
   description:
-    "Optional override command for controlled dev execution. Rejected unless the run riskProfile is dev or KIWI_ALLOW_MCP_COMMAND_OVERRIDE=1 is set on the server.",
+    "Optional override command for controlled dev execution. Rejected for production-risk runs unless the server explicitly enables overrides.",
 } as const;
 
 const WORKSPACE_PROPERTIES = {
@@ -78,7 +78,7 @@ const TOOL_SPECS = [
       risk: "READ_ONLY",
       when: "first tool for any kiwi task or when workspace/repo readiness is unclear",
       requires: "optional workspacePath plus repoId or repoPath for multi-repo workspaces",
-      returns: "readiness, warnings, safeToPlan, safeToRun, and the first safe tool call",
+      returns: "readiness, warnings, safeToPlan, safeToRun, and planning readiness",
     }),
     inputSchema: {
       type: "object",
@@ -106,7 +106,6 @@ const TOOL_SPECS = [
         ...WORKSPACE_PROPERTIES,
         riskProfile: { type: "string", enum: ["dev", "production"], description: "Risk profile for planning policy." },
         budgetProfile: { type: "string", enum: ["tiny", "normal"], description: "Budget profile for planning policy." },
-        allowStub: { type: "boolean", description: "Allow the stub planner provider in tests/dev fixtures." },
       },
       anyOf: [{ required: ["ticket"] }, { required: ["rawInput"] }],
       additionalProperties: false,
@@ -162,7 +161,7 @@ const TOOL_SPECS = [
     description: describeTool({
       includeSafetyNote: true,
       risk: "WRITES_RUN_ARTIFACTS",
-      when: "always before kiwi_run or kiwi_run_step",
+      when: "always before kiwi_run, kiwi_run_step, or kiwi_apply",
       requires: "runId",
       returns: "decision card, step order, model/runner choices, cost, gates, mutation scope, and fresh previewToken",
       next: "ask the user to confirm, then call the returned recommendedToolCall",
@@ -230,8 +229,8 @@ const TOOL_SPECS = [
     description: describeTool({
       includeSafetyNote: true,
       risk: "APPLIES_PATCH",
-      when: "apply a persisted kiwi patch to the source repo after inspecting kiwi_diff",
-      requires: "runId. Unsafe apply overrides are not exposed over MCP",
+      when: "apply a persisted kiwi patch to the source repo after inspecting kiwi_diff and previewing the run",
+      requires: "runId and fresh previewToken. Unsafe apply overrides are not exposed over MCP",
       returns: "apply result and operatorCard",
     }),
     inputSchema: {
@@ -239,9 +238,10 @@ const TOOL_SPECS = [
       properties: {
         runId: runIdProperty,
         stepId: { type: "string", description: "Optional step id to apply only that step's patch." },
+        previewToken: previewTokenProperty,
         ...WORKSPACE_PROPERTIES,
       },
-      required: ["runId"],
+      required: ["runId", "previewToken"],
       additionalProperties: false,
     },
   },
@@ -282,7 +282,8 @@ const TOOL_SPECS = [
       risk: "READ_ONLY",
       when: "default router after every run-related tool, error, or user interruption",
       requires: "runId",
-      returns: "one exact recommendedToolCall, why it is safe now, expected mutation, and safe alternatives",
+      returns:
+        "one executable recommendedToolCall when available, why it is safe now, expected mutation, and safe alternatives",
     }),
     inputSchema: {
       type: "object",

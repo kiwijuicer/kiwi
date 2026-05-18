@@ -1,9 +1,40 @@
 import { existsSync, readdirSync } from "fs";
 import path from "path";
-import { ApprovalDecision, ApprovalDecisionSchema } from "@kiwi/contracts";
+import { ApprovalDecision, ApprovalDecisionSchema, ContractValues, GateTypes } from "@kiwi/contracts";
 import { appendAuditEvent } from "../cost-ledger";
 import { ensureRunLayout, resolveRunArtifactPath } from "../run-store";
 import { readJson, writeJsonSafely } from "../storage/json-io";
+import type { StepAttemptEvidence } from "./evidence-collection";
+
+export function approvalRequiredFilesForAttempt(params: {
+  cwd: string;
+  runId: string;
+  evidence: StepAttemptEvidence;
+}): string[] {
+  const files = new Set<string>();
+
+  for (const gate of params.evidence.gateResults) {
+    if (gate.gateType !== GateTypes.ForbiddenFileChecks || gate.status !== ContractValues.Blocked) {
+      continue;
+    }
+    for (const ref of gate.evidenceRefs) {
+      const report = readJson(resolveRunArtifactPath(params.runId, ref, params.cwd)) as {
+        approvalRequiredFiles?: unknown;
+      };
+
+      if (!Array.isArray(report.approvalRequiredFiles)) {
+        continue;
+      }
+      for (const file of report.approvalRequiredFiles) {
+        if (typeof file === "string" && file.length > 0) {
+          files.add(file);
+        }
+      }
+    }
+  }
+
+  return Array.from(files).sort();
+}
 
 export function recordApprovalDecision(params: {
   cwd: string;

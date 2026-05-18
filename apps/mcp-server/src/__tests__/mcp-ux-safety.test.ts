@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { kiwiModelRegistryPath, kiwiPolicyPath, listStepAttemptEvidence } from "@kiwi/core";
+import { appendModelInvocation, kiwiModelRegistryPath, kiwiPolicyPath, listStepAttemptEvidence } from "@kiwi/core";
 import type { RunExecutionPreview } from "@kiwi/runtime";
 import { handleMcpRequest } from "../index";
 import { createMcpPreviewToken, latestValidPreviewToken, normalizePreviewInput } from "../preview-tokens";
@@ -87,7 +87,7 @@ async function planRun(cwd: string, riskProfile: "dev" | "production" = "dev"): 
       method: "tools/call",
       params: {
         name: "kiwi_plan",
-        arguments: { rawInput: "# UX Safety\n\n## Validate", riskProfile, allowStub: true },
+        arguments: { rawInput: "# UX Safety\n\n## Validate", riskProfile },
       },
     },
     cwd,
@@ -142,10 +142,18 @@ describe("MCP UX safety tools", () => {
         os.tmpdir(),
       );
       expect(doctor.error).toBeUndefined();
-      const parsed = toolJson(doctor) as { safeToPlan: boolean; safeToRun: boolean; git: { dirtyFiles: number } };
+      const parsed = toolJson(doctor) as {
+        safeToPlan: boolean;
+        safeToRun: boolean;
+        git: { dirtyFiles: number };
+        recommendedFirstToolCall: unknown;
+        readyForTool: { name: string; requiredInput: string } | null;
+      };
       expect(parsed.safeToPlan).toBe(true);
       expect(parsed.safeToRun).toBe(false);
       expect(parsed.git.dirtyFiles).toBeGreaterThan(0);
+      expect(parsed.recommendedFirstToolCall).toBeNull();
+      expect(parsed.readyForTool).toMatchObject({ name: "kiwi_plan", requiredInput: "ticket or rawInput" });
 
       const missing = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-missing-"));
       const missingDoctor = await handleMcpRequest(
@@ -414,6 +422,72 @@ describe("MCP UX safety tools", () => {
     });
   });
 
+  it("does not recommend execution when the latest preview is blocked", async () => {
+    const cwd = setupRepo();
+    const planned = await handleMcpRequest(
+      {
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: { rawInput: "# Blocked preview\n\n## Validate", budgetProfile: "tiny" },
+        },
+      },
+      cwd,
+    );
+    expect(planned.error).toBeUndefined();
+    const runId = (toolJson(planned) as { runId: string }).runId;
+    appendModelInvocation(cwd, {
+      schemaVersion: "1",
+      runId,
+      phase: "executor",
+      stepId: "step_001",
+      attemptId: "attempt_spent",
+      agentRole: "executor",
+      selectedCapability: "mid",
+      modelId: "spent-model",
+      providerName: "stub",
+      runner: "local-shell",
+      accessMode: "local",
+      usage: { inputTokens: 0, outputTokens: 0 },
+      usagePrecision: "estimated",
+      estimatedCostUsd: 0.5,
+      status: "completed",
+      evidenceRefs: [],
+      startedAt: "2026-05-18T08:00:00.000Z",
+      completedAt: "2026-05-18T08:00:01.000Z",
+    });
+
+    const preview = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: { name: "kiwi_preview_run", arguments: { runId } },
+      },
+      cwd,
+    );
+    expect(preview.error).toBeUndefined();
+    const previewParsed = toolJson(preview) as {
+      decision: { requiresUserConfirmation: boolean; nextAction: { recommendedToolCall: { name: string } } };
+      steps: Array<{ status: string; blockedReason?: string }>;
+    };
+    expect(previewParsed.steps.some((step) => step.status === "blocked")).toBe(true);
+    expect(previewParsed.steps.some((step) => step.blockedReason === "budget_hard_cap_exhausted")).toBe(true);
+    expect(previewParsed.decision.requiresUserConfirmation).toBe(false);
+    expect(previewParsed.decision.nextAction.recommendedToolCall.name).toBe("kiwi_preview_run");
+
+    const next = await handleMcpRequest(
+      { id: 3, method: "tools/call", params: { name: "kiwi_next", arguments: { runId } } },
+      cwd,
+    );
+    const nextParsed = toolJson(next) as {
+      nextAction: { recommendedToolCall: { name: string } };
+      blockedBy: string[];
+    };
+    expect(nextParsed.nextAction.recommendedToolCall.name).toBe("kiwi_preview_run");
+    expect(JSON.stringify(nextParsed.blockedBy)).toContain("budget_hard_cap_exhausted");
+  });
+
   it("resumes approval only for the same blocked step and approval-required files", async () => {
     const previousIsolation = process.env.KIWI_EXECUTION_ISOLATION;
     const previousCommandOverride = process.env.KIWI_ALLOW_MCP_COMMAND_OVERRIDE;
@@ -435,7 +509,7 @@ describe("MCP UX safety tools", () => {
           method: "tools/call",
           params: {
             name: "kiwi_plan",
-            arguments: { rawInput: "# Approval resume\n\n## Implement", riskProfile: "production", allowStub: true },
+            arguments: { rawInput: "# Approval resume\n\n## Implement", riskProfile: "production" },
           },
         },
         cwd,
@@ -461,9 +535,20 @@ describe("MCP UX safety tools", () => {
       const stepId = blockedParsed.steps[0]?.stepId ?? "step_001";
       const attemptId = blockedParsed.steps[0]?.attemptId ?? "";
 
+      const approvalNext = await handleMcpRequest(
+        { id: 4, method: "tools/call", params: { name: "kiwi_next", arguments: { runId } } },
+        cwd,
+      );
+      const approvalNextParsed = toolJson(approvalNext) as {
+        nextAction: { recommendedToolCall: null | { name: string } };
+        blockedBy: string[];
+      };
+      expect(approvalNextParsed.nextAction.recommendedToolCall).toBeNull();
+      expect(JSON.stringify(approvalNextParsed.blockedBy)).toContain("approvedBy");
+
       const approval = await handleMcpRequest(
         {
-          id: 4,
+          id: 5,
           method: "tools/call",
           params: {
             name: "kiwi_request_approval",
@@ -475,7 +560,7 @@ describe("MCP UX safety tools", () => {
       expect(approval.error).toBeUndefined();
 
       const next = await handleMcpRequest(
-        { id: 5, method: "tools/call", params: { name: "kiwi_next", arguments: { runId } } },
+        { id: 6, method: "tools/call", params: { name: "kiwi_next", arguments: { runId } } },
         cwd,
       );
       const nextParsed = toolJson(next) as {
@@ -486,7 +571,7 @@ describe("MCP UX safety tools", () => {
 
       const secondPreview = await handleMcpRequest(
         {
-          id: 6,
+          id: 7,
           method: "tools/call",
           params: { name: "kiwi_preview_run", arguments: { runId, fromStep: stepId } },
         },
@@ -495,7 +580,7 @@ describe("MCP UX safety tools", () => {
       const secondToken = (toolJson(secondPreview) as { previewToken: string }).previewToken;
       const approvedRun = await handleMcpRequest(
         {
-          id: 7,
+          id: 8,
           method: "tools/call",
           params: {
             name: "kiwi_run",
@@ -509,7 +594,7 @@ describe("MCP UX safety tools", () => {
 
       const thirdPreview = await handleMcpRequest(
         {
-          id: 8,
+          id: 9,
           method: "tools/call",
           params: { name: "kiwi_preview_run", arguments: { runId, fromStep: stepId } },
         },
@@ -520,7 +605,7 @@ describe("MCP UX safety tools", () => {
         "node -e \"const fs=require('fs');fs.mkdirSync('src/auth',{recursive:true});fs.writeFileSync('src/auth/other.ts','x\\n')\"";
       const blockedAgain = await handleMcpRequest(
         {
-          id: 9,
+          id: 10,
           method: "tools/call",
           params: {
             name: "kiwi_run",
@@ -578,6 +663,8 @@ describe("MCP UX safety tools", () => {
     expect(apply.error?.data).toMatchObject({
       category: "invalid_input",
     });
+    expect(JSON.stringify(apply.error?.data)).toContain("previewToken");
+    expect(JSON.stringify(apply.error?.data)).toContain("forceUnsafe");
   });
 
   it("rejects unknown arguments on mutating tools as invalid_input", async () => {
@@ -605,7 +692,7 @@ describe("MCP UX safety tools", () => {
         method: "tools/call",
         params: {
           name: "kiwi_plan",
-          arguments: { ticket: "# Strict\n\n## Plan", approved: true, allowStub: true },
+          arguments: { ticket: "# Strict\n\n## Plan", approved: true },
         },
       },
       cwd,

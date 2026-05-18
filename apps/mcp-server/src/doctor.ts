@@ -82,15 +82,13 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
       (!repoState ||
         executionMode !== "direct" ||
         (repoState.isGitRepo && !repoState.protectedBranch && repoState.dirtyFiles === 0));
+    const planArguments = workspaceToolArgs({
+      workspacePath: workspace.workspacePath,
+      repoId: workspace.repo?.id,
+      repoPath: workspace.repo?.path,
+    });
     const recommendedFirstToolCall = safeToPlan
-      ? toolCall(
-          "kiwi_plan",
-          workspaceToolArgs({
-            workspacePath: workspace.workspacePath,
-            repoId: workspace.repo?.id,
-            repoPath: workspace.repo?.path,
-          }),
-        )
+      ? null
       : toolCall("kiwi_doctor", { workspacePath: workspace.workspacePath });
 
     return {
@@ -110,6 +108,13 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
       warnings: Array.from(new Set(warnings)).sort(),
       nextFixes: Array.from(new Set(nextFixes)).sort(),
       recommendedFirstToolCall,
+      readyForTool: safeToPlan
+        ? {
+            name: "kiwi_plan",
+            arguments: planArguments,
+            requiredInput: "ticket or rawInput",
+          }
+        : null,
     };
   } catch (error) {
     return {

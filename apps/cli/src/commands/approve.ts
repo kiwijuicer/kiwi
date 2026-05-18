@@ -1,10 +1,9 @@
 import chalk from "chalk";
 import {
+  approvalRequiredFilesForAttempt,
   latestAttemptByStep,
   listStepAttemptEvidence,
-  readJson,
   recordApprovalDecision,
-  resolveRunArtifactPath,
   withRunLock,
 } from "@kiwi/core";
 import { ContractValues } from "@kiwi/contracts";
@@ -14,36 +13,6 @@ interface ApproveOptions extends CliWorkspaceOptions {
   reason?: string;
   approvedBy?: string;
   now?: Date;
-}
-
-function approvalRequiredFilesForAttempt(params: {
-  cwd: string;
-  runId: string;
-  evidence: ReturnType<typeof listStepAttemptEvidence>[number];
-}): string[] {
-  const files = new Set<string>();
-
-  for (const gate of params.evidence.gateResults) {
-    if (gate.gateType !== "forbidden_file_checks" || gate.status !== ContractValues.Blocked) {
-      continue;
-    }
-    for (const ref of gate.evidenceRefs) {
-      const report = readJson(resolveRunArtifactPath(params.runId, ref, params.cwd)) as {
-        approvalRequiredFiles?: unknown;
-      };
-
-      if (!Array.isArray(report.approvalRequiredFiles)) {
-        continue;
-      }
-      for (const file of report.approvalRequiredFiles) {
-        if (typeof file === "string" && file.length > 0) {
-          files.add(file);
-        }
-      }
-    }
-  }
-
-  return Array.from(files).sort();
 }
 
 function approvalInput(params: {

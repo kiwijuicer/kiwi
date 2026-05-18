@@ -1,13 +1,18 @@
 import {
+  approvalRequiredFilesForAttempt,
   getRunStatusSummary,
   latestAttemptByStep,
   listStepAttemptEvidence,
-  readJson,
   recordApprovalDecision,
-  resolveRunArtifactPath,
 } from "@kiwi/core";
 import { ContractValues } from "@kiwi/contracts";
-import { applyRunDiff, buildRunDiff, finalizeRun } from "@kiwi/runtime";
+import {
+  applyRunDiff,
+  assertDirectExecutionSafe,
+  buildRunDiff,
+  DirectExecutionUnsafeError,
+  finalizeRun,
+} from "@kiwi/runtime";
 import {
   buildRunCompletionSummary,
   buildRunExplanation,
@@ -20,6 +25,7 @@ import { publishPrDraftTool } from "./publish-tool";
 import { getMcpServerServices } from "./services";
 import { ToolActionRequiredError } from "./tool-errors";
 import type { ToolCallOptions } from "./tool-helpers";
+import { consumeMcpPreviewToken, normalizePreviewInput, validateMcpPreviewToken } from "./preview-tokens";
 import { mutationScope, safeReadOnlyToolCalls, toolCall } from "./ux";
 
 function services(): ReturnType<typeof getMcpServerServices> {
@@ -40,36 +46,6 @@ interface CoreToolDispatchParams {
   repoPath: string | null;
   options: ToolCallOptions;
   handlers: CoreToolHandlers;
-}
-
-function approvalRequiredFilesForAttempt(params: {
-  workspacePath: string;
-  runId: string;
-  evidence: ReturnType<typeof listStepAttemptEvidence>[number];
-}): string[] {
-  const files = new Set<string>();
-
-  for (const gate of params.evidence.gateResults) {
-    if (gate.gateType !== "forbidden_file_checks" || gate.status !== ContractValues.Blocked) {
-      continue;
-    }
-    for (const ref of gate.evidenceRefs) {
-      const report = readJson(resolveRunArtifactPath(params.runId, ref, params.workspacePath)) as {
-        approvalRequiredFiles?: unknown;
-      };
-
-      if (!Array.isArray(report.approvalRequiredFiles)) {
-        continue;
-      }
-      for (const file of report.approvalRequiredFiles) {
-        if (typeof file === "string" && file.length > 0) {
-          files.add(file);
-        }
-      }
-    }
-  }
-
-  return Array.from(files).sort();
 }
 
 function approvalValidationError(params: {
@@ -109,7 +85,7 @@ function recordMcpApproval(args: Record<string, unknown>, workspacePath: string)
   if (evidence.attempt.status !== ContractValues.Blocked) {
     throw approvalValidationError({ workspacePath, runId, reason: `attempt ${attemptId} is not blocked` });
   }
-  const approvalRequiredFiles = approvalRequiredFilesForAttempt({ workspacePath, runId, evidence });
+  const approvalRequiredFiles = approvalRequiredFilesForAttempt({ cwd: workspacePath, runId, evidence });
 
   if (approvalRequiredFiles.length === 0) {
     throw approvalValidationError({
@@ -164,18 +140,64 @@ function diffTool(context: DispatchContext): unknown {
   );
 }
 
+function assertMcpApplyTargetSafe(params: { workspacePath: string; repoPath: string; runId: string }): void {
+  try {
+    assertDirectExecutionSafe(params.repoPath);
+  } catch (error) {
+    if (!(error instanceof DirectExecutionUnsafeError)) {
+      throw error;
+    }
+    throw new ToolActionRequiredError(`Cannot apply patch safely: ${error.message}`, {
+      category: "action_required",
+      recovery: {
+        reason: error.reasons.join("; "),
+        recommendedToolCall: toolCall("kiwi_doctor", {
+          workspacePath: params.workspacePath,
+          repoPath: params.repoPath,
+        }),
+        safeAlternatives: safeReadOnlyToolCalls({
+          workspacePath: params.workspacePath,
+          repoPath: params.repoPath,
+          runId: params.runId,
+        }),
+        userMessage: "Patch apply is unsafe. Switch away from main/master and clean the repo before applying.",
+      },
+    });
+  }
+}
+
 function applyTool(context: DispatchContext): Promise<unknown> {
   return services().core.locks.withLock(
     { cwd: context.workspacePath, runId: context.runId, operation: "mcp_apply" },
-    () =>
-      withOperatorCard(
+    () => {
+      const stepId = typeof context.args.stepId === "string" ? context.args.stepId : undefined;
+      const previewRecord = validateMcpPreviewToken({
+        cwd: context.workspacePath,
+        runId: context.runId,
+        previewToken: typeof context.args.previewToken === "string" ? context.args.previewToken : undefined,
+        ...(stepId ? { stepId } : { previewInput: normalizePreviewInput({}) }),
+      });
+
+      assertMcpApplyTargetSafe({
+        workspacePath: context.workspacePath,
+        repoPath: previewRecord.repoPath,
+        runId: context.runId,
+      });
+      consumeMcpPreviewToken({
+        cwd: context.workspacePath,
+        runId: context.runId,
+        record: previewRecord,
+        ...(stepId ? { stepId } : {}),
+      });
+
+      return withOperatorCard(
         {
           schemaVersion: "2",
           kind: "patch_apply_result",
           apply: applyRunDiff({
             cwd: context.workspacePath,
             runId: context.runId,
-            ...(typeof context.args.stepId === "string" ? { stepId: context.args.stepId } : {}),
+            ...(stepId ? { stepId } : {}),
           }),
         },
         {
@@ -189,7 +211,8 @@ function applyTool(context: DispatchContext): Promise<unknown> {
             executionMode: null,
           }),
         },
-      ),
+      );
+    },
   );
 }
 
