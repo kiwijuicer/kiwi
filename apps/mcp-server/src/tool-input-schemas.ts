@@ -59,7 +59,7 @@ const ToolInputSchemas = {
   kiwi_request_approval: RunIdSchema.extend({
     attemptId: z.string().min(1),
     reason: z.string().min(1).optional(),
-    approvedBy: z.string().min(1).optional(),
+    approvedBy: z.string().min(1),
   }),
   kiwi_evidence_manifest: RunIdSchema,
   kiwi_operator_snapshot: RunIdSchema,

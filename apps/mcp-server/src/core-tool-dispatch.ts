@@ -122,7 +122,7 @@ function recordMcpApproval(args: Record<string, unknown>, workspacePath: string)
     sourceAttemptId: attemptId,
     approvalRequiredFiles,
     reason: String(args.reason ?? "Approved through MCP"),
-    approvedBy: String(args.approvedBy ?? "mcp-operator"),
+    approvedBy: String(args.approvedBy),
   });
 }
 

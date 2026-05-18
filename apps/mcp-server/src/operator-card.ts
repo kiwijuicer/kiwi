@@ -1,4 +1,5 @@
 import { existsSync } from "fs";
+import { ContractValues } from "@kiwi/contracts";
 import { getRunStatusSummary, kiwiPolicyPath, loadInitiative, loadPolicy, resolveRunArtifactPath } from "@kiwi/core";
 import { buildRunDiff } from "@kiwi/runtime";
 import { readRepoState } from "./repo-state";
@@ -75,11 +76,15 @@ export function buildOperatorCard(params: {
   const executionMode = policy?.execution?.isolation ?? "direct";
   const repoState = readRepoState(repoPath);
   const changedFiles = changedFilesFromPatch(diff?.patch ?? "");
+  const currentState = latest?.currentStatus ?? "missing";
 
   if (executionMode === "direct") {
     warnings.push(...repoState.warnings);
   }
-  if (!existsSync(resolveRunArtifactPath(params.runId, "final/final-verdict.json", params.cwd))) {
+  if (
+    currentState === ContractValues.Completed &&
+    !existsSync(resolveRunArtifactPath(params.runId, "final/final-verdict.json", params.cwd))
+  ) {
     warnings.push("final verdict is not written yet");
   }
 
@@ -88,7 +93,7 @@ export function buildOperatorCard(params: {
     runId: params.runId,
     workspacePath: params.cwd,
     repoPath,
-    currentState: latest?.currentStatus ?? "missing",
+    currentState,
     lastAction: params.lastAction ?? null,
     nextAction: params.nextAction ?? defaultNextAction({ workspacePath: params.cwd, runId: params.runId }),
     blockedBy: uniqueSorted(params.blockedBy ?? []),

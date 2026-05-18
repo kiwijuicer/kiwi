@@ -206,17 +206,21 @@ const TOOL_SPECS = [
   {
     name: "kiwi_request_approval",
     description:
-      "WRITES_RUN_ARTIFACTS. When to use: only when kiwi_next says the run needs approval. Requires: runId and attemptId. Returns: approval evidence and operatorCard.",
+      "WRITES_RUN_ARTIFACTS. When to use: only when kiwi_next says the run needs approval. Requires: runId, attemptId, and an explicit approvedBy identity (the placeholder 'mcp-operator' is not accepted). Returns: approval evidence and operatorCard.",
     inputSchema: {
       type: "object",
       properties: {
         runId: runIdProperty,
         attemptId: { type: "string", description: "Blocked attempt id from kiwi_next or status." },
         reason: { type: "string", description: "Human approval reason." },
-        approvedBy: { type: "string", description: "Approver label to record in run evidence." },
+        approvedBy: {
+          type: "string",
+          minLength: 1,
+          description: "Identity of the human or operator approving this attempt. Required for audit.",
+        },
         ...WORKSPACE_PROPERTIES,
       },
-      required: ["runId", "attemptId"],
+      required: ["runId", "attemptId", "approvedBy"],
     },
   },
   {

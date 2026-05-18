@@ -318,7 +318,10 @@ describe("MCP UX safety tools", () => {
         {
           id: 4,
           method: "tools/call",
-          params: { name: "kiwi_request_approval", arguments: { runId, attemptId, reason: "reviewed" } },
+          params: {
+            name: "kiwi_request_approval",
+            arguments: { runId, attemptId, reason: "reviewed", approvedBy: "norbert" },
+          },
         },
         cwd,
       );
@@ -399,7 +402,7 @@ describe("MCP UX safety tools", () => {
         method: "tools/call",
         params: {
           name: "kiwi_request_approval",
-          arguments: { runId, attemptId: "attempt_manual", reason: "manual approval" },
+          arguments: { runId, attemptId: "attempt_manual", reason: "manual approval", approvedBy: "norbert" },
         },
       },
       cwd,
@@ -423,5 +426,26 @@ describe("MCP UX safety tools", () => {
     expect(apply.error?.data).toMatchObject({
       category: "invalid_input",
     });
+  });
+
+  it("rejects kiwi_request_approval without an explicit approvedBy identity", async () => {
+    const cwd = setupRepo();
+    const runId = await planRun(cwd);
+    const approval = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "kiwi_request_approval",
+          arguments: { runId, attemptId: "attempt_manual", reason: "manual approval" },
+        },
+      },
+      cwd,
+    );
+    expect(approval.error?.code).toBe(-32602);
+    expect(approval.error?.data).toMatchObject({
+      category: "invalid_input",
+    });
+    expect(JSON.stringify(approval.error?.data)).toContain("approvedBy");
   });
 });
