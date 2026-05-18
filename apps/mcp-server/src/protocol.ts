@@ -1,3 +1,4 @@
+import { RunLockBusyError } from "@kiwi/core";
 import { toolArguments } from "./tool-helpers";
 import { callTool } from "./tools";
 import { listTools } from "./tool-definitions";
@@ -5,6 +6,7 @@ import { listResources, listResourceTemplates, McpResourceNotFoundError, readMcp
 import { asRecord, JsonRpcRequest, JsonRpcResponse, textContent } from "./json-rpc";
 import { ToolActionRequiredError } from "./tool-errors";
 import { ToolInputValidationError } from "./tool-input-schemas";
+import { safeReadOnlyToolCalls, toolCall } from "./ux";
 
 export function defaultServerCwd(): string {
   return process.env.KIWI_WORKSPACE ?? process.cwd();
@@ -65,6 +67,132 @@ function progressSender(
   };
 }
 
+function invalidRequestResponse(): JsonRpcResponse {
+  return {
+    jsonrpc: "2.0",
+    id: null,
+    error: { code: -32600, message: "Invalid request" },
+  };
+}
+
+function requestArgs(request: JsonRpcRequest): Record<string, unknown> {
+  const params = asRecord(request.params);
+  const rawArguments = params.arguments;
+
+  return typeof rawArguments === "object" && rawArguments !== null && !Array.isArray(rawArguments)
+    ? (rawArguments as Record<string, unknown>)
+    : {};
+}
+
+function workspacePathForRecovery(args: Record<string, unknown>, cwd: string): string {
+  return typeof args.workspacePath === "string" && args.workspacePath.length > 0 ? args.workspacePath : cwd;
+}
+
+function recoveryForRequest(request: JsonRpcRequest, cwd: string): {
+  reason: string;
+  recommendedToolCall: ReturnType<typeof toolCall>;
+  safeAlternatives: ReturnType<typeof safeReadOnlyToolCalls>;
+  userMessage: string;
+} {
+  const args = requestArgs(request);
+  const workspacePath = workspacePathForRecovery(args, cwd);
+  const runId = typeof args.runId === "string" && args.runId.length > 0 ? args.runId : null;
+
+  return {
+    reason: "tool failed before completing its requested action",
+    recommendedToolCall: runId
+      ? toolCall("kiwi_next", { workspacePath, runId })
+      : toolCall("kiwi_doctor", { workspacePath }),
+    safeAlternatives: safeReadOnlyToolCalls({ workspacePath, runId }),
+    userMessage: runId
+      ? "Inspect the current run state with kiwi_next before retrying a mutating action."
+      : "Inspect workspace readiness with kiwi_doctor before retrying.",
+  };
+}
+
+function errorResponseFor(
+  error: unknown,
+  request: JsonRpcRequest,
+  cwd: string,
+  id: string | number | null,
+): JsonRpcResponse {
+  if (error instanceof ToolInputValidationError) {
+    return {
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: error.code,
+        message: "Invalid params",
+        data: {
+          category: "invalid_input",
+          issues: error.issues,
+          recovery: {
+            reason: "tool arguments failed schema validation",
+            recommendedToolCall: null,
+            safeAlternatives: [],
+            userMessage: "Fix the highlighted tool arguments and retry the same tool.",
+          },
+        },
+      },
+    };
+  }
+  if (error instanceof ToolActionRequiredError) {
+    return {
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: error.code,
+        message: error.message,
+        data: error.data,
+      },
+    };
+  }
+  if (error instanceof RunLockBusyError) {
+    const recovery = recoveryForRequest(request, cwd);
+
+    return {
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: -32010,
+        message: error.message,
+        data: {
+          category: "action_required",
+          recovery: {
+            ...recovery,
+            reason: `run is locked by another operation: ${error.operation}`,
+          },
+          existing: error.existing,
+        },
+      },
+    };
+  }
+  if (error instanceof McpResourceNotFoundError) {
+    return {
+      jsonrpc: "2.0",
+      id,
+      error: {
+        code: error.code,
+        message: error.message,
+        data: error.data,
+      },
+    };
+  }
+
+  return {
+    jsonrpc: "2.0",
+    id,
+    error: {
+      code: -32000,
+      message: error instanceof Error ? error.message : String(error),
+      data: {
+        category: "action_required",
+        recovery: recoveryForRequest(request, cwd),
+      },
+    },
+  };
+}
+
 export async function handleMcpRequest(
   request: JsonRpcRequest,
   cwd: string = defaultServerCwd(),
@@ -111,57 +239,7 @@ export async function handleMcpRequest(
 
     return { jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${request.method}` } };
   } catch (error) {
-    if (error instanceof ToolInputValidationError) {
-      return {
-        jsonrpc: "2.0",
-        id,
-        error: {
-          code: error.code,
-          message: "Invalid params",
-          data: {
-            category: "invalid_input",
-            issues: error.issues,
-            recovery: {
-              reason: "tool arguments failed schema validation",
-              recommendedToolCall: null,
-              safeAlternatives: [],
-              userMessage: "Fix the highlighted tool arguments and retry the same tool.",
-            },
-          },
-        },
-      };
-    }
-    if (error instanceof ToolActionRequiredError) {
-      return {
-        jsonrpc: "2.0",
-        id,
-        error: {
-          code: error.code,
-          message: error.message,
-          data: error.data,
-        },
-      };
-    }
-    if (error instanceof McpResourceNotFoundError) {
-      return {
-        jsonrpc: "2.0",
-        id,
-        error: {
-          code: error.code,
-          message: error.message,
-          data: error.data,
-        },
-      };
-    }
-
-    return {
-      jsonrpc: "2.0",
-      id,
-      error: {
-        code: -32000,
-        message: error instanceof Error ? error.message : String(error),
-      },
-    };
+    return errorResponseFor(error, request, cwd, id);
   }
 }
 
@@ -176,17 +254,17 @@ export async function handleMcpMessage(
 ): Promise<unknown | undefined> {
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      return {
-        jsonrpc: "2.0",
-        id: null,
-        error: { code: -32600, message: "Invalid request" },
-      };
+      return invalidRequestResponse();
     }
 
     const responses: JsonRpcResponse[] = [];
 
     for (const entry of value) {
-      if (!isJsonRpcRequest(entry) || entry.id === undefined) {
+      if (!isJsonRpcRequest(entry)) {
+        responses.push(invalidRequestResponse());
+        continue;
+      }
+      if (entry.id === undefined) {
         continue;
       }
       responses.push(await handleMcpRequest(entry, cwd, context));
@@ -196,7 +274,7 @@ export async function handleMcpMessage(
   }
 
   if (!isJsonRpcRequest(value)) {
-    return undefined;
+    return invalidRequestResponse();
   }
   if (value.id === undefined) {
     return undefined;

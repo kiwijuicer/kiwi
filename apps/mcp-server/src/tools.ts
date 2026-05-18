@@ -26,9 +26,9 @@ function planNextAction(planned: Awaited<ReturnType<typeof planRun>>): McpNextAc
       repoPath: planned.repoPath,
       runId: planned.runId,
     }),
-    whyThisTool: "Planning wrote run artifacts; preview is the required read-only step before any execution.",
+    whyThisTool: "Planning wrote run artifacts; preview is the required decision step before any execution.",
     requiresUserConfirmation: false,
-    expectedMutation: "READ_ONLY",
+    expectedMutation: "WRITES_RUN_ARTIFACTS",
     expectedAfter: "Show the preview decision card and ask the user before running.",
   };
 }

@@ -1054,6 +1054,7 @@ models:
             workspacePath: workspace.root,
             runId: parsed.runId,
             maxConcurrency: 2,
+            command: "node -e 0",
           },
         },
       },
@@ -1144,6 +1145,43 @@ models:
     expect(explain.error).toBeUndefined();
     expect((toolJson(explain) as { explanation: { routing: unknown[] } }).explanation.routing.length).toBeGreaterThan(
       0,
+    );
+
+    for (const [index, name] of ["kiwi_finalize", "kiwi_evidence_manifest", "kiwi_operator_snapshot"].entries()) {
+      const response = await handleMcpRequest(
+        {
+          id: 6 + index,
+          method: "tools/call",
+          params: {
+            name,
+            arguments: {
+              workspacePath: workspace.root,
+              runId: parsed.runId,
+            },
+          },
+        },
+        os.tmpdir(),
+      );
+      expect(response.error).toBeUndefined();
+    }
+
+    const next = await handleMcpRequest(
+      {
+        id: 9,
+        method: "tools/call",
+        params: {
+          name: "kiwi_next",
+          arguments: {
+            workspacePath: workspace.root,
+            runId: parsed.runId,
+          },
+        },
+      },
+      os.tmpdir(),
+    );
+    expect(next.error).toBeUndefined();
+    expect((toolJson(next) as { nextAction: { recommendedToolCall: unknown } }).nextAction.recommendedToolCall).toBe(
+      null,
     );
   });
 });

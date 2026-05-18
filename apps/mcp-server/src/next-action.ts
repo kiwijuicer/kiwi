@@ -231,13 +231,26 @@ function completedRunAction(context: NextActionContext): NextActionDecision {
     };
   }
 
+  if (!hasArtifact(context.workspacePath, context.runId, "operator/index.html")) {
+    return {
+      nextAction: {
+        recommendedToolCall: toolCall("kiwi_operator_snapshot", context.baseArgs),
+        whyThisTool: "Run evidence is ready; refresh the local operator HTML snapshot.",
+        requiresUserConfirmation: false,
+        expectedMutation: "WRITES_RUN_ARTIFACTS",
+        expectedAfter: "Open or inspect the operator snapshot artifact.",
+      },
+      blockedBy: [],
+    };
+  }
+
   return {
     nextAction: {
-      recommendedToolCall: toolCall("kiwi_operator_snapshot", context.baseArgs),
-      whyThisTool: "Run evidence is ready; refresh the local operator HTML snapshot.",
+      recommendedToolCall: null,
+      whyThisTool: "The run is finalized and evidence plus operator snapshot artifacts already exist.",
       requiresUserConfirmation: false,
-      expectedMutation: "WRITES_RUN_ARTIFACTS",
-      expectedAfter: "Open or inspect the operator snapshot artifact.",
+      expectedMutation: "READ_ONLY",
+      expectedAfter: null,
     },
     blockedBy: [],
   };
@@ -270,6 +283,7 @@ export function nextTool(args: Record<string, unknown>, cwd: string): unknown {
   const previewInput = normalizePreviewInput({
     fromStep: typeof args.fromStep === "string" ? args.fromStep : undefined,
     maxConcurrency: typeof args.maxConcurrency === "number" ? args.maxConcurrency : undefined,
+    command: typeof args.command === "string" ? args.command : undefined,
   });
   const latest = getRunStatusSummary(workspace.workspacePath, runId).latest[0];
   const status = latest?.currentStatus ?? "missing";

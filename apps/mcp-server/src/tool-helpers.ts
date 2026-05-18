@@ -54,11 +54,15 @@ export function previewConfirmationSummary(params: {
   repoPath: string;
   executionIsolation: string;
   estimatedCostUsd: number;
+  command?: string | null;
 }): string {
   return [
     `Execute ${params.stepCount} planned step(s) in ${params.repoPath}.`,
     `Execution mode: ${params.executionIsolation}.`,
     `Estimated cost: $${params.estimatedCostUsd.toFixed(4)}.`,
+    params.command ? `Command override: ${JSON.stringify(params.command)}.` : null,
     "No staging, commit, tag, or push unless explicitly requested.",
-  ].join(" ");
+  ]
+    .filter((line): line is string => line !== null)
+    .join(" ");
 }

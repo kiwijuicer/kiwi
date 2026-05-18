@@ -34,6 +34,7 @@ function nextRunAction(params: {
   previewToken: string;
   fromStep?: string | undefined;
   maxConcurrency?: number | undefined;
+  command?: string | undefined;
   maxConcurrencyExplicit?: boolean | undefined;
 }): McpNextAction {
   return {
@@ -44,6 +45,7 @@ function nextRunAction(params: {
       ...(params.maxConcurrencyExplicit === true && params.maxConcurrency !== undefined
         ? { maxConcurrency: params.maxConcurrency }
         : {}),
+      ...(params.command ? { command: params.command } : {}),
     }),
     whyThisTool: "The previewToken is fresh for this run, repo state, policy, and execution options.",
     requiresUserConfirmation: true,
@@ -60,6 +62,7 @@ function blockedPreviewAction(params: {
   blockedSteps: RunExecutionPreview["steps"];
   fromStep?: string | undefined;
   maxConcurrency?: number | undefined;
+  command?: string | undefined;
   maxConcurrencyExplicit?: boolean | undefined;
 }): McpNextAction {
   const blockedSummary = params.blockedSteps
@@ -73,6 +76,7 @@ function blockedPreviewAction(params: {
       ...(params.maxConcurrencyExplicit === true && params.maxConcurrency !== undefined
         ? { maxConcurrency: params.maxConcurrency }
         : {}),
+      ...(params.command ? { command: params.command } : {}),
     }),
     whyThisTool: `Execution is blocked by previewed step(s): ${blockedSummary}.`,
     requiresUserConfirmation: false,
@@ -132,7 +136,7 @@ function assertMcpCommandOverrideAllowed(params: {
   throw new ToolActionRequiredError("MCP command override requires a dev-risk run or explicit server opt-in", {
     category: "action_required",
     recovery: {
-      reason: `run riskProfile is ${initiative.riskProfile}; command overrides are not bound into preview tokens`,
+      reason: `run riskProfile is ${initiative.riskProfile}; command overrides require explicit server opt-in`,
       recommendedToolCall: toolCall("kiwi_next", {
         workspacePath: params.workspacePath,
         runId: params.runId,
@@ -176,7 +180,8 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
   const workspace = workspaceArgs(args, cwd, false);
   const fromStep = typeof args.fromStep === "string" ? args.fromStep : undefined;
   const maxConcurrency = args.maxConcurrency as number | undefined;
-  const previewInput = normalizePreviewInput({ fromStep, maxConcurrency });
+  const command = typeof args.command === "string" ? args.command : undefined;
+  const previewInput = normalizePreviewInput({ fromStep, maxConcurrency, command });
   const preview = services().runtime.execution.previews.build({
     cwd: workspace.workspacePath,
     runId,
@@ -192,6 +197,11 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
       runId,
     });
   }
+  assertMcpCommandOverrideAllowed({
+    args,
+    workspacePath: workspace.workspacePath,
+    runId,
+  });
   const token = createMcpPreviewToken({
     cwd: workspace.workspacePath,
     runId,
@@ -210,6 +220,7 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
           blockedSteps,
           fromStep,
           maxConcurrency: previewInput.maxConcurrency,
+          command,
           maxConcurrencyExplicit: previewInput.maxConcurrencyExplicit,
         })
       : nextRunAction({
@@ -220,6 +231,7 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
           previewToken: token.token,
           fromStep,
           maxConcurrency: previewInput.maxConcurrency,
+          command,
           maxConcurrencyExplicit: previewInput.maxConcurrencyExplicit,
         });
   const runScope = mutationScope({
@@ -257,6 +269,7 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
                 repoPath: token.repoPath,
                 executionIsolation: preview.executionIsolation,
                 estimatedCostUsd,
+                command: previewInput.command,
               }),
         nextAction,
       },
@@ -327,6 +340,7 @@ function validateRunToolPreview(context: RunToolLockedContext): PreviewTokenReco
     previewInput: normalizePreviewInput({
       fromStep: context.fromStep,
       maxConcurrency: context.maxConcurrency,
+      command: typeof context.args.command === "string" ? context.args.command : undefined,
     }),
   });
 
@@ -541,6 +555,7 @@ export async function runStepTool(
         runId,
         previewToken: typeof args.previewToken === "string" ? args.previewToken : undefined,
         stepId,
+        expectedCommand: typeof args.command === "string" ? args.command : null,
       });
 
       if (previewRecord.executionIsolation === "direct") {

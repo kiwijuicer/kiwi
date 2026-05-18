@@ -21,6 +21,7 @@ const PREVIEW_TOKEN_RETENTION_LIMIT = 25;
 interface McpPreviewInput {
   fromStep: string | null;
   maxConcurrency: number;
+  command: string | null;
   maxConcurrencyExplicit?: boolean;
 }
 
@@ -55,10 +56,12 @@ function sha256(value: string): string {
 export function normalizePreviewInput(args: {
   fromStep?: string | undefined;
   maxConcurrency?: number | undefined;
+  command?: string | undefined;
 }): McpPreviewInput {
   const input: McpPreviewInput = {
     fromStep: args.fromStep ?? null,
     maxConcurrency: args.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
+    command: args.command ?? null,
   };
 
   if (args.maxConcurrency !== undefined) {
@@ -72,6 +75,7 @@ export function previewInputToolArgs(input: McpPreviewInput): Record<string, unk
   return {
     ...(input.fromStep ? { fromStep: input.fromStep } : {}),
     ...(input.maxConcurrencyExplicit === true ? { maxConcurrency: input.maxConcurrency } : {}),
+    ...(input.command ? { command: input.command } : {}),
   };
 }
 
@@ -121,10 +125,13 @@ function fingerprintState(cwd: string, runId: string): { repoPath: string; finge
   };
 }
 
-function previewInputFingerprint(previewInput: McpPreviewInput): Pick<McpPreviewInput, "fromStep" | "maxConcurrency"> {
+function previewInputFingerprint(
+  previewInput: McpPreviewInput,
+): Pick<McpPreviewInput, "fromStep" | "maxConcurrency" | "command"> {
   return {
     fromStep: previewInput.fromStep,
     maxConcurrency: previewInput.maxConcurrency,
+    command: previewInput.command,
   };
 }
 
@@ -238,6 +245,7 @@ export function createMcpPreviewToken(params: {
       stateHash: hash,
       fromStep: params.previewInput.fromStep,
       maxConcurrency: params.previewInput.maxConcurrency,
+      command: params.previewInput.command,
       stepIds: record.previewStepIds,
     },
   });
@@ -282,6 +290,7 @@ export function validateMcpPreviewToken(params: {
   previewToken: string | undefined;
   previewInput?: McpPreviewInput | undefined;
   stepId?: string | undefined;
+  expectedCommand?: string | null | undefined;
 }): McpPreviewTokenRecord {
   if (!params.previewToken) {
     throw new ToolActionRequiredError("kiwi_run requires previewToken from kiwi_preview_run before MCP mutation", {
@@ -311,14 +320,22 @@ export function validateMcpPreviewToken(params: {
   if (params.previewInput) {
     if (
       record.previewInput.fromStep !== params.previewInput.fromStep ||
-      record.previewInput.maxConcurrency !== params.previewInput.maxConcurrency
+      record.previewInput.maxConcurrency !== params.previewInput.maxConcurrency ||
+      record.previewInput.command !== params.previewInput.command
     ) {
       rejectStale({
         cwd: params.cwd,
         runId: params.runId,
-        reason: "fromStep or maxConcurrency differs from the preview",
+        reason: "fromStep, maxConcurrency, or command differs from the preview",
       });
     }
+  }
+  if (params.expectedCommand !== undefined && record.previewInput.command !== params.expectedCommand) {
+    rejectStale({
+      cwd: params.cwd,
+      runId: params.runId,
+      reason: "command differs from the preview",
+    });
   }
   if (params.stepId && !record.previewStepIds.includes(params.stepId)) {
     rejectStale({
@@ -387,7 +404,8 @@ export function latestValidPreviewToken(params: {
     }
     if (
       record.previewInput.fromStep !== params.previewInput.fromStep ||
-      record.previewInput.maxConcurrency !== params.previewInput.maxConcurrency
+      record.previewInput.maxConcurrency !== params.previewInput.maxConcurrency ||
+      record.previewInput.command !== params.previewInput.command
     ) {
       continue;
     }

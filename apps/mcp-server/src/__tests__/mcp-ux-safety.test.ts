@@ -97,14 +97,14 @@ async function planRun(cwd: string, riskProfile: "dev" | "production" = "dev"): 
   return (toolJson(planned) as { runId: string }).runId;
 }
 
-async function previewRun(cwd: string, runId: string): Promise<string> {
+async function previewRun(cwd: string, runId: string, args: Record<string, unknown> = {}): Promise<string> {
   const preview = await handleMcpRequest(
     {
       id: 2,
       method: "tools/call",
       params: {
         name: "kiwi_preview_run",
-        arguments: { runId },
+        arguments: { runId, ...args },
       },
     },
     cwd,
@@ -237,12 +237,13 @@ describe("MCP UX safety tools", () => {
   it("keeps preview tokens valid when only kiwi artifacts are written", async () => {
     const cwd = setupRepo({ ignoreKiwi: false });
     const runId = await planRun(cwd);
-    const token = await previewRun(cwd, runId);
+    const command = "node -e 0";
+    const token = await previewRun(cwd, runId, { command });
     const run = await handleMcpRequest(
       {
         id: 3,
         method: "tools/call",
-        params: { name: "kiwi_run", arguments: { runId, previewToken: token, command: "node -e 0" } },
+        params: { name: "kiwi_run", arguments: { runId, previewToken: token, command } },
       },
       cwd,
     );
@@ -254,12 +255,13 @@ describe("MCP UX safety tools", () => {
   it("makes preview tokens single-use and skips already completed steps on fresh previews", async () => {
     const cwd = setupRepo();
     const runId = await planRun(cwd);
-    const firstToken = await previewRun(cwd, runId);
+    const command = "node -e 0";
+    const firstToken = await previewRun(cwd, runId, { command });
     const firstRun = await handleMcpRequest(
       {
         id: 3,
         method: "tools/call",
-        params: { name: "kiwi_run", arguments: { runId, previewToken: firstToken, command: "node -e 0" } },
+        params: { name: "kiwi_run", arguments: { runId, previewToken: firstToken, command } },
       },
       cwd,
     );
@@ -271,19 +273,19 @@ describe("MCP UX safety tools", () => {
       {
         id: 4,
         method: "tools/call",
-        params: { name: "kiwi_run", arguments: { runId, previewToken: firstToken, command: "node -e 0" } },
+        params: { name: "kiwi_run", arguments: { runId, previewToken: firstToken, command } },
       },
       cwd,
     );
     expect(reusedToken.error?.code).toBe(-32010);
     expect(reusedToken.error?.message).toContain("already consumed");
 
-    const secondToken = await previewRun(cwd, runId);
+    const secondToken = await previewRun(cwd, runId, { command });
     const secondRun = await handleMcpRequest(
       {
         id: 5,
         method: "tools/call",
-        params: { name: "kiwi_run", arguments: { runId, previewToken: secondToken, command: "node -e 0" } },
+        params: { name: "kiwi_run", arguments: { runId, previewToken: secondToken, command } },
       },
       cwd,
     );
@@ -334,66 +336,37 @@ describe("MCP UX safety tools", () => {
   it("rejects command overrides for production-risk runs without server opt-in", async () => {
     const cwd = setupRepo();
     const runId = await planRun(cwd, "production");
+    const command = "node -e 0";
     const preview = await handleMcpRequest(
       {
         id: 2,
         method: "tools/call",
         params: {
           name: "kiwi_preview_run",
-          arguments: { runId },
+          arguments: { runId, command },
         },
       },
       cwd,
     );
-    expect(preview.error).toBeUndefined();
-    const previewParsed = toolJson(preview) as { previewToken: string; steps: Array<{ stepId: string }> };
-    const command = "node -e 0";
-
-    const run = await handleMcpRequest(
-      {
-        id: 3,
-        method: "tools/call",
-        params: { name: "kiwi_run", arguments: { runId, previewToken: previewParsed.previewToken, command } },
-      },
-      cwd,
-    );
-    expect(run.error?.code).toBe(-32010);
-    expect(run.error?.data).toMatchObject({
+    expect(preview.error?.code).toBe(-32010);
+    expect(preview.error?.data).toMatchObject({
       category: "action_required",
       recovery: {
         recommendedToolCall: { name: "kiwi_next" },
       },
     });
-    expect(JSON.stringify(run.error?.data)).toContain("riskProfile is production");
-    expect(JSON.stringify(run.error?.data)).toContain("KIWI_ALLOW_MCP_COMMAND_OVERRIDE=1");
-
-    const runStep = await handleMcpRequest(
-      {
-        id: 4,
-        method: "tools/call",
-        params: {
-          name: "kiwi_run_step",
-          arguments: {
-            runId,
-            stepId: previewParsed.steps[0]?.stepId ?? "step_001",
-            previewToken: previewParsed.previewToken,
-            command,
-          },
-        },
-      },
-      cwd,
-    );
-    expect(runStep.error?.code).toBe(-32010);
-    expect(runStep.error?.data).toMatchObject({ category: "action_required" });
+    expect(JSON.stringify(preview.error?.data)).toContain("riskProfile is production");
+    expect(JSON.stringify(preview.error?.data)).toContain("KIWI_ALLOW_MCP_COMMAND_OVERRIDE=1");
   });
 
   it("rejects stale preview tokens after policy changes and recommends the next safe tool", async () => {
     const cwd = setupRepo();
     const runId = await planRun(cwd);
-    const token = await previewRun(cwd, runId);
+    const command = "node -e 0";
+    const token = await previewRun(cwd, runId, { command });
 
     const next = await handleMcpRequest(
-      { id: 3, method: "tools/call", params: { name: "kiwi_next", arguments: { runId } } },
+      { id: 3, method: "tools/call", params: { name: "kiwi_next", arguments: { runId, command } } },
       cwd,
     );
     const nextParsed = toolJson(next) as {
@@ -407,7 +380,7 @@ describe("MCP UX safety tools", () => {
       {
         id: 4,
         method: "tools/call",
-        params: { name: "kiwi_run", arguments: { runId, previewToken: token, command: "node -e 0" } },
+        params: { name: "kiwi_run", arguments: { runId, previewToken: token, command } },
       },
       cwd,
     );
@@ -420,6 +393,28 @@ describe("MCP UX safety tools", () => {
         recommendedToolCall: { name: "kiwi_preview_run" },
       },
     });
+  });
+
+  it("rejects command changes after preview confirmation", async () => {
+    const cwd = setupRepo();
+    const runId = await planRun(cwd);
+    const token = await previewRun(cwd, runId, { command: "node -e 0" });
+
+    const run = await handleMcpRequest(
+      {
+        id: 3,
+        method: "tools/call",
+        params: { name: "kiwi_run", arguments: { runId, previewToken: token, command: "node -e 1" } },
+      },
+      cwd,
+    );
+
+    expect(run.error?.code).toBe(-32010);
+    expect(run.error?.data).toMatchObject({
+      category: "stale_preview",
+      recovery: { recommendedToolCall: { name: "kiwi_preview_run" } },
+    });
+    expect(JSON.stringify(run.error?.data)).toContain("command differs from the preview");
   });
 
   it("does not recommend execution when the latest preview is blocked", async () => {
@@ -516,9 +511,9 @@ describe("MCP UX safety tools", () => {
       );
       expect(planned.error).toBeUndefined();
       const runId = (toolJson(planned) as { runId: string }).runId;
-      const firstToken = await previewRun(cwd, runId);
       const writeApprovedFile =
         "node -e \"const fs=require('fs');fs.mkdirSync('src/auth',{recursive:true});fs.writeFileSync('src/auth/new.ts','x\\n')\"";
+      const firstToken = await previewRun(cwd, runId, { command: writeApprovedFile });
       const blocked = await handleMcpRequest(
         {
           id: 3,
@@ -573,7 +568,7 @@ describe("MCP UX safety tools", () => {
         {
           id: 7,
           method: "tools/call",
-          params: { name: "kiwi_preview_run", arguments: { runId, fromStep: stepId } },
+          params: { name: "kiwi_preview_run", arguments: { runId, fromStep: stepId, command: writeApprovedFile } },
         },
         cwd,
       );
@@ -592,17 +587,17 @@ describe("MCP UX safety tools", () => {
       expect(approvedRun.error).toBeUndefined();
       expect(JSON.stringify(approvedRun.result)).toContain("completed");
 
+      const writeNewRiskFile =
+        "node -e \"const fs=require('fs');fs.mkdirSync('src/auth',{recursive:true});fs.writeFileSync('src/auth/other.ts','x\\n')\"";
       const thirdPreview = await handleMcpRequest(
         {
           id: 9,
           method: "tools/call",
-          params: { name: "kiwi_preview_run", arguments: { runId, fromStep: stepId } },
+          params: { name: "kiwi_preview_run", arguments: { runId, fromStep: stepId, command: writeNewRiskFile } },
         },
         cwd,
       );
       const thirdToken = (toolJson(thirdPreview) as { previewToken: string }).previewToken;
-      const writeNewRiskFile =
-        "node -e \"const fs=require('fs');fs.mkdirSync('src/auth',{recursive:true});fs.writeFileSync('src/auth/other.ts','x\\n')\"";
       const blockedAgain = await handleMcpRequest(
         {
           id: 10,

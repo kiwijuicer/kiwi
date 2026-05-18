@@ -53,6 +53,7 @@ const ToolInputSchemas = {
   kiwi_preview_run: RunIdSchema.extend({
     fromStep: z.string().min(1).optional(),
     maxConcurrency: z.number().int().positive().optional(),
+    command: z.string().min(1).optional(),
   }).strict(),
   kiwi_run_step: RunIdSchema.extend({
     stepId: z.string().min(1),
@@ -73,6 +74,7 @@ const ToolInputSchemas = {
   kiwi_next: RunIdSchema.extend({
     fromStep: z.string().min(1).optional(),
     maxConcurrency: z.number().int().positive().optional(),
+    command: z.string().min(1).optional(),
   }).strict(),
   kiwi_request_approval: RunIdSchema.extend({
     attemptId: z.string().min(1),
