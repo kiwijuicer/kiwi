@@ -143,7 +143,7 @@ export function listResources(cwd: string): McpResource[] {
   const dynamic = listRunIds(cwd).flatMap((runId) =>
     ["plan", "previews", "steps", "final"].flatMap((relativeDir) =>
       collectFiles({ cwd, runId, relativeDir }).map((file) => ({
-        uri: `kiwi://${runId}/${file.ref}`,
+        uri: `kiwi://runs/${runId}/artifacts/${encodeURIComponent(file.ref)}`,
         name: `${runId}/${file.name}`,
         mimeType: mimeTypeForRef(file.ref),
       })),
@@ -200,16 +200,6 @@ const RUN_TEXT_RESOURCE_REFS: Record<string, { ref: string; mimeType: string }> 
   "final-summary": { ref: "final/final-summary.md", mimeType: "text/markdown" },
   "operator-snapshot": { ref: "operator/index.html", mimeType: "text/html" },
 };
-
-function readDirectRunFileResource(uri: string, runId: string, ref: string, cwd: string): McpResourceContent {
-  const target = resolveRunArtifactPath(runId, ref, cwd);
-
-  if (!existsSync(target)) {
-    throw new Error(`Artifact not found: ${ref}`);
-  }
-
-  return asContent(uri, readFileSync(target, "utf-8"), mimeTypeForRef(ref));
-}
 
 function readNamedRunResource(uri: string, runId: string, tail: string, cwd: string): McpResourceContent | null {
   if (!tail) {
@@ -319,11 +309,5 @@ function readResource(uri: string, cwd: string): McpResourceContent {
 }
 
 export function readMcpResource(uri: string, cwd: string): McpResourceContent {
-  const directMatch = uri.match(/^kiwi:\/\/(run_[^/]+)\/(.+)$/);
-
-  if (directMatch?.[1] && directMatch[2]) {
-    return readDirectRunFileResource(uri, directMatch[1], decodeURIComponent(directMatch[2]), cwd);
-  }
-
   return readResource(uri, cwd);
 }

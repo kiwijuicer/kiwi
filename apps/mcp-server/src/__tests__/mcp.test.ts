@@ -677,10 +677,11 @@ describe("MCP server", () => {
     expect(JSON.stringify(notifications)).toContain("phase=planner status=completed");
 
     const resources = await handleMcpRequest({ id: 2, method: "resources/list" }, cwd);
-    expect(JSON.stringify(resources.result)).toContain(`kiwi://${parsed.runId}/plan/task-graph.json`);
+    const taskGraphUri = `kiwi://runs/${parsed.runId}/artifacts/plan%2Ftask-graph.json`;
+    expect(JSON.stringify(resources.result)).toContain(taskGraphUri);
 
     const taskGraph = await handleMcpRequest(
-      { id: 3, method: "resources/read", params: { uri: `kiwi://${parsed.runId}/plan/task-graph.json` } },
+      { id: 3, method: "resources/read", params: { uri: taskGraphUri } },
       cwd,
     );
     expect(JSON.stringify(taskGraph.result)).toContain("Progress MCP");

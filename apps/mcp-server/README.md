@@ -171,6 +171,8 @@ Resource templates are exposed through `resources/templates/list`:
 - `kiwi://runs/{runId}/operator-snapshot`
 - `kiwi://runs/{runId}/artifacts/{artifactRef}`
 
+`artifactRef` is the percent-encoded run artifact path, for example `plan%2Ftask-graph.json`.
+
 For multi-repo work, start one server per workspace or set `KIWI_WORKSPACE` per client config.
 
 ## Safety
