@@ -235,6 +235,40 @@ models:
     expect(loadKiwiConfig(path.join(cwd, ".kiwi", "config.yaml")).approver?.identity).toBe("norbert");
   });
 
+  it("sets the default approver identity from the local git user during init", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-git-approver-"));
+    execFileSync("git", ["init"], { cwd, stdio: "ignore" });
+    execFileSync("git", ["config", "--local", "user.name", "Kiwi User"], { cwd, stdio: "ignore" });
+    execFileSync("git", ["config", "--local", "user.email", "kiwi@example.com"], { cwd, stdio: "ignore" });
+
+    await runInitForTest({}, cwd);
+
+    expect(loadKiwiConfig(path.join(cwd, ".kiwi", "config.yaml")).approver?.identity).toBe(
+      "Kiwi User <kiwi@example.com>",
+    );
+  });
+
+  it("adds a git-derived approver to existing config without overwriting configured identities", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-existing-approver-"));
+
+    await runInitForTest({}, cwd);
+    expect(loadKiwiConfig(path.join(cwd, ".kiwi", "config.yaml")).approver?.identity).toBeUndefined();
+
+    execFileSync("git", ["init"], { cwd, stdio: "ignore" });
+    execFileSync("git", ["config", "--local", "user.name", "Kiwi User"], { cwd, stdio: "ignore" });
+    execFileSync("git", ["config", "--local", "user.email", "kiwi@example.com"], { cwd, stdio: "ignore" });
+    await runInitForTest({}, cwd);
+    expect(loadKiwiConfig(path.join(cwd, ".kiwi", "config.yaml")).approver?.identity).toBe(
+      "Kiwi User <kiwi@example.com>",
+    );
+
+    await runConfigSetApprover("manual-operator", {}, cwd);
+    execFileSync("git", ["config", "--local", "user.email", "other@example.com"], { cwd, stdio: "ignore" });
+    await runInitForTest({}, cwd);
+
+    expect(loadKiwiConfig(path.join(cwd, ".kiwi", "config.yaml")).approver?.identity).toBe("manual-operator");
+  });
+
   it("writes Cursor MCP config for the workspace", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-cursor-"));
 

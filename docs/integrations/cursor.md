@@ -10,7 +10,7 @@ From the Cursor project terminal:
 kiwi init
 ```
 
-This writes or merges `.cursor/mcp.json` with a `kiwi` MCP server entry and preserves other configured servers.
+This writes or merges `.cursor/mcp.json` with a `kiwi` MCP server entry, preserves other configured servers, and uses the local git `user.name` plus `user.email` as the default MCP approval identity when available.
 Plain `kiwi init` also prepares Claude Code and Codex MCP config by default; use `kiwi init --mcp cursor` when you only want Cursor.
 
 Manual setup is still possible after `make install`.

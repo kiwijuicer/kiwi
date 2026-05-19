@@ -123,7 +123,9 @@ kiwi run <run-id> --from-step <step-id> --workspace <workspace>
 ```
 
 MCP approval uses `kiwi_request_approval` and requires `approvedBy`.
-Set a default identity for MCP recommendations:
+`kiwi init` uses the workspace's local git `user.name` and `user.email` as the
+default MCP approval identity when no identity is configured yet. Set or replace
+it explicitly with:
 
 ```bash
 kiwi config set approver <name> --workspace <workspace>

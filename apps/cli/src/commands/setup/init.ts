@@ -53,6 +53,15 @@ async function runInitInternal(
   if (state.shouldWriteConfig) {
     console.log(chalk.green("✓") + " .kiwi/config.yaml written");
   }
+  if (state.approverIdentity.status === "written" || state.approverIdentity.status === "updated") {
+    console.log(chalk.green("✓") + ` approver identity configured from git: ${state.approverIdentity.identity}`);
+  }
+  if (state.approverIdentity.status === "preserved") {
+    console.log(chalk.gray("•") + ` approver identity preserved: ${state.approverIdentity.identity}`);
+  }
+  if (state.approverIdentity.status === "unavailable") {
+    console.log(chalk.yellow("•") + " approver identity not configured; git user.email not found");
+  }
   if (existsSync(state.policyPath)) {
     console.log(chalk.gray("•") + " .kiwi/policy.yaml preserved as workspace override");
   }

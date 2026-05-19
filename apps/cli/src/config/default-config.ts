@@ -1,7 +1,13 @@
-export function defaultKiwiConfigYaml(nowIso: string): string {
+export function defaultKiwiConfigYaml(nowIso: string, approverIdentity?: string): string {
+  const approver = approverIdentity
+    ? `approver:
+  identity: ${JSON.stringify(approverIdentity)}
+`
+    : "";
+
   return `version: "1"
-initializedAt: "${nowIso}"
-`;
+initializedAt: ${JSON.stringify(nowIso)}
+${approver}`;
 }
 
 export const DEFAULT_POLICY_YAML = `version: "1"

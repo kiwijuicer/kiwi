@@ -7,7 +7,9 @@ import {
   kiwiHomePolicyPath,
   kiwiModelRegistryPath,
   kiwiPolicyPath,
+  loadKiwiConfig,
   resolveKiwiHome,
+  saveKiwiConfig,
 } from "@kiwi/core";
 import {
   type ConfigWriteStatus,
@@ -45,11 +47,26 @@ interface WorkspaceStateWriteResult {
   policyPath: string;
   registryPath: string;
   shouldWriteConfig: boolean;
+  approverIdentity: ApproverIdentityWriteResult;
   homeDefaults: HomeDefaultsWriteResult;
   gitignore: GitignoreWriteResult;
 }
 
 const KIWI_GITIGNORE_ENTRY = ".kiwi/";
+const ApproverIdentityWriteStatuses = {
+  Written: "written",
+  Updated: "updated",
+  Preserved: "preserved",
+  Unavailable: "unavailable",
+} as const;
+
+type ApproverIdentityWriteStatus = (typeof ApproverIdentityWriteStatuses)[keyof typeof ApproverIdentityWriteStatuses];
+
+interface ApproverIdentityWriteResult {
+  path: string;
+  identity: string | null;
+  status: ApproverIdentityWriteStatus;
+}
 
 export function logConfigWrite(result: ConfigWriteResult | null, displayPath: string): void {
   if (result?.status === ConfigWriteStatuses.Preserved) {
@@ -80,6 +97,55 @@ function writeFileIfMissingOrForced(target: string, contents: string, force: boo
   writeFileSync(target, contents, "utf-8");
 
   return { path: target, status: existed ? ConfigWriteStatuses.Updated : ConfigWriteStatuses.Written };
+}
+
+function readLocalGitConfig(targetCwd: string, key: string): string | null {
+  try {
+    const value = execFileSync("git", ["-C", targetCwd, "config", "--local", "--get", key], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+
+    return value.length > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function detectLocalGitApproverIdentity(targetCwd: string): string | null {
+  const email = readLocalGitConfig(targetCwd, "user.email");
+
+  if (!email) {
+    return null;
+  }
+  const name = readLocalGitConfig(targetCwd, "user.name");
+
+  return name ? `${name} <${email}>` : email;
+}
+
+function updateMissingApproverIdentity(configPath: string, identity: string | null): ApproverIdentityWriteResult {
+  if (!identity) {
+    return { path: configPath, identity: null, status: ApproverIdentityWriteStatuses.Unavailable };
+  }
+  const existing = loadKiwiConfig(configPath);
+  const existingIdentity = existing.approver?.identity?.trim();
+
+  if (existingIdentity) {
+    return { path: configPath, identity: existingIdentity, status: ApproverIdentityWriteStatuses.Preserved };
+  }
+  const saved = saveKiwiConfig(configPath, {
+    ...existing,
+    approver: {
+      ...existing.approver,
+      identity,
+    },
+  });
+
+  return {
+    path: configPath,
+    identity: saved.approver?.identity ?? identity,
+    status: ApproverIdentityWriteStatuses.Updated,
+  };
 }
 
 function writeHomeDefaults(env: Record<string, string | undefined>, force: boolean): HomeDefaultsWriteResult {
@@ -184,6 +250,7 @@ export function writeWorkspaceState(params: {
   const homePath = resolveKiwiHome(params.env);
   const homeIgnoreEntries = kiwiHomeIgnoreEntries(params.targetCwd, homePath);
   const homeDefaults = writeHomeDefaults(params.env, params.force);
+  const approverIdentity = detectLocalGitApproverIdentity(params.targetCwd);
 
   mkdirSync(path.join(kiwiDir, "runs"), { recursive: true });
   mkdirSync(path.join(kiwiDir, "logs"), { recursive: true });
@@ -191,8 +258,15 @@ export function writeWorkspaceState(params: {
   const shouldWriteConfig = !existsSync(configPath) || params.force;
 
   if (shouldWriteConfig) {
-    writeFileSync(configPath, defaultKiwiConfigYaml(new Date().toISOString()), "utf-8");
+    writeFileSync(configPath, defaultKiwiConfigYaml(new Date().toISOString(), approverIdentity ?? undefined), "utf-8");
   }
+  const approverIdentityResult = shouldWriteConfig
+    ? {
+        path: configPath,
+        identity: approverIdentity,
+        status: approverIdentity ? ApproverIdentityWriteStatuses.Written : ApproverIdentityWriteStatuses.Unavailable,
+      }
+    : updateMissingApproverIdentity(configPath, approverIdentity);
 
   return {
     targetCwd: params.targetCwd,
@@ -201,6 +275,7 @@ export function writeWorkspaceState(params: {
     policyPath,
     registryPath,
     shouldWriteConfig,
+    approverIdentity: approverIdentityResult,
     homeDefaults,
     gitignore: params.gitignoreWriter.write(params.targetCwd, params.mcpTargets, homeIgnoreEntries),
   };
