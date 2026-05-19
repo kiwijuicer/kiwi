@@ -23,6 +23,11 @@ import {
 export const KiwiConfigSchema = z.object({
   version: z.literal("1"),
   initializedAt: IsoDateTimeSchema.optional(),
+  approver: z
+    .object({
+      identity: z.string().trim().min(1).optional(),
+    })
+    .optional(),
 });
 
 export const ModelProviderSchema = enumFrom(MODEL_PROVIDER_VALUES);

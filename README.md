@@ -39,11 +39,13 @@ In the project or workspace you want kiwi to control:
 ```bash
 cd /path/to/workspace
 kiwi init
+kiwi models update --apply
 kiwi doctor
 ```
 
 By default, `kiwi init` creates shared defaults under `~/.kiwi/defaults/`, initializes workspace state under `<workspace>/.kiwi/`, and writes project MCP config for Cursor, Claude Code, and Codex.
 Kiwi commands require the shared defaults; workspace policy and registry files are overlays, not replacements for initialization.
+`kiwi models update --apply` refreshes shared model defaults from the curated release catalog.
 It also prints which MCP clients were detected and what to do next when something is missing.
 It adds local kiwi and MCP config paths to git ignore/exclude rules so generated setup files do not block later runs.
 
@@ -147,6 +149,9 @@ make rollback
 make uninstall
 kiwi init
 kiwi init --mcp <target>
+kiwi models update --apply
+kiwi models list
+kiwi config set approver <identity>
 kiwi doctor
 kiwi workspace list
 ```
@@ -168,9 +173,13 @@ MCP is the recommended daily interface. Use the CLI when setting up, debugging, 
 kiwi init [--workspace <path>] [--mcp <target>]
 kiwi workspace list [--workspace <path>]
 kiwi doctor [--workspace <path>] [--repo <id|path>]
+kiwi models list [--workspace <path>] [--json]
+kiwi models update [--workspace <path>] [--apply]
+kiwi config set approver <identity> [--workspace <path>]
 kiwi plan <ticket|ticket-file> [--workspace <path>] [--repo <id|path>]
 kiwi status [run-id] [--workspace <path>]
 kiwi run <run-id> [--workspace <path>]
+kiwi runs unlock <run-id> [--workspace <path>] [--force] --approved-by <name>
 kiwi finalize <run-id> [--workspace <path>]
 kiwi evidence manifest <run-id> [--workspace <path>]
 kiwi operator snapshot <run-id> [--workspace <path>]
@@ -184,6 +193,23 @@ kiwi run <run-id> --workspace /path/to/workspace
 kiwi finalize <run-id> --workspace /path/to/workspace
 kiwi evidence manifest <run-id> --workspace /path/to/workspace
 ```
+
+## Recovery
+
+If a process crashes while holding a run lock, `kiwi doctor` reports it:
+
+```text
+stale run locks: 1
+  run_20260519_120000: run.lock
+```
+
+Release it after confirming no owner process is active:
+
+```bash
+kiwi runs unlock run_20260519_120000 --workspace /path/to/workspace --approved-by <name>
+```
+
+Use `--force` only when the lock owner is still alive but you have verified it is safe to override.
 
 ## Developing kiwi itself
 

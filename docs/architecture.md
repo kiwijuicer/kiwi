@@ -36,7 +36,7 @@ flowchart TD
 `apps/cli`
 
 - Reference operator surface.
-- Registers `init`, `doctor`, `workspace list`, `plan`, `status`, `explain`, `cost`, `run`, `attempt`, `approve`, `diff`, `apply`, `tail`, `finalize`, `evidence manifest`, `operator snapshot`, `publish pr`, and `rules sync`.
+- Registers `init`, `doctor`, `workspace list`, `models list`, `models update`, `config set approver`, `plan`, `status`, `explain`, `cost`, `run`, `runs unlock`, `attempt`, `approve`, `diff`, `apply`, `tail`, `finalize`, `evidence manifest`, `operator snapshot`, `publish pr`, and `rules sync`.
 - Loads workspace/home config, resolves workspace/repo, and composes CLI workflows.
 
 `apps/mcp-server`
@@ -114,6 +114,7 @@ Workspace state:
     audit.log
   runs/
     <run-id>/
+      run.lock                    # optional; includes ownerPid and optional expiresAt
       run.json
       initiative.json
       plan/
@@ -165,6 +166,8 @@ Run folders are the canonical persistence form.
 
 `KIWI_HOME=<path>` changes the shared home. Workspace overrides live under
 `<workspace>/.kiwi/` and are merged over home defaults.
+`<workspace>/.kiwi/config.yaml` can also store `approver.identity` for MCP
+approval recommendations.
 
 ## Routing Model
 
@@ -249,6 +252,8 @@ MCP tools:
 - `kiwi_doctor`
 - `kiwi_plan`
 - `kiwi_status`
+- `kiwi_models_update`
+- `kiwi_models_update_apply`
 - `kiwi_next`
 - `kiwi_preview_run`
 - `kiwi_run`
@@ -266,6 +271,9 @@ MCP tools:
 `kiwi_preview_run` writes a preview artifact and returns a single-use
 `previewToken`. Stale tokens are rejected after relevant policy, repo, command,
 or run-state changes.
+`kiwi_models_update` uses the same confirm-before-write pattern with a
+model-update preview token before `kiwi_models_update_apply` refreshes home
+defaults.
 
 ## Gates, Review, And Approval
 
@@ -285,6 +293,11 @@ step-required gates. Review verdicts are structured JSON.
 Approval-required paths and command profiles are policy-driven. CLI records
 approval with `kiwi approve`. MCP records approval with `kiwi_request_approval`
 and requires an explicit non-placeholder `approvedBy` identity.
+
+Run locks are written as `run.lock` under each run. Lock acquisition reclaims a
+lock whose `ownerPid` no longer exists and records `run_lock_reclaimed`.
+Operators can release stale locks with `kiwi runs unlock <run-id>`; forced
+release records `run_lock_forced_release` with `approvedBy`.
 
 ## Cost And Evidence
 

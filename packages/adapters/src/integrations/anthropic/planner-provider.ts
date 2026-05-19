@@ -34,7 +34,7 @@ import {
   PLANNER_TOOL_NAME,
 } from "../../prompts/planner-v1";
 
-const DEFAULT_MODEL = "claude-opus-4-6";
+const DEFAULT_MODEL = "claude-opus-4-7";
 const DEFAULT_MAX_TOKENS = 8192;
 const DEFAULT_TIMEOUT_MS = 120_000;
 

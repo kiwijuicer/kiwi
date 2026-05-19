@@ -13,6 +13,7 @@ import { workspaceArgs } from "../workspace";
 import { ToolActionRequiredError } from "./errors";
 import { nextTool } from "./next-action";
 import { getMcpServerServices } from "../services";
+import { modelsUpdateApplyTool, modelsUpdateTool } from "./model-tools";
 
 const ACTIVE_RUN_TOOLS = new Set([
   "kiwi_next",
@@ -277,6 +278,12 @@ export async function callTool(
   }
   if (name === "kiwi_feedback") {
     return feedbackTool(validatedArgs, cwd, options);
+  }
+  if (name === "kiwi_models_update") {
+    return modelsUpdateTool(validatedArgs, cwd);
+  }
+  if (name === "kiwi_models_update_apply") {
+    return modelsUpdateApplyTool(validatedArgs, cwd);
   }
   const workspace = workspaceArgs(validatedArgs, cwd, false);
   const resolvedArgs = resolveActiveRunArgs(name, validatedArgs, workspace);

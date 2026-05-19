@@ -3,7 +3,7 @@ import os from "os";
 import path from "path";
 import { describe, expect, it, vi } from "vitest";
 import { kiwiHomeModelRegistryPath, kiwiModelRegistryPath, loadRegistry } from "@kiwi/core";
-import { runModelsUpdate } from "../../commands/setup/models";
+import { runModelsList, runModelsUpdate } from "../../commands/setup/models";
 
 const NOW = new Date("2026-05-19T12:00:00.000Z");
 
@@ -143,5 +143,27 @@ describe("models update command", () => {
 
     expect(result.applied).toBe(false);
     expect(result.diff.addedModelIds).toEqual(["codex-cli-deprecated", "codex-cli-mid"]);
+  });
+
+  it("lists effective models as JSON", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-models-list-"));
+    const env = testEnv(cwd);
+
+    await runSilenced({ apply: true, catalogPath: writeCatalog(cwd), env, now: NOW }, cwd);
+
+    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    let output = "";
+
+    try {
+      await runModelsList({ env, json: true }, cwd);
+      output = spy.mock.calls.flat().join("\n");
+    } finally {
+      spy.mockRestore();
+    }
+    const parsed = JSON.parse(output) as { models: Array<{ id: string; capability: string; pricing: object }> };
+
+    expect(parsed.models.some((model) => model.id === "codex-cli-mid" && model.capability === "mid")).toBe(true);
+    expect(parsed.models[0]?.pricing).toBeDefined();
   });
 });

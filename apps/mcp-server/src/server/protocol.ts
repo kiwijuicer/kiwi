@@ -213,7 +213,7 @@ export async function handleMcpRequest(
         id,
         result: {
           protocolVersion,
-          serverInfo: { name: "kiwi", version: "0.1.0" },
+          serverInfo: { name: "kiwi", version: "1.0.0" },
           capabilities: { resources: {}, tools: {}, progress: {} },
         },
       };

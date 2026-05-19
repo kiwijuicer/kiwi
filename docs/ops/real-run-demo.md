@@ -31,7 +31,7 @@ make install-claude-code     # optional Claude Code CLI runner
 make install-cursor-agent    # optional, only when Cursor is already installed
 which claude || true         # optional Claude Code CLI
 which cursor-agent || true   # optional Cursor Agent CLI
-kiwi --version               # prints "0.1.0 (<git short sha>)"
+kiwi --version               # prints "1.0.0 (<git short sha>)"
 kiwi doctor                  # probes policies, registry, access modes
 ```
 

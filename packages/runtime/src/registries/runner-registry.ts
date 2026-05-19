@@ -21,6 +21,7 @@ import {
   AccessModeAvailability,
   accessModeOrderForRole,
   evaluateAccessModeAvailability,
+  modelAccessConfigured,
   stubAccessAllowed,
 } from "./access-mode-resolver";
 
@@ -231,6 +232,9 @@ const CAPABILITY_ORDER: ModelCapability[] = [
 ];
 
 function isAccessAvailable(model: ModelEntry, env: Record<string, string | undefined>): boolean {
+  if (!modelAccessConfigured(model).configured) {
+    return false;
+  }
   if (env.KIWI_FORCE_ACCESS_MODE && model.accessMode !== env.KIWI_FORCE_ACCESS_MODE) {
     return false;
   }

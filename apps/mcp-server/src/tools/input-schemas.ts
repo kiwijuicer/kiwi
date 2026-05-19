@@ -40,6 +40,12 @@ const ToolInputSchemas = {
       path: ["ticket"],
     }),
   kiwi_status: OptionalRunIdSchema.strict(),
+  kiwi_models_update: WorkspaceSelectorSchema.extend({
+    catalogPath: z.string().min(1).optional(),
+  }).strict(),
+  kiwi_models_update_apply: WorkspaceSelectorSchema.extend({
+    previewToken: z.string().min(1),
+  }).strict(),
   kiwi_run: OptionalRunIdSchema.extend({
     previewToken: z.string().min(1),
     fromStep: z.string().min(1).optional(),

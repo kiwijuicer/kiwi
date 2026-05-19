@@ -39,7 +39,7 @@ const input: PlannerProviderInput = {
 describe.skipIf(process.env.KIWI_LIVE_PROVIDER !== "1")("AnthropicPlannerProvider live", () => {
   it("returns a schema-valid TaskGraph from Anthropic", async () => {
     const provider = new AnthropicPlannerProvider({
-      model: process.env.KIWI_LIVE_PLANNER_MODEL ?? "claude-opus-4-6",
+      model: process.env.KIWI_LIVE_PLANNER_MODEL ?? "claude-opus-4-7",
       maxTokens: 4096,
     });
 

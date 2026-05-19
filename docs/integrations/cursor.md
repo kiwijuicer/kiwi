@@ -51,6 +51,8 @@ For all projects, use `~/.cursor/mcp.json` with the same `mcpServers` block. For
 Cursor should expose:
 
 - `kiwi_doctor`
+- `kiwi_models_update`
+- `kiwi_models_update_apply`
 - `kiwi_plan`
 - `kiwi_status`
 - `kiwi_preview_run`

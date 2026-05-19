@@ -1,8 +1,14 @@
 import chalk from "chalk";
 import { ACCESS_MODE_VALUES, AccessMode, ContractValues, ModelEntry, Step } from "@kiwi/contracts";
-import { isInitialized, loadEffectivePolicy, loadEffectiveRegistry } from "@kiwi/core";
-import { evaluateAccessModeAvailability, preferredAccessModes, RunnerRegistry } from "@kiwi/runtime";
+import { isInitialized, listRunLocks, loadEffectivePolicy, loadEffectiveRegistry, loadKiwiConfig } from "@kiwi/core";
+import {
+  evaluateAccessModeAvailability,
+  modelAccessConfigured,
+  preferredAccessModes,
+  RunnerRegistry,
+} from "@kiwi/runtime";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
+import path from "path";
 
 type DoctorOptions = CliWorkspaceOptions;
 
@@ -77,6 +83,39 @@ function printDeprecatedModels(models: ModelEntry[]): void {
   }
 }
 
+const doctorWorkspaceChecks = {
+  printUnconfiguredModels(models: ModelEntry[]): void {
+    const unconfigured = models.filter((entry) => entry.enabled && !modelAccessConfigured(entry).configured);
+
+    if (unconfigured.length === 0) {
+      return;
+    }
+    console.log(chalk.yellow(`unconfigured models: ${unconfigured.length}`));
+    for (const model of unconfigured) {
+      const reason = modelAccessConfigured(model).reason ?? "not configured";
+      console.log(`  ${model.id}: ${reason}`);
+    }
+  },
+  printStaleRunLocks(workspacePath: string): void {
+    const stale = listRunLocks(workspacePath).filter((lock) => lock.stale);
+
+    if (stale.length === 0) {
+      return;
+    }
+    console.log(chalk.yellow(`stale run locks: ${stale.length}`));
+    for (const lock of stale) {
+      console.log(`  ${lock.runId}: ${lock.ref}`);
+    }
+  },
+  configuredApproverIdentity(workspacePath: string): string | null {
+    try {
+      return loadKiwiConfig(path.join(workspacePath, ".kiwi", "config.yaml")).approver?.identity ?? null;
+    } catch {
+      return null;
+    }
+  },
+};
+
 function printInitializedWorkspaceDiagnostics(workspacePath: string, env: NodeJS.ProcessEnv): void {
   const policy = loadEffectivePolicy(workspacePath, { env });
   const registry = loadEffectiveRegistry(workspacePath, { env });
@@ -92,7 +131,13 @@ function printInitializedWorkspaceDiagnostics(workspacePath: string, env: NodeJS
   console.log(`preferred order: ${order.join(" > ")}`);
   printRunnerRegistry(registry.models, env);
   printRoleCounts(enabled);
+  doctorWorkspaceChecks.printUnconfiguredModels(registry.models);
   printDeprecatedModels(registry.models);
+  doctorWorkspaceChecks.printStaleRunLocks(workspacePath);
+  if (!env.KIWI_MCP_APPROVED_BY && !doctorWorkspaceChecks.configuredApproverIdentity(workspacePath)) {
+    console.log(chalk.yellow("approval identity: not configured"));
+    console.log(chalk.dim("  Set KIWI_MCP_APPROVED_BY or run `kiwi config set approver <identity>`."));
+  }
 }
 
 function printAccessModeProbes(env: NodeJS.ProcessEnv): void {

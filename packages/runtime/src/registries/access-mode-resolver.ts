@@ -237,6 +237,23 @@ export interface SelectedModel {
   availability: AccessModeAvailability;
 }
 
+const modelConfiguration = {
+  isCodexCliMissingProviderModel(model: ModelEntry): boolean {
+    return model.accessMode === AccessModes.CodexCli && !model.providerModel;
+  },
+  accessConfigured(model: ModelEntry): { configured: boolean; reason?: string } {
+    if (modelConfiguration.isCodexCliMissingProviderModel(model)) {
+      return { configured: false, reason: "codex-cli providerModel must be configured locally" };
+    }
+
+    return { configured: true };
+  },
+};
+
+export function modelAccessConfigured(model: ModelEntry): { configured: boolean; reason?: string } {
+  return modelConfiguration.accessConfigured(model);
+}
+
 export function selectEnabledModelByAccessMode(params: SelectModelByAccessModeParams): SelectedModel | null {
   const orderParams: Parameters<typeof accessModeOrderForRole>[0] = {
     env: params.env,
@@ -254,7 +271,13 @@ export function selectEnabledModelByAccessMode(params: SelectModelByAccessModePa
   const order = accessModeOrderForRole(orderParams);
   const enabled = params.candidates.filter((entry) => entry.enabled);
   const allowStub = !params.excludeStub && stubAccessAllowed(params.env);
-  const filtered = enabled.filter((entry) => entry.accessMode !== AccessModes.Stub || allowStub);
+  const filtered = enabled.filter((entry) => {
+    if (entry.accessMode === AccessModes.Stub && !allowStub) {
+      return false;
+    }
+
+    return modelAccessConfigured(entry).configured;
+  });
 
   for (const accessMode of order) {
     const matches = filtered.filter((entry) => entry.accessMode === accessMode);

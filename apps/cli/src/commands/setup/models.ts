@@ -1,7 +1,8 @@
 import { existsSync } from "fs";
 import path from "path";
 import chalk from "chalk";
-import { ModelRegistryUpdateService, type ModelRegistryUpdateResult } from "@kiwi/core";
+import { loadEffectiveRegistry, ModelRegistryUpdateService, type ModelRegistryUpdateResult } from "@kiwi/core";
+import { evaluateAccessModeAvailability, modelAccessConfigured } from "@kiwi/runtime";
 import { resolveCliWorkspace, type CliWorkspaceOptions } from "../../workspace/options";
 
 interface ModelsUpdateOptions extends CliWorkspaceOptions {
@@ -10,6 +11,11 @@ interface ModelsUpdateOptions extends CliWorkspaceOptions {
   catalogPath?: string;
   env?: Record<string, string | undefined>;
   now?: Date;
+}
+
+interface ModelsListOptions extends CliWorkspaceOptions {
+  json?: boolean;
+  env?: Record<string, string | undefined>;
 }
 
 class ModelsUpdateCommand {
@@ -89,6 +95,103 @@ class ModelsUpdateCommand {
 
 const modelsUpdateCommand = new ModelsUpdateCommand();
 
+class ModelsListCommand {
+  private snapshot(opts: ModelsListOptions, cwd: string): Record<string, unknown> {
+    const env = opts.env ?? process.env;
+    const workspace = resolveCliWorkspace(opts, cwd, false);
+    const registry = loadEffectiveRegistry(workspace.workspacePath, { env });
+    const models = registry.models.map((model) => {
+      const availability = evaluateAccessModeAvailability(model.accessMode, env);
+      const configured = modelAccessConfigured(model);
+
+      const accessAvailable = configured.configured && availability.available;
+
+      return {
+        id: model.id,
+        provider: model.provider,
+        providerModel: model.providerModel ?? null,
+        capability: model.capability,
+        roles: model.roles,
+        accessMode: model.accessMode,
+        enabled: model.enabled,
+        accessAvailable,
+        accessReason: configured.configured ? (availability.reason ?? null) : (configured.reason ?? null),
+        pricing: {
+          currency: model.pricing.currency,
+          inputUsdPerMillion: model.pricing.inputUsdPerMillion,
+          cacheReadUsdPerMillion: model.pricing.cacheReadUsdPerMillion ?? null,
+          outputUsdPerMillion: model.pricing.outputUsdPerMillion,
+          source: model.pricing.source ?? null,
+          sourceVersion: model.pricing.sourceVersion ?? null,
+          pricingLastVerifiedAt: model.pricing.pricingLastVerifiedAt ?? null,
+        },
+        deprecatedAt: model.deprecatedAt ?? null,
+        replacementModelId: model.replacementModelId ?? null,
+      };
+    });
+
+    return {
+      schemaVersion: "1",
+      workspacePath: workspace.workspacePath,
+      catalogVersion: registry.catalogVersion ?? null,
+      models,
+    };
+  }
+
+  private printHuman(snapshot: Record<string, unknown>): void {
+    const models = snapshot.models as Array<{
+      id: string;
+      providerModel: string | null;
+      capability: string;
+      accessMode: string;
+      enabled: boolean;
+      accessAvailable: boolean;
+      accessReason: string | null;
+      pricing: {
+        inputUsdPerMillion: number;
+        outputUsdPerMillion: number;
+        sourceVersion: string | null;
+        pricingLastVerifiedAt: string | null;
+      };
+    }>;
+
+    console.log(chalk.bold("kiwi models"));
+    console.log(chalk.dim(`workspace: ${String(snapshot.workspacePath)}`));
+    console.log(chalk.dim(`catalog: ${String(snapshot.catalogVersion ?? "-")}`));
+    for (const model of models) {
+      const enabled = model.enabled ? chalk.green("enabled") : chalk.dim("disabled");
+      const available = model.accessAvailable ? chalk.green("available") : chalk.yellow("unavailable");
+      const reason = model.accessReason ? chalk.dim(` (${model.accessReason})`) : "";
+      const pricing = `$${model.pricing.inputUsdPerMillion}/$${model.pricing.outputUsdPerMillion} per 1M in/out`;
+
+      console.log(`${model.id}  ${model.capability}  ${model.accessMode}  ${enabled}  ${available}${reason}`);
+      console.log(
+        chalk.dim(
+          `  providerModel=${model.providerModel ?? "-"} pricing=${pricing} verified=${model.pricing.pricingLastVerifiedAt ?? "-"}`,
+        ),
+      );
+    }
+  }
+
+  async run(opts: ModelsListOptions = {}, cwd: string = process.cwd()): Promise<void> {
+    const snapshot = this.snapshot(opts, cwd);
+
+    if (opts.json) {
+      console.log(JSON.stringify(snapshot, null, 2));
+
+      return;
+    }
+
+    this.printHuman(snapshot);
+  }
+}
+
+const modelsListCommand = new ModelsListCommand();
+
 export async function runModelsUpdate(opts: ModelsUpdateOptions = {}, cwd: string = process.cwd()): Promise<void> {
   await modelsUpdateCommand.run(opts, cwd);
+}
+
+export async function runModelsList(opts: ModelsListOptions = {}, cwd: string = process.cwd()): Promise<void> {
+  await modelsListCommand.run(opts, cwd);
 }

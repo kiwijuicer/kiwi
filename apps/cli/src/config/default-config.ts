@@ -183,7 +183,8 @@ commandProfiles:
 
 export const DEFAULT_MODEL_REGISTRY_YAML = `version: "1"
 catalogVersion: "2026-05-19"
-# Model registry. Capability tiers map to real Codex CLI models below.
+# Model registry. Codex CLI entries intentionally omit providerModel by default;
+# configure local overrides once your Codex CLI model names are known.
 #
 # Each entry declares an \`accessMode\`. Resolution priority at invocation:
 #   1. \`KIWI_FORCE_ACCESS_MODE\` env override
@@ -192,68 +193,60 @@ catalogVersion: "2026-05-19"
 #   4. cursor / jetbrains as IDE surfaces, plus local
 #   5. stub (tests only via KIWI_TEST_ALLOW_STUB=1 and KIWI_FORCE_ACCESS_MODE=stub)
 models:
-  # Codex CLI — preferred default, uses local codex auth and explicit model switching.
+  # Codex CLI — disabled/unconfigured until a workspace override supplies real local model names.
     - id: codex-cli-cheap
-      providerModel: gpt-5.4-mini
       provider: local
       capability: cheap
       roles: [researcher, executor, reviewer, rules]
       pricing:
         currency: USD
-        inputUsdPerMillion: 0.75
-        cacheReadUsdPerMillion: 0.075
-        outputUsdPerMillion: 4.5
-        source: openai
-        sourceUrl: https://openai.com/api/pricing/
-        sourceVersion: "2026-05-19"
+        inputUsdPerMillion: 0
+        outputUsdPerMillion: 0
+        source: manual
+        sourceUrl: https://github.com/openai/codex
+        sourceVersion: codex-cli-local
         pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
       accessMode: codex-cli
-      enabled: true
+      enabled: false
     - id: codex-cli-mid
-      providerModel: gpt-5.4-mini
       provider: local
       capability: mid
       roles: [researcher, executor, reviewer, rules]
       pricing:
         currency: USD
-        inputUsdPerMillion: 0.75
-        cacheReadUsdPerMillion: 0.075
-        outputUsdPerMillion: 4.5
-        source: openai
-        sourceUrl: https://openai.com/api/pricing/
-        sourceVersion: "2026-05-19"
+        inputUsdPerMillion: 0
+        outputUsdPerMillion: 0
+        source: manual
+        sourceUrl: https://github.com/openai/codex
+        sourceVersion: codex-cli-local
         pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
       accessMode: codex-cli
       enabled: true
     - id: codex-cli-strong
-      providerModel: gpt-5.4
       provider: local
       capability: strong
       roles: [planner, researcher, executor, reviewer, security, rules]
       pricing:
         currency: USD
-        inputUsdPerMillion: 2.5
-        cacheReadUsdPerMillion: 0.25
-        outputUsdPerMillion: 15
-        source: openai
-        sourceUrl: https://openai.com/api/pricing/
-        sourceVersion: "2026-05-19"
+        inputUsdPerMillion: 0
+        outputUsdPerMillion: 0
+        source: manual
+        sourceUrl: https://github.com/openai/codex
+        sourceVersion: codex-cli-local
         pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
       accessMode: codex-cli
       enabled: true
     - id: codex-cli-frontier
-      providerModel: gpt-5.5
       provider: local
       capability: frontier
       roles: [planner, reviewer, security]
       pricing:
         currency: USD
-        inputUsdPerMillion: 5
-        cacheReadUsdPerMillion: 0.5
-        outputUsdPerMillion: 30
-        source: openai
-        sourceUrl: https://openai.com/api/pricing/
-        sourceVersion: "2026-05-19"
+        inputUsdPerMillion: 0
+        outputUsdPerMillion: 0
+        source: manual
+        sourceUrl: https://github.com/openai/codex
+        sourceVersion: codex-cli-local
         pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
       accessMode: codex-cli
       enabled: true

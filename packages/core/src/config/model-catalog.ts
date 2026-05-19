@@ -29,7 +29,7 @@ export interface ModelCatalogProvider {
 
 export interface ModelCatalogEntry {
   id: string;
-  providerModel?: string;
+  providerModel?: string | null;
   provider: string;
   capability: string;
   roles: string[];

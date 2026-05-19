@@ -1,10 +1,12 @@
 import { existsSync } from "fs";
+import path from "path";
 import { ContractValues, RunStatuses } from "@kiwi/contracts";
 import {
   getRunStatusSummary,
   latestAttemptByStep,
   listStepAttemptEvidence,
   loadLatestApprovalDecisionForStep,
+  loadKiwiConfig,
   resolveActiveRun,
   resolveRunArtifactPath,
 } from "@kiwi/core";
@@ -135,7 +137,7 @@ function needsApprovalAction(context: NextActionContext): NextActionDecision {
       blockedBy: [`attempt ${attemptId} needs explicit approval`],
     };
   }
-  const approvedBy = configuredApprovedBy();
+  const approvedBy = configuredApprovedBy(context.workspacePath);
 
   return {
     nextAction: {
@@ -162,8 +164,16 @@ function needsApprovalAction(context: NextActionContext): NextActionDecision {
   };
 }
 
-function configuredApprovedBy(): string | null {
-  const value = process.env.KIWI_MCP_APPROVED_BY?.trim();
+function configuredApprovedBy(workspacePath: string): string | null {
+  const envValue = process.env.KIWI_MCP_APPROVED_BY?.trim();
+  const configValue = (() => {
+    try {
+      return loadKiwiConfig(path.join(workspacePath, ".kiwi", "config.yaml")).approver?.identity?.trim() ?? null;
+    } catch {
+      return null;
+    }
+  })();
+  const value = envValue || configValue;
 
   if (!value || isBlockedApproverIdentity(value)) {
     return null;

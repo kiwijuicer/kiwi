@@ -16,11 +16,15 @@ target repo.
 
 ```bash
 kiwi init --workspace <workspace>
+kiwi models update --workspace <workspace> --apply
 kiwi doctor --workspace <workspace>
 ```
 
 Plain `kiwi init` creates home defaults, prepares workspace `.kiwi` state, and
 writes Cursor, Claude Code, and Codex MCP project configs by default.
+`kiwi models update --apply` refreshes `~/.kiwi/defaults/model-registry.yaml`
+from the curated release catalog. Use `kiwi models list --json` to inspect the
+effective registry.
 
 Use:
 
@@ -34,6 +38,8 @@ Generated Kiwi and MCP config paths are added to local ignore/exclude rules.
 
 ```bash
 kiwi workspace list --workspace <workspace>
+kiwi models update --workspace <workspace> --apply
+kiwi models list --workspace <workspace>
 kiwi plan ./ticket.md --workspace <workspace> --repo api-service
 kiwi status <run-id> --workspace <workspace>
 kiwi explain <run-id> --workspace <workspace>
@@ -117,6 +123,33 @@ kiwi run <run-id> --from-step <step-id> --workspace <workspace>
 ```
 
 MCP approval uses `kiwi_request_approval` and requires `approvedBy`.
+Set a default identity for MCP recommendations:
+
+```bash
+kiwi config set approver <name> --workspace <workspace>
+```
+
+`KIWI_MCP_APPROVED_BY=<name>` overrides workspace config for MCP servers.
+
+## Recovery
+
+If a process crashes while a mutating command owns a run lock, Kiwi can reclaim
+dead owners automatically on the next lock acquisition. `kiwi doctor` also
+reports stale locks:
+
+```text
+stale run locks: 1
+  run_20260519_120000: run.lock
+```
+
+Manual recovery:
+
+```bash
+kiwi runs unlock <run-id> --workspace <workspace> --approved-by <name>
+```
+
+Use `--force` only after verifying a live owner process is no longer doing useful
+work.
 
 ## Publishing PR Drafts
 
@@ -139,6 +172,8 @@ Current behavior:
 All assistants use the same MCP server. Available tools:
 
 - `kiwi_doctor`
+- `kiwi_models_update`
+- `kiwi_models_update_apply`
 - `kiwi_plan`
 - `kiwi_status`
 - `kiwi_next`
@@ -186,6 +221,18 @@ Default model access order:
 3. Cursor Agent CLI fallback
 4. direct provider APIs when configured
 5. stub only when explicitly allowed
+
+Curated Claude defaults:
+
+| Capability | Claude Code model |
+| --- | --- |
+| `frontier` | `claude-opus-4-7` |
+| `strong` | `claude-sonnet-4-6` |
+| `mid` | `claude-haiku-4-5-20251001` |
+
+Codex CLI catalog entries intentionally omit `providerModel` by default. Add a
+workspace model-registry override once your local Codex CLI model names are
+known.
 
 Useful environment overrides:
 

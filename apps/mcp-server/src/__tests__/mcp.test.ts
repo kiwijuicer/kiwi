@@ -5,7 +5,13 @@ import { execFileSync } from "child_process";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { kiwiHomeModelRegistryPath, kiwiHomePolicyPath, kiwiModelRegistryPath, kiwiPolicyPath } from "@kiwi/core";
+import {
+  kiwiHomeModelRegistryPath,
+  kiwiHomePolicyPath,
+  kiwiModelRegistryPath,
+  kiwiPolicyPath,
+  loadRegistry,
+} from "@kiwi/core";
 import {
   createMcpMessageDrainer,
   handleMcpRequest,
@@ -282,6 +288,84 @@ describe("MCP server", () => {
       readOnlyHint: false,
       destructiveHint: true,
     });
+    expect(listedTools.map((tool) => tool.name)).toContain("kiwi_models_update");
+    expect(listedTools.map((tool) => tool.name)).toContain("kiwi_models_update_apply");
+  });
+
+  it("previews and applies model registry updates through MCP confirmation", async () => {
+    const cwd = setupRepo();
+    const catalogPath = path.join(cwd, "config", "model-catalog.json");
+
+    mkdirSync(path.dirname(catalogPath), { recursive: true });
+    writeFileSync(
+      catalogPath,
+      JSON.stringify(
+        {
+          catalogVersion: "mcp-test",
+          generatedAt: "2026-05-19T00:00:00.000Z",
+          pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z",
+          providers: [{ name: "test", sourceUrl: "https://github.com/kiwi-juicer/ai-kiwi" }],
+          pricing: {
+            "test:stub": {
+              currency: "USD",
+              inputUsdPerMillion: 0,
+              outputUsdPerMillion: 0,
+              source: "test",
+              sourceUrl: "https://github.com/kiwi-juicer/ai-kiwi",
+              sourceVersion: "mcp-test",
+              pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z",
+            },
+          },
+          tierMapping: { mid: ["stub-mid"] },
+          models: [
+            {
+              id: "stub-mid",
+              provider: "stub",
+              capability: "mid",
+              roles: ["executor"],
+              accessMode: "stub",
+              enabled: true,
+              pricingRef: "test:stub",
+              deprecatedAt: null,
+              replacementModelId: null,
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+
+    const preview = await handleMcpRequest(
+      {
+        id: 1,
+        method: "tools/call",
+        params: { name: "kiwi_models_update", arguments: { workspacePath: cwd, catalogPath } },
+      },
+      cwd,
+    );
+    const previewPayload = toolJson(preview) as { previewToken: string; applied: boolean };
+
+    expect(previewPayload.applied).toBe(false);
+    expect(previewPayload.previewToken).toMatch(/^model_preview_/);
+
+    const apply = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "kiwi_models_update_apply",
+          arguments: { workspacePath: cwd, previewToken: previewPayload.previewToken },
+        },
+      },
+      cwd,
+    );
+    const applyPayload = toolJson(apply) as { applied: boolean; diff: { catalogVersion: string } };
+
+    expect(applyPayload.applied).toBe(true);
+    expect(applyPayload.diff.catalogVersion).toBe("mcp-test");
+    expect(loadRegistry(kiwiHomeModelRegistryPath()).catalogVersion).toBe("mcp-test");
   });
 
   it("lists concrete resources separately from templates", async () => {

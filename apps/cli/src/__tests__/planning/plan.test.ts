@@ -199,6 +199,11 @@ describe("kiwi plan", () => {
   it("writes structured failure progress when the planner provider fails", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-progress-fail-"));
     await init(cwd);
+    writeFileSync(
+      path.join(cwd, ".kiwi", "model-registry.yaml"),
+      "models:\n  - id: codex-cli-frontier\n    providerModel: gpt-5.5\n",
+      "utf-8",
+    );
     const lines: string[] = [];
 
     await expect(

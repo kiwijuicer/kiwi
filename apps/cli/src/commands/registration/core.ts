@@ -1,15 +1,18 @@
 import { Command } from "commander";
 import type { BudgetProfile, RiskProfile } from "@kiwi/contracts";
 import { runCost } from "../runs/cost";
+import { runConfigSetApprover } from "../setup/config";
 import { runDoctor } from "../setup/doctor";
 import { runExplain } from "../planning/explain";
 import { runInit } from "../setup/init";
-import { runModelsUpdate } from "../setup/models";
+import { runModelsList, runModelsUpdate } from "../setup/models";
 import { runPlan } from "../planning/plan";
 import { runRulesSync } from "../setup/rules";
 import { runStatus } from "../runs/status";
 import { runWorkspaceList } from "../setup/workspace";
 import { addWorkspaceOptions, handleCommandError, WorkspaceOptionMerger } from "./common";
+
+const JSON_OPTION_DESCRIPTION = "Print JSON";
 
 export function registerCoreCommands(program: Command, withWorkspaceOptions: WorkspaceOptionMerger): void {
   program
@@ -54,11 +57,19 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
       runWorkspaceList(withWorkspaceOptions(opts)).catch(handleCommandError);
     });
 
+  const configCommand = program.command("config").description("Workspace configuration commands");
+  const configSetCommand = configCommand.command("set").description("Set workspace configuration values");
+  addWorkspaceOptions(
+    configSetCommand.command("approver <identity>").description("Set default MCP approval identity"),
+  ).action((identity: string, opts: { workspace?: string; repo?: string }) => {
+    runConfigSetApprover(identity, withWorkspaceOptions(opts)).catch(handleCommandError);
+  });
+
   addWorkspaceOptions(
     program
       .command("status [runId]")
       .description("Show summary for stored runs")
-      .option("--json", "Print JSON")
+      .option("--json", JSON_OPTION_DESCRIPTION)
       .option("--verbose", "Show attempts, subplans, and artifact paths"),
   ).action((runId?: string, opts?: { workspace?: string; repo?: string; json?: boolean; verbose?: boolean }) => {
     runStatus(process.cwd(), runId, withWorkspaceOptions(opts ?? {})).catch(handleCommandError);
@@ -68,7 +79,7 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
     program
       .command("cost <runId>")
       .description("Show run cost and model summary")
-      .option("--json", "Print JSON")
+      .option("--json", JSON_OPTION_DESCRIPTION)
       .option("--csv", "Write final cost CSV to run artifacts"),
   ).action((runId: string, opts: { workspace?: string; repo?: string; json?: boolean; csv?: boolean }) => {
     runCost(runId, withWorkspaceOptions(opts)).catch(handleCommandError);
@@ -78,7 +89,7 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
     program
       .command("explain <runId>")
       .description("Show routing, gate, cost, and next action")
-      .option("--json", "Print JSON"),
+      .option("--json", JSON_OPTION_DESCRIPTION),
   ).action((runId: string, opts: { workspace?: string; repo?: string; json?: boolean }) => {
     runExplain(runId, withWorkspaceOptions(opts)).catch(handleCommandError);
   });
@@ -92,10 +103,18 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
   const modelsCommand = program.command("models").description("Model catalog and registry commands");
   addWorkspaceOptions(
     modelsCommand
+      .command("list")
+      .description("List effective model registry entries")
+      .option("--json", JSON_OPTION_DESCRIPTION),
+  ).action((opts: { workspace?: string; repo?: string; json?: boolean }) => {
+    runModelsList(withWorkspaceOptions(opts)).catch(handleCommandError);
+  });
+  addWorkspaceOptions(
+    modelsCommand
       .command("update")
       .description("Update home model registry from the curated release catalog")
       .option("--apply", "Write ~/.kiwi/defaults/model-registry.yaml")
-      .option("--json", "Print JSON")
+      .option("--json", JSON_OPTION_DESCRIPTION)
       .option("--catalog-path <path>", "Read a specific model catalog file"),
   ).action((opts: { workspace?: string; repo?: string; apply?: boolean; json?: boolean; catalogPath?: string }) => {
     runModelsUpdate(withWorkspaceOptions(opts)).catch(handleCommandError);

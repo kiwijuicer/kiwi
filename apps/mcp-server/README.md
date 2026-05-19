@@ -47,8 +47,8 @@ CORS only limits browser origins; it is not authentication. The HTTP transport
 binds to `127.0.0.1` by default and rejects non-local `Origin` headers unless
 explicitly allowed with `KIWI_MCP_ALLOWED_ORIGINS`.
 
-Codex-first execution uses the current repo working tree by default. Kiwi selects
-the concrete Codex CLI `providerModel` per step and passes it with `--model`;
+Codex-first execution uses the current repo working tree by default. Codex CLI
+entries require a local `providerModel` override before Kiwi passes `--model`;
 `KIWI_EXECUTION_ISOLATION=worktree` is the opt-in isolated mode.
 
 ## Tool API
@@ -58,6 +58,8 @@ Core tools:
 - `kiwi_doctor`: diagnose workspace/repo/config/git/client readiness.
 - `kiwi_plan`: create a planned run.
 - `kiwi_status`: read run status.
+- `kiwi_models_update`: preview a curated model-registry refresh and return a model-update preview token.
+- `kiwi_models_update_apply`: apply a confirmed `kiwi_models_update` preview.
 - `kiwi_next`: read-only router that returns one executable `recommendedToolCall` when available, why it is safe now, expected mutation, and safe alternatives.
 - `kiwi_preview_run`: return the execution decision card: step order, selected models/runners, cost, gates, execution mode, mutation scope, confirmation summary, and a fresh `previewToken`.
 - `kiwi_run`: execute planned steps in order with a fresh `previewToken`.

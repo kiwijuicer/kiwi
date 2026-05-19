@@ -6,11 +6,12 @@ import {
   kiwiHomePolicyPath,
   kiwiModelRegistryPath,
   kiwiPolicyPath,
+  listRunLocks,
   loadEffectivePolicy,
   loadEffectiveRegistry,
   loadKiwiConfig,
 } from "@kiwi/core";
-import { evaluateAccessModeAvailability, readExecutionRepoState } from "@kiwi/runtime";
+import { evaluateAccessModeAvailability, modelAccessConfigured, readExecutionRepoState } from "@kiwi/runtime";
 import { errorMessage } from "./helpers";
 import { toolCall, workspaceToolArgs } from "../ux";
 import { workspaceArgs } from "../workspace";
@@ -53,6 +54,86 @@ function registryStatus(workspacePath: string): {
   return configStatus(layeredPathLabel(homePath, localPath), () => loadEffectiveRegistry(workspacePath));
 }
 
+const doctorWarnings = {
+  addReadiness(params: {
+    initialized: boolean;
+    hasRepo: boolean;
+    policyLoaded: boolean;
+    registryLoaded: boolean;
+    warnings: string[];
+    nextFixes: string[];
+  }): void {
+    if (!params.initialized) {
+      params.warnings.push("workspace is not initialized");
+      params.nextFixes.push("Run kiwi init for this workspace.");
+    }
+    if (!params.hasRepo) {
+      params.warnings.push("repo is ambiguous or missing");
+      params.nextFixes.push("Pass repoId or repoPath.");
+    }
+    if (!params.policyLoaded) {
+      params.nextFixes.push(
+        "Create/fix ~/.kiwi/defaults/policy.yaml, then fix workspace .kiwi/policy.yaml if present.",
+      );
+    }
+    if (!params.registryLoaded) {
+      params.nextFixes.push(
+        "Create/fix ~/.kiwi/defaults/model-registry.yaml, then fix workspace .kiwi/model-registry.yaml if present.",
+      );
+    }
+  },
+  addModels(params: {
+    registry: ReturnType<typeof loadEffectiveRegistry> | null;
+    warnings: string[];
+    nextFixes: string[];
+  }): void {
+    for (const model of params.registry?.models ?? []) {
+      const configured = modelAccessConfigured(model);
+
+      if (model.enabled && !configured.configured) {
+        params.warnings.push(`${model.id}: ${configured.reason ?? "model is not configured"}`);
+        params.nextFixes.push(
+          "Add a workspace model-registry override with a real providerModel or use another access mode.",
+        );
+      }
+    }
+  },
+  addStaleLocks(params: {
+    staleLocks: ReturnType<typeof listRunLocks>;
+    warnings: string[];
+    nextFixes: string[];
+  }): void {
+    for (const lock of params.staleLocks) {
+      params.warnings.push(`stale run lock: ${lock.runId}`);
+      params.nextFixes.push(`Run kiwi runs unlock ${lock.runId} after confirming no owner process is active.`);
+    }
+  },
+  addRepo(params: {
+    executionMode: string;
+    repoState: ReturnType<typeof readExecutionRepoState> | null;
+    warnings: string[];
+    nextFixes: string[];
+  }): void {
+    if (params.executionMode !== "direct" || !params.repoState) {
+      return;
+    }
+    params.warnings.push(...params.repoState.warnings);
+    if (params.repoState.protectedBranch) {
+      params.nextFixes.push("Switch away from main/master before direct execution.");
+    }
+    if (params.repoState.dirtyFiles > 0) {
+      params.nextFixes.push("Commit/stash changes or use worktree isolation before running.");
+    }
+  },
+  addApprover(params: { approverIdentity: string | null; warnings: string[]; nextFixes: string[] }): void {
+    if (process.env.KIWI_MCP_APPROVED_BY || params.approverIdentity) {
+      return;
+    }
+    params.warnings.push("approvedBy identity is not configured");
+    params.nextFixes.push("Set KIWI_MCP_APPROVED_BY or run kiwi config set approver <identity>.");
+  },
+};
+
 export function doctorTool(args: Record<string, unknown>, cwd: string): unknown {
   const warnings: string[] = [];
   const nextFixes: string[] = [];
@@ -70,33 +151,24 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
     const repoPath = workspace.repo?.path ?? null;
     const repoState = repoPath ? readExecutionRepoState(repoPath) : null;
 
-    if (!initialized) {
-      warnings.push("workspace is not initialized");
-      nextFixes.push("Run kiwi init for this workspace.");
-    }
-    if (!workspace.repo) {
-      warnings.push("repo is ambiguous or missing");
-      nextFixes.push("Pass repoId or repoPath.");
-    }
-    if (!policy.status.loaded) {
-      nextFixes.push("Create/fix ~/.kiwi/defaults/policy.yaml, then fix workspace .kiwi/policy.yaml if present.");
-    }
-    if (!registry.status.loaded) {
-      nextFixes.push(
-        "Create/fix ~/.kiwi/defaults/model-registry.yaml, then fix workspace .kiwi/model-registry.yaml if present.",
-      );
-    }
+    doctorWarnings.addReadiness({
+      initialized,
+      hasRepo: Boolean(workspace.repo),
+      policyLoaded: policy.status.loaded,
+      registryLoaded: registry.status.loaded,
+      warnings,
+      nextFixes,
+    });
+    doctorWarnings.addModels({ registry: registry.value, warnings, nextFixes });
+    const staleLocks = initialized ? listRunLocks(workspace.workspacePath).filter((lock) => lock.stale) : [];
+
+    doctorWarnings.addStaleLocks({ staleLocks, warnings, nextFixes });
+    const approverIdentity = config?.value?.approver?.identity ?? null;
+
+    doctorWarnings.addApprover({ approverIdentity, warnings, nextFixes });
     const executionMode = policy.value?.execution?.isolation ?? "direct";
 
-    if (executionMode === "direct" && repoState) {
-      warnings.push(...repoState.warnings);
-      if (repoState.protectedBranch) {
-        nextFixes.push("Switch away from main/master before direct execution.");
-      }
-      if (repoState.dirtyFiles > 0) {
-        nextFixes.push("Commit/stash changes or use worktree isolation before running.");
-      }
-    }
+    doctorWarnings.addRepo({ executionMode, repoState, warnings, nextFixes });
     const cliAvailability = [
       { client: "codex", ...evaluateAccessModeAvailability(AccessModes.CodexCli, process.env) },
       { client: "claude", ...evaluateAccessModeAvailability(AccessModes.ClaudeCodeCli, process.env) },
@@ -129,6 +201,8 @@ export function doctorTool(args: Record<string, unknown>, cwd: string): unknown 
       executionMode,
       git: repoState,
       cliAvailability,
+      staleLocks,
+      approverIdentity,
       safeToPlan,
       safeToRun,
       warnings: Array.from(new Set(warnings)).sort(),

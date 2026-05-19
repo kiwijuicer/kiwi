@@ -9,6 +9,7 @@ import { runOperatorSnapshot } from "../operations/operator";
 import { runPublishPr } from "../operations/publish";
 import { runRun } from "../runs/run";
 import { runTail } from "../runs/tail";
+import { runUnlock } from "../runs/unlock";
 import { addWorkspaceOptions, handleCommandError, WorkspaceOptionMerger } from "./common";
 
 function registerDiffApplyCommands(program: Command, withWorkspaceOptions: WorkspaceOptionMerger): void {
@@ -122,6 +123,17 @@ export function registerExecutionCommands(program: Command, withWorkspaceOptions
 
   registerRunCommand(program, withWorkspaceOptions);
   registerTailCommand(program, withWorkspaceOptions);
+
+  const runsCommand = program.command("runs").description("Run maintenance commands");
+  addWorkspaceOptions(
+    runsCommand
+      .command("unlock <runId>")
+      .description("Release a stale run lock")
+      .option("--force", "Release even when the owner process is still alive")
+      .option("--approved-by <name>", "Operator identity for audit"),
+  ).action((runId: string, opts: { force?: boolean; approvedBy?: string; workspace?: string; repo?: string }) => {
+    runUnlock(runId, withWorkspaceOptions(opts)).catch(handleCommandError);
+  });
 
   addWorkspaceOptions(
     program

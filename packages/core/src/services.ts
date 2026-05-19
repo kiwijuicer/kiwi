@@ -46,7 +46,14 @@ import {
   summarizeModelInvocations,
   writeModelUsageSummary,
 } from "./ledger/model-invocations";
-import { acquireRunLock, withRunLock, type RunLock } from "./runs/lock";
+import {
+  acquireRunLock,
+  forceReleaseRunLock,
+  inspectRunLock,
+  listRunLocks,
+  withRunLock,
+  type RunLock,
+} from "./runs/lock";
 import {
   ensureRunLayout,
   isInitialized,
@@ -449,9 +456,15 @@ export class RunLockService {
     private readonly deps: {
       acquireRunLock: typeof acquireRunLock;
       withRunLock: typeof withRunLock;
+      inspectRunLock: typeof inspectRunLock;
+      listRunLocks: typeof listRunLocks;
+      forceReleaseRunLock: typeof forceReleaseRunLock;
     } = {
       acquireRunLock,
       withRunLock,
+      inspectRunLock,
+      listRunLocks,
+      forceReleaseRunLock,
     },
   ) {}
 
@@ -461,6 +474,18 @@ export class RunLockService {
 
   withLock<T>(params: Parameters<typeof withRunLock<T>>[0], action: Parameters<typeof withRunLock<T>>[1]): Promise<T> {
     return this.deps.withRunLock(params, action);
+  }
+
+  inspect(cwd: string, runId: string): ReturnType<typeof inspectRunLock> {
+    return this.deps.inspectRunLock(cwd, runId);
+  }
+
+  list(cwd: string): ReturnType<typeof listRunLocks> {
+    return this.deps.listRunLocks(cwd);
+  }
+
+  forceRelease(params: Parameters<typeof forceReleaseRunLock>[0]): ReturnType<typeof forceReleaseRunLock> {
+    return this.deps.forceReleaseRunLock(params);
   }
 }
 

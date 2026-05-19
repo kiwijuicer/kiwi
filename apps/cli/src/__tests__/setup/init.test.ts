@@ -10,7 +10,9 @@ import {
   kiwiPolicyPath,
   loadEffectivePolicy,
   loadEffectiveRegistry,
+  loadKiwiConfig,
 } from "@kiwi/core";
+import { runConfigSetApprover } from "../../commands/setup/config";
 import { runInit } from "../../commands/setup/init";
 
 interface CursorMcpConfig {
@@ -202,8 +204,9 @@ models:
       "codex-cli-strong",
       "codex-cli-frontier",
     ]);
+    expect(registry.models.find((model) => model.id === "codex-cli-cheap")?.enabled).toBe(false);
     expect(
-      registry.models.filter((model) => model.accessMode === "codex-cli").every((model) => model.providerModel),
+      registry.models.filter((model) => model.accessMode === "codex-cli").every((model) => !model.providerModel),
     ).toBe(true);
     expect(policy.execution).toMatchObject({
       owner: "kiwi-codex-cli",
@@ -228,6 +231,15 @@ models:
     expect(existsSync(kiwiHomePolicyPath(testEnv(cwd)))).toBe(true);
     expect(existsSync(kiwiHomeModelRegistryPath(testEnv(cwd)))).toBe(true);
     expect(existsSync(path.join(cwd, ".kiwi"))).toBe(false);
+  });
+
+  it("sets the default approver identity in workspace config", async () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-approver-"));
+    await runInitForTest({}, cwd);
+
+    await runConfigSetApprover("norbert", {}, cwd);
+
+    expect(loadKiwiConfig(path.join(cwd, ".kiwi", "config.yaml")).approver?.identity).toBe("norbert");
   });
 
   it("writes Cursor MCP config for the workspace", async () => {

@@ -132,6 +132,42 @@ const TOOL_SPECS = [
     },
   },
   {
+    name: "kiwi_models_update",
+    description: describeTool({
+      risk: "WRITES_RUN_ARTIFACTS",
+      when: "preview a home model-registry refresh from the curated release catalog",
+      requires: "optional workspacePath and catalogPath",
+      returns: "dry-run diff, previewToken, and apply tool call",
+      next: "ask the user to confirm, then call kiwi_models_update_apply with previewToken",
+    }),
+    inputSchema: {
+      type: "object",
+      properties: {
+        ...WORKSPACE_PROPERTIES,
+        catalogPath: { type: "string", description: "Optional explicit model catalog path." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "kiwi_models_update_apply",
+    description: describeTool({
+      risk: "WRITES_RUN_ARTIFACTS",
+      when: "apply a confirmed model-registry update preview",
+      requires: "previewToken from kiwi_models_update",
+      returns: "applied registry update diff",
+    }),
+    inputSchema: {
+      type: "object",
+      properties: {
+        ...WORKSPACE_PROPERTIES,
+        previewToken: { type: "string", description: "Token returned by kiwi_models_update." },
+      },
+      required: ["previewToken"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "kiwi_run",
     description: describeTool({
       includeSafetyNote: true,
@@ -419,6 +455,20 @@ const TOOL_ANNOTATIONS: Record<ToolName, ToolAnnotations> = {
     readOnlyHint: true,
     destructiveHint: false,
     idempotentHint: true,
+    openWorldHint: false,
+  },
+  kiwi_models_update: {
+    title: "Preview kiwi model registry update",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
+  kiwi_models_update_apply: {
+    title: "Apply kiwi model registry update",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
     openWorldHint: false,
   },
   kiwi_run: {

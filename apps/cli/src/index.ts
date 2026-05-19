@@ -5,7 +5,7 @@ import { registerExecutionCommands } from "./commands/registration/execution";
 const program = new Command();
 
 function buildVersionString(): string {
-  const pkgVersion = "0.1.0";
+  const pkgVersion = "1.0.0";
   const sha = process.env.KIWI_BUILD_SHA;
 
   if (sha && sha.length > 0 && sha !== "unknown") {
