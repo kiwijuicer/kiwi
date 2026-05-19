@@ -765,6 +765,74 @@ execution:
     }
   });
 
+  it("does not recommend approval for unapprovable blocked attempts", async () => {
+    const cwd = setupRepo();
+    const runId = await planRun(cwd);
+    const stepId = "step_001";
+    const attemptId = "attempt_unapprovable";
+    const attemptDir = path.join(cwd, ".kiwi", "runs", runId, "steps", stepId, attemptId);
+    const now = new Date(Date.now() + 1000).toISOString();
+
+    mkdirSync(attemptDir, { recursive: true });
+    writeFileSync(
+      path.join(attemptDir, "attempt.json"),
+      JSON.stringify(
+        {
+          attemptId,
+          stepId,
+          runner: "api",
+          agentRole: "executor",
+          modelCapability: "mid",
+          status: "blocked",
+          contextPackageRef: `steps/${stepId}/${attemptId}/context-package.json`,
+          modelInvocationRefs: [],
+          artifacts: [],
+          startedAt: now,
+          completedAt: now,
+        },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+    writeFileSync(
+      path.join(attemptDir, "gate-results.json"),
+      JSON.stringify(
+        [
+          {
+            gateId: "gate_command_policy",
+            gateType: "command_policy",
+            status: "blocked",
+            evidenceRefs: [],
+            reason: "Runner logs indicate shell usage but no parseable command event",
+          },
+        ],
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+
+    const next = await handleMcpRequest(
+      { id: 2, method: "tools/call", params: { name: "kiwi_next", arguments: { runId } } },
+      cwd,
+    );
+    expect(next.error).toBeUndefined();
+    const nextParsed = toolJson(next) as {
+      nextAction: {
+        recommendedToolCall: { name: string };
+        requiresUserConfirmation: boolean;
+        expectedMutation: string;
+      };
+      blockedBy: string[];
+    };
+
+    expect(nextParsed.nextAction.recommendedToolCall.name).toBe("kiwi_diff");
+    expect(nextParsed.nextAction.requiresUserConfirmation).toBe(false);
+    expect(nextParsed.nextAction.expectedMutation).toBe("READ_ONLY");
+    expect(JSON.stringify(nextParsed.blockedBy)).toContain("no approval-required file evidence");
+  });
+
   it("rejects fake approval attempts and MCP forceUnsafe", async () => {
     const cwd = setupRepo();
     const runId = await planRun(cwd);

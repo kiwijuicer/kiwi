@@ -2,6 +2,7 @@ import { existsSync } from "fs";
 import path from "path";
 import { ContractValues, RunStatuses } from "@kiwi/contracts";
 import {
+  approvalRequiredFilesForAttempt,
   getRunStatusSummary,
   latestAttemptByStep,
   listStepAttemptEvidence,
@@ -135,6 +136,25 @@ function needsApprovalAction(context: NextActionContext): NextActionDecision {
         expectedAfter: "Show the preview decision card to the user before re-running from the approved step.",
       },
       blockedBy: [`attempt ${attemptId} needs explicit approval`],
+    };
+  }
+  const approvalRequiredFiles = approvalRequiredFilesForAttempt({
+    cwd: context.workspacePath,
+    runId: context.runId,
+    evidence: blockedAttempt,
+  });
+
+  if (approvalRequiredFiles.length === 0) {
+    return {
+      nextAction: {
+        recommendedToolCall: toolCall("kiwi_diff", context.baseArgs),
+        whyThisTool:
+          "The latest blocked attempt has no approval-required file evidence, so kiwi_request_approval cannot resolve it.",
+        requiresUserConfirmation: false,
+        expectedMutation: "READ_ONLY",
+        expectedAfter: "Inspect the blocked attempt diff and review evidence, then fix or replan the step.",
+      },
+      blockedBy: [`attempt ${attemptId} is blocked but has no approval-required file evidence`],
     };
   }
   const approvedBy = configuredApprovedBy(context.workspacePath);
