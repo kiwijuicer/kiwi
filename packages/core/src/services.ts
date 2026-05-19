@@ -37,7 +37,7 @@ import {
   loadLatestApprovalDecisionForStep,
   recordApprovalDecision,
 } from "./runs/lifecycle/approval";
-import { refreshRunStatusFromAttempts, updateRunStatus } from "./runs/lifecycle/status";
+import { refreshRunStatusFromAttempts, updateRunPlanStatus, updateRunStatus } from "./runs/lifecycle/status";
 import {
   appendModelInvocation,
   buildFinalCostReportFromModelInvocations,
@@ -58,7 +58,8 @@ import {
   resolveRunArtifactPath,
   savePlannedRun,
 } from "./runs/store";
-import { getRunStatusSummary } from "./runs/status";
+import { listRunFeedback, recordRunFeedback } from "./runs/feedback";
+import { getRunStatusSummary, resolveActiveRun } from "./runs/status";
 import { discoverWorkspaceRepos, resolveWorkspace } from "./workspace";
 
 export class RunArtifactStore {
@@ -197,17 +198,25 @@ export class RunStatusReader {
   constructor(
     private readonly deps: {
       updateRunStatus: typeof updateRunStatus;
+      updateRunPlanStatus: typeof updateRunPlanStatus;
       refreshRunStatusFromAttempts: typeof refreshRunStatusFromAttempts;
       getRunStatusSummary: typeof getRunStatusSummary;
+      resolveActiveRun: typeof resolveActiveRun;
     } = {
       updateRunStatus,
+      updateRunPlanStatus,
       refreshRunStatusFromAttempts,
       getRunStatusSummary,
+      resolveActiveRun,
     },
   ) {}
 
   update(params: { cwd: string; runId: string; status: RunStatus; now?: Date }): ReturnType<typeof updateRunStatus> {
     return this.deps.updateRunStatus(params);
+  }
+
+  updatePlan(params: Parameters<typeof updateRunPlanStatus>[0]): ReturnType<typeof updateRunPlanStatus> {
+    return this.deps.updateRunPlanStatus(params);
   }
 
   refreshFromAttempts(params: {
@@ -220,6 +229,30 @@ export class RunStatusReader {
 
   summary(cwd: string, runId?: string): ReturnType<typeof getRunStatusSummary> {
     return this.deps.getRunStatusSummary(cwd, runId);
+  }
+
+  active(input: Parameters<typeof resolveActiveRun>[0]): ReturnType<typeof resolveActiveRun> {
+    return this.deps.resolveActiveRun(input);
+  }
+}
+
+export class RunFeedbackRepository {
+  constructor(
+    private readonly deps: {
+      recordRunFeedback: typeof recordRunFeedback;
+      listRunFeedback: typeof listRunFeedback;
+    } = {
+      recordRunFeedback,
+      listRunFeedback,
+    },
+  ) {}
+
+  record(params: Parameters<typeof recordRunFeedback>[0]): ReturnType<typeof recordRunFeedback> {
+    return this.deps.recordRunFeedback(params);
+  }
+
+  list(cwd: string, runId: string): ReturnType<typeof listRunFeedback> {
+    return this.deps.listRunFeedback(cwd, runId);
   }
 }
 
@@ -436,6 +469,7 @@ export interface CoreServices {
   config: KiwiConfigRepository;
   runs: RunStore;
   runStatus: RunStatusReader;
+  feedback: RunFeedbackRepository;
   budgets: BudgetPolicyService;
   costs: CostLedger;
   modelInvocations: ModelInvocationLedger;
@@ -451,6 +485,7 @@ export function createCoreServices(): CoreServices {
     config: new KiwiConfigRepository(),
     runs: new RunStore(),
     runStatus: new RunStatusReader(),
+    feedback: new RunFeedbackRepository(),
     budgets: new BudgetPolicyService(),
     costs: new CostLedger(),
     modelInvocations: new ModelInvocationLedger(),

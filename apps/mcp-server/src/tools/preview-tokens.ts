@@ -139,8 +139,14 @@ function previewInputFingerprint(
   };
 }
 
-function stateHash(fingerprints: McpPreviewFingerprints, previewInput: McpPreviewInput): string {
-  return sha256(JSON.stringify({ fingerprints, previewInput: previewInputFingerprint(previewInput) }));
+function stateHash(
+  fingerprints: McpPreviewFingerprints,
+  previewInput: McpPreviewInput,
+  executionIsolation: ExecutionIsolation,
+): string {
+  return sha256(
+    JSON.stringify({ fingerprints, previewInput: previewInputFingerprint(previewInput), executionIsolation }),
+  );
 }
 
 function previewDir(cwd: string, runId: string): string {
@@ -224,7 +230,7 @@ export function createMcpPreviewToken(params: {
   now?: Date;
 }): McpPreviewTokenRecord {
   const { repoPath, fingerprints } = fingerprintState(params.cwd, params.runId);
-  const hash = stateHash(fingerprints, params.previewInput);
+  const hash = stateHash(fingerprints, params.previewInput, params.preview.executionIsolation);
   const token = `preview_${hash.slice(0, 16)}_${randomBytes(8).toString("hex")}`;
   const record: McpPreviewTokenRecord = {
     schemaVersion: "1",
@@ -316,7 +322,7 @@ export function validateMcpPreviewToken(params: {
     rejectStale({ cwd: params.cwd, runId: params.runId, reason: "preview token was already consumed" });
   }
   const current = fingerprintState(params.cwd, params.runId);
-  const currentHash = stateHash(current.fingerprints, record.previewInput);
+  const currentHash = stateHash(current.fingerprints, record.previewInput, record.executionIsolation);
 
   if (currentHash !== record.stateHash) {
     rejectStale({ cwd: params.cwd, runId: params.runId, reason: "TaskGraph, policy, HEAD, or dirty state changed" });
@@ -398,7 +404,7 @@ export function latestValidPreviewToken(params: {
   }
 
   for (const { record } of records) {
-    const currentHash = stateHash(current.fingerprints, record.previewInput);
+    const currentHash = stateHash(current.fingerprints, record.previewInput, record.executionIsolation);
 
     if (record.consumedAt) {
       continue;

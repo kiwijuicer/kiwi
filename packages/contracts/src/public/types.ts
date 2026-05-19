@@ -56,6 +56,7 @@ import type {
   RunAuditSnapshotSchema,
   RunCompletionPhaseSummarySchema,
   RunCompletionSummarySchema,
+  RunFeedbackSchema,
   RunSchema,
   RunStatusSchema,
   RunnerExecutionErrorSchema,
@@ -156,6 +157,7 @@ export type FinalCostReport = z.infer<typeof FinalCostReportSchema>;
 export type BudgetProfileLimit = z.infer<typeof BudgetProfileLimitSchema>;
 export type RunCompletionPhaseSummary = z.infer<typeof RunCompletionPhaseSummarySchema>;
 export type RunCompletionSummary = z.infer<typeof RunCompletionSummarySchema>;
+export type RunFeedback = z.infer<typeof RunFeedbackSchema>;
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 export type EvidenceFileHash = z.infer<typeof EvidenceFileHashSchema>;
 export type RunAuditSnapshot = z.infer<typeof RunAuditSnapshotSchema>;

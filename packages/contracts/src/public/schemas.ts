@@ -152,6 +152,7 @@ export {
   RunCompletionPhaseSummarySchema,
   RunCompletionSummarySchema,
   ApprovalDecisionSchema,
+  RunFeedbackSchema,
 } from "../execution";
 
 export {

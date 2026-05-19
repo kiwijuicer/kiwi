@@ -44,7 +44,7 @@ export function createRuntimeExecutionServices(
     new ResearcherProviderRegistry(),
   );
   const schedulerDecisionService = new SchedulerDecisionService(policyResolver, schedulerPolicy, core);
-  const targetResolver = new ExecutionTargetResolver(sandbox);
+  const targetResolver = new ExecutionTargetResolver(sandbox, core);
   const diffMaterializer = new AttemptDiffMaterializer(core);
   const attemptExecutor = new StepAttemptExecutor(
     policyResolver,

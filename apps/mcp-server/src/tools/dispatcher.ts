@@ -1,15 +1,41 @@
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { ContractValues, ProgressStatuses } from "@kiwi/contracts";
-import { resolvePlannerProvider } from "@kiwi/runtime";
-import { buildRunCostForecast, loadEffectivePolicy, loadEffectiveRegistry, planRun } from "@kiwi/core";
+import { recordFeedbackAndReplan, resolvePlannerProvider } from "@kiwi/runtime";
+import {
+  buildRunCostForecast,
+  loadEffectivePolicy,
+  loadEffectiveRegistry,
+  planRun,
+  type WorkspaceResolution,
+} from "@kiwi/core";
 import { callCoreTool } from "./core-dispatch";
 import { doctorTool } from "./doctor";
 import { withOperatorCard } from "../ux/operator-card";
 import { previewRunTool, runStepTool, runTool } from "./run-tools";
 import { progressLine, startHeartbeat, stopHeartbeat, type ToolCallOptions } from "./helpers";
 import { validateToolArguments } from "./input-schemas";
-import { toolCall, type McpNextAction, mutationScope } from "../ux";
+import { toolCall, type McpNextAction, mutationScope, safeReadOnlyToolCalls } from "../ux";
 import { workspaceArgs } from "../workspace";
+import { ToolActionRequiredError } from "./errors";
+import { nextTool } from "./next-action";
+import { getMcpServerServices } from "../services";
+
+const ACTIVE_RUN_TOOLS = new Set([
+  "kiwi_next",
+  "kiwi_diff",
+  "kiwi_preview_run",
+  "kiwi_run",
+  "kiwi_run_step",
+  "kiwi_apply",
+  "kiwi_feedback",
+  "kiwi_finalize",
+  "kiwi_cost",
+  "kiwi_explain",
+  "kiwi_request_approval",
+  "kiwi_evidence_manifest",
+  "kiwi_operator_snapshot",
+  "kiwi_publish_pr_draft",
+]);
 
 function planNextAction(planned: Awaited<ReturnType<typeof planRun>>): McpNextAction {
   return {
@@ -140,6 +166,105 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
   );
 }
 
+function resolveActiveRunArgs(
+  name: string,
+  args: Record<string, unknown>,
+  workspace: WorkspaceResolution,
+): Record<string, unknown> {
+  if (typeof args.runId === "string" || !ACTIVE_RUN_TOOLS.has(name)) {
+    return args;
+  }
+  const active = getMcpServerServices().core.runStatus.active({
+    cwd: workspace.workspacePath,
+    ...(workspace.repo?.id ? { repoId: workspace.repo.id } : {}),
+    ...(workspace.repo?.path ? { repoPath: workspace.repo.path } : {}),
+  });
+
+  if (!active) {
+    throw new ToolActionRequiredError("No active kiwi run for this repo", {
+      category: "action_required",
+      recovery: {
+        reason: "no_active_run",
+        recommendedToolCall: toolCall("kiwi_status", {
+          workspacePath: workspace.workspacePath,
+          repoId: workspace.repo?.id,
+          repoPath: workspace.repo?.path,
+        }),
+        safeAlternatives: safeReadOnlyToolCalls({
+          workspacePath: workspace.workspacePath,
+          ...(workspace.repo?.id ? { repoId: workspace.repo.id } : {}),
+          ...(workspace.repo?.path ? { repoPath: workspace.repo.path } : {}),
+        }),
+        userMessage: "No active run was found. Start with kiwi_plan or inspect kiwi_status.",
+      },
+    });
+  }
+
+  return { ...args, runId: active.runId };
+}
+
+async function feedbackTool(
+  args: Record<string, unknown>,
+  cwd: string,
+  options: ToolCallOptions = {},
+): Promise<unknown> {
+  const workspace = workspaceArgs(args, cwd, false);
+  const resolvedArgs = resolveActiveRunArgs("kiwi_feedback", args, workspace);
+  const runId = String(resolvedArgs.runId ?? "");
+
+  return getMcpServerServices().core.locks.withLock(
+    { cwd: workspace.workspacePath, runId, operation: "mcp_feedback" },
+    async () => {
+      options.onProgress?.(`feedback replan started runId=${runId}`, 0);
+      const result = await recordFeedbackAndReplan({
+        cwd: workspace.workspacePath,
+        runId,
+        message: String(resolvedArgs.message ?? ""),
+        source: "mcp",
+        ...(typeof resolvedArgs.author === "string" ? { author: resolvedArgs.author } : {}),
+        ...(typeof resolvedArgs.targetStepId === "string" ? { targetStepId: resolvedArgs.targetStepId } : {}),
+        ...(typeof resolvedArgs.targetAttemptId === "string" ? { targetAttemptId: resolvedArgs.targetAttemptId } : {}),
+        env: {
+          ...process.env,
+          KIWI_EXECUTION_ISOLATION: process.env.KIWI_EXECUTION_ISOLATION ?? "direct",
+        },
+      });
+      const next = nextTool(
+        { ...resolvedArgs, runId, ...(result.resumeFromStepId ? { fromStep: result.resumeFromStepId } : {}) },
+        cwd,
+      ) as { nextAction?: McpNextAction };
+      options.onProgress?.(`feedback replan completed runId=${runId}`, 100);
+      const cardInput: Parameters<typeof withOperatorCard>[1] = {
+        cwd: workspace.workspacePath,
+        runId,
+        lastAction: "kiwi_feedback",
+        mutationScope: mutationScope({
+          riskLabel: "WRITES_RUN_ARTIFACTS",
+          workspacePath: workspace.workspacePath,
+          repoPath: workspace.repo?.path ?? null,
+          executionMode: process.env.KIWI_EXECUTION_ISOLATION ?? "direct",
+        }),
+      };
+
+      if (next.nextAction) {
+        cardInput.nextAction = next.nextAction;
+      }
+
+      return withOperatorCard(
+        {
+          schemaVersion: "2",
+          kind: "feedback_replan_result",
+          runId,
+          feedbackRef: result.feedbackRef,
+          replan: result,
+          nextAction: next.nextAction ?? null,
+        },
+        cardInput,
+      );
+    },
+  );
+}
+
 export async function callTool(
   name: string,
   args: Record<string, unknown>,
@@ -154,11 +279,15 @@ export async function callTool(
   if (name === "kiwi_plan") {
     return planTool(validatedArgs, cwd, options);
   }
+  if (name === "kiwi_feedback") {
+    return feedbackTool(validatedArgs, cwd, options);
+  }
   const workspace = workspaceArgs(validatedArgs, cwd, false);
+  const resolvedArgs = resolveActiveRunArgs(name, validatedArgs, workspace);
   const workspacePath = workspace.workspacePath;
   const coreResult = callCoreTool({
     name,
-    args: validatedArgs,
+    args: resolvedArgs,
     cwd,
     workspacePath,
     repoPath: workspace.repo?.path ?? null,

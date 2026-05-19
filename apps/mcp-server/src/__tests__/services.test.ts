@@ -26,6 +26,9 @@ describe("MCP services", () => {
     expect(services).toBe(module.getMcpServerServices());
     expect(createCoreServices).toHaveBeenCalledTimes(1);
     expect(createRuntimeServices).toHaveBeenCalledTimes(1);
-    expect(createRuntimeServices).toHaveBeenCalledWith({ core: coreServices });
+    expect(createRuntimeServices).toHaveBeenCalledWith({
+      core: coreServices,
+      env: expect.objectContaining({ KIWI_EXECUTION_ISOLATION: "direct" }),
+    });
   });
 });

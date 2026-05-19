@@ -5,6 +5,7 @@ import {
   latestAttemptByStep,
   listStepAttemptEvidence,
   loadLatestApprovalDecisionForStep,
+  resolveActiveRun,
   resolveRunArtifactPath,
 } from "@kiwi/core";
 import { buildOperatorCard } from "../ux/operator-card";
@@ -273,13 +274,50 @@ function resolveNextAction(status: string, context: NextActionContext): NextActi
   return missingRunAction(context);
 }
 
+function resolveNextRunId(args: Record<string, unknown>, workspace: ReturnType<typeof workspaceArgs>): string | null {
+  if (typeof args.runId === "string" && args.runId.length > 0) {
+    return args.runId;
+  }
+
+  return (
+    resolveActiveRun({
+      cwd: workspace.workspacePath,
+      ...(workspace.repo?.id ? { repoId: workspace.repo.id } : {}),
+      ...(workspace.repo?.path ? { repoPath: workspace.repo.path } : {}),
+    })?.runId ?? null
+  );
+}
+
 export function nextTool(args: Record<string, unknown>, cwd: string): unknown {
-  const runId = String(args.runId ?? "");
+  const workspace = workspaceArgs(args, cwd, false);
+  const runId = resolveNextRunId(args, workspace);
 
   if (!runId) {
-    throw new Error("kiwi_next requires runId");
+    return {
+      schemaVersion: "2",
+      runId: null,
+      currentState: "missing",
+      nextAction: {
+        recommendedToolCall: toolCall("kiwi_status", {
+          workspacePath: workspace.workspacePath,
+          repoId: workspace.repo?.id,
+          repoPath: workspace.repo?.path,
+        }),
+        whyThisTool: "No active kiwi run was found for this repo.",
+        requiresUserConfirmation: false,
+        expectedMutation: "READ_ONLY",
+        expectedAfter: "Inspect status or create a new plan.",
+      },
+      blockedBy: ["no_active_run"],
+      safeAlternatives: safeReadOnlyToolCalls({
+        workspacePath: workspace.workspacePath,
+        ...(workspace.repo?.id ? { repoId: workspace.repo.id } : {}),
+        ...(workspace.repo?.path ? { repoPath: workspace.repo.path } : {}),
+      }),
+      previewResource: null,
+      operatorCard: null,
+    };
   }
-  const workspace = workspaceArgs(args, cwd, false);
   const previewInput = normalizePreviewInput({
     fromStep: typeof args.fromStep === "string" ? args.fromStep : undefined,
     maxConcurrency: typeof args.maxConcurrency === "number" ? args.maxConcurrency : undefined,

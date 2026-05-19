@@ -3,6 +3,7 @@ import { runApprove } from "../execution/approve";
 import { runAttempt } from "../execution/attempt";
 import { runApply, runDiff } from "../execution/diff";
 import { runEvidenceManifest } from "../execution/evidence";
+import { runFeedback } from "../execution/feedback";
 import { runFinalize } from "../execution/finalize";
 import { runOperatorSnapshot } from "../operations/operator";
 import { runPublishPr } from "../operations/publish";
@@ -121,6 +122,32 @@ export function registerExecutionCommands(program: Command, withWorkspaceOptions
 
   registerRunCommand(program, withWorkspaceOptions);
   registerTailCommand(program, withWorkspaceOptions);
+
+  addWorkspaceOptions(
+    program
+      .command("feedback [runId]")
+      .description("Record human feedback and replan the active run")
+      .requiredOption("--message <text>", "Human feedback or requested adjustment")
+      .option("--author <name>", "Feedback author")
+      .option("--target-step <stepId>", "Step the feedback targets")
+      .option("--target-attempt <attemptId>", "Attempt the feedback targets")
+      .option("--json", "Print JSON"),
+  ).action(
+    (
+      runId: string | undefined,
+      opts: {
+        message: string;
+        author?: string;
+        targetStep?: string;
+        targetAttempt?: string;
+        json?: boolean;
+        workspace?: string;
+        repo?: string;
+      },
+    ) => {
+      runFeedback(runId, withWorkspaceOptions(opts)).catch(handleCommandError);
+    },
+  );
 
   addWorkspaceOptions(
     program

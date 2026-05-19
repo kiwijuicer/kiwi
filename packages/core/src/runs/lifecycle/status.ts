@@ -22,6 +22,31 @@ export function updateRunStatus(params: { cwd: string; runId: string; status: Ru
   return updated;
 }
 
+export function updateRunPlanStatus(params: {
+  cwd: string;
+  runId: string;
+  planId: string;
+  status: RunStatus;
+  now?: Date;
+}): RunManifest {
+  const current = loadRunManifest(params.runId, params.cwd);
+  const updated = RunManifestSchema.parse({
+    ...current,
+    currentPlanId: params.planId,
+    status: params.status,
+    updatedAt: (params.now ?? new Date()).toISOString(),
+  });
+  writeJsonSafely(resolveRunArtifactPath(params.runId, "run.json", params.cwd), updated);
+  appendAuditEvent(params.cwd, {
+    eventType: "run_plan_updated",
+    runId: params.runId,
+    timestamp: updated.updatedAt,
+    payload: { currentPlanId: params.planId, status: params.status },
+  });
+
+  return updated;
+}
+
 export function refreshRunStatusFromAttempts(params: { cwd: string; runId: string; now?: Date }): RunManifest {
   const taskGraph = loadTaskGraph(params.runId, params.cwd);
   const attempts = Array.from(latestAttemptByStep(listStepAttemptEvidence(params.cwd, params.runId)).values());

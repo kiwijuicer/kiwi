@@ -21,6 +21,7 @@ import {
   ReviewVerdictSchema,
   RunAuditSnapshotSchema,
   RunCompletionSummarySchema,
+  RunFeedbackSchema,
   RunnerExecutionOutputSchema,
   SchedulerDecisionSchema,
   ScmMutationResultSchema,
@@ -76,6 +77,24 @@ describe("contracts schemas", () => {
     });
 
     expect(parsed.runId).toBe("run_demo");
+  });
+
+  it("parses run feedback artifacts", () => {
+    const parsed = RunFeedbackSchema.parse({
+      schemaVersion: "1",
+      feedbackId: "feedback_20260519_120000_abcd",
+      runId: "run_demo",
+      message: "Please keep the change smaller.",
+      source: "mcp",
+      author: "norbert",
+      targetStepId: "step_001",
+      targetAttemptId: "attempt_abc",
+      evidenceRefs: ["steps/step_001/attempt_abc/artifacts/review-report.json"],
+      createdAt: "2026-05-19T12:00:00.000Z",
+    });
+
+    expect(parsed.source).toBe("mcp");
+    expect(parsed.evidenceRefs).toHaveLength(1);
   });
 
   it("parses a valid task graph", () => {

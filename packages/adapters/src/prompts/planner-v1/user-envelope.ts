@@ -8,6 +8,7 @@ export function buildPlannerUserEnvelope(input: PlannerProviderInput): string {
       requestedAt: input.requestedAt,
       initiative: input.initiative,
       policy: input.policy,
+      ...(input.replanContext ? { replanContext: input.replanContext } : {}),
     },
     null,
     2,

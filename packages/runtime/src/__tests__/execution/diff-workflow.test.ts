@@ -11,7 +11,7 @@ function writeJson(target: string, value: unknown): void {
   writeFileSync(target, JSON.stringify(value, null, 2), "utf-8");
 }
 
-function setupRun(reviewVerdict = "pass"): string {
+function setupRun(reviewVerdict = "pass", options: { finalVerdict?: boolean } = {}): string {
   const repo = mkdtempSync(path.join(os.tmpdir(), "kiwi-diff-workflow-"));
   execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
   writeFileSync(path.join(repo, "README.md"), "demo\n", "utf-8");
@@ -91,6 +91,22 @@ function setupRun(reviewVerdict = "pass"): string {
     recommendedNextSteps: ["Continue"],
     confidence: 0.9,
   });
+  if (options.finalVerdict !== false) {
+    writeJson(path.join(runDir, "final", "final-verdict.json"), {
+      schemaVersion: "1",
+      runId: "run_demo",
+      verdict: reviewVerdict === "pass" ? "pass" : "needs_changes",
+      safeToApply: reviewVerdict === "pass",
+      completedStepIds: reviewVerdict === "pass" ? ["step_001"] : [],
+      failedStepIds: reviewVerdict === "pass" ? [] : ["step_001"],
+      blockedStepIds: [],
+      missingStepIds: [],
+      gateResultRefs: [],
+      reviewReportRefs: ["steps/step_001/attempt_001/artifacts/review-report.json"],
+      reason: reviewVerdict === "pass" ? "Safe" : "Unsafe",
+      createdAt: "2026-05-08T10:00:03.000Z",
+    });
+  }
 
   return repo;
 }
@@ -130,5 +146,10 @@ describe("diff workflow", () => {
     const repo = setupRun("needs_changes");
     expect(() => applyRunDiff({ cwd: repo, runId: "run_demo" })).toThrow("Refusing to apply");
     expect(applyRunDiff({ cwd: repo, runId: "run_demo", forceUnsafe: true }).applied).toHaveLength(1);
+  });
+
+  it("requires a safe final verdict before applying worktree patches", () => {
+    const repo = setupRun("pass", { finalVerdict: false });
+    expect(() => applyRunDiff({ cwd: repo, runId: "run_demo" })).toThrow("final verdict is missing");
   });
 });

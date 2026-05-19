@@ -136,6 +136,17 @@ export interface RunStatusSummary {
   corrupt: CorruptRunStatusEntry[];
 }
 
+export interface ActiveRunResolutionInput {
+  cwd: string;
+  repoId?: string;
+  repoPath?: string;
+}
+
+export interface ActiveRunResolution {
+  runId: string;
+  entry: RunStatusEntry;
+}
+
 function artifactPathsFor(runId: string): RunArtifactPaths {
   const paths: RunArtifactPaths = {
     runManifest: `.kiwi/runs/${runId}/run.json`,
@@ -377,6 +388,23 @@ function latestStepEntries(params: {
   return { steps: stepEntries, completedSteps, remainingSteps, activeStepActivity, editedFiles };
 }
 
+function attemptTimestamp(entry: StepAttemptEvidence): string {
+  return entry.attempt.completedAt ?? entry.attempt.startedAt;
+}
+
+function attemptsForCurrentPlan(
+  taskGraph: { createdAt: string },
+  attempts: StepAttemptEvidence[],
+): StepAttemptEvidence[] {
+  return attempts.filter((entry) => {
+    if (entry.attempt.status !== ContractValues.Failed && entry.attempt.status !== ContractValues.Blocked) {
+      return true;
+    }
+
+    return attemptTimestamp(entry) >= taskGraph.createdAt;
+  });
+}
+
 function deriveCurrentRunStatus(params: {
   manifestStatus: RunStatus;
   finalStatus: RunStatus | null;
@@ -440,7 +468,7 @@ function loadRunStatusEntry(runId: string, cwd: string): RunStatusEntry {
   const run = loadRunManifest(runId, cwd);
   const initiative = loadInitiative(runId, cwd);
   const taskGraph = loadTaskGraph(runId, cwd);
-  const attempts = listStepAttemptEvidence(cwd, runId);
+  const attempts = attemptsForCurrentPlan(taskGraph, listStepAttemptEvidence(cwd, runId));
   const latestAttempts = latestAttemptByStep(attempts);
   const finalStatus = finalRunStatusFor(runId, cwd);
   const stepDetails = latestStepEntries({
@@ -522,4 +550,41 @@ export function getRunStatusSummary(cwd: string, runId?: string): RunStatusSumma
     latest: entries.slice(0, 10),
     corrupt,
   };
+}
+
+function isActiveRunStatus(status: RunStatus): boolean {
+  return (
+    status === RunStatuses.Planned ||
+    status === ContractValues.Running ||
+    status === RunStatuses.NeedsApproval ||
+    status === ContractValues.Failed
+  );
+}
+
+function matchesRepo(entry: RunStatusEntry, input: ActiveRunResolutionInput): boolean {
+  if (input.repoPath) {
+    return entry.repoPath ? path.resolve(entry.repoPath) === path.resolve(input.repoPath) : false;
+  }
+  if (input.repoId) {
+    return entry.repoId === input.repoId;
+  }
+
+  return true;
+}
+
+export function resolveActiveRun(input: ActiveRunResolutionInput): ActiveRunResolution | null {
+  const entries = listRunIds(input.cwd)
+    .filter(isValidRunId)
+    .map((runId) => {
+      try {
+        return loadRunStatusEntry(runId, input.cwd);
+      } catch {
+        return null;
+      }
+    })
+    .filter((entry): entry is RunStatusEntry => entry !== null)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const candidate = entries.find((entry) => matchesRepo(entry, input) && isActiveRunStatus(entry.currentStatus));
+
+  return candidate ? { runId: candidate.runId, entry: candidate } : null;
 }

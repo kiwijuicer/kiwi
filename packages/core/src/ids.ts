@@ -57,6 +57,10 @@ export function generatePlanId(now: Date = new Date(), options: IdGenerationOpti
   return `plan_${plannedRunDateToken(now)}_${idSuffix(options)}`;
 }
 
+export function generateFeedbackId(now: Date = new Date(), options: IdGenerationOptions = {}): string {
+  return `feedback_${plannedRunDateToken(now)}_${idSuffix(options)}`;
+}
+
 export function generateStepId(index: number): string {
   return `step_${String(index + 1).padStart(3, "0")}`;
 }

@@ -1,11 +1,47 @@
-import { Initiative, KiwiPolicy, TaskGraph, TaskGraphSchema } from "@kiwi/contracts";
+import {
+  GateResult,
+  Initiative,
+  KiwiPolicy,
+  ReviewVerdict,
+  RunFeedback,
+  TaskGraph,
+  TaskGraphSchema,
+} from "@kiwi/contracts";
 import type { ProviderFailureCode, ProviderValidationStatus } from "../constants";
+
+export interface PlannerReplanAttemptContext {
+  stepId: string;
+  attemptId: string;
+  status: string;
+  reviewVerdict?: ReviewVerdict;
+  gateResults: GateResult[];
+  artifactRefs: string[];
+}
+
+export interface PlannerReplanDiffContext {
+  stepId: string;
+  attemptId: string;
+  diffRef: string;
+  stat: string;
+  files: string[];
+  reviewVerdict: string;
+}
+
+export interface PlannerReplanContext {
+  request: "Revise the current TaskGraph using human feedback and failed review evidence.";
+  currentTaskGraph: TaskGraph;
+  feedback: RunFeedback;
+  feedbackHistory: RunFeedback[];
+  latestProblemAttempts: PlannerReplanAttemptContext[];
+  diffSummaries: PlannerReplanDiffContext[];
+}
 
 export interface PlannerProviderInput {
   runId: string;
   initiative: Initiative;
   policy: KiwiPolicy;
   requestedAt: string;
+  replanContext?: PlannerReplanContext;
 }
 
 export interface ModelUsageEstimate {

@@ -8,10 +8,14 @@ interface McpServerServices {
 
 function createMcpServerServices(): McpServerServices {
   const core = createCoreServices();
+  const env = {
+    ...process.env,
+    KIWI_EXECUTION_ISOLATION: process.env.KIWI_EXECUTION_ISOLATION ?? "direct",
+  };
 
   return {
     core,
-    runtime: createRuntimeServices({ core }),
+    runtime: createRuntimeServices({ core, env }),
   };
 }
 
@@ -23,4 +27,8 @@ export function getMcpServerServices(): McpServerServices {
   }
 
   return mcpServerServices;
+}
+
+export function resetMcpServerServicesForTests(): void {
+  mcpServerServices = null;
 }

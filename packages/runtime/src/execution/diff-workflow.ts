@@ -4,6 +4,7 @@ import {
   ArtifactTypes,
   ContractValues,
   ExecutionIsolations,
+  FinalVerdictSchema,
   type ExecutionIsolation,
   ReviewVerdictValue,
 } from "@kiwi/contracts";
@@ -181,6 +182,16 @@ function blockedVerdict(verdict: DiffReviewVerdict): boolean {
   return verdict === ContractValues.NeedsChanges || verdict === ContractValues.Reject;
 }
 
+function finalVerdictSafeToApply(cwd: string, runId: string): boolean | null {
+  const target = resolveRunArtifactPath(runId, "final/final-verdict.json", cwd);
+
+  if (!existsSync(target)) {
+    return null;
+  }
+
+  return FinalVerdictSchema.parse(JSON.parse(readFileSync(target, "utf-8")) as unknown).safeToApply;
+}
+
 export function applyRunDiff(params: {
   cwd: string;
   runId: string;
@@ -216,6 +227,15 @@ export function applyRunDiff(params: {
   if (blocked && !params.forceUnsafe) {
     throw new Error(
       `Refusing to apply ${blocked.stepId}/${blocked.attemptId}: review verdict is ${blocked.reviewVerdict}. Use --force-unsafe to override.`,
+    );
+  }
+  const safeToApply = finalVerdictSafeToApply(params.cwd, params.runId);
+
+  if (safeToApply !== true && !params.forceUnsafe) {
+    throw new Error(
+      safeToApply === null
+        ? "Refusing to apply: final verdict is missing. Run `kiwi finalize` first."
+        : "Refusing to apply: final verdict is not safe to apply. Use --force-unsafe to override.",
     );
   }
 

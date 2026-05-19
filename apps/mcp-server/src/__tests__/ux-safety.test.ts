@@ -1,5 +1,5 @@
 import { execFileSync } from "child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -13,6 +13,7 @@ import {
 } from "@kiwi/core";
 import type { RunExecutionPreview } from "@kiwi/runtime";
 import { handleMcpRequest } from "..";
+import { resetMcpServerServicesForTests } from "../services";
 import { createMcpPreviewToken, latestValidPreviewToken, normalizePreviewInput } from "../tools/preview-tokens";
 
 let previousKiwiHome: string | undefined;
@@ -23,6 +24,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetMcpServerServicesForTests();
   if (previousKiwiHome === undefined) {
     delete process.env.KIWI_HOME;
   } else {
@@ -144,6 +146,7 @@ describe("MCP UX safety tools", () => {
     const payload = JSON.stringify(tools.result);
     expect(payload).toContain("kiwi_doctor");
     expect(payload).toContain("kiwi_next");
+    expect(payload).toContain("kiwi_feedback");
     expect(payload).toContain("READ_ONLY");
     const listedTools = (tools.result as { tools: Array<{ name: string; description: string }> }).tools;
     const runDescription = listedTools.find((tool) => tool.name === "kiwi_run")?.description ?? "";
@@ -196,6 +199,67 @@ describe("MCP UX safety tools", () => {
     }
   });
 
+  it("resolves active runs and defaults MCP preview execution to direct", async () => {
+    const cwd = setupRepo();
+    const runId = await planRun(cwd);
+
+    const next = await handleMcpRequest(
+      { id: 2, method: "tools/call", params: { name: "kiwi_next", arguments: {} } },
+      cwd,
+    );
+    const nextParsed = toolJson(next) as {
+      nextAction: { recommendedToolCall: { name: string; arguments: { runId: string } } };
+    };
+    expect(nextParsed.nextAction.recommendedToolCall.name).toBe("kiwi_preview_run");
+    expect(nextParsed.nextAction.recommendedToolCall.arguments.runId).toBe(runId);
+
+    const preview = await handleMcpRequest(
+      { id: 3, method: "tools/call", params: { name: "kiwi_preview_run", arguments: {} } },
+      cwd,
+    );
+    expect(preview.error).toBeUndefined();
+    const previewParsed = toolJson(preview) as {
+      runId: string;
+      previewToken: string;
+      execution: { isolation: string };
+    };
+    expect(previewParsed.runId).toBe(runId);
+    expect(previewParsed.execution.isolation).toBe("direct");
+    const previewRecord = JSON.parse(
+      readFileSync(path.join(cwd, ".kiwi", "runs", runId, "previews", `${previewParsed.previewToken}.json`), "utf-8"),
+    ) as { executionIsolation: string; stateHash: string };
+    expect(previewRecord.executionIsolation).toBe("direct");
+    expect(previewRecord.stateHash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("records feedback and replans the active run without runId", async () => {
+    const cwd = setupRepo();
+    const runId = await planRun(cwd);
+
+    const feedback = await handleMcpRequest(
+      {
+        id: 2,
+        method: "tools/call",
+        params: { name: "kiwi_feedback", arguments: { message: "Please keep the change smaller." } },
+      },
+      cwd,
+    );
+
+    expect(feedback.error).toBeUndefined();
+    const parsed = toolJson(feedback) as {
+      kind: string;
+      runId: string;
+      feedbackRef: string;
+      nextAction: { recommendedToolCall: { name: string; arguments: { runId: string } } };
+    };
+    expect(parsed.kind).toBe("feedback_replan_result");
+    expect(parsed.runId).toBe(runId);
+    expect(parsed.feedbackRef).toMatch(/^feedback\/feedback_/);
+    expect(parsed.nextAction.recommendedToolCall.name).toBe("kiwi_preview_run");
+    expect(parsed.nextAction.recommendedToolCall.arguments.runId).toBe(runId);
+    expect(existsSync(path.join(cwd, ".kiwi", "runs", runId, parsed.feedbackRef))).toBe(true);
+  });
+
   it("requires a fresh preview token before MCP run mutation", async () => {
     const cwd = setupRepo();
     const runId = await planRun(cwd);
@@ -215,47 +279,59 @@ describe("MCP UX safety tools", () => {
   });
 
   it("blocks direct execution previews on protected, dirty, and untracked repos", async () => {
-    const protectedRepo = setupRepo();
-    execFileSync("git", ["switch", "-c", "main"], { cwd: protectedRepo, stdio: "ignore" });
-    const protectedRunId = await planRun(protectedRepo);
-    const protectedPreview = await handleMcpRequest(
-      {
-        id: 2,
-        method: "tools/call",
-        params: { name: "kiwi_preview_run", arguments: { runId: protectedRunId } },
-      },
-      protectedRepo,
-    );
-    expect(protectedPreview.error?.code).toBe(-32010);
-    expect(protectedPreview.error?.message).toContain("protected-looking");
+    const previousIsolation = process.env.KIWI_EXECUTION_ISOLATION;
+    process.env.KIWI_EXECUTION_ISOLATION = "direct";
+    resetMcpServerServicesForTests();
+    try {
+      const protectedRepo = setupRepo();
+      execFileSync("git", ["switch", "-c", "main"], { cwd: protectedRepo, stdio: "ignore" });
+      const protectedRunId = await planRun(protectedRepo);
+      const protectedPreview = await handleMcpRequest(
+        {
+          id: 2,
+          method: "tools/call",
+          params: { name: "kiwi_preview_run", arguments: { runId: protectedRunId } },
+        },
+        protectedRepo,
+      );
+      expect(protectedPreview.error?.code).toBe(-32010);
+      expect(protectedPreview.error?.message).toContain("protected-looking");
 
-    const dirtyRepo = setupRepo();
-    const dirtyRunId = await planRun(dirtyRepo);
-    writeFileSync(path.join(dirtyRepo, ".gitignore"), ".kiwi/\n# dirty\n", "utf-8");
-    const dirtyPreview = await handleMcpRequest(
-      {
-        id: 3,
-        method: "tools/call",
-        params: { name: "kiwi_preview_run", arguments: { runId: dirtyRunId } },
-      },
-      dirtyRepo,
-    );
-    expect(dirtyPreview.error?.code).toBe(-32010);
-    expect(dirtyPreview.error?.message).toContain("tracked dirty files");
+      const dirtyRepo = setupRepo();
+      const dirtyRunId = await planRun(dirtyRepo);
+      writeFileSync(path.join(dirtyRepo, ".gitignore"), ".kiwi/\n# dirty\n", "utf-8");
+      const dirtyPreview = await handleMcpRequest(
+        {
+          id: 3,
+          method: "tools/call",
+          params: { name: "kiwi_preview_run", arguments: { runId: dirtyRunId } },
+        },
+        dirtyRepo,
+      );
+      expect(dirtyPreview.error?.code).toBe(-32010);
+      expect(dirtyPreview.error?.message).toContain("tracked dirty files");
 
-    const untrackedRepo = setupRepo();
-    const untrackedRunId = await planRun(untrackedRepo);
-    writeFileSync(path.join(untrackedRepo, "scratch.txt"), "dirty\n", "utf-8");
-    const untrackedPreview = await handleMcpRequest(
-      {
-        id: 4,
-        method: "tools/call",
-        params: { name: "kiwi_preview_run", arguments: { runId: untrackedRunId } },
-      },
-      untrackedRepo,
-    );
-    expect(untrackedPreview.error?.code).toBe(-32010);
-    expect(untrackedPreview.error?.message).toContain("untracked non-kiwi files");
+      const untrackedRepo = setupRepo();
+      const untrackedRunId = await planRun(untrackedRepo);
+      writeFileSync(path.join(untrackedRepo, "scratch.txt"), "dirty\n", "utf-8");
+      const untrackedPreview = await handleMcpRequest(
+        {
+          id: 4,
+          method: "tools/call",
+          params: { name: "kiwi_preview_run", arguments: { runId: untrackedRunId } },
+        },
+        untrackedRepo,
+      );
+      expect(untrackedPreview.error?.code).toBe(-32010);
+      expect(untrackedPreview.error?.message).toContain("untracked non-kiwi files");
+    } finally {
+      if (previousIsolation === undefined) {
+        delete process.env.KIWI_EXECUTION_ISOLATION;
+      } else {
+        process.env.KIWI_EXECUTION_ISOLATION = previousIsolation;
+      }
+      resetMcpServerServicesForTests();
+    }
   });
 
   it("keeps preview tokens valid when only kiwi artifacts are written", async () => {

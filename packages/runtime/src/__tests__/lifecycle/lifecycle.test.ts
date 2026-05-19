@@ -352,6 +352,69 @@ describe("run lifecycle", () => {
     }
   });
 
+  it("prepares cumulative worktree bases without mutating the source repo", async () => {
+    const repo = cwd();
+    execFileSync("git", ["init", "-b", "feature"], { cwd: repo, stdio: "ignore" });
+    writeFileSync(path.join(repo, ".gitignore"), ".kiwi/\n", "utf-8");
+    writeFileSync(path.join(repo, "README.md"), "old\n", "utf-8");
+    execFileSync("git", ["add", ".gitignore", "README.md"], { cwd: repo, stdio: "ignore" });
+    execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
+      cwd: repo,
+      stdio: "ignore",
+    });
+    createRun(
+      repo,
+      [
+        { ...step, requiredGates: [] },
+        { ...dependentStep, requiredGates: [] },
+      ],
+      { ...initiative, repoPath: repo },
+    );
+    writeExecutionConfig(repo);
+    const previousForceAccessMode = process.env.KIWI_FORCE_ACCESS_MODE;
+    const previousIsolation = process.env.KIWI_EXECUTION_ISOLATION;
+    process.env.KIWI_FORCE_ACCESS_MODE = "stub";
+    process.env.KIWI_EXECUTION_ISOLATION = "worktree";
+
+    try {
+      const first = await executePlannedStep({
+        cwd: repo,
+        runId: "run_demo",
+        stepId: "step_001",
+        attemptId: "attempt_first",
+        command: [process.execPath, "-e", "require('fs').writeFileSync('shared.txt','from step 1\\n')"],
+      });
+      expect(first.status).toBe("completed");
+      expect(existsSync(path.join(repo, "shared.txt"))).toBe(false);
+
+      const second = await executePlannedStep({
+        cwd: repo,
+        runId: "run_demo",
+        stepId: "step_002",
+        attemptId: "attempt_second",
+        command: [
+          process.execPath,
+          "-e",
+          "const fs=require('fs');if(!fs.existsSync('shared.txt'))process.exit(7);fs.writeFileSync('second.txt',fs.readFileSync('shared.txt'))",
+        ],
+      });
+      expect(second.status).toBe("completed");
+      expect(existsSync(path.join(repo, "shared.txt"))).toBe(false);
+      expect(existsSync(path.join(repo, "second.txt"))).toBe(false);
+    } finally {
+      if (previousForceAccessMode === undefined) {
+        delete process.env.KIWI_FORCE_ACCESS_MODE;
+      } else {
+        process.env.KIWI_FORCE_ACCESS_MODE = previousForceAccessMode;
+      }
+      if (previousIsolation === undefined) {
+        delete process.env.KIWI_EXECUTION_ISOLATION;
+      } else {
+        process.env.KIWI_EXECUTION_ISOLATION = previousIsolation;
+      }
+    }
+  });
+
   it("treats local kiwi MCP config files as kiwi state", () => {
     const repo = cwd();
     execFileSync("git", ["init", "-b", "feature"], { cwd: repo, stdio: "ignore" });

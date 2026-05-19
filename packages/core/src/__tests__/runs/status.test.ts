@@ -1,11 +1,13 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { Artifact, Initiative, TaskGraph } from "@kiwi/contracts";
-import { getRunStatusSummary } from "../../runs/status";
+import { getRunStatusSummary, resolveActiveRun } from "../../runs/status";
+import { recordRunFeedback } from "../../runs/feedback";
 import { savePlannedRun } from "../../runs/store";
-import { refreshRunStatusFromAttempts, updateRunStatus } from "../../runs/lifecycle/status";
+import { refreshRunStatusFromAttempts, updateRunPlanStatus, updateRunStatus } from "../../runs/lifecycle/status";
+import { readAuditEvents } from "../../ledger/cost-ledger";
 
 function fixtureInitiative(id: string, title: string): Initiative {
   return {
@@ -444,5 +446,135 @@ describe("run status summary", () => {
     expect(() => getRunStatusSummary(cwd, "run_20260504_040000_broken")).toThrow("is corrupt");
 
     rmSync(path.join(cwd, ".kiwi"), { recursive: true, force: true });
+  });
+
+  it("resolves the newest non-final active run for a repo", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-core-active-run-"));
+    const repoA = path.join(cwd, "repo-a");
+    const repoB = path.join(cwd, "repo-b");
+
+    savePlannedRun({
+      runId: "run_20260504_040000_done",
+      initiative: fixtureInitiative("init_20260504_040000_done", "Done"),
+      taskGraph: fixtureTaskGraph("run_20260504_040000_done", "init_20260504_040000_done", "plan_done"),
+      cwd,
+      repoId: "repo-a",
+      repoPath: repoA,
+      now: new Date("2026-05-04T04:00:00.000Z"),
+    });
+    updateRunStatus({
+      cwd,
+      runId: "run_20260504_040000_done",
+      status: "completed",
+      now: new Date("2026-05-04T04:01:00.000Z"),
+    });
+    savePlannedRun({
+      runId: "run_20260504_040000_failed",
+      initiative: fixtureInitiative("init_20260504_040000_failed", "Failed"),
+      taskGraph: fixtureTaskGraph("run_20260504_040000_failed", "init_20260504_040000_failed", "plan_failed"),
+      cwd,
+      repoId: "repo-a",
+      repoPath: repoA,
+      now: new Date("2026-05-04T04:02:00.000Z"),
+    });
+    updateRunStatus({
+      cwd,
+      runId: "run_20260504_040000_failed",
+      status: "failed",
+      now: new Date("2026-05-04T04:03:00.000Z"),
+    });
+    savePlannedRun({
+      runId: "run_20260504_040000_other",
+      initiative: fixtureInitiative("init_20260504_040000_other", "Other"),
+      taskGraph: fixtureTaskGraph("run_20260504_040000_other", "init_20260504_040000_other", "plan_other"),
+      cwd,
+      repoId: "repo-b",
+      repoPath: repoB,
+      now: new Date("2026-05-04T04:04:00.000Z"),
+    });
+
+    expect(resolveActiveRun({ cwd, repoPath: repoA })?.runId).toBe("run_20260504_040000_failed");
+    expect(resolveActiveRun({ cwd, repoPath: repoB })?.runId).toBe("run_20260504_040000_other");
+
+    updateRunStatus({
+      cwd,
+      runId: "run_20260504_040000_failed",
+      status: "cancelled",
+      now: new Date("2026-05-04T04:05:00.000Z"),
+    });
+    expect(resolveActiveRun({ cwd, repoPath: repoA })).toBeNull();
+  });
+
+  it("records feedback artifacts and audit events", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-core-feedback-"));
+    const runId = "run_20260504_040000_feedback";
+
+    savePlannedRun({
+      runId,
+      initiative: fixtureInitiative("init_20260504_040000_feedback", "Feedback"),
+      taskGraph: fixtureTaskGraph(runId, "init_20260504_040000_feedback", "plan_feedback"),
+      cwd,
+      now: new Date("2026-05-04T04:00:00.000Z"),
+    });
+    const result = recordRunFeedback({
+      cwd,
+      runId,
+      message: "Make the change smaller",
+      source: "mcp",
+      author: "norbert",
+      evidenceRefs: ["steps/step_001/attempt_001/artifacts/review-report.json"],
+      now: new Date("2026-05-04T04:01:00.000Z"),
+    });
+
+    expect(result.ref).toMatch(/^feedback\/feedback_/);
+    expect(existsSync(path.join(cwd, ".kiwi", "runs", runId, result.ref))).toBe(true);
+    expect(JSON.parse(readFileSync(path.join(cwd, ".kiwi", "runs", runId, result.ref), "utf-8"))).toMatchObject({
+      message: "Make the change smaller",
+      source: "mcp",
+      author: "norbert",
+    });
+    expect(readAuditEvents(cwd, runId).find((event) => event.eventType === "feedback_recorded")).toBeDefined();
+  });
+
+  it("ignores stale failed attempts after a planner-backed replan", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-core-status-replan-"));
+    const runId = "run_20260504_040000_replanned";
+    const initiativeId = "init_20260504_040000_replanned";
+    const original = fixtureTaskGraph(runId, initiativeId, "plan_original");
+
+    savePlannedRun({
+      runId,
+      initiative: fixtureInitiative(initiativeId, "Replanned"),
+      taskGraph: original,
+      cwd,
+      now: new Date("2026-05-04T04:00:00.000Z"),
+    });
+    writeAttempt({
+      cwd,
+      runId,
+      stepId: "step_001",
+      attemptId: "attempt_failed",
+      status: "failed",
+      startedAt: "2026-05-04T04:01:00.000Z",
+      completedAt: "2026-05-04T04:02:00.000Z",
+    });
+    expect(refreshRunStatusFromAttempts({ cwd, runId }).status).toBe("failed");
+    writeFileSync(
+      path.join(cwd, ".kiwi", "runs", runId, "plan", "task-graph.v2.json"),
+      JSON.stringify({ ...original, planId: "plan_replanned", createdAt: "2026-05-04T04:03:00.000Z" }, null, 2),
+      "utf-8",
+    );
+    updateRunPlanStatus({
+      cwd,
+      runId,
+      planId: "plan_replanned",
+      status: "planned",
+      now: new Date("2026-05-04T04:03:00.000Z"),
+    });
+
+    const entry = getRunStatusSummary(cwd, runId).latest[0];
+    expect(entry?.currentStatus).toBe("planned");
+    expect(entry?.attempts).toEqual([]);
+    expect(entry?.remainingSteps.map((step) => step.stepId)).toEqual(["step_001"]);
   });
 });

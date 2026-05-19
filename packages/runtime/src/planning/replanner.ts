@@ -1,7 +1,32 @@
 import { existsSync, readdirSync } from "fs";
 import path from "path";
-import { ContractValues, ReviewVerdict, StepSchema, TaskGraph, TaskGraphSchema } from "@kiwi/contracts";
-import { appendAuditEvent, generateStepId, loadTaskGraph, resolveRunArtifactPath, writeJsonSafely } from "@kiwi/core";
+import { runPlannerProviderWithRetries, type PlannerProviderInput, type PlannerReplanContext } from "@kiwi/adapters";
+import {
+  ContractValues,
+  ModelInvocationRecord,
+  ReviewVerdict,
+  RunStatuses,
+  StepSchema,
+  TaskGraph,
+  TaskGraphSchema,
+} from "@kiwi/contracts";
+import {
+  appendAuditEvent,
+  appendModelInvocation,
+  generateStepId,
+  listRunFeedback,
+  listStepAttemptEvidence,
+  loadEffectivePolicy,
+  loadEffectiveRegistry,
+  loadInitiative,
+  loadTaskGraph,
+  recordRunFeedback,
+  resolveRunArtifactPath,
+  updateRunPlanStatus,
+  writeJsonSafely,
+} from "@kiwi/core";
+import { buildRunDiff } from "../execution/diff-workflow";
+import { resolvePlannerProvider } from "./planner-resolution";
 
 export interface ReplannerInput {
   cwd: string;
@@ -19,6 +44,28 @@ export interface InjectFixStepResult {
 export interface AttemptReplanResult {
   taskGraphPath: string;
   version: number;
+}
+
+export interface FeedbackReplanInput {
+  cwd: string;
+  runId: string;
+  message: string;
+  source: "cli" | "mcp";
+  author?: string;
+  targetStepId?: string;
+  targetAttemptId?: string;
+  now?: Date;
+  env?: Record<string, string | undefined>;
+}
+
+export interface FeedbackReplanResult {
+  runId: string;
+  feedbackRef: string;
+  taskGraphPath: string;
+  version: number;
+  planId: string;
+  resumeFromStepId?: string;
+  modelInvocationRef?: string;
 }
 
 function nextFixStepId(taskGraph: TaskGraph): string {
@@ -144,6 +191,278 @@ export function attemptReplan(input: ReplannerInput): AttemptReplanResult {
       timestamp: now,
       payload: {
         focalStepId: input.focalStepId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    throw error;
+  }
+}
+
+function problemAttemptRefs(input: FeedbackReplanInput): string[] {
+  const attempts = listStepAttemptEvidence(input.cwd, input.runId);
+  const selected = attempts.filter((entry) => {
+    if (input.targetAttemptId && entry.attemptId !== input.targetAttemptId) {
+      return false;
+    }
+    if (input.targetStepId && entry.stepId !== input.targetStepId) {
+      return false;
+    }
+
+    return (
+      entry.attempt.status === ContractValues.Failed ||
+      entry.attempt.status === ContractValues.Blocked ||
+      entry.reviewVerdict?.safeToContinue === false
+    );
+  });
+
+  return selected.flatMap((entry) =>
+    [entry.reviewReportRef, entry.gateResultsRef, entry.summaryRef, entry.schedulerDecisionRef].filter(
+      (ref): ref is string => Boolean(ref),
+    ),
+  );
+}
+
+function latestProblemAttempts(input: FeedbackReplanInput): PlannerReplanContext["latestProblemAttempts"] {
+  return listStepAttemptEvidence(input.cwd, input.runId)
+    .filter((entry) => {
+      if (input.targetAttemptId && entry.attemptId !== input.targetAttemptId) {
+        return false;
+      }
+      if (input.targetStepId && entry.stepId !== input.targetStepId) {
+        return false;
+      }
+
+      return (
+        entry.attempt.status === ContractValues.Failed ||
+        entry.attempt.status === ContractValues.Blocked ||
+        entry.reviewVerdict?.safeToContinue === false
+      );
+    })
+    .map((entry) => ({
+      stepId: entry.stepId,
+      attemptId: entry.attemptId,
+      status: entry.attempt.status,
+      ...(entry.reviewVerdict ? { reviewVerdict: entry.reviewVerdict } : {}),
+      gateResults: entry.gateResults,
+      artifactRefs: entry.attempt.artifacts.map((artifact) => artifact.ref),
+    }));
+}
+
+function resumeFromStepId(input: FeedbackReplanInput): string | undefined {
+  if (input.targetStepId) {
+    return input.targetStepId;
+  }
+
+  return latestProblemAttempts(input)[0]?.stepId;
+}
+
+function diffFiles(patch: string): string[] {
+  const files = new Set<string>();
+
+  for (const line of patch.split(/\r?\n/)) {
+    if (line.startsWith("+++ b/") || line.startsWith("--- a/")) {
+      files.add(line.slice(6));
+    }
+  }
+
+  return Array.from(files).sort();
+}
+
+function diffSummaries(cwd: string, runId: string): PlannerReplanContext["diffSummaries"] {
+  return buildRunDiff({ cwd, runId }).items.map((item) => ({
+    stepId: item.stepId,
+    attemptId: item.attemptId,
+    diffRef: item.diffRef,
+    stat: item.stat,
+    files: diffFiles(item.patch),
+    reviewVerdict: item.reviewVerdict,
+  }));
+}
+
+function plannerInvocationRecord(params: {
+  cwd: string;
+  runId: string;
+  plannerModel: ReturnType<typeof resolvePlannerProvider>["model"];
+  providerName: string;
+  usage: { inputTokens: number; outputTokens: number };
+  estimatedCostUsd: number;
+  status: ModelInvocationRecord["status"];
+  evidenceRefs: string[];
+  now: Date;
+}): string {
+  return appendModelInvocation(params.cwd, {
+    schemaVersion: "1",
+    runId: params.runId,
+    phase: ContractValues.Planner,
+    agentRole: ContractValues.Planner,
+    requestedCapability: params.plannerModel.capability,
+    selectedCapability: params.plannerModel.capability,
+    modelId: params.plannerModel.id,
+    providerName: params.providerName,
+    runner: null,
+    accessMode: params.plannerModel.accessMode,
+    usage: params.usage,
+    usagePrecision: "estimated",
+    estimatedCostUsd: params.estimatedCostUsd,
+    status: params.status,
+    evidenceRefs: params.evidenceRefs,
+    startedAt: params.now.toISOString(),
+    completedAt: params.now.toISOString(),
+  });
+}
+
+export async function recordFeedbackAndReplan(input: FeedbackReplanInput): Promise<FeedbackReplanResult> {
+  const now = input.now ?? new Date();
+  const evidenceRefs = problemAttemptRefs(input);
+  const feedbackResult = recordRunFeedback({
+    cwd: input.cwd,
+    runId: input.runId,
+    message: input.message,
+    source: input.source,
+    ...(input.author ? { author: input.author } : {}),
+    ...(input.targetStepId ? { targetStepId: input.targetStepId } : {}),
+    ...(input.targetAttemptId ? { targetAttemptId: input.targetAttemptId } : {}),
+    evidenceRefs,
+    now,
+  });
+  const version = nextReplanVersion(input.cwd, input.runId);
+  const versionedPath = `plan/task-graph.v${version}.json`;
+  const replanInputRef = `plan/replan-v${version}-input.json`;
+  const replanOutputRef = `plan/replan-v${version}-output.json`;
+  const replanCostRef = `plan/replan-v${version}-cost-report.json`;
+  const policy = loadEffectivePolicy(input.cwd, input.env ? { env: input.env } : undefined);
+  const registry = loadEffectiveRegistry(input.cwd, input.env ? { env: input.env } : undefined);
+  const resolution = resolvePlannerProvider({
+    registryModels: registry.models,
+    ...(input.env ? { env: input.env } : {}),
+    now: () => now,
+    planIdSuffix: `replan_v${version}`,
+    preferenceByRole: policy.routing.providerPreference,
+  });
+  const initiative = loadInitiative(input.runId, input.cwd);
+  const currentTaskGraph = loadTaskGraph(input.runId, input.cwd);
+  const resumeStepId = resumeFromStepId(input);
+  const plannerInput: PlannerProviderInput = {
+    runId: input.runId,
+    initiative,
+    policy,
+    requestedAt: now.toISOString(),
+    replanContext: {
+      request: "Revise the current TaskGraph using human feedback and failed review evidence.",
+      currentTaskGraph,
+      feedback: feedbackResult.feedback,
+      feedbackHistory: listRunFeedback(input.cwd, input.runId),
+      latestProblemAttempts: latestProblemAttempts(input),
+      diffSummaries: diffSummaries(input.cwd, input.runId),
+    },
+  };
+
+  writeJsonSafely(resolveRunArtifactPath(input.runId, replanInputRef, input.cwd), plannerInput);
+  appendAuditEvent(input.cwd, {
+    eventType: "replan_started",
+    runId: input.runId,
+    timestamp: now.toISOString(),
+    payload: {
+      version,
+      feedbackRef: feedbackResult.ref,
+      provider: resolution.provider.name,
+      plannerModelId: resolution.model.id,
+    },
+  });
+
+  try {
+    const plannerOutput = await runPlannerProviderWithRetries(resolution.provider, plannerInput, { maxAttempts: 2 });
+    const taskGraphInput =
+      typeof plannerOutput.taskGraph === "object" && plannerOutput.taskGraph !== null
+        ? { ...plannerOutput.taskGraph, createdAt: now.toISOString() }
+        : plannerOutput.taskGraph;
+    const taskGraph = TaskGraphSchema.parse(taskGraphInput);
+
+    writeJsonSafely(resolveRunArtifactPath(input.runId, versionedPath, input.cwd), taskGraph);
+    writeJsonSafely(resolveRunArtifactPath(input.runId, replanOutputRef, input.cwd), {
+      plannerModelId: resolution.model.id,
+      providerName: plannerOutput.providerName,
+      providerModel: resolution.model.providerModel ?? null,
+      validation: plannerOutput.validation,
+      retry: plannerOutput.retry,
+      taskGraph,
+      ...(plannerOutput.providerArtifacts?.plannerOutput
+        ? { provider: plannerOutput.providerArtifacts.plannerOutput }
+        : {}),
+    });
+    writeJsonSafely(resolveRunArtifactPath(input.runId, replanCostRef, input.cwd), {
+      schemaVersion: "1",
+      runId: input.runId,
+      plannerModelId: resolution.model.id,
+      providerName: plannerOutput.providerName,
+      budgetProfile: initiative.budgetProfile,
+      budgetRemainingUsdEstimate: null,
+      attemptsUsed: plannerOutput.retry.attemptsUsed,
+      invalidAttempts: plannerOutput.retry.invalidAttempts,
+      modelUsage: plannerOutput.modelUsage,
+      cost: plannerOutput.cost,
+      createdAt: now.toISOString(),
+    });
+    const modelInvocationRef = plannerInvocationRecord({
+      cwd: input.cwd,
+      runId: input.runId,
+      plannerModel: resolution.model,
+      providerName: plannerOutput.providerName,
+      usage: plannerOutput.modelUsage,
+      estimatedCostUsd: plannerOutput.cost.estimatedUsd,
+      status: ContractValues.Completed,
+      evidenceRefs: [feedbackResult.ref, replanInputRef, replanOutputRef, replanCostRef],
+      now,
+    });
+
+    updateRunPlanStatus({
+      cwd: input.cwd,
+      runId: input.runId,
+      planId: taskGraph.planId,
+      status: RunStatuses.Planned,
+      now,
+    });
+    appendAuditEvent(input.cwd, {
+      eventType: "replan_succeeded",
+      runId: input.runId,
+      timestamp: now.toISOString(),
+      payload: {
+        version,
+        taskGraphPath: versionedPath,
+        feedbackRef: feedbackResult.ref,
+        modelInvocationRef,
+        plannerModelId: resolution.model.id,
+      },
+    });
+
+    return {
+      runId: input.runId,
+      feedbackRef: feedbackResult.ref,
+      taskGraphPath: versionedPath,
+      version,
+      planId: taskGraph.planId,
+      ...(resumeStepId ? { resumeFromStepId: resumeStepId } : {}),
+      modelInvocationRef,
+    };
+  } catch (error) {
+    plannerInvocationRecord({
+      cwd: input.cwd,
+      runId: input.runId,
+      plannerModel: resolution.model,
+      providerName: resolution.provider.name,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      estimatedCostUsd: 0,
+      status: ContractValues.Failed,
+      evidenceRefs: [feedbackResult.ref, replanInputRef],
+      now,
+    });
+    appendAuditEvent(input.cwd, {
+      eventType: "replan_failed",
+      runId: input.runId,
+      timestamp: now.toISOString(),
+      payload: {
+        version,
+        feedbackRef: feedbackResult.ref,
         error: error instanceof Error ? error.message : String(error),
       },
     });

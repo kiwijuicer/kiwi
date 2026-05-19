@@ -13,6 +13,7 @@ import {
   resolveMcpBootstrapOptions,
   startHttpMcpServer,
 } from "..";
+import { resetMcpServerServicesForTests } from "../services";
 
 let previousKiwiHome: string | undefined;
 
@@ -22,6 +23,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  resetMcpServerServicesForTests();
   if (previousKiwiHome === undefined) {
     delete process.env.KIWI_HOME;
   } else {

@@ -413,6 +413,25 @@ export const ApprovalDecisionSchema = z.object({
   createdAt: IsoDateTimeSchema,
 });
 
+export const RunFeedbackSchema = z.object({
+  schemaVersion: ContractsSchemaVersionSchema,
+  feedbackId: z.string().regex(/^feedback_[a-z0-9_]+$/),
+  runId: z.string().regex(/^run_[a-z0-9_]+$/),
+  message: z.string().min(1),
+  source: z.enum(["cli", "mcp"]),
+  author: z.string().min(1).optional(),
+  targetStepId: z
+    .string()
+    .regex(/^step_\d{3}$/)
+    .optional(),
+  targetAttemptId: z
+    .string()
+    .regex(/^attempt_[a-z0-9_]+$/)
+    .optional(),
+  evidenceRefs: z.array(z.string().min(1)).default([]),
+  createdAt: IsoDateTimeSchema,
+});
+
 export {
   AuditEventSchema,
   EvidenceFileHashSchema,
@@ -421,6 +440,7 @@ export {
   RunAuditSnapshotSchema,
 } from "../evidence";
 export type { AuditEvent, EvidenceFileHash, EvidenceManifest, EvidenceSubject, RunAuditSnapshot } from "../evidence";
+export type RunFeedback = z.infer<typeof RunFeedbackSchema>;
 
 export type ModelUsage = z.infer<typeof ModelUsageSchema>;
 export type ModelInvocationRecord = z.infer<typeof ModelInvocationRecordSchema>;

@@ -6,10 +6,6 @@ const WorkspaceSelectorSchema = z.object({
   repoPath: z.string().min(1).optional(),
 });
 
-const RunIdSchema = WorkspaceSelectorSchema.extend({
-  runId: z.string().min(1),
-});
-
 const OptionalRunIdSchema = WorkspaceSelectorSchema.extend({
   runId: z.string().min(1).optional(),
 });
@@ -44,46 +40,52 @@ const ToolInputSchemas = {
       path: ["ticket"],
     }),
   kiwi_status: OptionalRunIdSchema.strict(),
-  kiwi_run: RunIdSchema.extend({
+  kiwi_run: OptionalRunIdSchema.extend({
     previewToken: z.string().min(1),
     fromStep: z.string().min(1).optional(),
     maxConcurrency: z.number().int().positive().optional(),
     command: z.string().min(1).optional(),
   }).strict(),
-  kiwi_preview_run: RunIdSchema.extend({
+  kiwi_preview_run: OptionalRunIdSchema.extend({
     fromStep: z.string().min(1).optional(),
     maxConcurrency: z.number().int().positive().optional(),
     command: z.string().min(1).optional(),
   }).strict(),
-  kiwi_run_step: RunIdSchema.extend({
+  kiwi_run_step: OptionalRunIdSchema.extend({
     stepId: z.string().min(1),
     previewToken: z.string().min(1),
     command: z.string().min(1).optional(),
   }).strict(),
-  kiwi_diff: RunIdSchema.extend({
+  kiwi_diff: OptionalRunIdSchema.extend({
     stepId: z.string().min(1).optional(),
     all: z.boolean().optional(),
   }).strict(),
-  kiwi_apply: RunIdSchema.extend({
+  kiwi_feedback: OptionalRunIdSchema.extend({
+    message: z.string().min(1),
+    author: z.string().min(1).optional(),
+    targetStepId: z.string().min(1).optional(),
+    targetAttemptId: z.string().min(1).optional(),
+  }).strict(),
+  kiwi_apply: OptionalRunIdSchema.extend({
     stepId: z.string().min(1).optional(),
     previewToken: z.string().min(1),
   }).strict(),
-  kiwi_finalize: RunIdSchema.strict(),
-  kiwi_cost: RunIdSchema.strict(),
-  kiwi_explain: RunIdSchema.strict(),
-  kiwi_next: RunIdSchema.extend({
+  kiwi_finalize: OptionalRunIdSchema.strict(),
+  kiwi_cost: OptionalRunIdSchema.strict(),
+  kiwi_explain: OptionalRunIdSchema.strict(),
+  kiwi_next: OptionalRunIdSchema.extend({
     fromStep: z.string().min(1).optional(),
     maxConcurrency: z.number().int().positive().optional(),
     command: z.string().min(1).optional(),
   }).strict(),
-  kiwi_request_approval: RunIdSchema.extend({
+  kiwi_request_approval: OptionalRunIdSchema.extend({
     attemptId: z.string().min(1),
     reason: z.string().min(1).optional(),
     approvedBy: ApprovedBySchema,
   }).strict(),
-  kiwi_evidence_manifest: RunIdSchema.strict(),
-  kiwi_operator_snapshot: RunIdSchema.strict(),
-  kiwi_publish_pr_draft: RunIdSchema.extend({
+  kiwi_evidence_manifest: OptionalRunIdSchema.strict(),
+  kiwi_operator_snapshot: OptionalRunIdSchema.strict(),
+  kiwi_publish_pr_draft: OptionalRunIdSchema.extend({
     remote: z.string().min(1).optional(),
     targetBranch: z.string().min(1).optional(),
     branchName: z.string().min(1).optional(),

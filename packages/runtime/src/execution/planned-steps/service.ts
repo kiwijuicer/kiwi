@@ -33,6 +33,7 @@ export class PlannedStepExecutionService {
       this.targetResolver.create({
         cwd: session.cwd,
         runId: session.runId,
+        stepId: session.stepId,
         attemptId: session.decision.attemptId,
         repoPath: session.context.repoPath,
         mode: session.enrichedDecision.executionIsolation ?? this.policyResolver.directExecutionMode,
