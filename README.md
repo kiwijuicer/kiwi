@@ -1,14 +1,16 @@
-<div align="center">
 
-# 🥝 KiWi
+
+#  KiWi
 
 **Local-first control plane for planned, safe, and auditable AI coding work.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#license)
-[![Local-first](https://img.shields.io/badge/local--first-yes-brightgreen)](#)
-[![MCP](https://img.shields.io/badge/MCP-compatible-blue)](#)
+**Name:** KiWi is short for the German **KI-Wichtel** ("AI helper elf") and also nods to the author's nickname — pronounced **kee-vee** `[ˈkiːvi]`: a small, helpful companion for controlled AI coding work.
 
-</div>
+[License: MIT](#license)
+[Local-first](#)
+[MCP](#)
+
+
 
 ---
 
@@ -34,13 +36,15 @@ Naively letting a frontier model drive every step burns budget. KiWi keeps cost 
 
 Not every step needs a flagship model. KiWi routes work to the **right tool for the job**:
 
-| Step type | Typical model class | Why |
-|---|---|---|
-| Planning & TaskGraph synthesis | Strong reasoning model | Quality of the plan defines everything downstream |
-| Code edits & refactors | Mid-tier coding model | Fast, accurate, far cheaper than top-tier |
-| Lint fixes, renames, mechanical edits | Small local / cheap model | Deterministic-ish work, no reason to overpay |
-| Summaries, commit messages, evidence notes | Small / fast model | Throughput matters more than depth |
-| Critical review & gate decisions | Strong reasoning model | High-stakes — pay for accuracy here |
+
+| Step type                                  | Typical model class       | Why                                               |
+| ------------------------------------------ | ------------------------- | ------------------------------------------------- |
+| Planning & TaskGraph synthesis             | Strong reasoning model    | Quality of the plan defines everything downstream |
+| Code edits & refactors                     | Mid-tier coding model     | Fast, accurate, far cheaper than top-tier         |
+| Lint fixes, renames, mechanical edits      | Small local / cheap model | Deterministic-ish work, no reason to overpay      |
+| Summaries, commit messages, evidence notes | Small / fast model        | Throughput matters more than depth                |
+| Critical review & gate decisions           | Strong reasoning model    | High-stakes — pay for accuracy here               |
+
 
 Configure the policy with `kiwi models list` / `kiwi models update --apply` — and switch providers without touching the rest of the pipeline.
 
@@ -73,10 +77,12 @@ kiwi --version
 
 This installs:
 
-| Binary | Path |
-|---|---|
-| `kiwi` | `~/.local/bin/kiwi` |
+
+| Binary           | Path                          |
+| ---------------- | ----------------------------- |
+| `kiwi`           | `~/.local/bin/kiwi`           |
 | `kiwi-mcp-stdio` | `~/.local/bin/kiwi-mcp-stdio` |
+
 
 > 💡 Make sure `~/.local/bin` is on your `PATH`.
 
@@ -175,16 +181,18 @@ kiwi evidence manifest <run-id> --workspace /path/to/workspace
 
 ### Useful commands
 
-| Command | Purpose |
-|---|---|
-| `kiwi init` | Initialize kiwi in the current workspace |
-| `kiwi doctor` | Diagnose configuration and environment |
-| `kiwi workspace list` | List configured workspaces / repos |
-| `kiwi models list` | Show available model configurations |
-| `kiwi models update --apply` | Refresh model definitions |
-| `kiwi status [run-id]` | Show run status |
-| `kiwi runs unlock <run-id> --approved-by <name>` | Unlock a stuck or held run |
-| `kiwi operator snapshot <run-id>` | Capture operator-level snapshot |
+
+| Command                                          | Purpose                                  |
+| ------------------------------------------------ | ---------------------------------------- |
+| `kiwi init`                                      | Initialize kiwi in the current workspace |
+| `kiwi doctor`                                    | Diagnose configuration and environment   |
+| `kiwi workspace list`                            | List configured workspaces / repos       |
+| `kiwi models list`                               | Show available model configurations      |
+| `kiwi models update --apply`                     | Refresh model definitions                |
+| `kiwi status [run-id]`                           | Show run status                          |
+| `kiwi runs unlock <run-id> --approved-by <name>` | Unlock a stuck or held run               |
+| `kiwi operator snapshot <run-id>`                | Capture operator-level snapshot          |
+
 
 ---
 
