@@ -6,6 +6,7 @@
       "@kiwi/adapters": ["../../packages/adapters/src/index.ts"],
       "@kiwi/core": ["../../packages/core/src/index.ts"],
       "@kiwi/contracts": ["../../packages/contracts/src/index.ts"],
+      "@kiwi/ops": ["../../packages/ops/src/index.ts"],
       "@kiwi/runtime": ["../../packages/runtime/src/index.ts"],
       "@kiwi/sandbox": ["../../packages/sandbox/src/index.ts"]
     }

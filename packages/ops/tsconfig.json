@@ -1,8 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "paths": {
+      "@kiwi/adapters": ["../adapters/src/index.ts"],
+      "@kiwi/contracts": ["../contracts/src/index.ts"],
+      "@kiwi/core": ["../core/src/index.ts"],
+      "@kiwi/runtime": ["../runtime/src/index.ts"],
+      "@kiwi/sandbox": ["../sandbox/src/index.ts"]
+    }
   },
   "include": ["src/**/*.ts"]
 }

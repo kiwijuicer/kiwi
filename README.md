@@ -1,4 +1,4 @@
-# kiwi
+# KiWi 🥝
 
 Local-first control plane for AI-assisted coding work.
 
