@@ -13,7 +13,7 @@ import {
   Step,
 } from "@kiwi/contracts";
 import { resolveRunArtifactPath, writeJsonSafely } from "@kiwi/core";
-import { summarizeGateResults } from "../gates/quality-gates";
+import { summarizeGateResults } from "../gates/quality-gates.js";
 
 export type ReviewAction = NextActionType;
 

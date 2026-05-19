@@ -3,7 +3,7 @@ import path from "path";
 import type { CoreServices } from "@kiwi/core";
 import { ArtifactTypes, ContractValues, ExecutionIsolations } from "@kiwi/contracts";
 import type { SandboxServices } from "@kiwi/sandbox";
-import type { ExecutionMode, ExecutionTarget } from "./types";
+import type { ExecutionMode, ExecutionTarget } from "./types.js";
 
 type StepAttemptEvidence = ReturnType<CoreServices["evidence"]["listStepAttempts"]>[number];
 

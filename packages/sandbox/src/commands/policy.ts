@@ -1,7 +1,7 @@
 import path from "path";
 import { ApprovalStates, ContractValues, NetworkPolicies, RunnerExecutionStatuses } from "@kiwi/contracts";
-import type { SandboxCommandInput } from "./types";
-import { SandboxPolicyDecisionStatuses } from "../constants";
+import type { SandboxCommandInput } from "./types.js";
+import { SandboxPolicyDecisionStatuses } from "../constants.js";
 
 export type PolicyDecision =
   | { status: typeof SandboxPolicyDecisionStatuses.Allow; reason: string }

@@ -6,9 +6,9 @@ import {
   ReviewExecutionMetadata,
   saveReviewVerdict,
   StubReviewEngine,
-} from "../../review/review-engine";
-import type { StepAttemptNextAction } from "../step-runner-types";
-import { enforceGateResultsBeforePositiveReview } from "./gates";
+} from "../../review/review-engine.js";
+import type { StepAttemptNextAction } from "../step-runner-types.js";
+import { enforceGateResultsBeforePositiveReview } from "./gates.js";
 
 export function nextActionFromReview(verdict: ReviewVerdict): StepAttemptNextAction {
   const action = classifyReviewAction(verdict);

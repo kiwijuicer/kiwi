@@ -1,6 +1,6 @@
 import { createCoreServices, type CoreServices } from "@kiwi/core";
 import { createSandboxServices, type SandboxServices } from "@kiwi/sandbox";
-import { createRuntimeExecutionServices, type RuntimeExecutionServices } from "./execution/planned-steps/factory";
+import { createRuntimeExecutionServices, type RuntimeExecutionServices } from "./execution/planned-steps/factory.js";
 
 export interface RuntimeServices {
   core: CoreServices;

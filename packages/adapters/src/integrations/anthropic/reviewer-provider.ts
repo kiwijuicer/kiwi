@@ -1,5 +1,5 @@
 import { ContractValues, KiwiPolicy } from "@kiwi/contracts";
-import type { ProviderAttemptType } from "../../constants";
+import type { ProviderAttemptType } from "../../constants.js";
 import {
   ANTHROPIC_MESSAGES_ENDPOINT,
   ANTHROPIC_VERSION,
@@ -13,8 +13,8 @@ import {
   extractAnthropicUsage,
   extractTextJson,
   isRecord,
-} from "./common";
-import { redactForProvider, RedactionSummary } from "../../providers/redaction";
+} from "./common.js";
+import { redactForProvider, RedactionSummary } from "../../providers/redaction.js";
 import {
   buildReviewerRepairEnvelope,
   buildReviewerUserEnvelope,
@@ -22,7 +22,7 @@ import {
   REVIEWER_PROMPT_VERSION,
   REVIEWER_SYSTEM_PROMPT,
   REVIEWER_TOOL_NAME,
-} from "../../prompts/reviewer-v1";
+} from "../../prompts/reviewer-v1/index.js";
 import {
   ReviewerProvider,
   ReviewerProviderArtifacts,
@@ -32,7 +32,7 @@ import {
   ReviewerProviderOutput,
   ReviewerProviderRepairContext,
   ReviewerProviderSchedulerErrorCodes,
-} from "../../providers/reviewer";
+} from "../../providers/reviewer.js";
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 4096;

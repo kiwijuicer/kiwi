@@ -7,7 +7,7 @@ import {
   evaluateAccessModeAvailability,
   preferredAccessModes,
   selectEnabledModelByAccessMode,
-} from "../../registries/access-mode-resolver";
+} from "../../registries/access-mode-resolver.js";
 
 const zeroPricing = { currency: "USD", inputUsdPerMillion: 0, outputUsdPerMillion: 0 } as const;
 

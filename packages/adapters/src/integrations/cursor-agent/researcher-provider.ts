@@ -1,8 +1,8 @@
 import { AccessModes } from "@kiwi/contracts";
-import { CliPlannerResult } from "../../providers/cli-planner";
-import { invokeCliResearcher } from "../../providers/cli-researcher";
-import { ResearcherProvider, ResearcherProviderInput, ResearcherProviderOutput } from "../../providers/researcher";
-import { CursorAgentCliRunner, DefaultCursorAgentCliRunner, normalizeUsageFromCursorAgent } from "./client";
+import { CliPlannerResult } from "../../providers/cli-planner.js";
+import { invokeCliResearcher } from "../../providers/cli-researcher.js";
+import { ResearcherProvider, ResearcherProviderInput, ResearcherProviderOutput } from "../../providers/researcher.js";
+import { CursorAgentCliRunner, DefaultCursorAgentCliRunner, normalizeUsageFromCursorAgent } from "./client.js";
 
 const DEFAULT_TIMEOUT_MS = 300_000;
 

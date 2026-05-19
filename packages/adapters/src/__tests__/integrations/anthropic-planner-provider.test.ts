@@ -4,8 +4,8 @@ import {
   AnthropicPlannerHttpRequest,
   AnthropicPlannerProvider,
   AnthropicPlannerTransport,
-} from "../../integrations/anthropic/planner-provider";
-import { PlannerProviderInput, runPlannerProviderWithRetries } from "../../providers/planner";
+} from "../../integrations/anthropic/planner-provider.js";
+import { PlannerProviderInput, runPlannerProviderWithRetries } from "../../providers/planner.js";
 
 const policy: KiwiPolicy = {
   version: "1",

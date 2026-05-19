@@ -3,9 +3,9 @@ import os from "os";
 import path from "path";
 import { describe, expect, it, vi } from "vitest";
 import { appendModelInvocation } from "@kiwi/core";
-import { runCost } from "../../commands/runs/cost";
-import { runInit } from "../../commands/setup/init";
-import { runPlan } from "../../commands/planning/plan";
+import { runCost } from "../../commands/runs/cost.js";
+import { runInit } from "../../commands/setup/init.js";
+import { runPlan } from "../../commands/planning/plan.js";
 
 const NOW = new Date("2026-05-04T12:00:00.000Z");
 const RUN_ID = "run_20260504_140000_cost";

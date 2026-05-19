@@ -12,8 +12,8 @@ import {
   StepAttempt,
   StepAttemptSchema,
 } from "@kiwi/contracts";
-import { resolveRunArtifactPath } from "../store";
-import { readJson } from "../../storage/json-io";
+import { resolveRunArtifactPath } from "../store.js";
+import { readJson } from "../../storage/json-io.js";
 
 export interface StepAttemptEvidence {
   stepId: string;

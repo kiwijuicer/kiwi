@@ -33,7 +33,7 @@ import {
   StepAttemptSchema,
   SubPlanSchema,
   TaskGraphSchema,
-} from "../../public/schemas";
+} from "../../public/schemas.js";
 
 describe("contracts schemas", () => {
   it("parses contracts metadata", () => {

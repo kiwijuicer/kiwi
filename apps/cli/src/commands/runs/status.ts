@@ -9,8 +9,8 @@ import {
   RunStatusEntry,
 } from "@kiwi/core";
 import { buildRunCompletionSummary } from "@kiwi/ops";
-import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
-import { formatSubPlanTreeLines } from "../planning/subplan-tree";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options.js";
+import { formatSubPlanTreeLines } from "../planning/subplan-tree.js";
 
 interface StatusOptions extends CliWorkspaceOptions {
   json?: boolean;

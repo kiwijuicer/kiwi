@@ -1,5 +1,5 @@
 import { appendAuditEvent } from "@kiwi/core";
-import type { ExecutorSelection } from "../../registries/runner-registry";
+import type { ExecutorSelection } from "../../registries/runner-registry.js";
 
 export class ExecutionAuditReporter {
   executorModelSelected(params: {

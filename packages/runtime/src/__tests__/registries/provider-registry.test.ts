@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { KiwiPolicy, ModelEntry } from "@kiwi/contracts";
-import { PlannerProviderRegistry } from "../../registries/planner-provider-registry";
-import { ResearcherProviderRegistry } from "../../registries/researcher-provider-registry";
-import { ReviewerProviderRegistry } from "../../registries/reviewer-provider-registry";
+import { PlannerProviderRegistry } from "../../registries/planner-provider-registry.js";
+import { ResearcherProviderRegistry } from "../../registries/researcher-provider-registry.js";
+import { ReviewerProviderRegistry } from "../../registries/reviewer-provider-registry.js";
 
 const policy: KiwiPolicy = {
   version: "1",

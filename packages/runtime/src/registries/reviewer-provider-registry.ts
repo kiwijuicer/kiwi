@@ -6,7 +6,7 @@ import {
   ReviewerProvider,
 } from "@kiwi/adapters";
 import { AccessModes, ContractValues, KiwiPolicy, ModelCapability, ModelEntry } from "@kiwi/contracts";
-import { selectEnabledModelByAccessMode } from "./access-mode-resolver";
+import { selectEnabledModelByAccessMode } from "./access-mode-resolver.js";
 
 export interface ReviewerProviderSelection {
   model: ModelEntry;

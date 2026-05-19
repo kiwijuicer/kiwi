@@ -1,9 +1,9 @@
 import { mkdirSync } from "fs";
-import { auditPolicyDecision, blockedOutput } from "./artifacts";
-import { evaluatePolicy } from "./policy";
-import { SandboxPolicyDecisionStatuses } from "../constants";
-import { spawnSandboxCommand } from "../processes/execution";
-import type { SandboxCommandInput, SandboxCommandOutput } from "./types";
+import { auditPolicyDecision, blockedOutput } from "./artifacts.js";
+import { evaluatePolicy } from "./policy.js";
+import { SandboxPolicyDecisionStatuses } from "../constants.js";
+import { spawnSandboxCommand } from "../processes/execution.js";
+import type { SandboxCommandInput, SandboxCommandOutput } from "./types.js";
 
 export type {
   ApprovalState,
@@ -12,7 +12,7 @@ export type {
   SandboxCommandOutput,
   SandboxCommandPolicy,
   SandboxExecutionStatus,
-} from "./types";
+} from "./types.js";
 
 export async function executeSandboxCommand(input: SandboxCommandInput): Promise<SandboxCommandOutput> {
   const startedAt = (input.now ?? new Date()).toISOString();

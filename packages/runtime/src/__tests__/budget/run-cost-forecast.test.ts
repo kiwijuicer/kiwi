@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { KiwiPolicy, ModelEntry, TaskGraph } from "@kiwi/contracts";
-import { RunCostForecastService } from "../../budget/run-cost-forecast";
+import { RunCostForecastService } from "../../budget/run-cost-forecast.js";
 
 const pricing = {
   currency: "USD" as const,

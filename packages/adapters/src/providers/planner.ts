@@ -7,7 +7,7 @@ import {
   TaskGraph,
   TaskGraphSchema,
 } from "@kiwi/contracts";
-import type { ProviderFailureCode, ProviderValidationStatus } from "../constants";
+import type { ProviderFailureCode, ProviderValidationStatus } from "../constants.js";
 
 export interface PlannerReplanAttemptContext {
   stepId: string;

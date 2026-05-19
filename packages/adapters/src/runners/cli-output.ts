@@ -1,7 +1,7 @@
 import { AccessMode, ContractValues, GateResultSchema, RunnerName, UsagePrecision } from "@kiwi/contracts";
-import { RunnerExecutionInput, RunnerExecutionOutput } from "./adapter";
-import { captureRunnerDiffArtifact } from "./diff-artifact";
-import { persistRunnerLogs } from "./logs";
+import { RunnerExecutionInput, RunnerExecutionOutput } from "./adapter.js";
+import { captureRunnerDiffArtifact } from "./diff-artifact.js";
+import { persistRunnerLogs } from "./logs.js";
 
 export interface CliRunnerProcessResult {
   ok: boolean;

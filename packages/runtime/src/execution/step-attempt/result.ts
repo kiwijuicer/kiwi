@@ -1,5 +1,9 @@
 import type { Artifact, GateResult, ReviewVerdict, StepAttemptStatus } from "@kiwi/contracts";
-import type { StepAttemptNextAction, StepRunnerExecutionError, StepRunnerExecutionStatus } from "../step-runner-types";
+import type {
+  StepAttemptNextAction,
+  StepRunnerExecutionError,
+  StepRunnerExecutionStatus,
+} from "../step-runner-types.js";
 
 export interface StepAttemptOrchestrationResult {
   runId: string;

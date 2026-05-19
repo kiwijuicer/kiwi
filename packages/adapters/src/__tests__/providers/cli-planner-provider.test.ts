@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { KiwiPolicy, TaskGraph } from "@kiwi/contracts";
-import { CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../../integrations/codex/client";
-import { CodexCliPlannerProvider } from "../../integrations/codex/planner-provider";
+import { CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../../integrations/codex/client.js";
+import { CodexCliPlannerProvider } from "../../integrations/codex/planner-provider.js";
 import {
   CursorAgentCliInvocation,
   CursorAgentCliResult,
   CursorAgentCliRunner,
-} from "../../integrations/cursor-agent/client";
-import { CursorAgentPlannerProvider } from "../../integrations/cursor-agent/planner-provider";
-import { PlannerProviderInput, runPlannerProviderWithRetries } from "../../providers/planner";
+} from "../../integrations/cursor-agent/client.js";
+import { CursorAgentPlannerProvider } from "../../integrations/cursor-agent/planner-provider.js";
+import { PlannerProviderInput, runPlannerProviderWithRetries } from "../../providers/planner.js";
 
 const policy: KiwiPolicy = {
   version: "1",

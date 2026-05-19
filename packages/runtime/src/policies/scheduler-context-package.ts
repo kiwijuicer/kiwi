@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { ContextPackageSchema, ModelCapabilitySchema, SchedulerDecisionSchema } from "@kiwi/contracts";
 import { resolveRunArtifactPath, writeJsonSafely } from "@kiwi/core";
-import type { ContextLevel, ContextPackage, SchedulerDecision, SchedulerInput } from "./scheduler-types";
-import { mutationRequirementForStepType } from "./mutation-requirement";
+import type { ContextLevel, ContextPackage, SchedulerDecision, SchedulerInput } from "./scheduler-types.js";
+import { mutationRequirementForStepType } from "./mutation-requirement.js";
 
 function sanitizeList(entries: string[], limit: number): string[] {
   return entries

@@ -11,7 +11,7 @@ import {
   ModelRegistry,
   ModelRegistrySchema,
 } from "@kiwi/contracts";
-import { appendJsonLine } from "../storage/json-io";
+import { appendJsonLine } from "../storage/json-io.js";
 import {
   kiwiHomeModelRegistryPath,
   kiwiModelRegistryPath,
@@ -19,8 +19,8 @@ import {
   loadRegistry,
   resolveKiwiHome,
   saveRegistry,
-} from "./index";
-import { AuditEventTypes } from "../ledger/cost-ledger";
+} from "./index.js";
+import { AuditEventTypes } from "../ledger/cost-ledger.js";
 
 export interface ModelCatalogProvider {
   name: string;

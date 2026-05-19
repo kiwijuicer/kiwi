@@ -3,7 +3,7 @@ import os from "os";
 import path from "path";
 import { describe, expect, it, vi } from "vitest";
 import { kiwiHomeModelRegistryPath, kiwiModelRegistryPath, loadRegistry } from "@kiwi/core";
-import { runModelsList, runModelsUpdate } from "../../commands/setup/models";
+import { runModelsList, runModelsUpdate } from "../../commands/setup/models.js";
 
 const NOW = new Date("2026-05-19T12:00:00.000Z");
 

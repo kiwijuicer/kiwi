@@ -1,7 +1,7 @@
 import { executeSandboxCommand, SandboxCommandInput } from "@kiwi/sandbox";
-import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "./adapter";
-import { captureRunnerDiffArtifact } from "./diff-artifact";
-import { createFailedRunnerOutput, zeroModelUsage } from "./output";
+import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "./adapter.js";
+import { captureRunnerDiffArtifact } from "./diff-artifact.js";
+import { createFailedRunnerOutput, zeroModelUsage } from "./output.js";
 import { AccessModes, ContractValues } from "@kiwi/contracts";
 
 export class LocalShellRunnerAdapter implements RunnerAdapter {

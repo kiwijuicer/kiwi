@@ -1,11 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "entry": [
-    "apps/*/src/index.ts",
-    "apps/mcp-server/bin/stdio-launcher.cjs",
-    "packages/*/src/index.ts",
-    "scripts/*.mjs"
-  ],
+  "entry": ["apps/*/src/index.ts", "packages/*/src/index.ts", "scripts/*.mjs"],
   "project": [
     "apps/*/bin/**/*.cjs",
     "apps/*/src/**/*.{ts,tsx}",

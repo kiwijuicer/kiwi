@@ -11,9 +11,9 @@ import {
   ModelUsageSummarySchema,
   ModelUsageSummaryTotals,
 } from "@kiwi/contracts";
-import { appendAuditEvent } from "./cost-ledger";
-import { ensureRunLayout, resolveRunArtifactPath } from "../runs/store";
-import { appendJsonLine, writeJsonSafely } from "../storage/json-io";
+import { appendAuditEvent } from "./cost-ledger.js";
+import { ensureRunLayout, resolveRunArtifactPath } from "../runs/store.js";
+import { appendJsonLine, writeJsonSafely } from "../storage/json-io.js";
 
 export const MODEL_INVOCATIONS_REF = "model-invocations.jsonl";
 export const MODEL_USAGE_SUMMARY_REF = "final/model-usage-summary.json";

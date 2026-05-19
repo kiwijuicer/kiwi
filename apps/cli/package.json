@@ -21,14 +21,24 @@
     "@kiwi/core": "workspace:*",
     "@kiwi/ops": "workspace:*",
     "@kiwi/runtime": "workspace:*",
-    "chalk": "^4.1.2",
-    "commander": "^12.0.0"
+    "chalk": "^5.0.0",
+    "commander": "^14.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.12.7",
+    "@types/node": "^20.19.0",
     "tsup": "^8.0.2",
     "tsx": "^4.7.3",
     "typescript": "^5.4.5",
-    "vitest": "^2.1.9"
+    "vitest": "^4.0.0"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
   }
 }

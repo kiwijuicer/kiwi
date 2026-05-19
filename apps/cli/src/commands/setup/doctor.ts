@@ -7,7 +7,7 @@ import {
   preferredAccessModes,
   RunnerRegistry,
 } from "@kiwi/runtime";
-import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options.js";
 import path from "path";
 
 type DoctorOptions = CliWorkspaceOptions;

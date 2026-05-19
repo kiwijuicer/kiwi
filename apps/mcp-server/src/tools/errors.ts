@@ -1,5 +1,5 @@
-import type { McpToolErrorCategory } from "../constants";
-import type { McpRecovery } from "../ux";
+import type { McpToolErrorCategory } from "../constants.js";
+import type { McpRecovery } from "../ux/index.js";
 
 interface ToolActionRequiredErrorData {
   category: McpToolErrorCategory;

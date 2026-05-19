@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { AttemptDiffStatuses, type ExecutePlannedStepResult, splitCommandLine } from "@kiwi/runtime";
-import { createCliServices } from "../../services";
-import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
+import { createCliServices } from "../../services.js";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options.js";
 
 const cliServices = createCliServices();
 

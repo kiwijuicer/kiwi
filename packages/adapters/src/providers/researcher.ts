@@ -1,5 +1,5 @@
 import { ContractValues, ResearchReport, ResearchReportSchema, Initiative, KiwiPolicy } from "@kiwi/contracts";
-import type { ProviderFailureCode } from "../constants";
+import type { ProviderFailureCode } from "../constants.js";
 import {
   ANTHROPIC_MESSAGES_ENDPOINT,
   ANTHROPIC_VERSION,
@@ -13,7 +13,7 @@ import {
   extractAnthropicUsage,
   extractTextJson,
   isRecord,
-} from "../integrations/anthropic/common";
+} from "../integrations/anthropic/common.js";
 import {
   ClaudeCodeCliInvocation,
   ClaudeCodeCliRunner,
@@ -21,10 +21,10 @@ import {
   extractCliResultText,
   formatCliFailure,
   normalizeUsageFromCli,
-} from "../integrations/claude-code/client";
-import { redactForProvider } from "./redaction";
-import { buildRepoContextEnvelope } from "./repo-context";
-import { buildRunnerEnv } from "../runners/env";
+} from "../integrations/claude-code/client.js";
+import { redactForProvider } from "./redaction.js";
+import { buildRepoContextEnvelope } from "./repo-context.js";
+import { buildRunnerEnv } from "../runners/env.js";
 
 const RESEARCHER_TOOL_NAME = "emit_research_report";
 export const RESEARCHER_PROMPT_VERSION = "researcher.v1";

@@ -1,5 +1,5 @@
 import { CodexSandboxes, ExecutionIsolations, ExecutionOwners, type KiwiPolicy } from "@kiwi/contracts";
-import type { CodexSandboxMode, ExecutionMode, ExecutionOwner } from "./types";
+import type { CodexSandboxMode, ExecutionMode, ExecutionOwner } from "./types.js";
 
 export class ExecutionPolicyResolver {
   readonly directExecutionMode = ExecutionIsolations.Direct;

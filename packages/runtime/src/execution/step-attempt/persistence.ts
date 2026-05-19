@@ -12,8 +12,8 @@ import {
   loadStepAttempt,
   saveAttemptSummary,
   saveStepAttempt,
-} from "../step-attempt-artifacts";
-import type { StepAttemptNextAction, StepRunnerExecutionOutput } from "../step-runner-types";
+} from "../step-attempt-artifacts.js";
+import type { StepAttemptNextAction, StepRunnerExecutionOutput } from "../step-runner-types.js";
 
 export function markAttemptRunning(params: {
   cwd: string;

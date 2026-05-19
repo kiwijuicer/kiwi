@@ -7,13 +7,13 @@ import {
   runScheduledSubPlans,
   splitCommandLine,
 } from "@kiwi/runtime";
-import { withOperatorCard } from "../ux/operator-card";
-import { consumeMcpPreviewToken, normalizePreviewInput, validateMcpPreviewToken } from "./preview-tokens";
-import { runStepToolUnlocked, type RunStepToolResult } from "./run-step-execution";
-import { ToolActionRequiredError } from "./errors";
-import { progressLine, type ToolCallOptions } from "./helpers";
-import { mutationScope, safeReadOnlyToolCalls, toolCall, type McpNextAction, workspaceToolArgs } from "../ux";
-import { getMcpServerServices } from "../services";
+import { withOperatorCard } from "../ux/operator-card.js";
+import { consumeMcpPreviewToken, normalizePreviewInput, validateMcpPreviewToken } from "./preview-tokens.js";
+import { runStepToolUnlocked, type RunStepToolResult } from "./run-step-execution.js";
+import { ToolActionRequiredError } from "./errors.js";
+import { progressLine, type ToolCallOptions } from "./helpers.js";
+import { mutationScope, safeReadOnlyToolCalls, toolCall, type McpNextAction, workspaceToolArgs } from "../ux/index.js";
+import { getMcpServerServices } from "../services.js";
 
 const MCP_COMMAND_OVERRIDE_ENV = "KIWI_ALLOW_MCP_COMMAND_OVERRIDE";
 

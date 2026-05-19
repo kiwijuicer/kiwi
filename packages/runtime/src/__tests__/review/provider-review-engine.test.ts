@@ -5,9 +5,9 @@ import { describe, expect, it } from "vitest";
 import { KiwiPolicy, ModelEntry } from "@kiwi/contracts";
 import { readAuditEvents, resolveRunArtifactPath } from "@kiwi/core";
 import { ReviewerProvider } from "@kiwi/adapters";
-import { ProviderReviewEngine } from "../../review/provider-review-engine";
-import { ReviewInput } from "../../review/review-engine";
-import { ReviewerProviderRegistry } from "../../registries/reviewer-provider-registry";
+import { ProviderReviewEngine } from "../../review/provider-review-engine.js";
+import { ReviewInput } from "../../review/review-engine.js";
+import { ReviewerProviderRegistry } from "../../registries/reviewer-provider-registry.js";
 
 const policy: KiwiPolicy = {
   version: "1",

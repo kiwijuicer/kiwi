@@ -9,9 +9,9 @@ import {
   TaskGraph,
 } from "@kiwi/contracts";
 import { estimateAttemptCostUsd } from "@kiwi/core";
-import { ReviewerProviderRegistry } from "../registries/reviewer-provider-registry";
-import { RunnerRegistry } from "../registries/runner-registry";
-import { RunCostForecastStatuses, type RunCostForecastStatus } from "./types";
+import { ReviewerProviderRegistry } from "../registries/reviewer-provider-registry.js";
+import { RunnerRegistry } from "../registries/runner-registry.js";
+import { RunCostForecastStatuses, type RunCostForecastStatus } from "./types.js";
 
 export interface StepCostForecast {
   stepId: string;

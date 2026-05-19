@@ -1,5 +1,5 @@
 import { GateResult, ReviewVerdict, ReviewVerdictSchema, Step } from "@kiwi/contracts";
-import type { ProviderFailureCode, ProviderValidationStatus } from "../constants";
+import type { ProviderFailureCode, ProviderValidationStatus } from "../constants.js";
 
 export interface ReviewerProviderInput {
   runId: string;

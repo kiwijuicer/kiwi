@@ -7,8 +7,8 @@ import {
 } from "@kiwi/adapters";
 import { ContractValues, KiwiPolicy, ModelCapability, ModelEntry, ReviewVerdict } from "@kiwi/contracts";
 import { appendAuditEvent } from "@kiwi/core";
-import { persistReviewerProviderArtifacts, ReviewEngine, ReviewExecutionResult, ReviewInput } from "./review-engine";
-import { ReviewerProviderRegistry, ReviewerProviderSelection } from "../registries/reviewer-provider-registry";
+import { persistReviewerProviderArtifacts, ReviewEngine, ReviewExecutionResult, ReviewInput } from "./review-engine.js";
+import { ReviewerProviderRegistry, ReviewerProviderSelection } from "../registries/reviewer-provider-registry.js";
 
 export interface ProviderReviewEngineOptions {
   cwd: string;

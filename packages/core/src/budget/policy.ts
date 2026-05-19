@@ -1,6 +1,6 @@
 import { BudgetProfile, BudgetProfileLimit, ContextLevel, ModelCapability, ModelEntry } from "@kiwi/contracts";
-import { BudgetExceededError } from "../errors";
-import { readModelInvocations } from "../ledger/model-invocations";
+import { BudgetExceededError } from "../errors.js";
+import { readModelInvocations } from "../ledger/model-invocations.js";
 
 export const BUDGET_PROFILE_LIMITS: Record<BudgetProfile, BudgetProfileLimit> = {
   tiny: { profile: "tiny", softCapUsd: 0.25, hardCapUsd: 0.5 },

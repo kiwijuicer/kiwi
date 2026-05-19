@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { KiwiPolicy } from "@kiwi/contracts";
-import { runRequiredGates } from "../../gates/required-gates";
+import { runRequiredGates } from "../../gates/required-gates.js";
 
 const policy: KiwiPolicy = {
   version: "1",

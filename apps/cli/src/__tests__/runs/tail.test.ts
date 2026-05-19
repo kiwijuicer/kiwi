@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it, vi } from "vitest";
-import { runInit } from "../../commands/setup/init";
-import { runTail } from "../../commands/runs/tail";
+import { runInit } from "../../commands/setup/init.js";
+import { runTail } from "../../commands/runs/tail.js";
 
 describe("kiwi tail", () => {
   it("prints filtered audit events without following in tests", async () => {

@@ -1,4 +1,4 @@
-import type { McpMutationScope as McpRiskLabel } from "../constants";
+import type { McpMutationScope as McpRiskLabel } from "../constants.js";
 
 export interface RecommendedToolCall {
   name: string;

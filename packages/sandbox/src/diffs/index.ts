@@ -14,8 +14,8 @@ import os from "os";
 import path from "path";
 import { promisify } from "util";
 import { Artifact } from "@kiwi/contracts";
-import { resolveRunArtifactPath } from "../shared/common";
-import { CommandOutputStreams, type CommandOutputStream } from "../constants";
+import { resolveRunArtifactPath } from "../shared/common.js";
+import { CommandOutputStreams, type CommandOutputStream } from "../constants.js";
 
 const execFileAsync = promisify(execFile);
 const WORKSPACE_COPY_EXCLUDES = new Set([".git", ".kiwi", "node_modules", "dist", ".turbo", ".cache"]);

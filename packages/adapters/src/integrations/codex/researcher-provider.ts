@@ -1,7 +1,7 @@
 import { AccessModes } from "@kiwi/contracts";
-import { CliPlannerResult } from "../../providers/cli-planner";
-import { invokeCliResearcher } from "../../providers/cli-researcher";
-import { ResearcherProvider, ResearcherProviderInput, ResearcherProviderOutput } from "../../providers/researcher";
+import { CliPlannerResult } from "../../providers/cli-planner.js";
+import { invokeCliResearcher } from "../../providers/cli-researcher.js";
+import { ResearcherProvider, ResearcherProviderInput, ResearcherProviderOutput } from "../../providers/researcher.js";
 import {
   CODEX_AUTO_REVIEW_APPROVAL_POLICY,
   CODEX_AUTO_REVIEW_APPROVALS_REVIEWER,
@@ -9,7 +9,7 @@ import {
   CodexCliRunner,
   DefaultCodexCliRunner,
   normalizeUsageFromCodex,
-} from "./client";
+} from "./client.js";
 
 const DEFAULT_TIMEOUT_MS = 300_000;
 

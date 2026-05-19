@@ -1,6 +1,6 @@
 import type { CoreServices } from "@kiwi/core";
 import type { Initiative, KiwiPolicy, ModelRegistry, Step, TaskGraph } from "@kiwi/contracts";
-import type { ExecutePlannedStepInput } from "./types";
+import type { ExecutePlannedStepInput } from "./types.js";
 
 export class ExecutionRunContext {
   readonly repoPath: string;

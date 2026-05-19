@@ -1,6 +1,6 @@
 import { spawn } from "child_process";
 import { terminateProcessTree, truncateOutput } from "@kiwi/sandbox";
-import { SubprocessStreams, type SubprocessStream } from "../constants";
+import { SubprocessStreams, type SubprocessStream } from "../constants.js";
 
 export interface SubprocessOutputChunk {
   stream: SubprocessStream;

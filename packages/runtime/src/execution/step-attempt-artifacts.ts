@@ -16,7 +16,7 @@ import type {
   StepRunnerExecutionError,
   StepRunnerExecutionStatus,
   StepRunnerModelUsage,
-} from "./step-runner-types";
+} from "./step-runner-types.js";
 
 interface RunnerCostReport {
   schemaVersion: "1";

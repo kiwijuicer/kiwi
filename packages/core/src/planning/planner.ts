@@ -13,7 +13,7 @@ import {
   TaskGraphSchema,
   KiwiPolicy,
 } from "@kiwi/contracts";
-import { generateInitiativeId, generatePlanId, generateStepId } from "../ids";
+import { generateInitiativeId, generatePlanId, generateStepId } from "../ids.js";
 
 interface RoutingChoice {
   agentRole: AgentRole;

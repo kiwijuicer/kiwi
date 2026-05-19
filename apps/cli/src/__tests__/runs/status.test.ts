@@ -4,9 +4,9 @@ import path from "path";
 import { describe, expect, it, vi } from "vitest";
 import { Artifact, Initiative, TaskGraph } from "@kiwi/contracts";
 import { savePlannedRun } from "@kiwi/core";
-import { runInit } from "../../commands/setup/init";
-import { runPlan } from "../../commands/planning/plan";
-import { runStatus } from "../../commands/runs/status";
+import { runInit } from "../../commands/setup/init.js";
+import { runPlan } from "../../commands/planning/plan.js";
+import { runStatus } from "../../commands/runs/status.js";
 
 function testEnv(cwd: string, env: Record<string, string | undefined> = {}): Record<string, string | undefined> {
   return {

@@ -9,7 +9,7 @@ import {
   loadGateResults,
   saveGateResults,
   summarizeGateResults,
-} from "../../gates/quality-gates";
+} from "../../gates/quality-gates.js";
 
 describe("quality gates", () => {
   it("summarizes pass/fail/blocked results and blocks continuation on fail/blocked", () => {

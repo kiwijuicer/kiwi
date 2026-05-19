@@ -1,6 +1,6 @@
 import { AccessMode } from "@kiwi/contracts";
-import type { ProviderAttemptType } from "../constants";
-import { extractTextJson, isRecord } from "../integrations/anthropic/common";
+import type { ProviderAttemptType } from "../constants.js";
+import { extractTextJson, isRecord } from "../integrations/anthropic/common.js";
 import {
   PlannerProviderArtifacts,
   PlannerProviderError,
@@ -9,17 +9,17 @@ import {
   PlannerProviderOutput,
   PlannerProviderRepairContext,
   PlannerProviderSchedulerErrorCodes,
-} from "./planner";
-import { redactForProvider, RedactionSummary } from "./redaction";
-import { buildRepoContextEnvelope, RepoContextEnvelope, renderRepoContext } from "./repo-context";
-import { buildRunnerEnv } from "../runners/env";
+} from "./planner.js";
+import { redactForProvider, RedactionSummary } from "./redaction.js";
+import { buildRepoContextEnvelope, RepoContextEnvelope, renderRepoContext } from "./repo-context.js";
+import { buildRunnerEnv } from "../runners/env.js";
 import {
   buildPlannerRepairEnvelope,
   buildPlannerUserEnvelope,
   plannerToolDefinition,
   PLANNER_PROMPT_VERSION,
   PLANNER_SYSTEM_PROMPT,
-} from "../prompts/planner-v1";
+} from "../prompts/planner-v1/index.js";
 
 export interface CliPlannerResult {
   ok: boolean;

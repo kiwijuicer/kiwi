@@ -2,8 +2,9 @@ import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: ["src/index.ts"],
-  format: ["cjs"],
+  format: ["esm"],
   target: "node20",
+  dts: true,
   clean: true,
   sourcemap: true,
   noExternal: [
@@ -19,6 +20,6 @@ export default defineConfig({
     "zod",
   ],
   banner: {
-    js: "#!/usr/bin/env node",
+    js: '#!/usr/bin/env node\nimport { createRequire } from "node:module";\nconst require = createRequire(import.meta.url);',
   },
 });

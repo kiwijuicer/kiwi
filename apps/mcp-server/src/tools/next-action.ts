@@ -10,12 +10,12 @@ import {
   resolveActiveRun,
   resolveRunArtifactPath,
 } from "@kiwi/core";
-import { buildOperatorCard } from "../ux/operator-card";
-import { latestValidPreviewToken, normalizePreviewInput, previewInputToolArgs } from "./preview-tokens";
-import { getMcpServerServices } from "../services";
-import { isBlockedApproverIdentity } from "./input-schemas";
-import { safeReadOnlyToolCalls, toolCall, type McpNextAction, mutationScope, workspaceToolArgs } from "../ux";
-import { workspaceArgs } from "../workspace";
+import { buildOperatorCard } from "../ux/operator-card.js";
+import { latestValidPreviewToken, normalizePreviewInput, previewInputToolArgs } from "./preview-tokens.js";
+import { getMcpServerServices } from "../services.js";
+import { isBlockedApproverIdentity } from "./input-schemas.js";
+import { safeReadOnlyToolCalls, toolCall, type McpNextAction, mutationScope, workspaceToolArgs } from "../ux/index.js";
+import { workspaceArgs } from "../workspace/index.js";
 
 function hasArtifact(cwd: string, runId: string, ref: string): boolean {
   return existsSync(resolveRunArtifactPath(runId, ref, cwd));

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ModelEntry, Step } from "@kiwi/contracts";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "@kiwi/adapters";
-import { RunnerRegistry } from "../../registries/runner-registry";
-import { resolveRunner } from "../../registries/runner-resolution";
+import { RunnerRegistry } from "../../registries/runner-registry.js";
+import { resolveRunner } from "../../registries/runner-resolution.js";
 
 const zeroPricing = { currency: "USD", inputUsdPerMillion: 0, outputUsdPerMillion: 0 } as const;
 

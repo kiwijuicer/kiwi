@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BitbucketCloudRequest, BitbucketCloudScmAdapter } from "../../scm/bitbucket-cloud";
+import { BitbucketCloudRequest, BitbucketCloudScmAdapter } from "../../scm/bitbucket-cloud.js";
 
 const repository = {
   provider: "bitbucket-cloud" as const,

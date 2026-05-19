@@ -1,4 +1,4 @@
-import { invalidToolArgumentIssue, ToolInputValidationError } from "./input-schemas";
+import { invalidToolArgumentIssue, ToolInputValidationError } from "./input-schemas.js";
 
 export interface ToolCallOptions {
   onProgress?: (message: string, percent?: number) => void;

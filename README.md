@@ -20,7 +20,7 @@ kiwi --version
 This installs versioned local release wrappers:
 
 - `~/.local/bin/kiwi`
-- `~/.local/bin/kiwi-mcp`
+- `~/.local/bin/kiwi-mcp-stdio`
 
 Versioned releases live under `~/.kiwi/install` by default.
 
@@ -129,7 +129,7 @@ Use kiwi for this ticket in repo <repo-id>; follow kiwi_next and ask before runn
   "mcpServers": {
     "kiwi": {
       "type": "stdio",
-      "command": "kiwi-mcp",
+      "command": "kiwi-mcp-stdio",
       "args": ["--workspace", "/path/to/workspace"]
     }
   }

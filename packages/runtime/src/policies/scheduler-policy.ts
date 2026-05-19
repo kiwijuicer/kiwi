@@ -28,13 +28,13 @@ import type {
   SchedulerDecision,
   SchedulerInput,
   SecuritySensitivity,
-} from "./scheduler-types";
+} from "./scheduler-types.js";
 import {
   buildContextPackage,
   readContextPackage,
   readSchedulerDecision,
   writeContextPackage,
-} from "./scheduler-context-package";
+} from "./scheduler-context-package.js";
 export type {
   BlastRadius,
   ContextLevel,
@@ -44,7 +44,7 @@ export type {
   SchedulerDecisionStatus,
   SchedulerInput,
   SecuritySensitivity,
-} from "./scheduler-types";
+} from "./scheduler-types.js";
 
 const CAPABILITY_RANK: Record<ModelCapability, number> = {
   cheap: 0,

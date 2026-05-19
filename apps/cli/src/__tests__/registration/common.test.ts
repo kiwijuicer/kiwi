@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BudgetExceededError, NotInitializedError, RunNotFoundError } from "@kiwi/core";
-import { handleCommandError, mapErrorToHelp } from "../../commands/registration/common";
+import { handleCommandError, mapErrorToHelp } from "../../commands/registration/common.js";
 
 afterEach(() => {
   vi.restoreAllMocks();

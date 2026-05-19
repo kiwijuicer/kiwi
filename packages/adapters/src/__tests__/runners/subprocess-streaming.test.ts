@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runSubprocess } from "../../runners/subprocess";
+import { runSubprocess } from "../../runners/subprocess.js";
 
 describe("runSubprocess – streaming (onOutputChunk)", () => {
   it("collects stdout chunks before resolve and matches full stdout", async () => {

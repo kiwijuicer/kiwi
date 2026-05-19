@@ -21,7 +21,7 @@ Add the local stdio MCP server from the target workspace:
 cd /path/to/workspace
 claude mcp add --transport stdio \
   kiwi \
-  -- kiwi-mcp --workspace /path/to/workspace
+  -- kiwi-mcp-stdio --workspace /path/to/workspace
 ```
 
 Check it:
@@ -51,7 +51,7 @@ If you keep a project-scoped `.mcp.json`, use:
 {
   "mcpServers": {
     "kiwi": {
-      "command": "kiwi-mcp",
+      "command": "kiwi-mcp-stdio",
       "args": ["--workspace", "/path/to/workspace"]
     }
   }

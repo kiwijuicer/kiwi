@@ -10,7 +10,7 @@ import {
   RunStatusSchema,
   StepStatusSchema,
   StepTypeSchema,
-} from "../shared/common";
+} from "../shared/common.js";
 
 export const InitiativeSchema = z.object({
   id: z.string().regex(/^init_[a-z0-9_]+$/, "id must look like init_<value>"),

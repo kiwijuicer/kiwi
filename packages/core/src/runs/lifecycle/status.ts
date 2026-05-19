@@ -1,8 +1,8 @@
 import { ContractValues, RunManifest, RunManifestSchema, RunStatus, RunStatuses } from "@kiwi/contracts";
-import { appendAuditEvent } from "../../ledger/cost-ledger";
-import { loadRunManifest, loadTaskGraph, resolveRunArtifactPath } from "../store";
-import { latestAttemptByStep, listStepAttemptEvidence } from "./evidence-collection";
-import { writeJsonSafely } from "../../storage/json-io";
+import { appendAuditEvent } from "../../ledger/cost-ledger.js";
+import { loadRunManifest, loadTaskGraph, resolveRunArtifactPath } from "../store.js";
+import { latestAttemptByStep, listStepAttemptEvidence } from "./evidence-collection.js";
+import { writeJsonSafely } from "../../storage/json-io.js";
 
 export function updateRunStatus(params: { cwd: string; runId: string; status: RunStatus; now?: Date }): RunManifest {
   const current = loadRunManifest(params.runId, params.cwd);

@@ -11,8 +11,8 @@ import {
   extractAnthropicUsage,
   extractTextJson,
   isRecord,
-} from "./common";
-import type { ProviderAttemptType } from "../../constants";
+} from "./common.js";
+import type { ProviderAttemptType } from "../../constants.js";
 import {
   PlannerProvider,
   PlannerProviderArtifacts,
@@ -22,9 +22,9 @@ import {
   PlannerProviderError,
   PlannerProviderErrorCode,
   PlannerProviderSchedulerErrorCodes,
-} from "../../providers/planner";
-import { redactForProvider, RedactionSummary } from "../../providers/redaction";
-import { buildRepoContextEnvelope, RepoContextEnvelope, renderRepoContext } from "../../providers/repo-context";
+} from "../../providers/planner.js";
+import { redactForProvider, RedactionSummary } from "../../providers/redaction.js";
+import { buildRepoContextEnvelope, RepoContextEnvelope, renderRepoContext } from "../../providers/repo-context.js";
 import {
   buildPlannerRepairEnvelope,
   buildPlannerUserEnvelope,
@@ -32,7 +32,7 @@ import {
   PLANNER_PROMPT_VERSION,
   PLANNER_SYSTEM_PROMPT,
   PLANNER_TOOL_NAME,
-} from "../../prompts/planner-v1";
+} from "../../prompts/planner-v1/index.js";
 
 const DEFAULT_MODEL = "claude-opus-4-7";
 const DEFAULT_MAX_TOKENS = 8192;

@@ -10,7 +10,7 @@ import {
   StepTypes,
 } from "@kiwi/contracts";
 import { executeSandboxCommand, SandboxCommandPolicy } from "@kiwi/sandbox";
-import { commandForGate, commandProfileForStep, commandProfileToExecutionPolicy } from "../policies/operator-policy";
+import { commandForGate, commandProfileForStep, commandProfileToExecutionPolicy } from "../policies/operator-policy.js";
 
 function safeGateType(value: string): GateType | null {
   const parsed = GateTypeSchema.safeParse(value);

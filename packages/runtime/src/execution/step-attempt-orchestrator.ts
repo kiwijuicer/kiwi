@@ -8,22 +8,26 @@ import {
   ReviewExecutionMetadata,
   saveReviewVerdict,
   StubReviewEngine,
-} from "../review/review-engine";
-import { loadContextPackage } from "../policies/scheduler-policy";
-import { auditAttemptFinished, auditStepAttemptStarted } from "./step-attempt/audit";
-import { writeBudgetBlockedAttempt } from "./step-attempt/budget-blocked-writer";
-import { coordinateAttemptGates, mapRunnerStatusToAttemptStatus } from "./step-attempt/gates";
-import { recordAttemptModelCost } from "./step-attempt/model-cost";
-import { markAttemptRunning, persistAttemptCompletion } from "./step-attempt/persistence";
-import type { StepAttemptOrchestrationResult } from "./step-attempt/result";
-import { nextActionFromReview, runAttemptReview } from "./step-attempt/review";
+} from "../review/review-engine.js";
+import { loadContextPackage } from "../policies/scheduler-policy.js";
+import { auditAttemptFinished, auditStepAttemptStarted } from "./step-attempt/audit.js";
+import { writeBudgetBlockedAttempt } from "./step-attempt/budget-blocked-writer.js";
+import { coordinateAttemptGates, mapRunnerStatusToAttemptStatus } from "./step-attempt/gates.js";
+import { recordAttemptModelCost } from "./step-attempt/model-cost.js";
+import { markAttemptRunning, persistAttemptCompletion } from "./step-attempt/persistence.js";
+import type { StepAttemptOrchestrationResult } from "./step-attempt/result.js";
+import { nextActionFromReview, runAttemptReview } from "./step-attempt/review.js";
 import {
   executeStepRunner,
   ensureIsolatedWorktree,
   ensureRunnerMatchesDecision,
   ensureWorktreeIsNotSource,
-} from "./step-attempt/runner";
-import type { ExecuteStepAttemptInput, StepRunnerExecutionError, StepRunnerExecutionOutput } from "./step-runner-types";
+} from "./step-attempt/runner.js";
+import type {
+  ExecuteStepAttemptInput,
+  StepRunnerExecutionError,
+  StepRunnerExecutionOutput,
+} from "./step-runner-types.js";
 
 export type {
   ExecuteStepAttemptInput,
@@ -35,8 +39,8 @@ export type {
   StepRunnerExecutionStatus,
   StepRunnerExecutionTimeouts,
   StepRunnerModelUsage,
-} from "./step-runner-types";
-export type { StepAttemptOrchestrationResult } from "./step-attempt/result";
+} from "./step-runner-types.js";
+export type { StepAttemptOrchestrationResult } from "./step-attempt/result.js";
 
 interface AttemptScope {
   cwd: string;

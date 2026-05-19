@@ -3,10 +3,10 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { KiwiPolicy, ModelEntry } from "@kiwi/contracts";
-import { readAuditEvents, loadPlannerCostReport } from "../../ledger/cost-ledger";
-import { readModelInvocations } from "../../ledger/model-invocations";
-import { buildDeterministicTaskGraph } from "../../planning/planner";
-import { planRun } from "../../planning/planner-run";
+import { readAuditEvents, loadPlannerCostReport } from "../../ledger/cost-ledger.js";
+import { readModelInvocations } from "../../ledger/model-invocations.js";
+import { buildDeterministicTaskGraph } from "../../planning/planner.js";
+import { planRun } from "../../planning/planner-run.js";
 
 const policy: KiwiPolicy = {
   version: "1",

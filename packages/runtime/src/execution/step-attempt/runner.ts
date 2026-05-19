@@ -14,7 +14,7 @@ import type {
   StepRunnerExecutionError,
   StepRunnerExecutionInput,
   StepRunnerExecutionOutput,
-} from "../step-runner-types";
+} from "../step-runner-types.js";
 
 export function ensureRunnerMatchesDecision(input: ExecuteStepAttemptInput): void {
   if (input.schedulerDecision.status !== SchedulerDecisionStatuses.Scheduled) {

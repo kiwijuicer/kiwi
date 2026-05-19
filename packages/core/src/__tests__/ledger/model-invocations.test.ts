@@ -7,7 +7,7 @@ import {
   buildFinalCostReportFromModelInvocations,
   readModelInvocations,
   writeModelUsageSummary,
-} from "../../ledger/model-invocations";
+} from "../../ledger/model-invocations.js";
 
 function cwd(): string {
   return mkdtempSync(path.join(os.tmpdir(), "kiwi-model-invocations-"));

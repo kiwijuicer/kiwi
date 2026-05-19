@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { discoverWorkspaceRepos, resolveWorkspace } from "../../workspace";
+import { discoverWorkspaceRepos, resolveWorkspace } from "../../workspace/index.js";
 
 function setupMultiRepoWorkspace(): { root: string; core: string; agent: string } {
   const root = mkdtempSync(path.join(os.tmpdir(), "kiwi-workspace-"));

@@ -1,8 +1,8 @@
 import { StepTypes, type Step } from "@kiwi/contracts";
-import type { RunnerResolution } from "../../registries/runner-registry";
-import type { SchedulerDecision } from "../../policies/scheduler-policy";
-import type { ExecutionRunContext } from "./context";
-import type { ExecutePlannedStepInput, ExecutionMode, ExecutionTarget, StepRunnerSelection } from "./types";
+import type { RunnerResolution } from "../../registries/runner-registry.js";
+import type { SchedulerDecision } from "../../policies/scheduler-policy.js";
+import type { ExecutionRunContext } from "./context.js";
+import type { ExecutePlannedStepInput, ExecutionMode, ExecutionTarget, StepRunnerSelection } from "./types.js";
 
 export interface ApprovalContext {
   approved: boolean;

@@ -10,7 +10,7 @@ import {
   loadEffectivePolicy,
   loadEffectiveRegistry,
   resolveKiwiHome,
-} from "../../config";
+} from "../../config/index.js";
 
 const POLICY_YAML = `version: "1"
 project:

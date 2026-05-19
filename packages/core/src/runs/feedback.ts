@@ -1,10 +1,10 @@
 import { existsSync, readdirSync } from "fs";
 import path from "path";
 import { RunFeedback, RunFeedbackSchema } from "@kiwi/contracts";
-import { generateFeedbackId } from "../ids";
-import { appendAuditEvent } from "../ledger/cost-ledger";
-import { readJson, writeJsonSafely } from "../storage/json-io";
-import { ensureRunLayout, resolveRunArtifactPath } from "./store";
+import { generateFeedbackId } from "../ids.js";
+import { appendAuditEvent } from "../ledger/cost-ledger.js";
+import { readJson, writeJsonSafely } from "../storage/json-io.js";
+import { ensureRunLayout, resolveRunArtifactPath } from "./store.js";
 
 export interface RecordRunFeedbackInput {
   cwd: string;

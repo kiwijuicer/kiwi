@@ -1,14 +1,14 @@
 import { AccessModes, KiwiPolicy } from "@kiwi/contracts";
-import type { ProviderAttemptType } from "../../constants";
-import { CliPlannerResult } from "../../providers/cli-planner";
-import { emptyReviewerPolicy, invokeCliReviewer } from "../../providers/cli-reviewer";
+import type { ProviderAttemptType } from "../../constants.js";
+import { CliPlannerResult } from "../../providers/cli-planner.js";
+import { emptyReviewerPolicy, invokeCliReviewer } from "../../providers/cli-reviewer.js";
 import {
   ReviewerProvider,
   ReviewerProviderInput,
   ReviewerProviderOutput,
   ReviewerProviderRepairContext,
-} from "../../providers/reviewer";
-import { CursorAgentCliRunner, DefaultCursorAgentCliRunner, normalizeUsageFromCursorAgent } from "./client";
+} from "../../providers/reviewer.js";
+import { CursorAgentCliRunner, DefaultCursorAgentCliRunner, normalizeUsageFromCursorAgent } from "./client.js";
 
 const DEFAULT_TIMEOUT_MS = 300_000;
 

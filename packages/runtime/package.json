@@ -1,7 +1,6 @@
 {
   "name": "@kiwi/runtime",
   "version": "1.0.0",
-  "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist"
@@ -19,9 +18,19 @@
     "@kiwi/sandbox": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^20.12.7",
+    "@types/node": "^20.19.0",
     "tsup": "^8.0.2",
     "typescript": "^5.4.5",
-    "vitest": "^2.1.9"
+    "vitest": "^4.0.0"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
   }
 }

@@ -11,7 +11,7 @@ import {
   loadTaskGraph,
   resolveRunArtifactPath,
   savePlannedRun,
-} from "../../runs/store";
+} from "../../runs/store.js";
 
 function fixtureInitiative(): Initiative {
   return {

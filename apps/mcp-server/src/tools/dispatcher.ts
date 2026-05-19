@@ -2,18 +2,18 @@ import { runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { ContractValues, ProgressStatuses } from "@kiwi/contracts";
 import { recordFeedbackAndReplan, resolvePlannerProvider, RunCostForecastService } from "@kiwi/runtime";
 import { loadEffectivePolicy, loadEffectiveRegistry, planRun, type WorkspaceResolution } from "@kiwi/core";
-import { callCoreTool } from "./core-dispatch";
-import { doctorTool } from "./doctor";
-import { withOperatorCard } from "../ux/operator-card";
-import { previewRunTool, runStepTool, runTool } from "./run-tools";
-import { progressLine, startHeartbeat, stopHeartbeat, type ToolCallOptions } from "./helpers";
-import { validateToolArguments } from "./input-schemas";
-import { toolCall, type McpNextAction, mutationScope, safeReadOnlyToolCalls } from "../ux";
-import { workspaceArgs } from "../workspace";
-import { ToolActionRequiredError } from "./errors";
-import { nextTool } from "./next-action";
-import { getMcpServerServices } from "../services";
-import { modelsUpdateApplyTool, modelsUpdateTool } from "./model-tools";
+import { callCoreTool } from "./core-dispatch.js";
+import { doctorTool } from "./doctor.js";
+import { withOperatorCard } from "../ux/operator-card.js";
+import { previewRunTool, runStepTool, runTool } from "./run-tools.js";
+import { progressLine, startHeartbeat, stopHeartbeat, type ToolCallOptions } from "./helpers.js";
+import { validateToolArguments } from "./input-schemas.js";
+import { toolCall, type McpNextAction, mutationScope, safeReadOnlyToolCalls } from "../ux/index.js";
+import { workspaceArgs } from "../workspace/index.js";
+import { ToolActionRequiredError } from "./errors.js";
+import { nextTool } from "./next-action.js";
+import { getMcpServerServices } from "../services.js";
+import { modelsUpdateApplyTool, modelsUpdateTool } from "./model-tools.js";
 
 const ACTIVE_RUN_TOOLS = new Set([
   "kiwi_next",

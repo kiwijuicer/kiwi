@@ -18,7 +18,7 @@ import {
   NetworkPolicySchema,
   UsagePrecisionSchema,
   enumFrom,
-} from "../shared/common";
+} from "../shared/common.js";
 
 export const KiwiConfigSchema = z.object({
   version: z.literal("1"),

@@ -4,14 +4,14 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { Artifact, GateResultSchema, Initiative, ReviewVerdictSchema, Step } from "@kiwi/contracts";
 import { readAuditEvents, readModelInvocations } from "@kiwi/core";
-import { ReviewEngine } from "../../review/review-engine";
-import { loadSchedulerDecision, scheduleStepAttempt } from "../../policies/scheduler-policy";
+import { ReviewEngine } from "../../review/review-engine.js";
+import { loadSchedulerDecision, scheduleStepAttempt } from "../../policies/scheduler-policy.js";
 import {
   StepAttemptOrchestrator,
   StepAttemptRunner,
   StepRunnerExecutionInput,
   StepRunnerExecutionOutput,
-} from "../../execution/step-attempt-orchestrator";
+} from "../../execution/step-attempt-orchestrator.js";
 
 function cwd(): string {
   return mkdtempSync(path.join(os.tmpdir(), "kiwi-step-orchestrator-"));

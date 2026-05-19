@@ -22,7 +22,7 @@ Create `/path/to/workspace/.cursor/mcp.json`:
   "mcpServers": {
     "kiwi": {
       "type": "stdio",
-      "command": "kiwi-mcp",
+      "command": "kiwi-mcp-stdio",
       "args": ["--workspace", "/path/to/workspace"]
     }
   }

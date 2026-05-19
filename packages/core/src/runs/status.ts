@@ -9,7 +9,7 @@ import {
   Step,
   StepType,
 } from "@kiwi/contracts";
-import { RunCorruptError, RunNotFoundError } from "../errors";
+import { RunCorruptError, RunNotFoundError } from "../errors.js";
 import {
   isValidRunId,
   listRunIds,
@@ -17,8 +17,8 @@ import {
   loadRunManifest,
   loadTaskGraph,
   resolveRunArtifactPath,
-} from "./store";
-import { latestAttemptByStep, listStepAttemptEvidence, StepAttemptEvidence } from "./lifecycle";
+} from "./store.js";
+import { latestAttemptByStep, listStepAttemptEvidence, StepAttemptEvidence } from "./lifecycle/index.js";
 
 const RunStatusSentinels = {
   Missing: "missing",

@@ -1,3 +1,3 @@
-export * from "./approval";
-export * from "./evidence-collection";
-export * from "./status";
+export * from "./approval.js";
+export * from "./evidence-collection.js";
+export * from "./status.js";

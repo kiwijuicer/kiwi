@@ -11,8 +11,8 @@ import {
   resolveRunArtifactPath,
 } from "@kiwi/core";
 import { finalizeRun, loadAttemptDiff, ReviewEngine } from "@kiwi/runtime";
-import { writeEvidenceManifest } from "../evidence";
-import { writeJsonSafely } from "../storage/json-io";
+import { writeEvidenceManifest } from "../evidence/index.js";
+import { writeJsonSafely } from "../storage/json-io.js";
 
 export interface GitCommandResult {
   stdout: string;

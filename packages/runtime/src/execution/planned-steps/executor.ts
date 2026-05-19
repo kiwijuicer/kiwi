@@ -1,13 +1,13 @@
 import type { CoreServices } from "@kiwi/core";
 import type { SandboxCommandPolicy } from "@kiwi/sandbox";
-import { OperatorPolicyService } from "../../policies/operator-policy";
-import { createReviewEngineFromRegistry } from "../../review/provider-review-engine";
-import { runRequiredGates } from "../../gates/required-gates";
-import { StepAttemptOrchestrator } from "../step-attempt-orchestrator";
-import { AttemptDiffMaterializer } from "./diff-materializer";
-import { ExecutionPolicyResolver } from "./policy";
-import type { StepExecutionSession } from "./session";
-import { AttemptDiffStatuses, ExecutionToolNames, type RunAttemptResult } from "./types";
+import { OperatorPolicyService } from "../../policies/operator-policy.js";
+import { createReviewEngineFromRegistry } from "../../review/provider-review-engine.js";
+import { runRequiredGates } from "../../gates/required-gates.js";
+import { StepAttemptOrchestrator } from "../step-attempt-orchestrator.js";
+import { AttemptDiffMaterializer } from "./diff-materializer.js";
+import { ExecutionPolicyResolver } from "./policy.js";
+import type { StepExecutionSession } from "./session.js";
+import { AttemptDiffStatuses, ExecutionToolNames, type RunAttemptResult } from "./types.js";
 
 export class ReviewEngineFactory {
   create(

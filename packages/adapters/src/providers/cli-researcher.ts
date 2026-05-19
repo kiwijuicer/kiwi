@@ -1,7 +1,7 @@
 import { AccessMode } from "@kiwi/contracts";
-import { extractTextJson } from "../integrations/anthropic/common";
-import { CliPlannerResult, extractCliPlannerText, formatExternalCliFailure } from "./cli-planner";
-import { redactForProvider } from "./redaction";
+import { extractTextJson } from "../integrations/anthropic/common.js";
+import { CliPlannerResult, extractCliPlannerText, formatExternalCliFailure } from "./cli-planner.js";
+import { redactForProvider } from "./redaction.js";
 import {
   buildResearchEnvelope,
   ResearcherProviderError,
@@ -9,8 +9,8 @@ import {
   ResearcherProviderOutput,
   researchToolDefinition,
   RESEARCHER_PROMPT_VERSION,
-} from "./researcher";
-import { buildRunnerEnv } from "../runners/env";
+} from "./researcher.js";
+import { buildRunnerEnv } from "../runners/env.js";
 
 export interface CliResearcherUsage {
   inputTokens: number;

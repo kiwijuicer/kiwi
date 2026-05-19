@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command } from "commander/esm.mjs";
 import chalk from "chalk";
 import { BudgetExceededError, NotInitializedError, RunNotFoundError } from "@kiwi/core";
 

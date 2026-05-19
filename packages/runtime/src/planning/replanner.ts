@@ -26,8 +26,8 @@ import {
   updateRunPlanStatus,
   writeJsonSafely,
 } from "@kiwi/core";
-import { buildRunDiff } from "../execution/diff-workflow";
-import { resolvePlannerProvider } from "./planner-resolution";
+import { buildRunDiff } from "../execution/diff-workflow.js";
+import { resolvePlannerProvider } from "./planner-resolution.js";
 
 export interface ReplannerInput {
   cwd: string;

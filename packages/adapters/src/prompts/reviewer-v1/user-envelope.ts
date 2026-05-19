@@ -1,4 +1,4 @@
-import { ReviewerProviderInput } from "../../providers/reviewer";
+import { ReviewerProviderInput } from "../../providers/reviewer.js";
 
 const MAX_DIFF_BYTES = 200_000;
 

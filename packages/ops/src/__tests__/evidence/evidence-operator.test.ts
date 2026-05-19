@@ -4,8 +4,8 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { Initiative, TaskGraph } from "@kiwi/contracts";
 import { appendAuditEvent, savePlannedRun } from "@kiwi/core";
-import { writeEvidenceManifest } from "../../evidence";
-import { writeOperatorSnapshot } from "../../operator/surface";
+import { writeEvidenceManifest } from "../../evidence/index.js";
+import { writeOperatorSnapshot } from "../../operator/surface.js";
 
 function cwd(): string {
   return mkdtempSync(path.join(os.tmpdir(), "kiwi-evidence-operator-"));

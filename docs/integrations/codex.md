@@ -19,7 +19,7 @@ Add to `~/.codex/config.toml` or a trusted project-scoped `.codex/config.toml`:
 
 ```toml
 [mcp_servers.kiwi]
-command = "kiwi-mcp"
+command = "kiwi-mcp-stdio"
 args = ["--workspace", "/path/to/workspace"]
 ```
 
@@ -48,7 +48,7 @@ kiwi_doctor -> kiwi_plan -> kiwi_next -> kiwi_preview_run -> user confirm decisi
 
 ```bash
 codex mcp add kiwi \
-  -- kiwi-mcp --workspace /path/to/workspace
+  -- kiwi-mcp-stdio --workspace /path/to/workspace
 ```
 
 Codex execution uses the local `codex` CLI login through `codex exec`. Kiwi does not require `OPENAI_API_KEY` for the standard flow.

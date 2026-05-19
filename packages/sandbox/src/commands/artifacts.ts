@@ -6,10 +6,10 @@ import {
   GateResultSchema,
   RunnerExecutionStatuses,
 } from "@kiwi/contracts";
-import { appendAuditEvent, resolveRunArtifactPath, writeJsonSafely } from "../shared/common";
-import type { PolicyDecision } from "./policy";
-import type { SandboxCommandInput, SandboxCommandOutput, SandboxExecutionStatus } from "./types";
-import { SandboxPolicyDecisionStatuses } from "../constants";
+import { appendAuditEvent, resolveRunArtifactPath, writeJsonSafely } from "../shared/common.js";
+import type { PolicyDecision } from "./policy.js";
+import type { SandboxCommandInput, SandboxCommandOutput, SandboxExecutionStatus } from "./types.js";
+import { SandboxPolicyDecisionStatuses } from "../constants.js";
 
 function redact(value: string, secretValues: string[]): string {
   return secretValues

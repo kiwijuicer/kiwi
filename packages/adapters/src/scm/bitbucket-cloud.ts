@@ -11,7 +11,7 @@ import {
   ScmTicketDraftInput,
   ScmTicketDraftSchema,
 } from "@kiwi/contracts";
-import { ScmAdapter } from "./adapter";
+import { ScmAdapter } from "./adapter.js";
 
 export interface BitbucketCloudRequest {
   method: "POST";

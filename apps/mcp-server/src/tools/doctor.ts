@@ -12,9 +12,9 @@ import {
   loadKiwiConfig,
 } from "@kiwi/core";
 import { evaluateAccessModeAvailability, modelAccessConfigured, readExecutionRepoState } from "@kiwi/runtime";
-import { errorMessage } from "./helpers";
-import { toolCall, workspaceToolArgs } from "../ux";
-import { workspaceArgs } from "../workspace";
+import { errorMessage } from "./helpers.js";
+import { toolCall, workspaceToolArgs } from "../ux/index.js";
+import { workspaceArgs } from "../workspace/index.js";
 
 interface FileStatus {
   path: string;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { BudgetExceededError } from "../../errors";
-import { firstBudgetProfileForCost } from "../../budget/forecast";
-import { assertWithinBudgetEstimate, estimateAttemptCostUsd } from "../../budget/policy";
+import { BudgetExceededError } from "../../errors.js";
+import { firstBudgetProfileForCost } from "../../budget/forecast.js";
+import { assertWithinBudgetEstimate, estimateAttemptCostUsd } from "../../budget/policy.js";
 
 const frontierModel = {
   id: "claude-opus-4-6",

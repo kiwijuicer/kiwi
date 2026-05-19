@@ -1,7 +1,7 @@
 PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 KIWI_BIN ?= $(BINDIR)/kiwi
-KIWI_MCP_BIN ?= $(BINDIR)/kiwi-mcp
+KIWI_MCP_BIN ?= $(BINDIR)/kiwi-mcp-stdio
 KIWI_HOME ?= $(HOME)/.kiwi
 KIWI_INSTALL_ROOT ?= $(KIWI_HOME)/install
 KIWI_RELEASES_DIR ?= $(KIWI_INSTALL_ROOT)/releases
@@ -66,12 +66,10 @@ install:
 	trap 'rm -rf "$$CANDIDATE" "$$SMOKE_WORKSPACE" "$$SMOKE_KIWI_HOME" "$$LINK_TMP"' EXIT INT TERM; \
 	test -f "$(REPO_ROOT)/apps/cli/dist/index.js"; \
 	test -f "$(REPO_ROOT)/apps/mcp-server/dist/index.js"; \
-	test -f "$(REPO_ROOT)/apps/mcp-server/bin/stdio-launcher.cjs"; \
 	rm -rf "$$CANDIDATE" "$$SMOKE_WORKSPACE"; \
-	mkdir -p "$$CANDIDATE/apps/cli/dist" "$$CANDIDATE/apps/mcp-server/dist" "$$CANDIDATE/apps/mcp-server/bin" "$$CANDIDATE/bin" "$$CANDIDATE/config" "$$RELEASES_DIR" "$$TMP_ROOT"; \
+	mkdir -p "$$CANDIDATE/apps/cli/dist" "$$CANDIDATE/apps/mcp-server/dist" "$$CANDIDATE/bin" "$$CANDIDATE/config" "$$RELEASES_DIR" "$$TMP_ROOT"; \
 	cp -R "$(REPO_ROOT)/apps/cli/dist/." "$$CANDIDATE/apps/cli/dist/"; \
 	cp -R "$(REPO_ROOT)/apps/mcp-server/dist/." "$$CANDIDATE/apps/mcp-server/dist/"; \
-	cp "$(REPO_ROOT)/apps/mcp-server/bin/stdio-launcher.cjs" "$$CANDIDATE/apps/mcp-server/bin/stdio-launcher.cjs"; \
 	cp "$(REPO_ROOT)/config/model-catalog.json" "$$CANDIDATE/config/model-catalog.json"; \
 	printf '{\n  "releaseId": "%s",\n  "sha": "%s",\n  "installedAt": "%s",\n  "repoRoot": "%s"\n}\n' "$$RELEASE_ID" "$$KIWI_BUILD_SHA" "$$INSTALLED_AT" "$(REPO_ROOT)" > "$$CANDIDATE/manifest.json"; \
 	printf '%s\n' \
@@ -89,12 +87,12 @@ install:
 		"KIWI_BUILD_SHA='$$KIWI_BUILD_SHA'" \
 		'export KIWI_BUILD_SHA' \
 		'RELEASE_ROOT=$$(CDPATH= cd "$$(dirname "$$0")/.." && pwd)' \
-		'exec node "$$RELEASE_ROOT/apps/mcp-server/bin/stdio-launcher.cjs" --server "$$RELEASE_ROOT/apps/mcp-server/dist/index.js" "$$@"' \
-		> "$$CANDIDATE/bin/kiwi-mcp"; \
-	chmod +x "$$CANDIDATE/bin/kiwi" "$$CANDIDATE/bin/kiwi-mcp" "$$CANDIDATE/apps/mcp-server/bin/stdio-launcher.cjs"; \
+		'exec node "$$RELEASE_ROOT/apps/mcp-server/dist/index.js" "$$@"' \
+		> "$$CANDIDATE/bin/kiwi-mcp-stdio"; \
+	chmod +x "$$CANDIDATE/bin/kiwi" "$$CANDIDATE/bin/kiwi-mcp-stdio"; \
 	node "$(REPO_ROOT)/scripts/check-bundle-requires.mjs" "$$CANDIDATE/apps/cli/dist/index.js" "$$CANDIDATE/apps/mcp-server/dist/index.js"; \
 	"$$CANDIDATE/bin/kiwi" --version >/dev/null; \
-	node -e 'const server = require(process.argv[1]); if (typeof server.startMcpServer !== "function") throw new Error("startMcpServer export not found");' "$$CANDIDATE/apps/mcp-server/dist/index.js"; \
+	KIWI_MCP_ENTRY="$$CANDIDATE/apps/mcp-server/dist/index.js" node -e 'import(process.env.KIWI_MCP_ENTRY).then((server) => { if (typeof server.startMcpServer !== "function") throw new Error("startMcpServer export not found"); }).catch((error) => { console.error(error); process.exit(1); });'; \
 	mkdir -p "$$SMOKE_WORKSPACE" "$$SMOKE_KIWI_HOME"; \
 	KIWI_HOME="$$SMOKE_KIWI_HOME" "$$CANDIDATE/bin/kiwi" init --workspace "$$SMOKE_WORKSPACE" >/dev/null; \
 	KIWI_HOME="$$SMOKE_KIWI_HOME" KIWI_TEST_ALLOW_STUB=1 KIWI_FORCE_ACCESS_MODE=stub "$$CANDIDATE/bin/kiwi" doctor --workspace "$$SMOKE_WORKSPACE" >/dev/null; \
@@ -125,10 +123,10 @@ install:
 		'#!/usr/bin/env sh' \
 		'set -eu' \
 		"CURRENT_LINK='$(KIWI_CURRENT)'" \
-		'TARGET="$$CURRENT_LINK/bin/kiwi-mcp"' \
+		'TARGET="$$CURRENT_LINK/bin/kiwi-mcp-stdio"' \
 		'if [ ! -x "$$TARGET" ]; then' \
-		'  echo "kiwi-mcp: installed release missing at $$TARGET" >&2' \
-		'  echo "kiwi-mcp: run make install to install a release" >&2' \
+		'  echo "kiwi-mcp-stdio: installed release missing at $$TARGET" >&2' \
+		'  echo "kiwi-mcp-stdio: run make install to install a release" >&2' \
 		'  exit 127' \
 		'fi' \
 		'exec "$$TARGET" "$$@"' \
@@ -139,7 +137,7 @@ install:
 	rmdir "$$TMP_ROOT" 2>/dev/null || true; \
 	trap - EXIT; \
 	echo "kiwi installed: $(KIWI_BIN)"; \
-	echo "kiwi-mcp installed: $(KIWI_MCP_BIN)"; \
+	echo "kiwi-mcp-stdio installed: $(KIWI_MCP_BIN)"; \
 	echo "kiwi release: $$RELEASE_ID"
 	@if [ "$(UPDATE_SHELL)" = "1" ]; then \
 		if ! printf '%s' "$$PATH" | tr ':' '\n' | grep -qx "$(BINDIR)"; then \
@@ -246,7 +244,7 @@ uninstall:
 	@rm -f "$(KIWI_BIN)" "$(KIWI_MCP_BIN)"
 	@rm -rf "$(KIWI_INSTALL_ROOT)"
 	@echo "kiwi removed: $(KIWI_BIN)"
-	@echo "kiwi-mcp removed: $(KIWI_MCP_BIN)"
+	@echo "kiwi-mcp-stdio removed: $(KIWI_MCP_BIN)"
 	@echo "kiwi install root removed: $(KIWI_INSTALL_ROOT)"
 
 rollback:

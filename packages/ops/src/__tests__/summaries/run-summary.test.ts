@@ -4,7 +4,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { Initiative, TaskGraph } from "@kiwi/contracts";
 import { appendModelInvocation, savePlannedRun } from "@kiwi/core";
-import { buildRunCompletionSummary } from "../../summaries/run-summary";
+import { buildRunCompletionSummary } from "../../summaries/run-summary.js";
 
 const NOW = "2026-05-04T13:00:00.000Z";
 

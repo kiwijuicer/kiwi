@@ -14,9 +14,13 @@ import {
   ConfigWriteStatuses,
   type GitignoreWriteStatus,
   GitignoreWriteStatuses,
-} from "../../config/constants";
-import { DEFAULT_MODEL_REGISTRY_YAML, DEFAULT_POLICY_YAML, defaultKiwiConfigYaml } from "../../config/default-config";
-import { MCP_GITIGNORE_ENTRIES, type ConcreteMcpTarget } from "./init-mcp-config";
+} from "../../config/constants.js";
+import {
+  DEFAULT_MODEL_REGISTRY_YAML,
+  DEFAULT_POLICY_YAML,
+  defaultKiwiConfigYaml,
+} from "../../config/default-config.js";
+import { MCP_GITIGNORE_ENTRIES, type ConcreteMcpTarget } from "./init-mcp-config.js";
 
 interface ConfigWriteResult {
   path: string;

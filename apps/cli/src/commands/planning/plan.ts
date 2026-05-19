@@ -23,8 +23,8 @@ import {
   type CliProgressStatus,
   TicketInputSources,
   type TicketInputSource,
-} from "../../config/constants";
-import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
+} from "../../config/constants.js";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options.js";
 
 interface PlanOptions extends CliWorkspaceOptions {
   dryRun?: boolean;

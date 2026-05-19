@@ -85,7 +85,7 @@ import type {
   StepTypeSchema,
   TaskGraphSchema,
   UsagePrecisionSchema,
-} from "./schemas";
+} from "./schemas.js";
 
 export type Initiative = z.infer<typeof InitiativeSchema>;
 export type InitiativeSource = z.infer<typeof InitiativeSourceSchema>;

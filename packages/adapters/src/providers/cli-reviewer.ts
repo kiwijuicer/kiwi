@@ -1,16 +1,16 @@
 import { AccessMode, ContractValues, KiwiPolicy } from "@kiwi/contracts";
-import type { ProviderAttemptType } from "../constants";
-import { extractTextJson, isRecord } from "../integrations/anthropic/common";
-import { CliPlannerResult, extractCliPlannerText, formatExternalCliFailure } from "./cli-planner";
+import type { ProviderAttemptType } from "../constants.js";
+import { extractTextJson, isRecord } from "../integrations/anthropic/common.js";
+import { CliPlannerResult, extractCliPlannerText, formatExternalCliFailure } from "./cli-planner.js";
 import {
   buildReviewerRepairEnvelope,
   buildReviewerUserEnvelope,
   reviewerToolDefinition,
   REVIEWER_JSON_SYSTEM_PROMPT,
   REVIEWER_PROMPT_VERSION,
-} from "../prompts/reviewer-v1";
-import { redactForProvider, RedactionSummary } from "./redaction";
-import { buildRunnerEnv } from "../runners/env";
+} from "../prompts/reviewer-v1/index.js";
+import { redactForProvider, RedactionSummary } from "./redaction.js";
+import { buildRunnerEnv } from "../runners/env.js";
 import {
   ReviewerProviderArtifacts,
   ReviewerProviderError,
@@ -19,7 +19,7 @@ import {
   ReviewerProviderOutput,
   ReviewerProviderRepairContext,
   ReviewerProviderSchedulerErrorCodes,
-} from "./reviewer";
+} from "./reviewer.js";
 
 export interface CliReviewerUsage {
   inputTokens: number;

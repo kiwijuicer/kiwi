@@ -23,7 +23,7 @@ import {
   evaluateAccessModeAvailability,
   modelAccessConfigured,
   stubAccessAllowed,
-} from "./access-mode-resolver";
+} from "./access-mode-resolver.js";
 
 export interface RunnerResolutionOptions {
   registryModels: ModelEntry[];

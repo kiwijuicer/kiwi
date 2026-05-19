@@ -4,7 +4,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { Initiative, TaskGraph } from "@kiwi/contracts";
 import { appendAuditEvent, readAuditEvents, savePlannedRun } from "@kiwi/core";
-import { runScheduledSubPlans } from "../../execution/parallel-scheduler";
+import { runScheduledSubPlans } from "../../execution/parallel-scheduler.js";
 
 function fixtureInitiative(runId: string): Initiative {
   return {

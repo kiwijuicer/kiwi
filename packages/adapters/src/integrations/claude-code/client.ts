@@ -1,7 +1,7 @@
-import { extractTextJson } from "../anthropic/common";
+import { extractTextJson } from "../anthropic/common.js";
 import type { UsagePrecision } from "@kiwi/contracts";
-import type { CliOutputFormat } from "../../constants";
-import { runSubprocess, SubprocessOutputChunk } from "../../runners/subprocess";
+import type { CliOutputFormat } from "../../constants.js";
+import { runSubprocess, SubprocessOutputChunk } from "../../runners/subprocess.js";
 
 export interface ClaudeCodeCliInvocation {
   binary: string;

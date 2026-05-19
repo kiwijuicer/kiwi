@@ -6,7 +6,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { GateResultSchema, ReviewVerdictSchema, StepAttemptSchema } from "@kiwi/contracts";
 import { savePlannedRun } from "@kiwi/core";
-import { publishPrDraft } from "../../publishing/pr-draft";
+import { publishPrDraft } from "../../publishing/pr-draft.js";
 import { StubReviewEngine } from "@kiwi/runtime";
 
 function tmp(): string {

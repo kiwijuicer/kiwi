@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
-import { finishCommand } from "../commands/artifacts";
-import type { SandboxCommandInput, SandboxCommandOutput } from "../commands/types";
-import { terminateProcessTree, truncateOutput } from "./utils";
+import { finishCommand } from "../commands/artifacts.js";
+import type { SandboxCommandInput, SandboxCommandOutput } from "../commands/types.js";
+import { terminateProcessTree, truncateOutput } from "./utils.js";
 
 function allowedEnv(env: Record<string, string> | undefined, allowlist: string[]): Record<string, string> {
   const selected: Record<string, string> = {};

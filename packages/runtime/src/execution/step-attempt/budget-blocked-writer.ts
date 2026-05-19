@@ -15,17 +15,17 @@ import {
   resolveRunArtifactPath,
   writeJsonSafely,
 } from "@kiwi/core";
-import { saveReviewVerdict } from "../../review/review-engine";
-import { saveRunnerCostReport, loadStepAttempt } from "../step-attempt-artifacts";
-import { auditAttemptFinished } from "./audit";
-import { persistAttemptCompletion } from "./persistence";
-import type { StepAttemptOrchestrationResult } from "./result";
+import { saveReviewVerdict } from "../../review/review-engine.js";
+import { saveRunnerCostReport, loadStepAttempt } from "../step-attempt-artifacts.js";
+import { auditAttemptFinished } from "./audit.js";
+import { persistAttemptCompletion } from "./persistence.js";
+import type { StepAttemptOrchestrationResult } from "./result.js";
 import type {
   ExecuteStepAttemptInput,
   StepAttemptNextAction,
   StepRunnerExecutionError,
   StepRunnerExecutionOutput,
-} from "../step-runner-types";
+} from "../step-runner-types.js";
 
 interface AttemptScope {
   cwd: string;

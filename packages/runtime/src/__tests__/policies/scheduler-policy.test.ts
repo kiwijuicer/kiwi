@@ -4,7 +4,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { Initiative, Step } from "@kiwi/contracts";
 import { readAuditEvents } from "@kiwi/core";
-import { loadContextPackage, loadSchedulerDecision, scheduleStepAttempt } from "../../policies/scheduler-policy";
+import { loadContextPackage, loadSchedulerDecision, scheduleStepAttempt } from "../../policies/scheduler-policy.js";
 
 function fixtureStep(overrides: Partial<Step> = {}): Step {
   return {

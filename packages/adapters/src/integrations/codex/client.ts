@@ -4,8 +4,8 @@ import {
   CodexApprovalsReviewers,
   type CodexApprovalPolicy,
   type CodexApprovalsReviewer,
-} from "../../constants";
-import { runSubprocess, SubprocessOutputChunk } from "../../runners/subprocess";
+} from "../../constants.js";
+import { runSubprocess, SubprocessOutputChunk } from "../../runners/subprocess.js";
 
 export const CODEX_AUTO_REVIEW_APPROVAL_POLICY = CodexApprovalPolicies.OnRequest;
 export const CODEX_AUTO_REVIEW_APPROVALS_REVIEWER = CodexApprovalsReviewers.AutoReview;

@@ -12,8 +12,8 @@ import {
   loadEffectiveRegistry,
   loadKiwiConfig,
 } from "@kiwi/core";
-import { runConfigSetApprover } from "../../commands/setup/config";
-import { runInit } from "../../commands/setup/init";
+import { runConfigSetApprover } from "../../commands/setup/config.js";
+import { runInit } from "../../commands/setup/init.js";
 
 interface CursorMcpConfig {
   mcpServers?: Record<
@@ -61,22 +61,16 @@ function expectMcpLaunchForWorkspace(
   cwd: string,
 ): void {
   expect(server?.type).toBe("stdio");
-  if (server?.command?.endsWith("kiwi-mcp")) {
+  if (server?.command?.endsWith("kiwi-mcp-stdio")) {
     expect(server.args).toEqual(["--workspace", cwd]);
     expect(server.env).toBeUndefined();
 
     return;
   }
   expect(server?.args?.join(" ")).toContain("mcp-server");
-  if (server?.args?.some((arg) => arg.endsWith("stdio-launcher.cjs"))) {
-    expect(server.command).toBe(process.execPath);
-    expect(server.args).toContain("--workspace");
-    expect(server.args).toContain(cwd);
-    expect(server.env).toBeUndefined();
-
-    return;
-  }
-  expect(server?.env).toEqual({ KIWI_WORKSPACE: cwd });
+  expect(server?.args).toContain("--workspace");
+  expect(server?.args).toContain(cwd);
+  expect(server?.env).toBeUndefined();
 }
 
 async function withKiwiMcpBin(value: string | undefined, fn: () => Promise<void>): Promise<void> {
@@ -252,10 +246,10 @@ models:
     expectMcpLaunchForWorkspace(server, cwd);
   });
 
-  it("uses installed kiwi-mcp wrapper when configured", async () => {
+  it("uses installed kiwi-mcp-stdio wrapper when configured", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-installed-mcp-"));
     const binDir = path.join(cwd, "bin");
-    const kiwiMcpBin = path.join(binDir, "kiwi-mcp");
+    const kiwiMcpBin = path.join(binDir, "kiwi-mcp-stdio");
     mkdirSync(binDir);
     writeFileSync(kiwiMcpBin, "#!/usr/bin/env sh\n", "utf-8");
     chmodSync(kiwiMcpBin, 0o755);
@@ -289,7 +283,7 @@ models:
 
     const config = readCursorMcpConfig(cwd);
     const server = config.mcpServers?.kiwi;
-    expect(server?.command).not.toContain("kiwi-mcp");
+    expect(server?.command).not.toContain("kiwi-mcp-stdio");
     expectMcpLaunchForWorkspace(server, cwd);
   });
 

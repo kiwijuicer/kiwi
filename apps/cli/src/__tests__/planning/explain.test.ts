@@ -2,9 +2,9 @@ import { mkdtempSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it, vi } from "vitest";
-import { runExplain } from "../../commands/planning/explain";
-import { runInit } from "../../commands/setup/init";
-import { runPlan } from "../../commands/planning/plan";
+import { runExplain } from "../../commands/planning/explain.js";
+import { runInit } from "../../commands/setup/init.js";
+import { runPlan } from "../../commands/planning/plan.js";
 
 function testEnv(cwd: string, env: Record<string, string | undefined> = {}): Record<string, string | undefined> {
   return {

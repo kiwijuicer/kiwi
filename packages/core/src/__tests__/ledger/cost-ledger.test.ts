@@ -8,7 +8,7 @@ import {
   loadPlannerCostReport,
   readAuditEvents,
   writePlannerCostReport,
-} from "../../ledger/cost-ledger";
+} from "../../ledger/cost-ledger.js";
 
 describe("cost ledger", () => {
   it("appends and reads audit events", () => {

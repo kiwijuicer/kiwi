@@ -1,5 +1,5 @@
 import { applyRunDiff, buildRunDiff, formatRunDiff } from "@kiwi/runtime";
-import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options.js";
 
 interface DiffOptions extends CliWorkspaceOptions {
   json?: boolean;

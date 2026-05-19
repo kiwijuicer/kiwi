@@ -6,11 +6,11 @@ import {
   CodexCliRunner,
   DefaultCodexCliRunner,
   normalizeUsageFromCodex,
-} from "./client";
-import { cliRunnerOutput, runnerTimeoutMs } from "../../runners/cli-output";
-import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../../runners/adapter";
-import { buildRunnerEnv } from "../../runners/env";
-import { buildContractRunnerPrompt } from "../../runners/contract-prompt";
+} from "./client.js";
+import { cliRunnerOutput, runnerTimeoutMs } from "../../runners/cli-output.js";
+import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../../runners/adapter.js";
+import { buildRunnerEnv } from "../../runners/env.js";
+import { buildContractRunnerPrompt } from "../../runners/contract-prompt.js";
 
 const DEFAULT_TIMEOUT_MS = 600_000;
 const CODEX_ACCESS_MODE = AccessModes.CodexCli;

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it, vi } from "vitest";
-import { runWorkspaceList } from "../../commands/setup/workspace";
+import { runWorkspaceList } from "../../commands/setup/workspace.js";
 
 describe("kiwi workspace", () => {
   it("lists repos detected from a .code-workspace file", async () => {

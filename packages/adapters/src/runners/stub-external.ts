@@ -1,9 +1,9 @@
 import { mkdirSync, writeFileSync } from "fs";
 import path from "path";
 import { Artifact, ContractValues, GateResultSchema, RunnerName, RunnerNames } from "@kiwi/contracts";
-import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "./adapter";
-import { captureRunnerDiffArtifact } from "./diff-artifact";
-import { createFailedRunnerOutput } from "./output";
+import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "./adapter.js";
+import { captureRunnerDiffArtifact } from "./diff-artifact.js";
+import { createFailedRunnerOutput } from "./output.js";
 
 export type ExternalRunnerName = Exclude<RunnerName, typeof RunnerNames.LocalShell>;
 

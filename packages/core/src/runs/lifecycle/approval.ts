@@ -1,10 +1,10 @@
 import { existsSync, readdirSync } from "fs";
 import path from "path";
 import { ApprovalDecision, ApprovalDecisionSchema, ContractValues, GateTypes } from "@kiwi/contracts";
-import { appendAuditEvent } from "../../ledger/cost-ledger";
-import { ensureRunLayout, resolveRunArtifactPath } from "../store";
-import { readJson, writeJsonSafely } from "../../storage/json-io";
-import type { StepAttemptEvidence } from "./evidence-collection";
+import { appendAuditEvent } from "../../ledger/cost-ledger.js";
+import { ensureRunLayout, resolveRunArtifactPath } from "../store.js";
+import { readJson, writeJsonSafely } from "../../storage/json-io.js";
+import type { StepAttemptEvidence } from "./evidence-collection.js";
 
 export function approvalRequiredFilesForAttempt(params: {
   cwd: string;

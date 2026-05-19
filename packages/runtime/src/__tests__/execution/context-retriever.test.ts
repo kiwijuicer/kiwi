@@ -3,7 +3,7 @@ import { tmpdir } from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import type { Initiative, Step } from "@kiwi/contracts";
-import { ExecutionContextRetriever } from "../../execution/planned-steps/context-retriever";
+import { ExecutionContextRetriever } from "../../execution/planned-steps/context-retriever.js";
 
 const initiative: Initiative = {
   id: "init_demo",

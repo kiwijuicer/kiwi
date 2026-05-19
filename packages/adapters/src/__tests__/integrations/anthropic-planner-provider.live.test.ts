@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { KiwiPolicy } from "@kiwi/contracts";
-import { AnthropicPlannerProvider } from "../../integrations/anthropic/planner-provider";
-import { PlannerProviderInput, runPlannerProviderWithRetries } from "../../providers/planner";
+import { AnthropicPlannerProvider } from "../../integrations/anthropic/planner-provider.js";
+import { PlannerProviderInput, runPlannerProviderWithRetries } from "../../providers/planner.js";
 
 const policy: KiwiPolicy = {
   version: "1",

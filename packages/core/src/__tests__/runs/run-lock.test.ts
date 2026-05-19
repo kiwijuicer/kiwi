@@ -2,9 +2,9 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { readAuditEvents } from "../../ledger/cost-ledger";
-import { ensureRunLayout } from "../../runs/store";
-import { acquireRunLock, forceReleaseRunLock, listRunLocks, withRunLock } from "../../runs/lock";
+import { readAuditEvents } from "../../ledger/cost-ledger.js";
+import { ensureRunLayout } from "../../runs/store.js";
+import { acquireRunLock, forceReleaseRunLock, listRunLocks, withRunLock } from "../../runs/lock.js";
 
 function cwd(): string {
   return mkdtempSync(path.join(os.tmpdir(), "kiwi-run-lock-"));

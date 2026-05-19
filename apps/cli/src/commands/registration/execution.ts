@@ -1,16 +1,16 @@
-import { Command } from "commander";
-import { runApprove } from "../execution/approve";
-import { runAttempt } from "../execution/attempt";
-import { runApply, runDiff } from "../execution/diff";
-import { runEvidenceManifest } from "../execution/evidence";
-import { runFeedback } from "../execution/feedback";
-import { runFinalize } from "../execution/finalize";
-import { runOperatorSnapshot } from "../operations/operator";
-import { runPublishPr } from "../operations/publish";
-import { runRun } from "../runs/run";
-import { runTail } from "../runs/tail";
-import { runUnlock } from "../runs/unlock";
-import { addWorkspaceOptions, handleCommandError, WorkspaceOptionMerger } from "./common";
+import { Command } from "commander/esm.mjs";
+import { runApprove } from "../execution/approve.js";
+import { runAttempt } from "../execution/attempt.js";
+import { runApply, runDiff } from "../execution/diff.js";
+import { runEvidenceManifest } from "../execution/evidence.js";
+import { runFeedback } from "../execution/feedback.js";
+import { runFinalize } from "../execution/finalize.js";
+import { runOperatorSnapshot } from "../operations/operator.js";
+import { runPublishPr } from "../operations/publish.js";
+import { runRun } from "../runs/run.js";
+import { runTail } from "../runs/tail.js";
+import { runUnlock } from "../runs/unlock.js";
+import { addWorkspaceOptions, handleCommandError, WorkspaceOptionMerger } from "./common.js";
 
 function registerDiffApplyCommands(program: Command, withWorkspaceOptions: WorkspaceOptionMerger): void {
   addWorkspaceOptions(

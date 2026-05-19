@@ -1,13 +1,14 @@
-import { execFileSync } from "child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import path from "path";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import {
   type ConfigWriteStatus,
   ConfigWriteStatuses,
   type McpInitTarget,
   McpInitTargets,
-} from "../../config/constants";
+} from "../../config/constants.js";
 
 export type ConcreteMcpTarget = Exclude<McpInitTarget, typeof McpInitTargets.None | typeof McpInitTargets.All>;
 
@@ -33,6 +34,7 @@ export const MCP_GITIGNORE_ENTRIES: Record<ConcreteMcpTarget, string> = {
   codex: ".codex/config.toml",
 };
 const ORDERED_MCP_TARGETS: ConcreteMcpTarget[] = [McpInitTargets.Cursor, McpInitTargets.Claude, McpInitTargets.Codex];
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 const MCP_CLIENT_READINESS: Record<
   ConcreteMcpTarget,
@@ -66,7 +68,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function kiwiRootCandidates(): string[] {
-  return [path.resolve(__dirname, "../../.."), path.resolve(__dirname, "../../../..")];
+  return [path.resolve(moduleDir, "../../.."), path.resolve(moduleDir, "../../../..")];
 }
 
 function resolveKiwiRoot(): string {
@@ -76,7 +78,7 @@ function resolveKiwiRoot(): string {
     }
   }
 
-  return path.resolve(__dirname, "../../..");
+  return path.resolve(moduleDir, "../../..");
 }
 
 function resolveInstalledMcpBin(): string | null {
@@ -101,34 +103,23 @@ function resolveMcpServerLaunch(workspaceValue: string): McpServerLaunch {
   }
 
   const distCandidates = [
-    path.resolve(__dirname, "../../mcp-server/dist/index.js"),
-    path.resolve(__dirname, "../../../mcp-server/dist/index.js"),
+    path.resolve(moduleDir, "../../mcp-server/dist/index.js"),
+    path.resolve(moduleDir, "../../../mcp-server/dist/index.js"),
     path.join(resolveKiwiRoot(), "apps", "mcp-server", "dist", "index.js"),
   ];
 
   for (const candidate of distCandidates) {
     if (existsSync(candidate)) {
-      const launcher = path.join(path.dirname(path.dirname(candidate)), "bin", "stdio-launcher.cjs");
-
-      if (existsSync(launcher)) {
-        return {
-          command: process.execPath,
-          args: [launcher, "--server", candidate, "--workspace", workspaceValue],
-        };
-      }
-
       return {
         command: process.execPath,
-        args: [candidate],
-        env: { KIWI_WORKSPACE: workspaceValue },
+        args: [candidate, "--workspace", workspaceValue],
       };
     }
   }
 
   return {
     command: "pnpm",
-    args: ["--dir", resolveKiwiRoot(), "tsx", "apps/mcp-server/src/index.ts"],
-    env: { KIWI_WORKSPACE: workspaceValue },
+    args: ["--dir", resolveKiwiRoot(), "tsx", "apps/mcp-server/src/index.ts", "--workspace", workspaceValue],
   };
 }
 

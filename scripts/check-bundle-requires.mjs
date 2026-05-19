@@ -22,10 +22,21 @@ function isAllowedRequire(specifier) {
 }
 
 const failures = [];
-const requirePattern = /\brequire\(\s*["']([^"']+)["']\s*\)/g;
+const requirePattern = /\b(?:require|__require\d*)\(\s*["']([^"']+)["']\s*\)/g;
+const forbiddenPatterns = [
+  { pattern: /\b(?:require|__require\d*)\(\s*["']vite["']\s*\)/, label: 'require("vite")' },
+  { pattern: /vite\/index\.cjs/, label: "vite/index.cjs" },
+  { pattern: /The CJS build of Vite's Node API is deprecated/, label: "Vite CJS Node API warning" },
+];
 
 for (const file of files) {
   const source = readFileSync(file, "utf-8");
+
+  for (const { pattern, label } of forbiddenPatterns) {
+    if (pattern.test(source)) {
+      failures.push(`${file}: forbidden ${label}`);
+    }
+  }
 
   for (const match of source.matchAll(requirePattern)) {
     const specifier = match[1];

@@ -3,8 +3,8 @@ import os from "os";
 import path from "path";
 import { describe, expect, it, vi } from "vitest";
 import { InitiativeSchema, RunManifestSchema, TaskGraphSchema } from "@kiwi/contracts";
-import { runInit } from "../../commands/setup/init";
-import { runPlan } from "../../commands/planning/plan";
+import { runInit } from "../../commands/setup/init.js";
+import { runPlan } from "../../commands/planning/plan.js";
 
 function readJson(target: string): unknown {
   return JSON.parse(readFileSync(target, "utf-8")) as unknown;

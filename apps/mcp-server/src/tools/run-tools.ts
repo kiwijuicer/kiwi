@@ -1,17 +1,17 @@
 import { ContractValues } from "@kiwi/contracts";
 import { type RunExecutionPreview, splitCommandLine } from "@kiwi/runtime";
-import { withOperatorCard } from "../ux/operator-card";
+import { withOperatorCard } from "../ux/operator-card.js";
 import {
   consumeMcpPreviewToken,
   createMcpPreviewToken,
   normalizePreviewInput,
   validateMcpPreviewToken,
-} from "./preview-tokens";
-import { runStepToolUnlocked } from "./run-step-execution";
-import { previewConfirmationSummary, type ToolCallOptions } from "./helpers";
-import { mutationScope, safeReadOnlyToolCalls } from "../ux";
-import { getMcpServerServices } from "../services";
-import { workspaceArgs } from "../workspace";
+} from "./preview-tokens.js";
+import { runStepToolUnlocked } from "./run-step-execution.js";
+import { previewConfirmationSummary, type ToolCallOptions } from "./helpers.js";
+import { mutationScope, safeReadOnlyToolCalls } from "../ux/index.js";
+import { getMcpServerServices } from "../services.js";
+import { workspaceArgs } from "../workspace/index.js";
 import {
   assertMcpCommandOverrideAllowed,
   assertMcpDirectExecutionSafe,
@@ -20,7 +20,7 @@ import {
   nextRunAction,
   previewFromRecord,
   previewStepViews,
-} from "./run-tool-internals";
+} from "./run-tool-internals.js";
 
 function services(): ReturnType<typeof getMcpServerServices> {
   return getMcpServerServices();

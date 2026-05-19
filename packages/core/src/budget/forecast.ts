@@ -1,4 +1,4 @@
-import { BUDGET_PROFILE_LIMITS } from "./policy";
+import { BUDGET_PROFILE_LIMITS } from "./policy.js";
 
 export function firstBudgetProfileForCost(estimatedCostUsd: number): string | null {
   for (const [profile, limit] of Object.entries(BUDGET_PROFILE_LIMITS)) {

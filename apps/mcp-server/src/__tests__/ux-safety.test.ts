@@ -12,9 +12,9 @@ import {
   listStepAttemptEvidence,
 } from "@kiwi/core";
 import type { RunExecutionPreview } from "@kiwi/runtime";
-import { handleMcpRequest } from "..";
-import { resetMcpServerServicesForTests } from "../services";
-import { createMcpPreviewToken, latestValidPreviewToken, normalizePreviewInput } from "../tools/preview-tokens";
+import { handleMcpRequest } from "../index.js";
+import { resetMcpServerServicesForTests } from "../services.js";
+import { createMcpPreviewToken, latestValidPreviewToken, normalizePreviewInput } from "../tools/preview-tokens.js";
 
 let previousKiwiHome: string | undefined;
 

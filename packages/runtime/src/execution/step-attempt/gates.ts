@@ -22,10 +22,10 @@ import {
   runSecretsScanGate,
   saveGateResults,
   summarizeGateResults,
-} from "../../gates/quality-gates";
-import type { AttemptDiff } from "../../review/review-engine";
-import type { ExecuteStepAttemptInput, StepRunnerExecutionStatus } from "../step-runner-types";
-import { auditDiffGatesExecuted } from "./audit";
+} from "../../gates/quality-gates.js";
+import type { AttemptDiff } from "../../review/review-engine.js";
+import type { ExecuteStepAttemptInput, StepRunnerExecutionStatus } from "../step-runner-types.js";
+import { auditDiffGatesExecuted } from "./audit.js";
 
 const SHELL_TOOL_NAMES = new Set(["bash", "shell", "exec_command", "run_command", "terminal", "command"]);
 

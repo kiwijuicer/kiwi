@@ -4,8 +4,8 @@ import {
   AnthropicReviewerHttpRequest,
   AnthropicReviewerProvider,
   AnthropicReviewerTransport,
-} from "../../integrations/anthropic/reviewer-provider";
-import { ReviewerProviderInput, runReviewerProviderWithRetries } from "../../providers/reviewer";
+} from "../../integrations/anthropic/reviewer-provider.js";
+import { ReviewerProviderInput, runReviewerProviderWithRetries } from "../../providers/reviewer.js";
 
 const policy: KiwiPolicy = {
   version: "1",

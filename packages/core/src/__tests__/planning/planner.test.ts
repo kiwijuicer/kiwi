@@ -4,7 +4,7 @@ import {
   buildDeterministicTaskGraph,
   createInitiativeFromInput,
   deriveSubPlansFromSteps,
-} from "../../planning/planner";
+} from "../../planning/planner.js";
 
 const policy: KiwiPolicy = {
   version: "1",

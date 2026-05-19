@@ -3,17 +3,22 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { SandboxCommandPolicy } from "@kiwi/sandbox";
-import { buildCodexCliArgs, CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../../integrations/codex/client";
-import { CodexCliRunnerAdapter } from "../../integrations/codex/runner-adapter";
-import { CursorAgentRunnerAdapter } from "../../integrations/cursor-agent/runner-adapter";
+import {
+  buildCodexCliArgs,
+  CodexCliInvocation,
+  CodexCliResult,
+  CodexCliRunner,
+} from "../../integrations/codex/client.js";
+import { CodexCliRunnerAdapter } from "../../integrations/codex/runner-adapter.js";
+import { CursorAgentRunnerAdapter } from "../../integrations/cursor-agent/runner-adapter.js";
 import {
   CursorAgentCliInvocation,
   CursorAgentCliResult,
   CursorAgentCliRunner,
-} from "../../integrations/cursor-agent/client";
-import { buildRunnerEnv } from "../../runners/env";
-import { LocalShellRunnerAdapter } from "../../runners/local-shell";
-import { StubExternalRunnerAdapter } from "../../runners/stub-external";
+} from "../../integrations/cursor-agent/client.js";
+import { buildRunnerEnv } from "../../runners/env.js";
+import { LocalShellRunnerAdapter } from "../../runners/local-shell.js";
+import { StubExternalRunnerAdapter } from "../../runners/stub-external.js";
 
 const nodeBin = process.execPath;
 

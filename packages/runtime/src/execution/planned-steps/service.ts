@@ -1,14 +1,14 @@
 import type { CoreServices } from "@kiwi/core";
 import { ExecutionIsolations, StepAttemptStatuses } from "@kiwi/contracts";
-import { assertDirectExecutionSafe } from "../direct-safety";
-import { ExecutionContextLoader } from "./context";
-import { StepAttemptExecutor } from "./executor";
-import { ExecutionPolicyResolver } from "./policy";
-import { SchedulerDecisionService } from "./scheduler";
-import { StepRunnerSelector } from "./runner-selection";
-import { StepExecutionSession, type ApprovalContext } from "./session";
-import { ExecutionTargetResolver } from "./target";
-import type { ExecutePlannedStepInput, ExecutePlannedStepResult, RunAttemptResult } from "./types";
+import { assertDirectExecutionSafe } from "../direct-safety.js";
+import { ExecutionContextLoader } from "./context.js";
+import { StepAttemptExecutor } from "./executor.js";
+import { ExecutionPolicyResolver } from "./policy.js";
+import { SchedulerDecisionService } from "./scheduler.js";
+import { StepRunnerSelector } from "./runner-selection.js";
+import { StepExecutionSession, type ApprovalContext } from "./session.js";
+import { ExecutionTargetResolver } from "./target.js";
+import type { ExecutePlannedStepInput, ExecutePlannedStepResult, RunAttemptResult } from "./types.js";
 
 export class PlannedStepExecutionService {
   constructor(

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { KiwiPolicy, ModelEntry } from "@kiwi/contracts";
 import { ensureRunLayout, writeJsonSafely } from "@kiwi/core";
 import { StubResearcherProvider } from "@kiwi/adapters";
-import { LocalResearchStepRunner, ResearcherStepRunner } from "../../execution/researcher-step-runner";
+import { LocalResearchStepRunner, ResearcherStepRunner } from "../../execution/researcher-step-runner.js";
 
 const policy: KiwiPolicy = {
   version: "1",

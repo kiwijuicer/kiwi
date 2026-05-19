@@ -2,7 +2,7 @@ import { execFileSync } from "child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "fs";
 import path from "path";
 import { Initiative } from "@kiwi/contracts";
-import { RepoContextStatuses, type RepoContextStatus } from "../constants";
+import { RepoContextStatuses, type RepoContextStatus } from "../constants.js";
 
 const DEFAULT_MAX_CHARS = 12_000;
 const HEAD_LINE_LIMIT = 100;

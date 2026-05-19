@@ -4,7 +4,7 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { appendAuditEvent } from "@kiwi/core";
-import { applyRunDiff, buildRunDiff, formatRunDiff } from "../../execution/diff-workflow";
+import { applyRunDiff, buildRunDiff, formatRunDiff } from "../../execution/diff-workflow.js";
 
 function writeJson(target: string, value: unknown): void {
   mkdirSync(path.dirname(target), { recursive: true });

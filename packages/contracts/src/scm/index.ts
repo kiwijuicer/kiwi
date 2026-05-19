@@ -7,7 +7,7 @@ import {
   ScmMutationStatusSchema,
   ScmProviderSchema,
   ScmProviders,
-} from "../shared/common";
+} from "../shared/common.js";
 
 export const ScmRepositoryRefSchema = z
   .object({

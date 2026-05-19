@@ -13,17 +13,17 @@ import {
   refreshRunStatusFromAttempts,
   savePlannedRun,
 } from "@kiwi/core";
-import { scheduleStepAttempt } from "../../policies/scheduler-policy";
-import { finalizeRun } from "../../lifecycle/finalize";
+import { scheduleStepAttempt } from "../../policies/scheduler-policy.js";
+import { finalizeRun } from "../../lifecycle/finalize.js";
 import {
   StepAttemptOrchestrator,
   StepAttemptRunner,
   StepRunnerExecutionInput,
   StepRunnerExecutionOutput,
-} from "../../execution/step-attempt-orchestrator";
-import { StubReviewEngine } from "../../review/review-engine";
-import { createRuntimeExecutionServices, executePlannedStep } from "../../execution/planned-steps";
-import { DirectExecutionUnsafeError, readExecutionRepoState } from "../../execution/direct-safety";
+} from "../../execution/step-attempt-orchestrator.js";
+import { StubReviewEngine } from "../../review/review-engine.js";
+import { createRuntimeExecutionServices, executePlannedStep } from "../../execution/planned-steps/index.js";
+import { DirectExecutionUnsafeError, readExecutionRepoState } from "../../execution/direct-safety.js";
 
 let previousKiwiHome: string | undefined;
 

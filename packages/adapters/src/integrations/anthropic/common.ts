@@ -1,4 +1,4 @@
-import type { ProviderFailureCode } from "../../constants";
+import type { ProviderFailureCode } from "../../constants.js";
 
 export const ANTHROPIC_MESSAGES_ENDPOINT = "https://api.anthropic.com/v1/messages";
 export const ANTHROPIC_VERSION = "2023-06-01";

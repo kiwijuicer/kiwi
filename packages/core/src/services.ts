@@ -14,7 +14,7 @@ import {
   estimateAttemptCostUsd,
   remainingBudgetAfterEstimatedCost,
   remainingBudgetUsdEstimate,
-} from "./budget/policy";
+} from "./budget/policy.js";
 import {
   kiwiModelRegistryPath,
   kiwiPolicyPath,
@@ -24,20 +24,20 @@ import {
   loadPolicy,
   loadRegistry,
   saveKiwiConfig,
-} from "./config";
-import { appendAuditEvent, readAuditEvents } from "./ledger/cost-ledger";
+} from "./config/index.js";
+import { appendAuditEvent, readAuditEvents } from "./ledger/cost-ledger.js";
 import {
   assertStepDependenciesCompleted,
   latestAttemptByStep,
   listStepAttemptEvidence,
   type StepAttemptEvidence,
-} from "./runs/lifecycle/evidence-collection";
+} from "./runs/lifecycle/evidence-collection.js";
 import {
   loadApprovalDecision,
   loadLatestApprovalDecisionForStep,
   recordApprovalDecision,
-} from "./runs/lifecycle/approval";
-import { refreshRunStatusFromAttempts, updateRunPlanStatus, updateRunStatus } from "./runs/lifecycle/status";
+} from "./runs/lifecycle/approval.js";
+import { refreshRunStatusFromAttempts, updateRunPlanStatus, updateRunStatus } from "./runs/lifecycle/status.js";
 import {
   appendModelInvocation,
   buildFinalCostReportFromModelInvocations,
@@ -45,7 +45,7 @@ import {
   readModelInvocations,
   summarizeModelInvocations,
   writeModelUsageSummary,
-} from "./ledger/model-invocations";
+} from "./ledger/model-invocations.js";
 import {
   acquireRunLock,
   forceReleaseRunLock,
@@ -53,7 +53,7 @@ import {
   listRunLocks,
   withRunLock,
   type RunLock,
-} from "./runs/lock";
+} from "./runs/lock.js";
 import {
   ensureRunLayout,
   isInitialized,
@@ -64,10 +64,10 @@ import {
   loadTaskGraph,
   resolveRunArtifactPath,
   savePlannedRun,
-} from "./runs/store";
-import { listRunFeedback, recordRunFeedback } from "./runs/feedback";
-import { getRunStatusSummary, resolveActiveRun } from "./runs/status";
-import { discoverWorkspaceRepos, resolveWorkspace } from "./workspace";
+} from "./runs/store.js";
+import { listRunFeedback, recordRunFeedback } from "./runs/feedback.js";
+import { getRunStatusSummary, resolveActiveRun } from "./runs/status.js";
+import { discoverWorkspaceRepos, resolveWorkspace } from "./workspace/index.js";
 
 export class RunArtifactStore {
   constructor(

@@ -1,6 +1,6 @@
-import { Command } from "commander";
-import { registerCoreCommands } from "./commands/registration/core";
-import { registerExecutionCommands } from "./commands/registration/execution";
+import { Command } from "commander/esm.mjs";
+import { registerCoreCommands } from "./commands/registration/core.js";
+import { registerExecutionCommands } from "./commands/registration/execution.js";
 
 const program = new Command();
 

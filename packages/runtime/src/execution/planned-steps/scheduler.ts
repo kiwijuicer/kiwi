@@ -9,7 +9,7 @@ import {
   type ModelEntry,
   type Step,
 } from "@kiwi/contracts";
-import type { SchedulerDecision, SchedulerPolicyService } from "../../policies/scheduler-policy";
+import type { SchedulerDecision, SchedulerPolicyService } from "../../policies/scheduler-policy.js";
 import {
   BlastRadii,
   ContextSizes,
@@ -17,11 +17,11 @@ import {
   type BlastRadius,
   type ContextSize,
   type SecuritySensitivity,
-} from "../../policies/scheduler-types";
-import { CONTEXT_RETRIEVAL_STRATEGY_VERSION, ExecutionContextRetriever } from "./context-retriever";
-import { ExecutionPolicyResolver } from "./policy";
-import type { StepExecutionSession } from "./session";
-import type { ExecutionMode } from "./types";
+} from "../../policies/scheduler-types.js";
+import { CONTEXT_RETRIEVAL_STRATEGY_VERSION, ExecutionContextRetriever } from "./context-retriever.js";
+import { ExecutionPolicyResolver } from "./policy.js";
+import type { StepExecutionSession } from "./session.js";
+import type { ExecutionMode } from "./types.js";
 
 export class SchedulerDecisionService {
   constructor(

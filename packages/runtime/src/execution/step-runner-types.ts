@@ -79,7 +79,7 @@ export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
   cwd: string;
   repoPath?: string;
   step: Step;
-  schedulerDecision: import("../policies/scheduler-policy").SchedulerDecision;
+  schedulerDecision: import("../policies/scheduler-policy.js").SchedulerDecision;
   selectedModelId?: string | null;
   selectedModel?: import("@kiwi/contracts").ModelEntry | null;
   runner: StepAttemptRunner<TCommandPolicy>;
@@ -101,7 +101,7 @@ export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
     diffHash: string | null;
     startedAt: string;
   }) => Promise<{ gateResults: GateResult[]; artifacts: Artifact[] }>;
-  reviewEngine?: import("../review/review-engine").ReviewEngine;
+  reviewEngine?: import("../review/review-engine.js").ReviewEngine;
   policy?: import("@kiwi/contracts").KiwiPolicy;
   now?: Date;
 }

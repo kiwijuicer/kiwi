@@ -1,5 +1,5 @@
 import { publishPrDraft } from "@kiwi/ops";
-import { getMcpServerServices } from "../services";
+import { getMcpServerServices } from "../services.js";
 
 export function publishPrDraftTool(args: Record<string, unknown>, workspacePath: string): Promise<unknown> {
   const mcpServices = getMcpServerServices();

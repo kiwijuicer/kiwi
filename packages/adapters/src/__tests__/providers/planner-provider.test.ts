@@ -5,8 +5,8 @@ import {
   PlannerProviderInput,
   PlannerProviderOutput,
   runPlannerProviderWithRetries,
-} from "../../providers/planner";
-import { StubPlannerProvider } from "../../providers/stub-planner";
+} from "../../providers/planner.js";
+import { StubPlannerProvider } from "../../providers/stub-planner.js";
 
 const policy: KiwiPolicy = {
   version: "1",

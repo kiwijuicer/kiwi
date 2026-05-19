@@ -4,7 +4,7 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { ReviewVerdictSchema, Step, TaskGraphSchema } from "@kiwi/contracts";
 import { loadTaskGraph, readAuditEvents } from "@kiwi/core";
-import { attemptReplan, injectFixStep } from "../../planning/replanner";
+import { attemptReplan, injectFixStep } from "../../planning/replanner.js";
 
 const NOW = new Date("2026-05-06T10:00:00.000Z");
 

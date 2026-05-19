@@ -9,8 +9,8 @@ import type {
 } from "@kiwi/contracts";
 import type { SandboxCommandPolicy } from "@kiwi/sandbox";
 import type { WorktreeIsolationKind } from "@kiwi/sandbox";
-import type { StepAttemptOrchestrator } from "../step-attempt-orchestrator";
-import type { StepAttemptRunner } from "../step-runner-types";
+import type { StepAttemptOrchestrator } from "../step-attempt-orchestrator.js";
+import type { StepAttemptRunner } from "../step-runner-types.js";
 
 export type ExecutionMode = ExecutionIsolation;
 export type ExecutionOwner = ContractExecutionOwner;

@@ -1,18 +1,18 @@
 import type { CoreServices } from "@kiwi/core";
 import type { Step } from "@kiwi/contracts";
-import { ExecutionContextLoader } from "./context";
-import { ExecutionPolicyResolver } from "./policy";
-import { SchedulerDecisionService } from "./scheduler";
-import { StepRunnerSelector } from "./runner-selection";
-import { StepExecutionSession } from "./session";
-import type { ExecutionRunContext } from "./context";
+import { ExecutionContextLoader } from "./context.js";
+import { ExecutionPolicyResolver } from "./policy.js";
+import { SchedulerDecisionService } from "./scheduler.js";
+import { StepRunnerSelector } from "./runner-selection.js";
+import { StepExecutionSession } from "./session.js";
+import type { ExecutionRunContext } from "./context.js";
 import {
   DEFAULT_MAX_CONCURRENCY,
   PREVIEW_ATTEMPT_ID_PREFIX,
   type ExecutionMode,
   type RunExecutionPreview,
   type RunExecutionPreviewStep,
-} from "./types";
+} from "./types.js";
 
 export class RunExecutionPreviewBuilder {
   constructor(

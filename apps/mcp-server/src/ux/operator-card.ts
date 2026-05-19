@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import { ContractValues } from "@kiwi/contracts";
 import { getRunStatusSummary, loadEffectivePolicy, loadInitiative, resolveRunArtifactPath } from "@kiwi/core";
 import { readExecutionRepoState } from "@kiwi/runtime";
-import { type McpMutationScope, type McpNextAction, mutationScope, toolCall } from ".";
+import { type McpMutationScope, type McpNextAction, mutationScope, toolCall } from "./index.js";
 
 interface OperatorCard {
   schemaVersion: "2";

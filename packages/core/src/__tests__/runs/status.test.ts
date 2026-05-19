@@ -3,11 +3,11 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { Artifact, Initiative, TaskGraph } from "@kiwi/contracts";
-import { getRunStatusSummary, resolveActiveRun } from "../../runs/status";
-import { recordRunFeedback } from "../../runs/feedback";
-import { savePlannedRun } from "../../runs/store";
-import { refreshRunStatusFromAttempts, updateRunPlanStatus, updateRunStatus } from "../../runs/lifecycle/status";
-import { readAuditEvents } from "../../ledger/cost-ledger";
+import { getRunStatusSummary, resolveActiveRun } from "../../runs/status.js";
+import { recordRunFeedback } from "../../runs/feedback.js";
+import { savePlannedRun } from "../../runs/store.js";
+import { refreshRunStatusFromAttempts, updateRunPlanStatus, updateRunStatus } from "../../runs/lifecycle/status.js";
+import { readAuditEvents } from "../../ledger/cost-ledger.js";
 
 function fixtureInitiative(id: string, title: string): Initiative {
   return {

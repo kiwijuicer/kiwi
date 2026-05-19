@@ -19,14 +19,14 @@ import {
   writeEvidenceManifest,
   writeOperatorSnapshot,
 } from "@kiwi/ops";
-import { nextTool } from "./next-action";
-import { withOperatorCard } from "../ux/operator-card";
-import { publishPrDraftTool } from "./publish";
-import { getMcpServerServices } from "../services";
-import { ToolActionRequiredError } from "./errors";
-import type { ToolCallOptions } from "./helpers";
-import { consumeMcpPreviewToken, normalizePreviewInput, validateMcpPreviewToken } from "./preview-tokens";
-import { mutationScope, safeReadOnlyToolCalls, toolCall } from "../ux";
+import { nextTool } from "./next-action.js";
+import { withOperatorCard } from "../ux/operator-card.js";
+import { publishPrDraftTool } from "./publish.js";
+import { getMcpServerServices } from "../services.js";
+import { ToolActionRequiredError } from "./errors.js";
+import type { ToolCallOptions } from "./helpers.js";
+import { consumeMcpPreviewToken, normalizePreviewInput, validateMcpPreviewToken } from "./preview-tokens.js";
+import { mutationScope, safeReadOnlyToolCalls, toolCall } from "../ux/index.js";
 
 function services(): ReturnType<typeof getMcpServerServices> {
   return getMcpServerServices();

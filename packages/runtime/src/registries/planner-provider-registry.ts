@@ -8,7 +8,7 @@ import {
 } from "@kiwi/adapters";
 import { AccessModes, ContractValues, ModelEntry, ProviderPreference } from "@kiwi/contracts";
 import { buildDeterministicTaskGraph } from "@kiwi/core";
-import { evaluateAccessModeAvailability, selectEnabledModelByAccessMode } from "./access-mode-resolver";
+import { evaluateAccessModeAvailability, selectEnabledModelByAccessMode } from "./access-mode-resolver.js";
 
 export interface PlannerResolution {
   provider: PlannerProvider;

@@ -11,8 +11,8 @@ import {
   writeFileSync,
 } from "fs";
 import path from "path";
-import { appendAuditEvent, resolveRunArtifactPath } from "../shared/common";
-import { WorktreeIsolationKinds, type WorktreeIsolationKind } from "../constants";
+import { appendAuditEvent, resolveRunArtifactPath } from "../shared/common.js";
+import { WorktreeIsolationKinds, type WorktreeIsolationKind } from "../constants.js";
 
 export interface WorktreeSandbox {
   runId: string;

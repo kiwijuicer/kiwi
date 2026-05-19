@@ -3,13 +3,13 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { ReviewVerdictSchema } from "@kiwi/contracts";
-import { createGateResult } from "../../gates/quality-gates";
+import { createGateResult } from "../../gates/quality-gates.js";
 import {
   StubReviewEngine,
   classifyReviewAction,
   loadReviewVerdict,
   saveReviewVerdict,
-} from "../../review/review-engine";
+} from "../../review/review-engine.js";
 
 describe("review engine", () => {
   it("returns pass verdict when all required gates pass", async () => {

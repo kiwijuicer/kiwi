@@ -2,8 +2,8 @@ import chalk from "chalk";
 import { withRunLock } from "@kiwi/core";
 import { finalizeRun } from "@kiwi/runtime";
 import { buildRunCompletionSummary } from "@kiwi/ops";
-import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
-import { printRunCompletionSummary } from "../runs/run-summary";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options.js";
+import { printRunCompletionSummary } from "../runs/run-summary.js";
 
 interface FinalizeOptions extends CliWorkspaceOptions {
   now?: Date;

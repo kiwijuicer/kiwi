@@ -16,7 +16,7 @@ describe("MCP services", () => {
     vi.doMock("@kiwi/core", () => ({ createCoreServices }));
     vi.doMock("@kiwi/runtime", () => ({ createRuntimeServices }));
 
-    const module = await import("../services");
+    const module = await import("../services.js");
 
     expect(createCoreServices).not.toHaveBeenCalled();
     expect(createRuntimeServices).not.toHaveBeenCalled();

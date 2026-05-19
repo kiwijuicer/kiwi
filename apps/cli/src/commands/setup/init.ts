@@ -1,9 +1,9 @@
 import { existsSync } from "fs";
 import path from "path";
 import chalk from "chalk";
-import { GitignoreWriteStatuses } from "../../config/constants";
-import { logMcpReadiness, McpConfigWriter, resolveMcpTargets } from "./init-mcp-config";
-import { displayPath, GitignoreWriter, logConfigWrite, writeWorkspaceState } from "./init-workspace-state";
+import { GitignoreWriteStatuses } from "../../config/constants.js";
+import { logMcpReadiness, McpConfigWriter, resolveMcpTargets } from "./init-mcp-config.js";
+import { displayPath, GitignoreWriter, logConfigWrite, writeWorkspaceState } from "./init-workspace-state.js";
 
 interface InitOptions {
   force?: boolean;

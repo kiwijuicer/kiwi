@@ -1,7 +1,7 @@
-import { defaultServerCwd } from "./protocol";
-import { parsePort, startHttpMcpServer, type HttpMcpServerOptions } from "./http";
-import { startMcpServer } from "./stdio";
-import { McpTransportNames, type McpTransportName } from "../constants";
+import { defaultServerCwd } from "./protocol.js";
+import { parsePort, startHttpMcpServer, type HttpMcpServerOptions } from "./http.js";
+import { startMcpServer } from "./stdio.js";
+import { McpTransportNames, type McpTransportName } from "../constants.js";
 
 interface McpBootstrapOptions {
   cwd: string;

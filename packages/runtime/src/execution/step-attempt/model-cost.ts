@@ -1,8 +1,8 @@
 import { AgentRole, ContractValues, ModelCapability, RunnerName } from "@kiwi/contracts";
 import { appendModelInvocation } from "@kiwi/core";
-import type { ReviewExecutionMetadata } from "../../review/review-engine";
-import { saveRunnerCostReport } from "../step-attempt-artifacts";
-import type { StepRunnerExecutionOutput } from "../step-runner-types";
+import type { ReviewExecutionMetadata } from "../../review/review-engine.js";
+import { saveRunnerCostReport } from "../step-attempt-artifacts.js";
+import type { StepRunnerExecutionOutput } from "../step-runner-types.js";
 
 export function recordAttemptModelCost(params: {
   cwd: string;

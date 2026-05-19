@@ -5,19 +5,19 @@ import {
   extractCliResultText,
   formatCliFailure,
   normalizeUsageFromCli,
-} from "./client";
-import type { ProviderAttemptType } from "../../constants";
+} from "./client.js";
+import type { ProviderAttemptType } from "../../constants.js";
 import { ContractValues, KiwiPolicy } from "@kiwi/contracts";
-import { extractTextJson } from "../anthropic/common";
-import { redactForProvider, RedactionSummary } from "../../providers/redaction";
-import { buildRunnerEnv } from "../../runners/env";
+import { extractTextJson } from "../anthropic/common.js";
+import { redactForProvider, RedactionSummary } from "../../providers/redaction.js";
+import { buildRunnerEnv } from "../../runners/env.js";
 import {
   buildReviewerRepairEnvelope,
   buildReviewerUserEnvelope,
   reviewerToolDefinition,
   REVIEWER_JSON_SYSTEM_PROMPT,
   REVIEWER_PROMPT_VERSION,
-} from "../../prompts/reviewer-v1";
+} from "../../prompts/reviewer-v1/index.js";
 import {
   ReviewerProvider,
   ReviewerProviderArtifacts,
@@ -27,7 +27,7 @@ import {
   ReviewerProviderOutput,
   ReviewerProviderRepairContext,
   ReviewerProviderSchedulerErrorCodes,
-} from "../../providers/reviewer";
+} from "../../providers/reviewer.js";
 
 const DEFAULT_TIMEOUT_MS = 180_000;
 

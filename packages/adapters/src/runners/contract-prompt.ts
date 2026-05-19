@@ -1,5 +1,5 @@
 import { MutationRequirements } from "@kiwi/contracts";
-import type { RunnerExecutionInput } from "./adapter";
+import type { RunnerExecutionInput } from "./adapter.js";
 
 const DEFAULT_REQUEST =
   "Implement only the contracted step in this working directory. Satisfy acceptance criteria and leave an inspectable working-tree diff when file changes are required.";

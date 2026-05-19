@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "fs";
 import path from "path";
 import { EvidenceManifest, EvidenceManifestSchema, RunAuditSnapshot, RunAuditSnapshotSchema } from "@kiwi/contracts";
 import { appendAuditEvent, ensureRunLayout, readAuditEvents, resolveRunArtifactPath } from "@kiwi/core";
-import { writeJsonSafely } from "../storage/json-io";
+import { writeJsonSafely } from "../storage/json-io.js";
 
 export interface EvidenceManifestResult {
   manifest: EvidenceManifest;

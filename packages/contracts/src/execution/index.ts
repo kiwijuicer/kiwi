@@ -25,10 +25,10 @@ import {
   StepTypeSchema,
   UsagePrecisionSchema,
   enumFrom,
-} from "../shared/common";
-import { ArtifactSchema } from "../domain";
-import { EvidenceSubjectSchema } from "../evidence";
-import { CodexSandboxSchema, ExecutionIsolationSchema, ExecutionOwnerSchema } from "../policy";
+} from "../shared/common.js";
+import { ArtifactSchema } from "../domain/index.js";
+import { EvidenceSubjectSchema } from "../evidence/index.js";
+import { CodexSandboxSchema, ExecutionIsolationSchema, ExecutionOwnerSchema } from "../policy/index.js";
 
 const InvocationAccessModeSchema = enumFrom(ACCESS_MODE_VALUES);
 
@@ -447,8 +447,14 @@ export {
   EvidenceManifestSchema,
   EvidenceSubjectSchema,
   RunAuditSnapshotSchema,
-} from "../evidence";
-export type { AuditEvent, EvidenceFileHash, EvidenceManifest, EvidenceSubject, RunAuditSnapshot } from "../evidence";
+} from "../evidence/index.js";
+export type {
+  AuditEvent,
+  EvidenceFileHash,
+  EvidenceManifest,
+  EvidenceSubject,
+  RunAuditSnapshot,
+} from "../evidence/index.js";
 export type RunFeedback = z.infer<typeof RunFeedbackSchema>;
 
 export type ModelUsage = z.infer<typeof ModelUsageSchema>;

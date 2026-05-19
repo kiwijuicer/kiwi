@@ -18,8 +18,8 @@ import {
   StubResearcherProvider,
 } from "@kiwi/adapters";
 import { resolveRunArtifactPath, writeJsonSafely } from "@kiwi/core";
-import { artifact } from "./step-attempt-artifacts";
-import type { StepAttemptRunner, StepRunnerExecutionInput, StepRunnerExecutionOutput } from "./step-runner-types";
+import { artifact } from "./step-attempt-artifacts.js";
+import type { StepAttemptRunner, StepRunnerExecutionInput, StepRunnerExecutionOutput } from "./step-runner-types.js";
 
 const RESEARCH_REPORT_REF = "plan/research-report.json";
 

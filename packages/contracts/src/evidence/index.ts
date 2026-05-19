@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IsoDateTimeSchema, ContractsSchemaVersionSchema } from "../shared/common";
+import { IsoDateTimeSchema, ContractsSchemaVersionSchema } from "../shared/common.js";
 
 export const EvidenceSubjectSchema = z.object({
   type: z.literal("diff"),

@@ -7,7 +7,7 @@ import {
   StubResearcherProvider,
 } from "@kiwi/adapters";
 import { AccessModes, ContractValues, ModelEntry, ProviderPreference } from "@kiwi/contracts";
-import { selectEnabledModelByAccessMode } from "./access-mode-resolver";
+import { selectEnabledModelByAccessMode } from "./access-mode-resolver.js";
 
 export interface ResearcherProviderSelection {
   model: ModelEntry;

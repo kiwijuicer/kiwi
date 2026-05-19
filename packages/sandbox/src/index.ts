@@ -1,5 +1,5 @@
-export * from "./constants";
-export * from "./services";
+export * from "./constants.js";
+export * from "./services.js";
 export {
   executeSandboxCommand,
   type ApprovalState,
@@ -8,7 +8,7 @@ export {
   type SandboxCommandOutput,
   type SandboxCommandPolicy,
   type SandboxExecutionStatus,
-} from "./commands/executor";
-export * from "./worktrees";
-export * from "./diffs";
-export * from "./processes/utils";
+} from "./commands/executor.js";
+export * from "./worktrees/index.js";
+export * from "./diffs/index.js";
+export * from "./processes/utils.js";

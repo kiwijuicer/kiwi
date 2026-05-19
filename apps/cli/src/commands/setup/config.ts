@@ -2,7 +2,7 @@ import { existsSync } from "fs";
 import path from "path";
 import chalk from "chalk";
 import { loadKiwiConfig, saveKiwiConfig } from "@kiwi/core";
-import { resolveCliWorkspace, type CliWorkspaceOptions } from "../../workspace/options";
+import { resolveCliWorkspace, type CliWorkspaceOptions } from "../../workspace/options.js";
 
 type ConfigSetApproverOptions = CliWorkspaceOptions;
 

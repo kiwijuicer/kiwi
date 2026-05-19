@@ -1,30 +1,30 @@
-import { createRuntimeExecutionServices } from "./factory";
-import type { ExecutePlannedStepInput, ExecutePlannedStepResult, RunExecutionPreview } from "./types";
+import { createRuntimeExecutionServices } from "./factory.js";
+import type { ExecutePlannedStepInput, ExecutePlannedStepResult, RunExecutionPreview } from "./types.js";
 
 export {
   createRuntimeExecutionServices,
   type RuntimeExecutionServiceDependencies,
   type RuntimeExecutionServices,
-} from "./factory";
+} from "./factory.js";
 export {
   AttemptDiffStatuses,
   DEFAULT_MAX_CONCURRENCY,
   ExecutionToolNames,
   ExecutorSelectionReasons,
-} from "./types";
+} from "./types.js";
 export {
   CONTEXT_RETRIEVAL_STRATEGY_VERSION,
   ExecutionContextRetriever,
   type ExecutionContextRetrieval,
   type RetrievedContextFile,
-} from "./context-retriever";
+} from "./context-retriever.js";
 export type {
   AttemptDiffMaterialization,
   ExecutePlannedStepInput,
   ExecutePlannedStepResult,
   RunExecutionPreview,
   RunExecutionPreviewStep,
-} from "./types";
+} from "./types.js";
 
 const runtimeExecutionServices = createRuntimeExecutionServices();
 

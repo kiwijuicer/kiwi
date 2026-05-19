@@ -4,20 +4,20 @@ import {
   ClaudeCodeCliInvocation,
   ClaudeCodeCliResult,
   ClaudeCodeCliRunner,
-} from "../../integrations/claude-code/client";
-import { ClaudeCodeCliReviewerProvider } from "../../integrations/claude-code/reviewer-provider";
-import { CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../../integrations/codex/client";
-import { CodexCliResearcherProvider } from "../../integrations/codex/researcher-provider";
-import { CodexCliReviewerProvider } from "../../integrations/codex/reviewer-provider";
+} from "../../integrations/claude-code/client.js";
+import { ClaudeCodeCliReviewerProvider } from "../../integrations/claude-code/reviewer-provider.js";
+import { CodexCliInvocation, CodexCliResult, CodexCliRunner } from "../../integrations/codex/client.js";
+import { CodexCliResearcherProvider } from "../../integrations/codex/researcher-provider.js";
+import { CodexCliReviewerProvider } from "../../integrations/codex/reviewer-provider.js";
 import {
   CursorAgentCliInvocation,
   CursorAgentCliResult,
   CursorAgentCliRunner,
-} from "../../integrations/cursor-agent/client";
-import { CursorAgentResearcherProvider } from "../../integrations/cursor-agent/researcher-provider";
-import { CursorAgentReviewerProvider } from "../../integrations/cursor-agent/reviewer-provider";
-import { ResearcherProviderInput, runResearcherProviderWithRetries } from "../../providers/researcher";
-import { ReviewerProviderInput, runReviewerProviderWithRetries } from "../../providers/reviewer";
+} from "../../integrations/cursor-agent/client.js";
+import { CursorAgentResearcherProvider } from "../../integrations/cursor-agent/researcher-provider.js";
+import { CursorAgentReviewerProvider } from "../../integrations/cursor-agent/reviewer-provider.js";
+import { ResearcherProviderInput, runResearcherProviderWithRetries } from "../../providers/researcher.js";
+import { ReviewerProviderInput, runReviewerProviderWithRetries } from "../../providers/reviewer.js";
 
 const policy: KiwiPolicy = {
   version: "1",

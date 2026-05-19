@@ -1,6 +1,6 @@
 import { captureDiffArtifact } from "@kiwi/sandbox";
 import type { Artifact } from "@kiwi/contracts";
-import type { RunnerExecutionInput } from "./adapter";
+import type { RunnerExecutionInput } from "./adapter.js";
 
 export function captureRunnerDiffArtifact(input: RunnerExecutionInput): Artifact | null {
   const diffInput: Parameters<typeof captureDiffArtifact>[0] = {

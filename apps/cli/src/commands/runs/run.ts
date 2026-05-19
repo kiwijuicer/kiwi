@@ -18,9 +18,9 @@ import {
   runScheduledSubPlans,
 } from "@kiwi/runtime";
 import { buildRunCompletionSummary } from "@kiwi/ops";
-import { runAttemptUnlocked, AttemptOptions } from "../execution/attempt";
-import { resolveCliWorkspace } from "../../workspace/options";
-import { printRunCompletionSummary } from "./run-summary";
+import { runAttemptUnlocked, AttemptOptions } from "../execution/attempt.js";
+import { resolveCliWorkspace } from "../../workspace/options.js";
+import { printRunCompletionSummary } from "./run-summary.js";
 
 interface RunOptions extends AttemptOptions {
   fromStep?: string;

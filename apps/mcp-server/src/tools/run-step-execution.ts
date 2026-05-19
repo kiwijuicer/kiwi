@@ -5,8 +5,8 @@ import {
   type RunExecutionPreviewStep,
   splitCommandLine,
 } from "@kiwi/runtime";
-import { getMcpServerServices } from "../services";
-import { errorMessage, progressLine, type ToolCallOptions } from "./helpers";
+import { getMcpServerServices } from "../services.js";
+import { errorMessage, progressLine, type ToolCallOptions } from "./helpers.js";
 
 export interface RunStepToolResult {
   stepId: string;

@@ -1,13 +1,13 @@
 import { AccessModes } from "@kiwi/contracts";
-import type { ProviderAttemptType } from "../../constants";
-import { CliPlannerResult, invokeCliPlanner } from "../../providers/cli-planner";
+import type { ProviderAttemptType } from "../../constants.js";
+import { CliPlannerResult, invokeCliPlanner } from "../../providers/cli-planner.js";
 import {
   PlannerProvider,
   PlannerProviderInput,
   PlannerProviderOutput,
   PlannerProviderRepairContext,
-} from "../../providers/planner";
-import { CursorAgentCliRunner, DefaultCursorAgentCliRunner, normalizeUsageFromCursorAgent } from "./client";
+} from "../../providers/planner.js";
+import { CursorAgentCliRunner, DefaultCursorAgentCliRunner, normalizeUsageFromCursorAgent } from "./client.js";
 
 const DEFAULT_TIMEOUT_MS = 300_000;
 

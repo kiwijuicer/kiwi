@@ -1,6 +1,6 @@
 import { closeSync, existsSync, openSync, readFileSync, unlinkSync, writeFileSync } from "fs";
-import { appendAuditEvent, AuditEventTypes } from "../ledger/cost-ledger";
-import { ensureRunLayout, listRunIds, resolveRunArtifactPath } from "./store";
+import { appendAuditEvent, AuditEventTypes } from "../ledger/cost-ledger.js";
+import { ensureRunLayout, listRunIds, resolveRunArtifactPath } from "./store.js";
 
 export interface RunLockInfo {
   schemaVersion: "1";

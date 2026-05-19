@@ -1,5 +1,5 @@
-import { debugLog } from "./debug-log";
-import { defaultServerCwd, handleMcpMessage } from "./protocol";
+import { debugLog } from "./debug-log.js";
+import { defaultServerCwd, handleMcpMessage } from "./protocol.js";
 
 const MAX_STDIO_MESSAGE_BYTES = 4 * 1024 * 1024;
 

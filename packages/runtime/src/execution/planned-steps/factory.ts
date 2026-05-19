@@ -1,20 +1,20 @@
 import { createCoreServices, type CoreServices } from "@kiwi/core";
 import { createSandboxServices, type SandboxServices, type SandboxCommandPolicy } from "@kiwi/sandbox";
-import { OperatorPolicyService } from "../../policies/operator-policy";
-import { ResearcherProviderRegistry } from "../../registries/researcher-provider-registry";
-import { RunnerResolver } from "../../registries/runner-resolution";
-import { SchedulerPolicyService } from "../../policies/scheduler-policy";
-import { StepAttemptOrchestrator } from "../step-attempt-orchestrator";
-import { ExecutionAuditReporter } from "./audit";
-import { ExecutionContextLoader } from "./context";
-import { AttemptDiffMaterializer } from "./diff-materializer";
-import { RequiredGateRunner, ReviewEngineFactory, StepAttemptExecutor } from "./executor";
-import { ExecutionPolicyResolver } from "./policy";
-import { RunExecutionPreviewBuilder } from "./preview-builder";
-import { StepRunnerSelector } from "./runner-selection";
-import { SchedulerDecisionService } from "./scheduler";
-import { PlannedStepExecutionService } from "./service";
-import { ExecutionTargetResolver } from "./target";
+import { OperatorPolicyService } from "../../policies/operator-policy.js";
+import { ResearcherProviderRegistry } from "../../registries/researcher-provider-registry.js";
+import { RunnerResolver } from "../../registries/runner-resolution.js";
+import { SchedulerPolicyService } from "../../policies/scheduler-policy.js";
+import { StepAttemptOrchestrator } from "../step-attempt-orchestrator.js";
+import { ExecutionAuditReporter } from "./audit.js";
+import { ExecutionContextLoader } from "./context.js";
+import { AttemptDiffMaterializer } from "./diff-materializer.js";
+import { RequiredGateRunner, ReviewEngineFactory, StepAttemptExecutor } from "./executor.js";
+import { ExecutionPolicyResolver } from "./policy.js";
+import { RunExecutionPreviewBuilder } from "./preview-builder.js";
+import { StepRunnerSelector } from "./runner-selection.js";
+import { SchedulerDecisionService } from "./scheduler.js";
+import { PlannedStepExecutionService } from "./service.js";
+import { ExecutionTargetResolver } from "./target.js";
 
 export interface RuntimeExecutionServices {
   plannedSteps: PlannedStepExecutionService;

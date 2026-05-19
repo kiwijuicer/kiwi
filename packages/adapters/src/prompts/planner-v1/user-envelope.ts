@@ -1,4 +1,4 @@
-import { PlannerProviderInput } from "../../providers/planner";
+import { PlannerProviderInput } from "../../providers/planner.js";
 
 export function buildPlannerUserEnvelope(input: PlannerProviderInput): string {
   return JSON.stringify(

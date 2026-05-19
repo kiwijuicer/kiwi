@@ -7,7 +7,7 @@ import {
   withRunLock,
 } from "@kiwi/core";
 import { ContractValues } from "@kiwi/contracts";
-import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options.js";
 
 interface ApproveOptions extends CliWorkspaceOptions {
   reason?: string;

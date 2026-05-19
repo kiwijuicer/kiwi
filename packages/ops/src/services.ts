@@ -1,7 +1,7 @@
-import { loadEvidenceManifest, writeEvidenceManifest, writeRunAuditSnapshot } from "./evidence";
-import { renderOperatorSnapshotHtml, writeOperatorSnapshot } from "./operator/surface";
-import { publishPrDraft } from "./publishing/pr-draft";
-import { RunExplanationBuilder, RunSummaryBuilder } from "./summaries/run-summary";
+import { loadEvidenceManifest, writeEvidenceManifest, writeRunAuditSnapshot } from "./evidence/index.js";
+import { renderOperatorSnapshotHtml, writeOperatorSnapshot } from "./operator/surface.js";
+import { publishPrDraft } from "./publishing/pr-draft.js";
+import { RunExplanationBuilder, RunSummaryBuilder } from "./summaries/run-summary.js";
 
 export class EvidenceService {
   constructor(

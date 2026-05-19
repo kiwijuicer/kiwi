@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { resolveActiveRun, withRunLock } from "@kiwi/core";
 import { recordFeedbackAndReplan } from "@kiwi/runtime";
-import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options.js";
 
 interface FeedbackOptions extends CliWorkspaceOptions {
   message: string;

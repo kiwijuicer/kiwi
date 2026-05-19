@@ -12,7 +12,7 @@ import {
   executeSandboxCommand,
   readCommandOutputArtifact,
   teardownWorktreeSandbox,
-} from "../..";
+} from "../../index.js";
 
 const nodeBin = process.execPath;
 

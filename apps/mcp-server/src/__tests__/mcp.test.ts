@@ -18,8 +18,8 @@ import {
   McpServerBootstrap,
   resolveMcpBootstrapOptions,
   startHttpMcpServer,
-} from "..";
-import { resetMcpServerServicesForTests } from "../services";
+} from "../index.js";
+import { resetMcpServerServicesForTests } from "../services.js";
 
 let previousKiwiHome: string | undefined;
 

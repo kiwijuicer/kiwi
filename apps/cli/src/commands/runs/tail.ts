@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, statSync } from "fs";
 import path from "path";
 import chalk from "chalk";
-import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options.js";
 
 interface TailOptions extends CliWorkspaceOptions {
   phase?: string;

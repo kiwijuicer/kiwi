@@ -1,5 +1,5 @@
-import { extractTextJson } from "../anthropic/common";
-import type { ProviderAttemptType } from "../../constants";
+import { extractTextJson } from "../anthropic/common.js";
+import type { ProviderAttemptType } from "../../constants.js";
 import {
   ClaudeCodeCliInvocation,
   ClaudeCodeCliRunner,
@@ -7,7 +7,7 @@ import {
   extractCliResultText,
   formatCliFailure,
   normalizeUsageFromCli,
-} from "./client";
+} from "./client.js";
 import {
   PlannerProvider,
   PlannerProviderArtifacts,
@@ -17,17 +17,17 @@ import {
   PlannerProviderOutput,
   PlannerProviderRepairContext,
   PlannerProviderSchedulerErrorCodes,
-} from "../../providers/planner";
-import { redactForProvider, RedactionSummary } from "../../providers/redaction";
-import { buildRunnerEnv } from "../../runners/env";
+} from "../../providers/planner.js";
+import { redactForProvider, RedactionSummary } from "../../providers/redaction.js";
+import { buildRunnerEnv } from "../../runners/env.js";
 import {
   buildPlannerRepairEnvelope,
   buildPlannerUserEnvelope,
   plannerToolDefinition,
   PLANNER_PROMPT_VERSION,
   PLANNER_SYSTEM_PROMPT,
-} from "../../prompts/planner-v1";
-import { buildRepoContextEnvelope, RepoContextEnvelope, renderRepoContext } from "../../providers/repo-context";
+} from "../../prompts/planner-v1/index.js";
+import { buildRepoContextEnvelope, RepoContextEnvelope, renderRepoContext } from "../../providers/repo-context.js";
 
 export interface ClaudeCodeCliPlannerProviderOptions {
   binary?: string;

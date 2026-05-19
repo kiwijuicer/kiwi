@@ -1,12 +1,12 @@
 import { AccessModes } from "@kiwi/contracts";
-import type { ProviderAttemptType } from "../../constants";
-import { CliPlannerResult, invokeCliPlanner } from "../../providers/cli-planner";
+import type { ProviderAttemptType } from "../../constants.js";
+import { CliPlannerResult, invokeCliPlanner } from "../../providers/cli-planner.js";
 import {
   PlannerProvider,
   PlannerProviderInput,
   PlannerProviderOutput,
   PlannerProviderRepairContext,
-} from "../../providers/planner";
+} from "../../providers/planner.js";
 import {
   CODEX_AUTO_REVIEW_APPROVAL_POLICY,
   CODEX_AUTO_REVIEW_APPROVALS_REVIEWER,
@@ -14,7 +14,7 @@ import {
   CodexCliRunner,
   DefaultCodexCliRunner,
   normalizeUsageFromCodex,
-} from "./client";
+} from "./client.js";
 
 const DEFAULT_TIMEOUT_MS = 300_000;
 

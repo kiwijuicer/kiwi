@@ -1,12 +1,12 @@
 import { RunLockBusyError } from "@kiwi/core";
-import { toolArguments } from "../tools/helpers";
-import { callTool } from "../tools/dispatcher";
-import { listTools } from "../tools/definitions";
-import { listResources, listResourceTemplates, McpResourceNotFoundError, readMcpResource } from "../resources";
-import { asRecord, JsonRpcRequest, JsonRpcResponse, textContent } from "./json-rpc";
-import { ToolActionRequiredError } from "../tools/errors";
-import { ToolInputValidationError } from "../tools/input-schemas";
-import { safeReadOnlyToolCalls, toolCall } from "../ux";
+import { toolArguments } from "../tools/helpers.js";
+import { callTool } from "../tools/dispatcher.js";
+import { listTools } from "../tools/definitions.js";
+import { listResources, listResourceTemplates, McpResourceNotFoundError, readMcpResource } from "../resources/index.js";
+import { asRecord, JsonRpcRequest, JsonRpcResponse, textContent } from "./json-rpc.js";
+import { ToolActionRequiredError } from "../tools/errors.js";
+import { ToolInputValidationError } from "../tools/input-schemas.js";
+import { safeReadOnlyToolCalls, toolCall } from "../ux/index.js";
 
 export function defaultServerCwd(): string {
   return process.env.KIWI_WORKSPACE ?? process.cwd();

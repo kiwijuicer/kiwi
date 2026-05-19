@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "crypto";
 import { createServer, IncomingMessage, Server, ServerResponse } from "http";
-import { debugLog } from "./debug-log";
-import { defaultServerCwd, handleMcpMessage } from "./protocol";
+import { debugLog } from "./debug-log.js";
+import { defaultServerCwd, handleMcpMessage } from "./protocol.js";
 
 export interface HttpMcpServerOptions {
   cwd?: string;

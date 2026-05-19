@@ -1,9 +1,12 @@
-import { existsSync } from "fs";
-import path from "path";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { loadEffectiveRegistry, ModelRegistryUpdateService, type ModelRegistryUpdateResult } from "@kiwi/core";
 import { evaluateAccessModeAvailability, modelAccessConfigured } from "@kiwi/runtime";
-import { resolveCliWorkspace, type CliWorkspaceOptions } from "../../workspace/options";
+import { resolveCliWorkspace, type CliWorkspaceOptions } from "../../workspace/options.js";
+
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 interface ModelsUpdateOptions extends CliWorkspaceOptions {
   apply?: boolean;
@@ -23,8 +26,8 @@ class ModelsUpdateCommand {
     return [
       ...(configured ? [configured] : []),
       ...(process.env.KIWI_MODEL_CATALOG_PATH ? [process.env.KIWI_MODEL_CATALOG_PATH] : []),
-      path.resolve(__dirname, "../../../config/model-catalog.json"),
-      path.resolve(__dirname, "../../../../../config/model-catalog.json"),
+      path.resolve(moduleDir, "../../../config/model-catalog.json"),
+      path.resolve(moduleDir, "../../../../../config/model-catalog.json"),
       path.resolve(process.cwd(), "config/model-catalog.json"),
     ];
   }

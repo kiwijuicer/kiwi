@@ -1,6 +1,6 @@
 import { ContractValues, GateResult, ReviewVerdict, StepAttemptStatus } from "@kiwi/contracts";
 import { appendAuditEvent } from "@kiwi/core";
-import type { StepAttemptNextAction, StepRunnerExecutionOutput } from "../step-runner-types";
+import type { StepAttemptNextAction, StepRunnerExecutionOutput } from "../step-runner-types.js";
 
 export function auditStepAttemptStarted(params: {
   cwd: string;

@@ -13,8 +13,8 @@ import {
 } from "@kiwi/core";
 import type { ExecutionIsolation } from "@kiwi/contracts";
 import { DEFAULT_MAX_CONCURRENCY, readExecutionRepoState, type RunExecutionPreview } from "@kiwi/runtime";
-import { ToolActionRequiredError } from "./errors";
-import { safeReadOnlyToolCalls, toolCall } from "../ux";
+import { ToolActionRequiredError } from "./errors.js";
+import { safeReadOnlyToolCalls, toolCall } from "../ux/index.js";
 
 const PREVIEW_TOKEN_RETENTION_LIMIT = 25;
 

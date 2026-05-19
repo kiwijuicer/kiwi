@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, renameSync, writeFileSync } from "fs";
 import path from "path";
 import { Artifact } from "@kiwi/contracts";
-import type { SubprocessOutputChunk } from "./subprocess";
+import type { SubprocessOutputChunk } from "./subprocess.js";
 
 // Local copy of writeJsonSafely. Adapters is a low-level package
 // without a runtime dependency on @kiwi/core, so the same atomic

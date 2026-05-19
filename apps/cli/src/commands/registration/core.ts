@@ -1,16 +1,16 @@
-import { Command } from "commander";
+import { Command } from "commander/esm.mjs";
 import type { BudgetProfile, RiskProfile } from "@kiwi/contracts";
-import { runCost } from "../runs/cost";
-import { runConfigSetApprover } from "../setup/config";
-import { runDoctor } from "../setup/doctor";
-import { runExplain } from "../planning/explain";
-import { runInit } from "../setup/init";
-import { runModelsList, runModelsUpdate } from "../setup/models";
-import { runPlan } from "../planning/plan";
-import { runRulesSync } from "../setup/rules";
-import { runStatus } from "../runs/status";
-import { runWorkspaceList } from "../setup/workspace";
-import { addWorkspaceOptions, handleCommandError, WorkspaceOptionMerger } from "./common";
+import { runCost } from "../runs/cost.js";
+import { runConfigSetApprover } from "../setup/config.js";
+import { runDoctor } from "../setup/doctor.js";
+import { runExplain } from "../planning/explain.js";
+import { runInit } from "../setup/init.js";
+import { runModelsList, runModelsUpdate } from "../setup/models.js";
+import { runPlan } from "../planning/plan.js";
+import { runRulesSync } from "../setup/rules.js";
+import { runStatus } from "../runs/status.js";
+import { runWorkspaceList } from "../setup/workspace.js";
+import { addWorkspaceOptions, handleCommandError, WorkspaceOptionMerger } from "./common.js";
 
 const JSON_OPTION_DESCRIPTION = "Print JSON";
 

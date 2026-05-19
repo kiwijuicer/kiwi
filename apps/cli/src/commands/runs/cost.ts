@@ -1,8 +1,8 @@
 import { writeFileSync } from "fs";
 import { buildRunCompletionSummary } from "@kiwi/ops";
 import { ensureRunLayout, inferAccessMode, readModelInvocations, resolveRunArtifactPath } from "@kiwi/core";
-import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
-import { printCostSummary } from "./run-summary";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options.js";
+import { printCostSummary } from "./run-summary.js";
 
 interface CostOptions extends CliWorkspaceOptions {
   json?: boolean;

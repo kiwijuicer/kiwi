@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync } from "fs";
-import path from "path";
+import { existsSync, mkdirSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   ModelRegistryUpdateService,
   readJson,
@@ -7,8 +8,10 @@ import {
   writeJsonSafely,
   type ModelRegistryDiff,
 } from "@kiwi/core";
-import { toolCall, workspaceToolArgs } from "../ux";
-import { workspaceArgs } from "../workspace";
+import { toolCall, workspaceToolArgs } from "../ux/index.js";
+import { workspaceArgs } from "../workspace/index.js";
+
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 interface ModelUpdatePreviewRecord {
   schemaVersion: "1";
@@ -24,8 +27,8 @@ const modelCatalogLocator = {
     return [
       ...(configured ? [configured] : []),
       ...(process.env.KIWI_MODEL_CATALOG_PATH ? [process.env.KIWI_MODEL_CATALOG_PATH] : []),
-      path.resolve(__dirname, "../../../config/model-catalog.json"),
-      path.resolve(__dirname, "../../../../../config/model-catalog.json"),
+      path.resolve(moduleDir, "../../../config/model-catalog.json"),
+      path.resolve(moduleDir, "../../../../../config/model-catalog.json"),
       path.resolve(process.cwd(), "config/model-catalog.json"),
     ];
   },

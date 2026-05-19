@@ -8,8 +8,8 @@ import {
   TaskGraph,
   TaskGraphSchema,
 } from "@kiwi/contracts";
-import { RunNotFoundError } from "../errors";
-import { writeJsonSafely } from "../storage/json-io";
+import { RunNotFoundError } from "../errors.js";
+import { writeJsonSafely } from "../storage/json-io.js";
 
 function runsRoot(cwd: string): string {
   return path.join(cwd, ".kiwi", "runs");

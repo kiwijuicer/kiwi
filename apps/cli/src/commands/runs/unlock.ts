@@ -2,7 +2,7 @@ import chalk from "chalk";
 import { forceReleaseRunLock, loadKiwiConfig, RunLockBusyError } from "@kiwi/core";
 import path from "path";
 import { existsSync } from "fs";
-import { resolveCliWorkspace, type CliWorkspaceOptions } from "../../workspace/options";
+import { resolveCliWorkspace, type CliWorkspaceOptions } from "../../workspace/options.js";
 
 interface UnlockOptions extends CliWorkspaceOptions {
   force?: boolean;

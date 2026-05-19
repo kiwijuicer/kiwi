@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateInitiativeId, generatePlanId, generateRunId } from "../ids";
+import { generateInitiativeId, generatePlanId, generateRunId } from "../ids.js";
 
 describe("id generation", () => {
   it("uses Europe/Berlin local time for planned run ids in summer time", () => {

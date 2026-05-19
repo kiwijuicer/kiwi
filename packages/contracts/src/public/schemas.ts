@@ -99,7 +99,7 @@ export {
   ScmProviderSchema,
   ScmAuthModeSchema,
   ScmMutationStatusSchema,
-} from "../shared/common";
+} from "../shared/common.js";
 
 export {
   ScmRepositoryRefSchema,
@@ -109,7 +109,7 @@ export {
   ScmPullRequestReviewDraftSchema,
   ScmMutationResultSchema,
   PrDraftArtifactSchema,
-} from "../scm";
+} from "../scm/index.js";
 
 export {
   EvidenceSubjectSchema,
@@ -117,7 +117,7 @@ export {
   EvidenceFileHashSchema,
   RunAuditSnapshotSchema,
   EvidenceManifestSchema,
-} from "../evidence";
+} from "../evidence/index.js";
 
 export {
   InitiativeSchema,
@@ -127,7 +127,7 @@ export {
   RunSchema,
   RunManifestSchema,
   ArtifactSchema,
-} from "../domain";
+} from "../domain/index.js";
 
 export {
   ModelUsageSchema,
@@ -153,7 +153,7 @@ export {
   RunCompletionSummarySchema,
   ApprovalDecisionSchema,
   RunFeedbackSchema,
-} from "../execution";
+} from "../execution/index.js";
 
 export {
   KiwiConfigSchema,
@@ -171,4 +171,4 @@ export {
   AccessModeSchema,
   ModelEntrySchema,
   ModelRegistrySchema,
-} from "../policy";
+} from "../policy/index.js";

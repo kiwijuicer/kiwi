@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { buildRepoContextEnvelope, renderRepoContext } from "../../providers/repo-context";
+import { buildRepoContextEnvelope, renderRepoContext } from "../../providers/repo-context.js";
 
 function git(repoPath: string, args: string[]): void {
   execFileSync("git", ["-C", repoPath, ...args], { stdio: "ignore" });

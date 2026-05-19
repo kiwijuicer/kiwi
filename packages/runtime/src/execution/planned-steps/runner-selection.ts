@@ -7,15 +7,15 @@ import {
   type ModelEntry,
   type Step,
 } from "@kiwi/contracts";
-import { ResearcherProviderRegistry } from "../../registries/researcher-provider-registry";
-import { LocalResearchStepRunner, ResearcherStepRunner } from "../researcher-step-runner";
-import { RunnerResolver } from "../../registries/runner-resolution";
-import type { RunnerResolution } from "../../registries/runner-registry";
-import type { SchedulerDecision } from "../../policies/scheduler-policy";
-import { ExecutionAuditReporter } from "./audit";
-import { ExecutionPolicyResolver } from "./policy";
-import type { StepExecutionSession } from "./session";
-import { ExecutorSelectionReasons, type StepPreviewSelection, type StepRunnerSelection } from "./types";
+import { ResearcherProviderRegistry } from "../../registries/researcher-provider-registry.js";
+import { LocalResearchStepRunner, ResearcherStepRunner } from "../researcher-step-runner.js";
+import { RunnerResolver } from "../../registries/runner-resolution.js";
+import type { RunnerResolution } from "../../registries/runner-registry.js";
+import type { SchedulerDecision } from "../../policies/scheduler-policy.js";
+import { ExecutionAuditReporter } from "./audit.js";
+import { ExecutionPolicyResolver } from "./policy.js";
+import type { StepExecutionSession } from "./session.js";
+import { ExecutorSelectionReasons, type StepPreviewSelection, type StepRunnerSelection } from "./types.js";
 
 export class StepRunnerSelector {
   constructor(

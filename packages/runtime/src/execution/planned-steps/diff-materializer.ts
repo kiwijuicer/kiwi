@@ -1,6 +1,6 @@
 import type { CoreServices } from "@kiwi/core";
 import { ArtifactTypes, ContractValues, ExecutionIsolations } from "@kiwi/contracts";
-import { AttemptDiffStatuses, type AttemptDiffMaterialization, type StepAttemptExecutionResult } from "./types";
+import { AttemptDiffStatuses, type AttemptDiffMaterialization, type StepAttemptExecutionResult } from "./types.js";
 
 export class AttemptDiffMaterializer {
   constructor(private readonly core: CoreServices) {}

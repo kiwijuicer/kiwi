@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { BudgetProfile } from "@kiwi/contracts";
-import { ensureRunLayout, resolveRunArtifactPath } from "../runs/store";
-import { appendJsonLine, writeJsonSafely } from "../storage/json-io";
+import { ensureRunLayout, resolveRunArtifactPath } from "../runs/store.js";
+import { appendJsonLine, writeJsonSafely } from "../storage/json-io.js";
 
 export const AuditEventTypes = {
   PlannerProviderSelected: "planner_provider_selected",

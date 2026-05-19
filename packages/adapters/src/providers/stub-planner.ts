@@ -1,5 +1,5 @@
 import { TaskGraph } from "@kiwi/contracts";
-import { PlannerProvider, PlannerProviderInput, PlannerProviderOutput } from "./planner";
+import { PlannerProvider, PlannerProviderInput, PlannerProviderOutput } from "./planner.js";
 
 export type DeterministicTaskGraphBuilder = (params: {
   runId: string;

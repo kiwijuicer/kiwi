@@ -1,7 +1,7 @@
 import { buildRunExplanation } from "@kiwi/ops";
 import { loadTaskGraph } from "@kiwi/core";
-import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
-import { formatSubPlanTreeLines } from "./subplan-tree";
+import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options.js";
+import { formatSubPlanTreeLines } from "./subplan-tree.js";
 
 interface ExplainOptions extends CliWorkspaceOptions {
   json?: boolean;
