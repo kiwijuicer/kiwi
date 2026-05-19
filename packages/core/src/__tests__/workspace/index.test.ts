@@ -4,18 +4,18 @@ import path from "path";
 import { describe, expect, it } from "vitest";
 import { discoverWorkspaceRepos, resolveWorkspace } from "../../workspace";
 
-function setupVoiceLikeWorkspace(): { root: string; core: string; agent: string } {
+function setupMultiRepoWorkspace(): { root: string; core: string; agent: string } {
   const root = mkdtempSync(path.join(os.tmpdir(), "kiwi-workspace-"));
-  const core = path.join(root, "voice-core");
-  const agent = path.join(root, "voice-livekit-agent");
+  const core = path.join(root, "api-service");
+  const agent = path.join(root, "worker-service");
   mkdirSync(core);
   mkdirSync(agent);
   writeFileSync(
     path.join(root, "workspace.code-workspace"),
     JSON.stringify({
       folders: [
-        { name: "voice-core", path: "voice-core" },
-        { name: "voice-livekit-agent", path: "voice-livekit-agent" },
+        { name: "api-service", path: "api-service" },
+        { name: "worker-service", path: "worker-service" },
       ],
     }),
     "utf-8",
@@ -35,30 +35,30 @@ describe("workspace resolution", () => {
   });
 
   it("discovers repos from .code-workspace files", () => {
-    const { root, core, agent } = setupVoiceLikeWorkspace();
+    const { root, core, agent } = setupMultiRepoWorkspace();
     const repos = discoverWorkspaceRepos(root);
 
     expect(repos).toEqual([
-      { id: "voice-core", path: core },
-      { id: "voice-livekit-agent", path: agent },
+      { id: "api-service", path: core },
+      { id: "worker-service", path: agent },
     ]);
   });
 
   it("selects the containing repo when called from inside a workspace repo", () => {
-    const { root, core } = setupVoiceLikeWorkspace();
+    const { root, core } = setupMultiRepoWorkspace();
     const resolved = resolveWorkspace({ cwd: path.join(core), requireRepo: true });
 
     expect(resolved.workspacePath).toBe(root);
-    expect(resolved.repo?.id).toBe("voice-core");
+    expect(resolved.repo?.id).toBe("api-service");
     expect(resolved.repo?.path).toBe(core);
   });
 
   it("supports explicit workspace and repo selectors", () => {
-    const { root, agent } = setupVoiceLikeWorkspace();
+    const { root, agent } = setupMultiRepoWorkspace();
     const resolved = resolveWorkspace({
       cwd: os.tmpdir(),
       workspacePath: root,
-      repo: "voice-livekit-agent",
+      repo: "worker-service",
       requireRepo: true,
     });
 
@@ -67,10 +67,10 @@ describe("workspace resolution", () => {
   });
 
   it("fails clearly when a multi-repo workspace has no selected repo", () => {
-    const { root } = setupVoiceLikeWorkspace();
+    const { root } = setupMultiRepoWorkspace();
 
     expect(() => resolveWorkspace({ cwd: root, requireRepo: true })).toThrow(
-      /Repo is ambiguous.*voice-core.*voice-livekit-agent/,
+      /Repo is ambiguous.*api-service.*worker-service/,
     );
   });
 });

@@ -78,8 +78,9 @@ describe("openStreamingRunnerLog", () => {
       attemptId: "attempt-1",
       runner: "claude-code",
     });
+    const fakeKey = ["sk", "ant", "api03", "ABCDEFGHIJKLMNOP"].join("-");
 
-    log.append({ stream: "stdout", text: "key=sk-ant-api03-ABCDEFGHIJKLMNOP" });
+    log.append({ stream: "stdout", text: `key=${fakeKey}` });
     log.close();
 
     const content = readFileSync(log.path, "utf-8");

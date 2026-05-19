@@ -98,8 +98,8 @@ models:
 
 function setupWorkspace(): { root: string; core: string; agent: string } {
   const root = setupRepo();
-  const core = path.join(root, "voice-core");
-  const agent = path.join(root, "voice-livekit-agent");
+  const core = path.join(root, "api-service");
+  const agent = path.join(root, "worker-service");
   mkdirSync(core);
   mkdirSync(agent);
   writeFileSync(path.join(core, "core.txt"), "core\n", "utf-8");
@@ -108,13 +108,13 @@ function setupWorkspace(): { root: string; core: string; agent: string } {
     path.join(root, "workspace.code-workspace"),
     JSON.stringify({
       folders: [
-        { name: "voice-core", path: "voice-core" },
-        { name: "voice-livekit-agent", path: "voice-livekit-agent" },
+        { name: "api-service", path: "api-service" },
+        { name: "worker-service", path: "worker-service" },
       ],
     }),
     "utf-8",
   );
-  execFileSync("git", ["add", "voice-core/core.txt", "voice-livekit-agent/agent.txt", "workspace.code-workspace"], {
+  execFileSync("git", ["add", "api-service/core.txt", "worker-service/agent.txt", "workspace.code-workspace"], {
     cwd: root,
     stdio: "ignore",
   });
@@ -983,7 +983,7 @@ models:
 
   it("rejects uninitialized workspacePath instead of falling back to initialized repoPath", async () => {
     const workspaceRoot = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-workspace-root-"));
-    const core = path.join(workspaceRoot, "voice-core");
+    const core = path.join(workspaceRoot, "api-service");
     mkdirSync(core);
     writeKiwiConfig(core);
 
@@ -1016,7 +1016,7 @@ models:
           name: "kiwi_plan",
           arguments: {
             workspacePath: core,
-            repoId: "voice-core",
+            repoId: "api-service",
             repoPath: core,
             rawInput: "# Workspace direct\n\n## Plan",
             riskProfile: "dev",
@@ -1032,7 +1032,7 @@ models:
       workspace: { workspacePath: string; repoId: string; repoPath: string };
     };
     expect(parsed.workspace.workspacePath).toBe(core);
-    expect(parsed.workspace.repoId).toBe("voice-core");
+    expect(parsed.workspace.repoId).toBe("api-service");
     expect(parsed.workspace.repoPath).toBe(core);
   });
 
@@ -1046,7 +1046,7 @@ models:
           name: "kiwi_plan",
           arguments: {
             workspacePath: workspace.root,
-            repoId: "voice-core",
+            repoId: "api-service",
             ticket: "# Workspace MCP\n\n## Implement",
           },
         },

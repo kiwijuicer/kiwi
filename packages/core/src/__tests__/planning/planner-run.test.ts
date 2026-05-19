@@ -51,7 +51,7 @@ describe("planner run service", () => {
 
     const result = await planRun({
       workspacePath,
-      repoId: "voice-core",
+      repoId: "api-service",
       repoPath: workspacePath,
       rawInput: "# Demo\n\n## Plan\n## Implement",
       source: "mcp",

@@ -217,10 +217,10 @@ models:
 
   it("initializes an explicit workspace root", async () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-init-cwd-"));
-    const workspace = path.join(cwd, "voice");
+    const workspace = path.join(cwd, "workspace");
     mkdirSync(workspace);
 
-    await runInitForTest({ workspace: "voice" }, cwd);
+    await runInitForTest({ workspace: "workspace" }, cwd);
 
     expect(existsSync(path.join(workspace, ".kiwi", "config.yaml"))).toBe(true);
     expect(existsSync(kiwiPolicyPath(workspace))).toBe(false);

@@ -286,8 +286,8 @@ describe("kiwi operator flow", () => {
 
   it("edits only the selected repo directly by default", async () => {
     const workspace = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-workspace-attempt-"));
-    const core = path.join(workspace, "voice-core");
-    const agent = path.join(workspace, "voice-livekit-agent");
+    const core = path.join(workspace, "api-service");
+    const agent = path.join(workspace, "worker-service");
     mkdirSync(core);
     mkdirSync(agent);
     writeFileSync(path.join(core, "core.txt"), "core\n", "utf-8");
@@ -303,8 +303,8 @@ describe("kiwi operator flow", () => {
       path.join(workspace, "workspace.code-workspace"),
       JSON.stringify({
         folders: [
-          { name: "voice-core", path: "voice-core" },
-          { name: "voice-livekit-agent", path: "voice-livekit-agent" },
+          { name: "api-service", path: "api-service" },
+          { name: "worker-service", path: "worker-service" },
         ],
       }),
       "utf-8",
@@ -317,7 +317,7 @@ describe("kiwi operator flow", () => {
         allowStub: true,
         env: commandEnv({ PATH: "/empty" }),
         workspace,
-        repo: "voice-core",
+        repo: "api-service",
         now: new Date("2026-05-04T10:00:00.000Z"),
         runIdSuffix: "ws01",
         initiativeIdSuffix: "ws01",

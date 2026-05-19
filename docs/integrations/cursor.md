@@ -15,15 +15,15 @@ Plain `kiwi init` also prepares Claude Code and Codex MCP config by default; use
 
 Manual setup is still possible after `make install`.
 
-Create `/Users/norberthanauer/Projects/voice/.cursor/mcp.json`:
+Create `/path/to/workspace/.cursor/mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "kiwi": {
       "type": "stdio",
-      "command": "/Users/norberthanauer/.local/bin/kiwi-mcp",
-      "args": ["--workspace", "/Users/norberthanauer/Projects/voice"]
+      "command": "kiwi-mcp",
+      "args": ["--workspace", "/path/to/workspace"]
     }
   }
 }
@@ -32,7 +32,7 @@ Create `/Users/norberthanauer/Projects/voice/.cursor/mcp.json`:
 Restart Cursor, then ask:
 
 ```text
-Use kiwi for workspace /Users/norberthanauer/Projects/voice and repo livekit-agent.
+Use kiwi for workspace /path/to/workspace and repo worker-service.
 Run kiwi_doctor, plan this change, call kiwi_next, preview it, and show the TaskGraph summary plus decision.confirmationSummary.
 ```
 
@@ -44,7 +44,7 @@ kiwi_doctor -> kiwi_plan -> kiwi_next -> kiwi_preview_run -> user confirm decisi
 
 ## Global Config
 
-For all projects, use `~/.cursor/mcp.json` with the same `mcpServers` block. For project-specific Voice work, prefer the project config so the server name and workspace stay obvious.
+For all projects, use `~/.cursor/mcp.json` with the same `mcpServers` block. For workspace-specific work, prefer the project config so the server name and workspace stay obvious.
 
 ## Expected Tools
 

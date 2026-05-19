@@ -116,11 +116,11 @@ describe("kiwi plan", () => {
 
   it("stores workspace runs under the workspace root while targeting a selected repo", async () => {
     const workspace = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-workspace-"));
-    const repo = path.join(workspace, "voice-core");
+    const repo = path.join(workspace, "api-service");
     mkdirSync(repo);
     writeFileSync(
       path.join(workspace, "workspace.code-workspace"),
-      JSON.stringify({ folders: [{ name: "voice-core", path: "voice-core" }] }),
+      JSON.stringify({ folders: [{ name: "api-service", path: "api-service" }] }),
       "utf-8",
     );
     await init(workspace);
@@ -131,7 +131,7 @@ describe("kiwi plan", () => {
         allowStub: true,
         env: testEnv(workspace, { PATH: "/empty" }),
         workspace,
-        repo: "voice-core",
+        repo: "api-service",
         now: new Date("2026-05-03T20:00:00.000Z"),
         runIdSuffix: "w001",
         initiativeIdSuffix: "w001",
@@ -145,7 +145,7 @@ describe("kiwi plan", () => {
     const initiative = InitiativeSchema.parse(readJson(path.join(runDir, "initiative.json")));
 
     expect(run.workspacePath).toBe(workspace);
-    expect(run.repoId).toBe("voice-core");
+    expect(run.repoId).toBe("api-service");
     expect(run.repoPath).toBe(repo);
     expect(initiative.repoPath).toBe(repo);
     expect(existsSync(path.join(repo, ".kiwi"))).toBe(false);

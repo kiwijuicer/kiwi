@@ -18,10 +18,10 @@ Manual setup is still possible after `make install`.
 Add the local stdio MCP server from the target workspace:
 
 ```bash
-cd /Users/norberthanauer/Projects/voice
+cd /path/to/workspace
 claude mcp add --transport stdio \
   kiwi \
-  -- /Users/norberthanauer/.local/bin/kiwi-mcp --workspace /Users/norberthanauer/Projects/voice
+  -- kiwi-mcp --workspace /path/to/workspace
 ```
 
 Check it:
@@ -33,7 +33,7 @@ claude mcp list
 Inside Claude, use:
 
 ```text
-Use kiwi for workspace /Users/norberthanauer/Projects/voice and repo core.
+Use kiwi for workspace /path/to/workspace and repo api-service.
 Run kiwi_doctor, plan this ticket, call kiwi_next, show the preview decision summary, ask me to confirm, run the returned recommendedToolCall, finalize it, and show the evidence manifest path.
 ```
 
@@ -51,8 +51,8 @@ If you keep a project-scoped `.mcp.json`, use:
 {
   "mcpServers": {
     "kiwi": {
-      "command": "/Users/norberthanauer/.local/bin/kiwi-mcp",
-      "args": ["--workspace", "/Users/norberthanauer/Projects/voice"]
+      "command": "kiwi-mcp",
+      "args": ["--workspace", "/path/to/workspace"]
     }
   }
 }

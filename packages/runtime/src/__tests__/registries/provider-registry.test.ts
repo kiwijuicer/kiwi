@@ -173,7 +173,7 @@ describe("provider registries", () => {
       registry.select({
         registryModels: models,
         policy,
-        env: { ANTHROPIC_API_KEY: "sk-ant-test" },
+        env: { ANTHROPIC_API_KEY: "test-api-key" },
       })?.provider.name,
     ).toBe("anthropic:claude-opus-4-6");
   });

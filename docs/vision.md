@@ -1,119 +1,115 @@
-# kiwi Vision v2
+# kiwi Vision
 
-Local-first AI coding control plane fuer planbare, sichere und kosteneffiziente Umsetzung von Tickets und Features.
+Local-first AI coding control plane for planned, safe, auditable coding work.
 
-Version: 0.2
-Status: Canonical architecture draft
-Primary stack: TypeScript, pnpm, Zod, CLI-first
+Version: 0.3
+Status: Current product direction
+Primary stack: TypeScript, pnpm, Zod, CLI-first, MCP-enabled
 
----
+## Summary
 
-## 1) Kurzfassung
+`kiwi` turns a human ticket or task into a structured TaskGraph, executes planned
+Steps through local authenticated runners, and persists every decision, cost,
+diff, gate, review, and final artifact under `.kiwi/runs/<run-id>/`.
 
-`kiwi` ist eine lokale Orchestrierungs- und Qualitaetsschicht zwischen Mensch, IDE, CLI und mehreren Modellen/Runnern.
+The CLI is the reference operator surface. MCP exposes the same behavior to IDEs
+and assistants with explicit preview and approval boundaries.
 
-Kernidee:
+## Product Goals
 
-- High-end Modelle planen, bewerten Risiko und reviewen.
-- Guenstigere Modelle fuehren klar abgegrenzte Steps aus.
-- Jeder Step laeuft nachvollziehbar in einer lokalen, kontrollierten Umgebung.
-- Entscheidungen, Kosten, Diffs und Gates werden persistiert.
-- Riskante Aenderungen werden nie blind uebernommen.
+- Produce reproducible TaskGraphs from vague or concrete task input.
+- Execute planned Steps safely in a local workspace or selected repo.
+- Keep planning, execution, review, gates, and publishing as inspectable stages.
+- Route work by `agentRole`, `modelCapability`, policy, risk, budget, and runner availability.
+- Persist audit evidence, model usage, cost summaries, diffs, and final verdicts.
+- Support single-repo and multi-repo workspaces without global services.
+- Keep credentials outside Core and run artifacts.
+- Support provider-neutral SCM flows, with Bitbucket PR draft publishing implemented first.
 
----
+## Non-Goals
 
-## 2) Produktziele
+- No autonomous end-to-end coding without gates.
+- No hosted multi-tenant backend requirement.
+- No dashboard requirement for the current milestone.
+- No active agent-to-agent handoff protocol.
+- No storage of SCM or model provider credentials in Core.
 
-### 2.1 Muss-Ziele
-
-- Aus vagen Inputs reproduzierbare TaskGraphs erzeugen.
-- Code-Erstellung, Code-Aenderung und Refactoring als geplante, gegatete Steps orchestrieren.
-- Execution und Review strikt trennen.
-- Safety und Auditability als First-Class Features behandeln.
-- Kosten aktiv steuern statt nur messen.
-- IDE-unabhaengig bleiben (CLI ist die Kernoberflaeche).
-- SCM-provider-neutral bleiben; Bitbucket Cloud ist ein First-Class Ziel neben GitHub.
-
-### 2.2 Non-Goals fuer den Start
-
-- Keine vollautomatische End-to-End-Entwicklung ohne Gates.
-- Kein Agent-zu-Agent-Interop-System in MVP 1.
-- Kein Multi-Tenant SaaS-Backend in MVP 1.
-- Kein Dashboard als Pflicht fuer MVP 1.
-
----
-
-## 3) Leitprinzipien
+## Operating Principles
 
 - Local-first by default.
-- Small diffs over big-bang changes.
+- CLI behavior is canonical; MCP is an access channel.
 - Policy before execution.
-- Risk > Budget.
-- Test evidence before acceptance.
+- Risk beats budget.
 - Deterministic artifacts before summary text.
-- KISS, DRY, SRP auf Modul- und Code-Ebene.
+- Explicit contracts at package boundaries.
+- Small planned Steps over large opaque changes.
+- No staging, commits, tags, or pushes unless the user explicitly asks.
 
----
+## Canonical Domain Model
 
-## 4) Kanonisches Domaenenmodell
+These terms are shared across contracts, CLI, MCP, artifacts, and docs.
 
-Diese Begriffe sind verbindlich und werden in Code, CLI, Schemas, Logs, API und MCP identisch verwendet.
+### Initiative
 
-### 4.1 Initiative
+The incoming task or ticket.
 
-Eingangsanliegen (Ticket, Feature, Bug, Refactoring-Idee, Review-Auftrag).
-
-Pflichtfelder:
+Key fields:
 
 - `id`
 - `title`
 - `rawInput`
-- `source` (`cli | file | mcp | api`)
+- `source`
 - `repoPath`
 - `riskProfile`
 - `budgetProfile`
 - `createdAt`
 
-### 4.2 Run
+### Run
 
-Eine konkrete Orchestrierung einer Initiative mit eigener Persistenz unter `.kiwi/runs/<run-id>/`.
+A concrete orchestration of an Initiative.
 
-Pflichtfelder:
+Runs are stored under:
+
+```text
+<workspace>/.kiwi/runs/<run-id>/
+```
+
+Key fields:
 
 - `runId`
 - `initiativeId`
-- `status`
 - `currentPlanId`
-- `createdAt`
-- `updatedAt`
-
-Workspace-Metadaten fuer Multi-Repo-Workspaces:
-
+- `status`
 - `workspacePath`
 - `repoId`
 - `repoPath`
+- `createdAt`
+- `updatedAt`
 
-### 4.3 TaskGraph
+### TaskGraph
 
-Maschinenlesbarer Plan mit Schritten, Abhaengigkeiten und akzeptierbaren Ergebnissen.
+A machine-readable plan for the Run.
 
-Pflichtfelder:
+Key fields:
 
 - `planId`
 - `runId`
+- `initiativeId`
 - `summary`
 - `steps[]`
+- `subPlans[]`
 - `acceptanceCriteria[]`
 - `assumptions[]`
 - `openQuestions[]`
 - `riskScore`
 - `complexityScore`
+- `createdAt`
 
-### 4.4 Step
+### Step
 
-Logische Arbeitseinheit im TaskGraph.
+A logical unit of work in a TaskGraph.
 
-Pflichtfelder:
+Key fields:
 
 - `stepId`
 - `type`
@@ -123,12 +119,13 @@ Pflichtfelder:
 - `requiredGates[]`
 - `recommendedAgentRole`
 - `recommendedModelCapability`
+- `status`
 
-### 4.5 StepAttempt
+### StepAttempt
 
-Konkreter Ausfuehrungsversuch eines Steps mit Runner, Modell, Kontextpaket und Artefakten.
+One concrete execution attempt for a Step.
 
-Pflichtfelder:
+Key fields:
 
 - `attemptId`
 - `stepId`
@@ -137,77 +134,62 @@ Pflichtfelder:
 - `modelCapability`
 - `status`
 - `contextPackageRef`
+- `modelInvocationRefs[]`
 - `artifacts[]`
 - `startedAt`
 - `completedAt`
 
-### 4.6 Artifact
+### Artifact
 
-Persistiertes Ergebnisobjekt aus einem StepAttempt.
+A persisted output from planning, execution, review, evidence, or publishing.
 
-Typen:
+Common artifact refs include:
 
-- `diff`
-- `patch`
-- `command_output`
-- `test_report`
-- `lint_report`
-- `typecheck_report`
-- `review_report`
-- `cost_report`
-- `summary`
+- planner input and output
+- context package
+- command output
+- diff patch
+- gate results
+- review report
+- cost report
+- final summary
+- final verdict
+- evidence manifest
+- operator snapshot
+- PR draft
 
-### 4.7 GateResult
+### GateResult
 
-Maschinenlesbares Ergebnis eines Gates.
+The structured result of a quality, policy, or safety gate.
 
-Pflichtfelder:
+Key fields:
 
 - `gateId`
 - `gateType`
-- `status` (`pass | fail | blocked`)
+- `status`
 - `evidenceRefs[]`
 - `reason`
+- `subject`
 
-### 4.8 ReviewVerdict
+### ReviewVerdict
 
-Strukturiertes Ergebnis des Review Engines.
+The structured review result.
 
-Pflichtfelder:
+Key fields:
 
-- `verdict` (`pass | pass_with_comments | needs_changes | reject`)
+- `verdict`
 - `safeToContinue`
 - `issues[]`
 - `recommendedNextSteps[]`
 - `confidence`
+- `subject`
 
-### 4.9 SCM Provider Boundary
+## Roles And Model Capability
 
-SCM-Integrationen sind Adapter, nicht Core-Logik.
+`agentRole` describes function. `modelCapability` describes expected capability
+and cost tier.
 
-Pflichtregeln:
-
-- Core speichert keine Credentials.
-- Authentifizierung liegt ausserhalb von Kiwi: lokaler CLI-Login, OAuth Connector, MCP Server, OS Keychain oder ein injizierter HTTP-Transport.
-- Bitbucket Cloud (`bitbucket.org`) ist als First-Class Provider vorgesehen.
-- GitHub bleibt moeglich, darf aber keine Bitbucket-spezifischen Flows erzwingen.
-
-Unterstuetzte SCM-Aktionen:
-
-- Ticket/Issue Draft oder Remote-Erstellung
-- Pull Request Draft oder Remote-Erstellung
-- Pull Request Review Kommentare, Tasks und Change-Request Signal
-
----
-
-## 5) Rollen vs. Modellfaehigkeit
-
-Wichtige Trennung:
-
-- `agentRole` beschreibt Aufgabe/Funktion im System.
-- `modelCapability` beschreibt Kosten- und Leistungsniveau.
-
-### 5.1 Agent Roles
+Agent roles:
 
 - `planner`
 - `researcher`
@@ -216,432 +198,64 @@ Wichtige Trennung:
 - `security`
 - `rules`
 
-### 5.2 Model Capability Tiers
+Model capabilities:
 
 - `cheap`
 - `mid`
 - `strong`
 - `frontier`
 
-### 5.3 Grundregel
+Default intent:
 
-`frontier` ist Standard fuer Planning + Final Review, aber nicht Standard fuer jede Execution.
+- Planning: `planner` + `frontier`
+- Risk-sensitive review: `reviewer` + `frontier`
+- Normal coding: `executor` + `strong`
+- Tests, docs, rules, and SCM draft work: usually `mid`
 
----
+## Current Execution Model
 
-## 6) Zielarchitektur
+Kiwi is Codex-first by default:
 
-```mermaid
-flowchart TD
-  intake[InitiativeIntake] --> planner[Planner]
-  planner --> graph[TaskGraphStore]
-  graph --> scheduler[SchedulerPolicyEngine]
-  scheduler --> stepAttempt[StepAttemptOrchestrator]
-  stepAttempt --> adapter[RunnerAdapter]
-  adapter --> sandbox[WorktreeSandbox]
-  sandbox --> artifacts[ArtifactsStore]
-  artifacts --> gates[QualityGates]
-  gates --> review[ReviewEngine]
-  review --> finalizer[Finalizer]
-  review --> replanner[Replanner]
-  replanner --> graph
-  artifacts --> audit[AuditAndCostLedger]
-  gates --> audit
-  review --> audit
-```
+- `kiwi init` writes shared defaults under `~/.kiwi/defaults/`.
+- The default registry routes through local CLI access modes before direct APIs.
+- Codex CLI models are selected explicitly through `providerModel` and passed to the runner.
+- Claude Code CLI and Cursor Agent CLI are fallback local access modes when configured.
+- Stub models are for tests and development only.
 
-### 6.1 Modulgrenzen
+Execution defaults to direct mode in the selected repo working tree. Direct mode
+is guarded by policy, git state checks, command profiles, diff capture, and
+review gates. Set `KIWI_EXECUTION_ISOLATION=worktree` to use isolated worktrees.
 
-- `packages/contracts`: Zod schemas, types, canonical value constants and domain value sets.
-- `packages/core`: orchestration, scheduling, planning flow, run store.
-- `packages/adapters`: provider + runner integration adapters.
-- `packages/sandbox`: worktree, process execution, permissions, secret filtering.
-- `apps/cli`: primary interface.
-- `apps/mcp-server`: integration channel fuer IDEs.
+MCP mutating calls require a fresh preview token from `kiwi_preview_run`. The
+token binds the selected run, execution options, repo state, policy, and planned
+Steps so assistants cannot skip the decision preview.
 
-### 6.2 Dependency-Richtung
+## Safety Model
 
-- Apps duerfen auf Packages zeigen.
-- `core` darf `contracts` konsumieren.
-- `adapters` und `sandbox` duerfen `contracts` konsumieren.
-- `core` spricht Runner nur ueber Adapter-Interfaces an.
+Default safety constraints:
 
----
+- No direct writes on protected-looking branches.
+- No execution with dirty tracked files or untracked non-Kiwi files in direct mode.
+- No commits, staging, tags, or pushes without explicit user request.
+- No dependency additions, migrations, production config changes, or unrestricted shell without approval.
+- No secrets in prompts, logs, or run artifacts.
+- No SCM or model credentials in Core.
 
-## 7) Runner und Ausfuehrungsmodell
+Approval states:
 
-### 7.1 RunnerAdapter Contract
+- `auto`: policy allows continuation.
+- `required`: human approval evidence is required.
+- `blocked`: policy prohibits continuation.
 
-Runner werden austauschbar ueber ein gemeinsames Interface angebunden.
+## Integrations
 
-```ts
-export interface RunnerAdapter {
-  readonly name: "codex" | "claude-code" | "local-shell" | "api";
-  execute(input: RunnerExecutionInput): Promise<RunnerExecutionOutput>;
-}
-```
+- CLI: primary operator surface.
+- MCP stdio and HTTP: IDE and assistant access channel.
+- SCM adapters: provider-neutral boundary, with Bitbucket PR draft publishing available.
+- Operator artifacts: local HTML snapshot, evidence manifest, final summaries, and cost reports.
 
-Minimum in `RunnerExecutionInput`:
+## Future Scope
 
-- `attemptId`
-- `workspacePath`
-- `worktreePath`
-- `stepPrompt`
-- `contextPackage`
-- `allowedTools`
-- `timeouts`
-
-Minimum in `RunnerExecutionOutput`:
-
-- `status`
-- `artifactRefs`
-- `rawLogsRef`
-- `modelUsage`
-- `error` (optional)
-
-### 7.2 Codex-first Direct Execution
-
-MCP/Codex nutzt standardmaessig den aktuellen Repo-Working-Tree.
-
-Strategie:
-
-- Kiwi waehlt pro Step ein konkretes Codex CLI `providerModel` und startet Codex mit `--model`.
-- Vor jedem Step wird ein Git-Tree-Snapshot als Baseline erfasst.
-- Jeder StepAttempt persistiert nur den Diff gegen diese Baseline als Artifact.
-- Staging, Commits, Tags und Pushes bleiben ohne expliziten User-Auftrag verboten.
-- `KIWI_EXECUTION_ISOLATION=worktree` aktiviert den isolierten Worktree-Modus als Safety-Override.
-
----
-
-## 8) Persistenzlayout unter .kiwi
-
-```text
-.kiwi/
-  config.yaml
-  runs/
-    run_2026_05_03_001/
-      run.json
-      initiative.json
-      plan/
-        task-graph.json
-        planner-input.json
-        planner-output.json
-      steps/
-        step_001/
-          attempt_001/
-            attempt.json
-            context-package.json
-            artifacts/
-              diff.patch
-              command-output.txt
-              test-report.json
-              review-report.json
-              cost-report.json
-            gate-results.json
-      final/
-        final-summary.md
-        final-verdict.json
-        final-cost-report.json
-  logs/
-    audit.log
-```
-
-Wichtig:
-
-- Keine Einzeldatei `.kiwi/runs/<id>.json` als Endzustand.
-- Run-Ordner ist die kanonische Persistenzform.
-
----
-
-## 9) Scheduler und Routing
-
-Der Scheduler trifft finalen Routing-Entscheid pro StepAttempt anhand von:
-
-- Step-Typ
-- Risiko
-- blast radius
-- security sensitivity
-- context size
-- historische Erfolgsquote
-- Budget Rest
-- Runner availability
-
-Routing ist zweistufig:
-
-1. `agentRole` bestimmen
-2. `modelCapability` bestimmen
-
-Dann:
-
-- Runner waehlen
-- Context Level waehlen
-- Gates waehlen
-- Review-Tiefe waehlen
-
-### 9.1 Risiko-Uebersteuerung
-
-Risk zones erzwingen mindestens:
-
-- `strong` execution
-- `frontier` review
-- ggf. human approval
-
----
-
-## 10) Context Packaging
-
-Kontext wird abgestuft erzeugt, nie blind das gesamte Repo.
-
-Levels:
-
-- `L0`: initiative + policy + registry + wichtigste commands
-- `L1`: relevante Dateien + tests + recent diff
-- `L2`: symbols + grep hits + commit context + traces
-- `L3`: breitere Architekturkontexte + historical run outcomes
-
-Context package ist als JSON Artifact persistiert.
-
----
-
-## 11) Quality Gates und Review
-
-### 11.1 Mindest-Gates pro Coding-Step
-
-- `typecheck`
-- `lint`
-- relevante tests
-- forbidden file checks
-- secrets check
-
-### 11.2 Review Engine
-
-Review ist strukturiertes JSON, nie nur Freitext.
-
-Mindestoutput:
-
-- `verdict`
-- `safeToContinue`
-- `issues[]` mit `severity`
-- `recommendedNextSteps[]`
-- `confidence`
-
-### 11.3 Feedback Loop
-
-`needs_changes` oder `reject` erzeugt replanning oder fix-step.
-
----
-
-## 12) Security Model
-
-### 12.1 Defaults
-
-- no direct writes to main branch
-- no dependency install without approval
-- no migration execution without approval
-- no unrestricted shell by default
-- no production credentials in run context
-
-### 12.2 Mechanismen
-
-- command allowlist pro step type
-- path denylist/risk zones
-- env allowlist + secret redaction
-- network policy per attempt
-- hard timeout + process limits
-- audit log events fuer jede Entscheidung
-
-### 12.3 Approval States
-
-- `auto` (safe)
-- `required` (must confirm)
-- `blocked` (policy prohibits)
-
----
-
-## 13) Cost Control
-
-Kostensteuerung ist aktiver Scheduler-Input, kein Reporting-only.
-
-- Budgetprofile: `tiny | small | normal | large | critical`
-- Budget gilt pro Run
-- Restbudget beeinflusst Context Level und modelCapability
-- Sicherheitsanforderungen duerfen nicht heruntergeroutet werden
-
-Grundregel:
-
-`risk > budget`
-
----
-
-## 14) Integrationsschichten
-
-### 14.1 CLI (primaer)
-
-CLI ist der Startpunkt und bleibt Referenz fuer alle Flows.
-
-### 14.2 MCP (spaeter)
-
-MCP ist Zugriffskanal, nicht Orchestrator.
-
-### 14.3 Agent Interop (Future)
-
-Agent-zu-Agent-Interop ist kein aktiver Scope. Eine spaetere Einfuehrung braucht eine neue ADR, explizite Contracts und lokale Gate-Semantik.
-
-### 14.4 SCM Provider
-
-SCM Provider werden ueber `packages/adapters` angebunden.
-
-Startreihenfolge:
-
-1. Bitbucket Cloud Adapter fuer Issues, Pull Requests und Pull Request Reviews.
-2. GitHub Adapter nur als zweiter Provider, nicht als Annahme im Core.
-3. Lokale Draft-Ausgabe als Fallback, wenn keine externe Auth verfuegbar ist.
-
----
-
-## 15) Ziel-Repo-Struktur
-
-```text
-kiwi/
-  apps/
-    cli/
-    mcp-server/
-  packages/
-    contracts/
-    core/
-    adapters/
-    sandbox/
-  docs/
-    vision.md
-    architecture.md
-    mvp1.md
-    rules/
-      project.md
-      architecture.md
-      typescript.md
-      testing.md
-      security.md
-      agents.md
-  .kiwi/
-    config.yaml
-    policy.yaml                # optional workspace override
-    model-registry.yaml        # optional workspace override
-  AGENTS.md
-  package.json
-  pnpm-workspace.yaml
-  tsconfig.base.json
-```
-
----
-
-## 16) AGENTS und Rules als Source of Truth
-
-`AGENTS.md` ist Einstiegspunkt fuer Agenten und verlinkt auf fokussierte Regeln in `docs/rules/`.
-
-Regelquellen:
-
-- `docs/rules/project.md`
-- `docs/rules/architecture.md`
-- `docs/rules/typescript.md`
-- `docs/rules/testing.md`
-- `docs/rules/security.md`
-- `docs/rules/agents.md`
-
-Optional spaeter:
-
-- Generierung nach `.cursor/rules/*.mdc` aus diesen Quellen.
-
----
-
-## 17) MVP Scope
-
-### 17.1 MVP 1 (strict)
-
-Enthalten:
-
-- monorepo bootstrap
-- `packages/contracts` mit Zod Schemas
-- `packages/core` mit intake, deterministic planner, run store
-- `apps/cli` mit:
-  - `kiwi init`
-  - `kiwi plan <ticket>`
-  - `kiwi status`
-- Persistenz unter `.kiwi/runs/<run-id>/`
-- Tests fuer contracts/core/cli
-
-Nicht enthalten:
-
-- echte LLM Calls
-- runner execution
-- MCP server
-- dashboard/tui
-- automatische codeaenderungen
-
-### 17.2 MVP 2
-
-- echte planner provider integration
-- schema validation + retries
-- basic cost accounting
-
-### 17.3 MVP 3
-
-- structured diff review
-- gate evidence integration
-- fix-step feedback loop
-
-### 17.4 MVP 4
-
-- worktree sandbox
-- first runner adapters
-- command gate execution
-
-### 17.5 MVP 5+
-
-- full initiative orchestration
-- MCP server
-- rules sync
-- dashboard/tui
-- agent interop ADR, falls ein konkreter Use Case existiert
-
----
-
-## 18) Clean Start Strategie
-
-Nach Finalisierung dieser Vision wird die bestehende MVP-Implementierung kontrolliert ersetzt.
-
-Behalten:
-
-- `docs/vision.md`
-- `AGENTS.md`
-- `docs/rules/*`
-- Git Historie und Repo-Metadaten
-
-Neu aufsetzen:
-
-- `apps/*`
-- `packages/*`
-- Root Configs falls nicht passend zum neuen Scope
-- alte `.kiwi` run artifacts
-
----
-
-## 19) Abnahmekriterien fuer diese Vision
-
-Die Vision gilt als umsetzbar, wenn:
-
-- Begriffe sind eindeutig und widerspruchsfrei.
-- Rollen und Modelltiers sind getrennt definiert.
-- Run-/Step-/Artifact-Persistenz ist klar beschrieben.
-- Runner/Sandbox Contracts sind konkret genug fuer Implementierung.
-- MVP 1 ist klein, testbar und gegen Scope Creep abgesichert.
-- AGENTS/Rules sind als verbindliche Quellen vorgesehen.
-
----
-
-## 20) Schluss
-
-Erster Proof ist nicht "vollstaendig autonom coden", sondern:
-
-Kann `kiwi` aus einem unklaren Ticket reproduzierbar einen sicheren, kostenbewussten und reviewbaren TaskGraph plus Run-Artefakte erzeugen?
-
-Wenn ja, ist die Grundlage fuer skalierbare Orchestrierung gelegt.
+Agent-to-agent handoff remains out of active scope. Any future interop channel
+requires a new ADR, explicit contracts, and local gate semantics before
+implementation.

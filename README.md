@@ -127,7 +127,7 @@ Use kiwi for this ticket in repo <repo-id>; follow kiwi_next and ask before runn
   "mcpServers": {
     "kiwi": {
       "type": "stdio",
-      "command": "/Users/<you>/.local/bin/kiwi-mcp",
+      "command": "kiwi-mcp",
       "args": ["--workspace", "/path/to/workspace"]
     }
   }

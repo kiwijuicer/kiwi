@@ -2,52 +2,98 @@
 
 ## Scope
 
-Dieses Dokument konkretisiert `docs/vision.md` fuer die aktuelle Codebasis.
-Stand: Production Milestone 1 (Real Loop) — echte Provider- und Runner-Integration aktiv.
+This document describes the current codebase behind `docs/vision.md`.
 
-## Architektur-Ueberblick
+Status: current local-first control plane with CLI and MCP surfaces, Codex-first
+local execution, preview-gated MCP mutation, evidence artifacts, and Bitbucket PR
+draft publishing.
+
+## System Shape
 
 ```mermaid
 flowchart TD
-  input[TicketInput] --> cli[apps/cli]
+  user[User / IDE / Assistant] --> cli[apps/cli]
+  user --> mcp[apps/mcp-server]
   cli --> runtime[packages/runtime]
-  runtime --> core[packages/core]
+  mcp --> runtime
+  cli --> core[packages/core]
+  mcp --> core
+  runtime --> core
   runtime --> adapters[packages/adapters]
   runtime --> sandbox[packages/sandbox]
+  runtime --> ops[packages/ops]
   core --> contracts[packages/contracts]
+  runtime --> contracts
   adapters --> contracts
   sandbox --> contracts
-  core --> runstore[.kiwi/runs/<run-id>/]
-  cli --> policy[~/.kiwi/defaults/policy.yaml + workspace override]
-  cli --> registry[~/.kiwi/defaults/model-registry.yaml + workspace override]
+  ops --> contracts
+  core --> runstore["<workspace>/.kiwi/runs/<run-id>/"]
+  core --> home["~/.kiwi/defaults/"]
 ```
 
-## Module
+## Packages And Apps
 
-- `apps/cli`
-  - Kommandos: `init`, `plan`, `run`, `attempt`, `finalize`, `status`, `cost`, `doctor`,
-    `evidence`, `explain`, `operator`, `publish`, `rules`, `run-summary`, `subplan-tree`,
-    `workspace`, `approve`
-  - laedt Policy/Registry
-  - loest Provider und Access Mode auf und delegiert an runtime
-- `packages/core`
-  - Initiative creation
-  - deterministic TaskGraph builder
-  - Run persistence im Ziel-Layout
-  - status aggregation
-- `packages/contracts`
-  - kanonische Zod-Schemas und Domain Types
-  - zentrale Begriffe fuer Initiative/Run/TaskGraph
-- `packages/runtime`
-  - Composition Layer fuer CLI/MCP executable flows
-  - loest Provider, Access Modes und Runner auf
-  - verbindet Core, Adapters und Sandbox ohne eigene Persistenzhoheit
-- `packages/adapters`
-  - Provider-, Runner- und SCM-Adapter hinter stabilen Interfaces
-- `packages/sandbox`
-  - Worktree Lifecycle, Command Policy, Prozessausfuehrung und Diff-Capture
+`apps/cli`
 
-## Persistenzlayout
+- Reference operator surface.
+- Registers `init`, `doctor`, `workspace list`, `plan`, `status`, `explain`, `cost`, `run`, `attempt`, `approve`, `diff`, `apply`, `tail`, `finalize`, `evidence manifest`, `operator snapshot`, `publish pr`, and `rules sync`.
+- Loads workspace/home config, resolves workspace/repo, and composes CLI workflows.
+
+`apps/mcp-server`
+
+- MCP access channel over the same run store and runtime services.
+- Supports stdio and local HTTP transports.
+- Exposes read-only router and preview-gated mutating tools.
+- Requires preview tokens for `kiwi_run`, `kiwi_run_step`, and `kiwi_apply`.
+
+`packages/contracts`
+
+- Zod schemas, inferred TypeScript types, and canonical value constants.
+- Owns serialized contracts for Initiative, Run, TaskGraph, StepAttempt, GateResult, ReviewVerdict, evidence, policy, model registry, and SCM draft artifacts.
+
+`packages/core`
+
+- Config and workspace resolution.
+- Planning primitives and deterministic run creation.
+- Run store, run status, run locks, approvals, audit ledger, and model/cost ledgers.
+- No provider SDKs, runner execution, SCM credentials, or runtime orchestration ownership.
+
+`packages/runtime`
+
+- Executable workflow composition.
+- Scheduler policy, provider/runner resolution, execution previews, direct execution safety, StepAttempt orchestration, gates, review, replanning, finalization, and diff apply workflow.
+- Depends on Core services and Adapter/Sandbox boundaries.
+
+`packages/adapters`
+
+- Planner, reviewer, researcher, runner, and SCM adapter implementations.
+- Includes Codex CLI, Claude Code CLI, Cursor Agent CLI, local shell, Anthropic API, stub providers, and Bitbucket Cloud SCM support.
+
+`packages/sandbox`
+
+- Worktree lifecycle.
+- Process execution.
+- Diff capture and patch apply helpers.
+- Permission, command, and environment enforcement support.
+
+`packages/ops`
+
+- Operator-facing artifacts.
+- Evidence manifests, run summaries, operator HTML snapshots, and PR draft publishing.
+
+## Dependency Rules
+
+- Apps may compose packages.
+- `packages/core` may depend on `packages/contracts` only.
+- `packages/runtime` may depend on `core`, `contracts`, `adapters`, and `sandbox`.
+- `packages/adapters` may depend on `contracts` and `sandbox`.
+- `packages/sandbox` may depend on `contracts`.
+- `packages/ops` may depend on `core`, `runtime`, `adapters`, and `contracts`.
+- Provider-specific SDKs and SCM credentials stay outside Core.
+
+## Persistence Layout
+
+Shared home defaults:
 
 ```text
 ~/.kiwi/
@@ -55,93 +101,218 @@ flowchart TD
     policy.yaml
     model-registry.yaml
   install/
+```
 
-.kiwi/
+Workspace state:
+
+```text
+<workspace>/.kiwi/
   config.yaml
-  policy.yaml              # optional workspace override
-  model-registry.yaml      # optional workspace override
+  policy.yaml                  # optional overlay
+  model-registry.yaml          # optional overlay
+  logs/
+    audit.log
   runs/
     <run-id>/
       run.json
       initiative.json
       plan/
         task-graph.json
+        planner-input.json
+        planner-output.json
+        planner-cost.json
+      previews/
+        preview_<hash>_<nonce>.json
+      approvals/
+        <attempt-id>.json
+      steps/
+        step_001/
+          attempt_<id>/
+            attempt.json
+            scheduler-decision.json
+            context-package.json
+            gate-results.json
+            review-report.json
+            cost-report.json
+            artifacts/
+              diff.patch
+              command-output.txt
+      final/
+        final-summary.md
+        final-verdict.json
+        final-cost-report.json
+        final-cost-report.csv
+        evidence-manifest.json
+        audit-events.json
+        pr-draft.json
+      operator/
+        index.html
+      worktrees/
+        <attempt-id>/
 ```
 
-The home defaults are required. Workspace policy/registry files are overlays only.
+Home defaults are required. Workspace policy and registry files are overlays.
+Run folders are the canonical persistence form.
 
-## Dependency Rules
+## Config Model
 
-- `apps/*` duerfen von `packages/*` abhaengen.
-- `packages/core` darf nur gegen `packages/contracts` sprechen.
-- `packages/runtime` darf `core`, `contracts`, `adapters` und `sandbox`
-  komponieren, besitzt aber keine kanonischen Contracts und keine
-  Provider-spezifische Logik.
-- Contracts enthalten keine runtime side effects.
-- Provider-/Runner-Integrationen gehoeren in `packages/adapters`.
+`kiwi init` creates:
 
-## Model Tier Mapping
+- `~/.kiwi/defaults/policy.yaml`
+- `~/.kiwi/defaults/model-registry.yaml`
+- `<workspace>/.kiwi/config.yaml`
+- optional MCP client config for Cursor, Claude Code, and Codex
 
-Capability tiers in `~/.kiwi/defaults/model-registry.yaml`, optionally overlaid
-by `<workspace>/.kiwi/model-registry.yaml`, map to explicit Codex CLI
-models by default. Kiwi passes the selected `providerModel` to Codex CLI with
-`--model` for every planned step, so model switching is enforced by the runner
-instead of left to Codex defaults. Direct provider API keys are not required for
-daily use.
+`KIWI_HOME=<path>` changes the shared home. Workspace overrides live under
+`<workspace>/.kiwi/` and are merged over home defaults.
 
-| Capability | Default Local Access | Notes                            |
-| ---------- | -------------------- | -------------------------------- |
-| frontier   | codex-cli gpt-5.5    | planner, high-risk reviewer      |
-| strong     | codex-cli gpt-5.4    | default coding, default reviewer |
-| mid        | codex-cli gpt-5.4-mini | tests, docs, rules, research   |
-| cheap      | codex-cli gpt-5.4-mini | smaller context / lower-cost routes |
+## Routing Model
 
-Execution defaults to the current repo working tree with Codex CLI
-`workspace-write` sandboxing. Kiwi invokes Codex with
-`approval_policy="on-request"` and `approvals_reviewer="auto_review"`, so
-eligible approval requests are reviewed by Codex auto-review instead of bypassed.
-`KIWI_EXECUTION_ISOLATION=worktree` keeps the old isolated worktree path as an
-explicit safety override.
+Routing is two-stage:
 
-## Prompt Cache Parity Note
+1. Select `agentRole`.
+2. Select `modelCapability`.
 
-Anthropic API planner/reviewer calls use three cached system blocks to maximize
-prompt prefix reuse. CLI access modes (`claude-code-cli`) currently pass a
-single monolithic `--system-prompt`, so cache reuse and prompt-version tracing
-are weaker there by design.
+The scheduler then selects:
 
-## Capability-to-Context-Level Caps
+- runner/access mode
+- concrete model id and `providerModel`
+- context level
+- required gates
+- review depth
+- estimated attempt cost
+- approval state
+- execution isolation
 
-Scheduler context level selection applies the following caps before packaging
-context for non-risk-high routes:
+Default local access preference:
 
-| Model Capability | Non-Risk Max Context Level | Risk-High Override |
-| ---------------- | -------------------------- | ------------------ |
-| cheap            | L0                         | risk rules may raise to L2/L3 |
-| mid              | L1                         | risk rules may raise to L2/L3 |
-| strong           | context-size driven (L0-L2) | risk rules may raise to L2/L3 |
-| frontier         | context-size driven (L0-L2) | risk rules may raise to L2/L3 |
+1. `KIWI_FORCE_ACCESS_MODE`, when set
+2. Codex CLI
+3. Claude Code CLI
+4. Cursor Agent CLI
+5. direct provider API modes, when configured
+6. stub, only when explicitly allowed
 
-## Tier-to-Step-Type Defaults
+Default capability mapping:
 
-The scheduler picks `agentRole` and `modelCapability` from the policy
-`stepTypeOverrides`. Defaults below match `~/.kiwi/defaults/policy.yaml` and the
-defaults written by `kiwi init`. Risk zones from `riskZones.high` may
-escalate execution and review tiers; downgrading for security-sensitive
-steps is not allowed.
+| Step type | Agent role | Capability |
+| --- | --- | --- |
+| `planning` | `planner` | `frontier` |
+| `review` | `reviewer` | `frontier` |
+| `validation` | `reviewer` | `strong` |
+| `coding` | `executor` | `strong` |
+| `code_creation` | `executor` | `strong` |
+| `code_modification` | `executor` | `strong` |
+| `refactoring` | `executor` | `strong` |
+| `test_creation` | `executor` | `mid` |
+| `documentation` | `executor` | `mid` |
+| `rules_update` | `executor` | `mid` |
+| `scm_ticket` | `executor` | `mid` |
+| `scm_pull_request` | `executor` | `mid` |
+| `scm_review` | `executor` | `mid` |
 
-| Step Type           | Agent Role | Model Capability |
-| ------------------- | ---------- | ---------------- |
-| planning            | planner    | frontier         |
-| review              | reviewer   | frontier         |
-| validation          | reviewer   | strong           |
-| coding              | executor   | strong           |
-| code_creation       | executor   | strong           |
-| code_modification   | executor   | strong           |
-| refactoring         | executor   | strong           |
-| test_creation       | executor   | mid              |
-| documentation       | executor   | mid              |
-| rules_update        | executor   | mid              |
-| scm_ticket          | executor   | mid              |
-| scm_pull_request    | executor   | mid              |
-| scm_review          | executor   | mid              |
+Risk zones can escalate execution and review. Security constraints are not
+weakened by budget pressure.
+
+## Execution Model
+
+Default execution isolation is `direct`.
+
+Direct mode:
+
+- Runs in the selected repo working tree.
+- Captures a git baseline before execution.
+- Persists the StepAttempt diff as a run artifact.
+- Blocks protected-looking branches, dirty tracked files, untracked non-Kiwi files, and non-git repos.
+- Keeps staging, commits, tags, and pushes forbidden unless the user explicitly requested that operation.
+
+Worktree mode:
+
+- Enabled with `KIWI_EXECUTION_ISOLATION=worktree`.
+- Creates attempt worktrees under the run.
+- Requires explicit apply/publish flows to affect the source repo.
+
+CLI mutating commands execute directly after local checks. MCP mutating tools
+require a fresh preview token that binds run state, repo state, policy,
+`fromStep`, `maxConcurrency`, and command override.
+
+## MCP Tool Flow
+
+Preferred assistant flow:
+
+```text
+kiwi_doctor -> kiwi_plan -> kiwi_next -> kiwi_preview_run -> user confirmation -> recommendedToolCall -> kiwi_next -> finalize/evidence/snapshot
+```
+
+MCP tools:
+
+- `kiwi_doctor`
+- `kiwi_plan`
+- `kiwi_status`
+- `kiwi_next`
+- `kiwi_preview_run`
+- `kiwi_run`
+- `kiwi_run_step`
+- `kiwi_diff`
+- `kiwi_apply`
+- `kiwi_cost`
+- `kiwi_explain`
+- `kiwi_request_approval`
+- `kiwi_finalize`
+- `kiwi_evidence_manifest`
+- `kiwi_operator_snapshot`
+- `kiwi_publish_pr_draft`
+
+`kiwi_preview_run` writes a preview artifact and returns a single-use
+`previewToken`. Stale tokens are rejected after relevant policy, repo, command,
+or run-state changes.
+
+## Gates, Review, And Approval
+
+Every StepAttempt can produce:
+
+- scheduler decision
+- runner output
+- artifacts
+- gate results
+- review report
+- cost report
+- model invocation records
+
+Quality gates include policy checks, forbidden file checks, secret checks, and
+step-required gates. Review verdicts are structured JSON.
+
+Approval-required paths and command profiles are policy-driven. CLI records
+approval with `kiwi approve`. MCP records approval with `kiwi_request_approval`
+and requires an explicit non-placeholder `approvedBy` identity.
+
+## Cost And Evidence
+
+Cost is part of planning, preview, execution, and finalization.
+
+Artifacts include:
+
+- model invocation records
+- run cost summaries
+- final cost JSON and optional CSV
+- evidence manifest with file hashes
+- run-scoped audit snapshot
+- local operator HTML snapshot
+
+## SCM Boundary
+
+SCM integration lives behind adapters.
+
+Current publish behavior:
+
+- `kiwi publish pr <run-id>` pushes a local Bitbucket branch using existing git auth.
+- It stages only expected diff files.
+- It requires a clean target repo, including untracked files.
+- It writes `final/pr-draft.json` and a Bitbucket create-PR URL.
+- It does not store API credentials.
+
+## Future Work
+
+- Broader SCM provider parity.
+- Richer operator UI if needed.
+- Agent-to-agent interop only after a new ADR and explicit contracts.

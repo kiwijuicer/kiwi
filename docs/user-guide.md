@@ -3,83 +3,162 @@
 ## Mental Model
 
 - CLI is the reference operator surface.
-- MCP is the IDE/assistant access channel over the same core behavior.
+- MCP is the IDE/assistant access channel over the same run store.
+- Runs are local artifacts under `<workspace>/.kiwi/runs/<run-id>/`.
+- Shared defaults live under `~/.kiwi/defaults/`.
+- Workspace overrides can live under `<workspace>/.kiwi/policy.yaml` and `<workspace>/.kiwi/model-registry.yaml`.
 
-`kiwi` stores every run under:
+For a single repo, `<workspace>` is usually the repo root. For a multi-repo
+workspace, `<workspace>` is the parent control root and `--repo` selects the
+target repo.
 
-```text
-<workspace>/.kiwi/runs/<run-id>/
-```
-
-Shared policy and model defaults live under `~/.kiwi/defaults/`. Workspace-specific run state stays under `<workspace>/.kiwi/`; optional overrides can be added as `<workspace>/.kiwi/policy.yaml` and `<workspace>/.kiwi/model-registry.yaml`. Kiwi commands require the shared defaults, so run `kiwi init` before relying on workspace overrides.
-
-For a single repo, `<workspace>` is usually the repo root. For a multi-repo workspace like `/Users/norberthanauer/Projects/voice`, `<workspace>` is the parent workspace and `--repo` selects the target repo.
-
-## Standard Flow
+## First Setup
 
 ```bash
-kiwi init --workspace /Users/norberthanauer/Projects/voice
-kiwi workspace list --workspace /Users/norberthanauer/Projects/voice
-kiwi plan ./ticket.md --workspace /Users/norberthanauer/Projects/voice --repo core
-kiwi status <run-id> --workspace /Users/norberthanauer/Projects/voice
-kiwi run <run-id> --workspace /Users/norberthanauer/Projects/voice
-kiwi finalize <run-id> --workspace /Users/norberthanauer/Projects/voice
-kiwi publish pr <run-id> --workspace /Users/norberthanauer/Projects/voice --remote origin --target-branch main
-kiwi evidence manifest <run-id> --workspace /Users/norberthanauer/Projects/voice
-kiwi operator snapshot <run-id> --workspace /Users/norberthanauer/Projects/voice
+kiwi init --workspace <workspace>
+kiwi doctor --workspace <workspace>
 ```
 
-Plain `kiwi init` creates missing `~/.kiwi/defaults/` files, prepares workspace `.kiwi` state, and writes Cursor, Claude Code, and Codex MCP project configs by default.
-Use `--mcp none` to skip MCP config or `--mcp cursor|claude|codex` to target one client.
-Generated kiwi and MCP config paths are added to local git ignore/exclude rules.
-Set `KIWI_HOME=/custom/path` before `kiwi init` and later kiwi commands to use a non-default shared home.
+Plain `kiwi init` creates home defaults, prepares workspace `.kiwi` state, and
+writes Cursor, Claude Code, and Codex MCP project configs by default.
 
-`kiwi plan` accepts either a file path or inline text:
+Use:
+
+- `--mcp none` to skip MCP config
+- `--mcp cursor|claude|codex` to target one client
+- `KIWI_HOME=<kiwi-home>` to use a non-default shared home
+
+Generated Kiwi and MCP config paths are added to local ignore/exclude rules.
+
+## Standard CLI Flow
 
 ```bash
-kiwi plan "Fix missing consent state in handoff flow" --workspace /Users/norberthanauer/Projects/voice --repo livekit-agent
+kiwi workspace list --workspace <workspace>
+kiwi plan ./ticket.md --workspace <workspace> --repo api-service
+kiwi status <run-id> --workspace <workspace>
+kiwi explain <run-id> --workspace <workspace>
+kiwi run <run-id> --workspace <workspace>
+kiwi diff <run-id> --workspace <workspace>
+kiwi finalize <run-id> --workspace <workspace>
+kiwi cost <run-id> --workspace <workspace> --csv
+kiwi evidence manifest <run-id> --workspace <workspace>
+kiwi operator snapshot <run-id> --workspace <workspace>
 ```
+
+`kiwi plan` accepts a file path or inline text:
+
+```bash
+kiwi plan "Fix missing consent state in handoff flow" --workspace <workspace> --repo api-service
+```
+
+Useful execution options:
+
+```bash
+kiwi run <run-id> --from-step step_003 --workspace <workspace>
+kiwi run <run-id> --max-concurrency 2 --workspace <workspace>
+kiwi run <run-id> --max-cost 1.00 --workspace <workspace>
+kiwi run <run-id> --auto-fix --workspace <workspace>
+kiwi run <run-id> --auto-replan --workspace <workspace>
+```
+
+`--command` is a controlled development override. Normal runs should use the
+planned runner command.
 
 ## Workspace Repos
 
-`kiwi workspace list` reads `*.code-workspace` files and lists folders as repo candidates.
+`kiwi workspace list` reads `*.code-workspace` files and lists folders as repo
+candidates.
 
-For the Voice workspace this means:
+Example output:
 
 ```text
-core
-livekit-agent
-recorder
+api-service
+web-app
+worker-service
 infrastructure
-livekit-sip
-trunk-manager
-workspace
 ```
 
-When running from inside a listed repo, `kiwi` selects that repo automatically. When running from the workspace root, pass `--repo`. The selector can be the listed id (`core`) or a folder path (`voice-core`).
+When running from inside a listed repo, Kiwi selects that repo automatically.
+When running from the workspace root, pass `--repo`. The selector can be the
+listed id (`api-service`) or a folder path.
+
+## Direct And Worktree Execution
+
+Default execution isolation is direct mode:
+
+- runs in the selected repo working tree
+- captures a baseline before each StepAttempt
+- persists generated diffs under the run
+- blocks protected-looking branches, dirty tracked files, untracked non-Kiwi files, and non-git repos
+
+Use isolated worktrees when you want source changes kept out of the selected repo
+until an explicit apply step:
+
+```bash
+KIWI_EXECUTION_ISOLATION=worktree kiwi run <run-id> --workspace <workspace>
+kiwi diff <run-id> --workspace <workspace>
+kiwi apply <run-id> --workspace <workspace>
+```
+
+`kiwi apply --force-unsafe` exists for CLI use only when review verdicts block
+the apply and the operator explicitly accepts that risk.
+
+## Approvals
+
+Policy may block an attempt when approval-required paths or command profiles are
+hit.
+
+CLI approval flow:
+
+```bash
+kiwi status <run-id> --workspace <workspace> --verbose
+kiwi approve <run-id> <attempt-id> --approved-by <name> --reason "<reason>" --workspace <workspace>
+kiwi run <run-id> --from-step <step-id> --workspace <workspace>
+```
+
+MCP approval uses `kiwi_request_approval` and requires `approvedBy`.
+
+## Publishing PR Drafts
+
+PR publishing is explicit:
+
+```bash
+kiwi publish pr <run-id> --workspace <workspace> --remote origin --target-branch main
+```
+
+Current behavior:
+
+- pushes a local Bitbucket branch using existing git auth
+- stages only expected diff files
+- requires a clean target repo
+- writes `final/pr-draft.json`
+- prints a Bitbucket create-PR URL
 
 ## Assistant Interaction
 
-All assistants use the same MCP server. The assistant can call:
+All assistants use the same MCP server. Available tools:
 
-- `kiwi_doctor` to inspect workspace, repo, policy, git state, execution mode, and local CLI readiness.
-- `kiwi_plan` to create a run.
-- `kiwi_status` to inspect runs.
-- `kiwi_next` to get the exact next safe `recommendedToolCall`.
-- `kiwi_preview_run` to inspect the decision card: step order, model switching, costs, gates, execution mode, mutation scope, confirmation summary, and `previewToken`.
-- `kiwi_run` to execute all planned steps with a fresh `previewToken`.
-- `kiwi_run_step` for advanced single-step execution with a fresh `previewToken`.
-- `kiwi_diff` to inspect persisted diffs.
-- `kiwi_cost` and `kiwi_explain` to inspect costs, routing, gates, and next action.
-- `kiwi_finalize` to write final verdict and summary.
-- `kiwi_publish_pr_draft` to push a local Bitbucket branch and write a PR draft artifact.
-- `kiwi_evidence_manifest` to hash evidence and write an audit snapshot.
-- `kiwi_operator_snapshot` to create a local HTML operator view.
+- `kiwi_doctor`
+- `kiwi_plan`
+- `kiwi_status`
+- `kiwi_next`
+- `kiwi_preview_run`
+- `kiwi_run`
+- `kiwi_run_step`
+- `kiwi_diff`
+- `kiwi_apply`
+- `kiwi_cost`
+- `kiwi_explain`
+- `kiwi_request_approval`
+- `kiwi_finalize`
+- `kiwi_evidence_manifest`
+- `kiwi_operator_snapshot`
+- `kiwi_publish_pr_draft`
 
 Good assistant prompt:
 
 ```text
-Use kiwi. Workspace: /Users/norberthanauer/Projects/voice. Repo: core.
+Use kiwi. Workspace: <workspace>. Repo: api-service.
 Run kiwi_doctor, plan this ticket, call kiwi_next, show the preview decision summary, ask me to confirm, run the returned recommendedToolCall, finalize, and show me the evidence manifest path.
 ```
 
@@ -89,8 +168,33 @@ Safe MCP flow:
 kiwi_doctor -> kiwi_plan -> kiwi_next -> kiwi_preview_run -> user confirm decision.confirmationSummary -> decision.nextAction.recommendedToolCall -> kiwi_next -> finalize/evidence/snapshot
 ```
 
-No direct Anthropic/OpenAI API key is required for the standard flow. Kiwi is Codex-first by default: each planned step is routed to a configured Codex CLI `providerModel`, passed with `--model`, and executed in the current repo working tree with `workspace-write`, `approval_policy="on-request"`, and `approvals_reviewer="auto_review"`. MCP `kiwi_run` and `kiwi_run_step` require a fresh `previewToken`; use `kiwi_next` whenever the correct next tool is unclear. Action-required errors include `data.recovery.recommendedToolCall`. Use `kiwi_request_approval`, not `approved`, for approval-required attempts. Direct execution blocks on `main`/`master`, dirty tracked files, untracked non-Kiwi files, and non-git repos. Set `KIWI_EXECUTION_ISOLATION=worktree` for isolated execution. Bitbucket PR publishing uses your existing git remote/auth, requires a clean tree including untracked files, stages only expected diff files, then writes `final/pr-draft.json` and a Bitbucket create-PR URL.
+MCP `kiwi_run`, `kiwi_run_step`, and `kiwi_apply` require a fresh
+`previewToken`. The token is single-use and bound to run state, repo state,
+policy, `fromStep`, `maxConcurrency`, and command override.
+
+Use `kiwi_next` whenever the correct next tool is unclear. Action-required
+errors include `data.recovery.recommendedToolCall`.
+
+## Model And Auth Defaults
+
+No direct Anthropic/OpenAI API key is required for the standard flow.
+
+Default model access order:
+
+1. Codex CLI with explicit `providerModel`
+2. Claude Code CLI fallback
+3. Cursor Agent CLI fallback
+4. direct provider APIs when configured
+5. stub only when explicitly allowed
+
+Useful environment overrides:
+
+- `KIWI_FORCE_ACCESS_MODE=<mode>`
+- `KIWI_ALLOW_STUB=1`
+- `KIWI_EXECUTION_ISOLATION=worktree`
+- `KIWI_HOME=<kiwi-home>`
 
 ## Future Agent Interop
 
-Agent-to-agent handoff is not active scope. Any future interop channel needs a new ADR, explicit contracts, and local gate semantics before implementation.
+Agent-to-agent handoff is not active scope. Any future interop channel needs a
+new ADR, explicit contracts, and local gate semantics before implementation.

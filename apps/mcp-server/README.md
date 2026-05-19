@@ -8,7 +8,7 @@ The CLI remains the reference operator surface. MCP clients use the same run sto
 
 ```bash
 pnpm build
-KIWI_WORKSPACE=/Users/norberthanauer/Projects/voice \
+KIWI_WORKSPACE=/path/to/workspace \
   node apps/mcp-server/dist/index.js
 ```
 
@@ -22,7 +22,7 @@ pnpm build
 KIWI_MCP_HTTP_TOKEN="$(openssl rand -hex 32)" \
 node apps/mcp-server/dist/index.js \
   --transport http \
-  --workspace /Users/norberthanauer/Projects/voice \
+  --workspace /path/to/workspace \
   --host 127.0.0.1 \
   --port 3333
 ```
@@ -77,9 +77,9 @@ Workspace-aware tools accept:
 
 ```json
 {
-  "workspacePath": "/Users/norberthanauer/Projects/voice",
-  "repoId": "core",
-  "repoPath": "/Users/norberthanauer/Projects/voice/voice-core"
+  "workspacePath": "/path/to/workspace",
+  "repoId": "api-service",
+  "repoPath": "/path/to/workspace/api-service"
 }
 ```
 
@@ -96,8 +96,8 @@ Use either `repoId` or `repoPath`. `repoId` maps to the names listed by `kiwi wo
 {
   "name": "kiwi_doctor",
   "arguments": {
-    "workspacePath": "/Users/norberthanauer/Projects/voice",
-    "repoId": "core"
+    "workspacePath": "/path/to/workspace",
+    "repoId": "api-service"
   }
 }
 ```
@@ -108,8 +108,8 @@ Then:
 {
   "name": "kiwi_plan",
   "arguments": {
-    "workspacePath": "/Users/norberthanauer/Projects/voice",
-    "repoId": "core",
+    "workspacePath": "/path/to/workspace",
+    "repoId": "api-service",
     "ticket": "# Fix consent sync\n\n## Validate"
   }
 }
@@ -121,7 +121,7 @@ Then:
 {
   "name": "kiwi_preview_run",
   "arguments": {
-    "workspacePath": "/Users/norberthanauer/Projects/voice",
+    "workspacePath": "/path/to/workspace",
     "runId": "<run-id>"
   }
 }
@@ -133,7 +133,7 @@ Read the preview `decision.confirmationSummary` to the user. If confirmed, call 
 {
   "name": "kiwi_run",
   "arguments": {
-    "workspacePath": "/Users/norberthanauer/Projects/voice",
+    "workspacePath": "/path/to/workspace",
     "runId": "<run-id>",
     "previewToken": "<preview-token>"
   }
@@ -146,7 +146,7 @@ Finalize and inspect:
 {
   "name": "kiwi_finalize",
   "arguments": {
-    "workspacePath": "/Users/norberthanauer/Projects/voice",
+    "workspacePath": "/path/to/workspace",
     "runId": "<run-id>"
   }
 }

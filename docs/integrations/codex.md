@@ -19,8 +19,8 @@ Add to `~/.codex/config.toml` or a trusted project-scoped `.codex/config.toml`:
 
 ```toml
 [mcp_servers.kiwi]
-command = "/Users/norberthanauer/.local/bin/kiwi-mcp"
-args = ["--workspace", "/Users/norberthanauer/Projects/voice"]
+command = "kiwi-mcp"
+args = ["--workspace", "/path/to/workspace"]
 ```
 
 Codex CLI and the IDE extension share MCP configuration.
@@ -34,7 +34,7 @@ codex mcp list
 Use:
 
 ```text
-Use kiwi. Workspace: /Users/norberthanauer/Projects/voice. Repo: recorder.
+Use kiwi. Workspace: /path/to/workspace. Repo: worker.
 Run kiwi_doctor, plan this ticket, call kiwi_next, show the preview decision summary, ask me to confirm, run the returned recommendedToolCall, finalize, and report the operator snapshot path.
 ```
 
@@ -48,7 +48,7 @@ kiwi_doctor -> kiwi_plan -> kiwi_next -> kiwi_preview_run -> user confirm decisi
 
 ```bash
 codex mcp add kiwi \
-  -- /Users/norberthanauer/.local/bin/kiwi-mcp --workspace /Users/norberthanauer/Projects/voice
+  -- kiwi-mcp --workspace /path/to/workspace
 ```
 
 Codex execution uses the local `codex` CLI login through `codex exec`. Kiwi does not require `OPENAI_API_KEY` for the standard flow.

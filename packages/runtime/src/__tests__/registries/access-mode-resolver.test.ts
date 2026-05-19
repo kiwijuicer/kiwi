@@ -57,7 +57,7 @@ describe("access mode resolver", () => {
   it("falls back to anthropic-api when CLI binary is missing but key is set", () => {
     const result = selectEnabledModelByAccessMode({
       candidates,
-      env: { ANTHROPIC_API_KEY: "sk-ant-test", PATH: "/empty" },
+      env: { ANTHROPIC_API_KEY: "test-api-key", PATH: "/empty" },
     });
     expect(result?.model.accessMode).toBe("anthropic-api");
   });

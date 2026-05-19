@@ -56,26 +56,26 @@ if (!manifest.includes("sha256") || !operator.includes("<!doctype html>")) {
   throw new Error("smoke artifacts are incomplete");
 }
 
-const workspace = mkdtempSync(path.join(tmpdir(), "kiwi-voice-smoke-"));
-const voiceCore = path.join(workspace, "voice-core");
-const voiceAgent = path.join(workspace, "voice-livekit-agent");
-mkdirSync(voiceCore);
-mkdirSync(voiceAgent);
-writeFileSync(path.join(voiceCore, "core.txt"), "core\n", "utf-8");
-writeFileSync(path.join(voiceAgent, "agent.txt"), "agent\n", "utf-8");
-execFileSync("git", ["init"], { cwd: voiceCore, stdio: "ignore" });
-execFileSync("git", ["checkout", "-b", "feature/smoke"], { cwd: voiceCore, stdio: "ignore" });
-execFileSync("git", ["add", "core.txt"], { cwd: voiceCore, stdio: "ignore" });
+const workspace = mkdtempSync(path.join(tmpdir(), "kiwi-workspace-smoke-"));
+const apiService = path.join(workspace, "api-service");
+const workerService = path.join(workspace, "worker-service");
+mkdirSync(apiService);
+mkdirSync(workerService);
+writeFileSync(path.join(apiService, "core.txt"), "core\n", "utf-8");
+writeFileSync(path.join(workerService, "agent.txt"), "agent\n", "utf-8");
+execFileSync("git", ["init"], { cwd: apiService, stdio: "ignore" });
+execFileSync("git", ["checkout", "-b", "feature/smoke"], { cwd: apiService, stdio: "ignore" });
+execFileSync("git", ["add", "core.txt"], { cwd: apiService, stdio: "ignore" });
 execFileSync("git", ["-c", "user.name=Kiwi", "-c", "user.email=kiwi@example.com", "commit", "-m", "initial"], {
-  cwd: voiceCore,
+  cwd: apiService,
   stdio: "ignore",
 });
 writeFileSync(
   path.join(workspace, "workspace.code-workspace"),
   JSON.stringify({
     folders: [
-      { name: "voice-core", path: "voice-core" },
-      { name: "voice-livekit-agent", path: "voice-livekit-agent" },
+      { name: "api-service", path: "api-service" },
+      { name: "worker-service", path: "worker-service" },
     ],
   }),
   "utf-8",
@@ -84,8 +84,8 @@ writeFileSync(
 kiwi(["init", "--workspace", workspace]);
 const workspaceList = kiwi(["workspace", "list", "--workspace", workspace]);
 
-if (!workspaceList.includes("voice-core") || !workspaceList.includes("voice-livekit-agent")) {
-  throw new Error(`workspace smoke did not list voice repos:\n${workspaceList}`);
+if (!workspaceList.includes("api-service") || !workspaceList.includes("worker-service")) {
+  throw new Error(`workspace smoke did not list sample repos:\n${workspaceList}`);
 }
 const workspacePlanOutput = kiwi([
   "plan",
@@ -93,7 +93,7 @@ const workspacePlanOutput = kiwi([
   "--workspace",
   workspace,
   "--repo",
-  "voice-core",
+  "api-service",
 ]);
 const workspaceRunId = workspacePlanOutput.match(/runId:\s+(run_[a-z0-9_]+)/)?.[1];
 
@@ -130,7 +130,7 @@ if (!tailOutput.includes("provider_preference_applied")) {
 }
 const workspaceRun = readFileSync(path.join(workspace, ".kiwi", "runs", workspaceRunId, "run.json"), "utf-8");
 
-if (!workspaceRun.includes(`"repoPath": "${voiceCore}"`)) {
+if (!workspaceRun.includes(`"repoPath": "${apiService}"`)) {
   throw new Error("workspace smoke run did not store target repo metadata");
 }
 const worktrees = path.join(workspace, ".kiwi", "runs", workspaceRunId, "worktrees");
@@ -141,7 +141,7 @@ if (remainingWorktrees.length !== 0) {
 }
 const audit = readFileSync(path.join(workspace, ".kiwi", "logs", "audit.log"), "utf-8");
 
-if (!audit.includes(voiceCore)) {
+if (!audit.includes(apiService)) {
   throw new Error("workspace smoke did not record selected repo path");
 }
 const policy = readFileSync(path.join(kiwiHome, "defaults", "policy.yaml"), "utf-8");

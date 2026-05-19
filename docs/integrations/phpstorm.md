@@ -7,7 +7,7 @@ Official MCP docs: https://www.jetbrains.com/help/ai-assistant/mcp.html
 Build `kiwi`:
 
 ```bash
-cd /Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi
+cd /path/to/ai-kiwi
 pnpm build
 ```
 
@@ -18,9 +18,9 @@ In PhpStorm, open AI Assistant MCP settings and add a local server with this JSO
   "mcpServers": {
     "kiwi": {
       "command": "node",
-      "args": ["/Users/norberthanauer/Projects/kiwi-juicer/ai-kiwi/apps/mcp-server/dist/index.js"],
+      "args": ["/path/to/ai-kiwi/apps/mcp-server/dist/index.js"],
       "env": {
-        "KIWI_WORKSPACE": "/Users/norberthanauer/Projects/voice"
+        "KIWI_WORKSPACE": "/path/to/workspace"
       }
     }
   }
@@ -32,7 +32,7 @@ Restart the IDE if the MCP server is not picked up immediately.
 Use:
 
 ```text
-Use kiwi for workspace /Users/norberthanauer/Projects/voice and repo core.
+Use kiwi for workspace /path/to/workspace and repo api-service.
 Create a plan for this change and show me the current run status.
 ```
 
