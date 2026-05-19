@@ -1,66 +1,121 @@
-# KiWi 🥝
+<div align="center">
 
-Local-first control plane for AI-assisted coding work.
+# 🥝 KiWi
 
-`kiwi` turns a ticket into a TaskGraph, lets your IDE assistant execute the planned steps through MCP safety gates, and keeps reproducible evidence under `.kiwi/runs/<run-id>/`.
+**Local-first control plane for planned, safe, and auditable AI coding work.**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#license)
+[![Local-first](https://img.shields.io/badge/local--first-yes-brightgreen)](#)
+[![MCP](https://img.shields.io/badge/MCP-compatible-blue)](#)
+
+</div>
 
 ---
 
-## For developers (using kiwi)
+`kiwi` turns a ticket into a structured **TaskGraph**, lets an IDE assistant execute the planned steps through explicit safety gates, and stores reproducible evidence under `.kiwi/runs/<run-id>/`.
 
-### 1. Checkout & install
+It is built for developers who want AI-assisted implementation **without losing control** over planning, approvals, diffs, gates, costs, and final review.
+
+---
+
+## 🎯 Why KiWi?
+
+KiWi was built around two core goals:
+
+### 💰 Cost-optimized execution
+
+Naively letting a frontier model drive every step burns budget. KiWi keeps cost predictable by:
+
+- **Per-step model routing** — each step in the TaskGraph declares what it needs (reasoning, code edit, lint fix, summarization) and KiWi picks the cheapest model that meets the bar.
+- **Cost evidence per run** — every run records token usage and spend under `.kiwi/runs/<run-id>/`, so you can see exactly where the money went and tune your model policy.
+- **Preview-before-spend gates** — expensive steps are previewed before execution; you approve the spend, not surprise it.
+
+### 🧠 Sensible LLM choice per step
+
+Not every step needs a flagship model. KiWi routes work to the **right tool for the job**:
+
+| Step type | Typical model class | Why |
+|---|---|---|
+| Planning & TaskGraph synthesis | Strong reasoning model | Quality of the plan defines everything downstream |
+| Code edits & refactors | Mid-tier coding model | Fast, accurate, far cheaper than top-tier |
+| Lint fixes, renames, mechanical edits | Small local / cheap model | Deterministic-ish work, no reason to overpay |
+| Summaries, commit messages, evidence notes | Small / fast model | Throughput matters more than depth |
+| Critical review & gate decisions | Strong reasoning model | High-stakes — pay for accuracy here |
+
+Configure the policy with `kiwi models list` / `kiwi models update --apply` — and switch providers without touching the rest of the pipeline.
+
+---
+
+## ✨ Highlights
+
+- 💰 **Cost-optimized** — per-step model routing and full spend evidence per run
+- 🧠 **Right model per step** — flagship for planning, cheap models for mechanical work
+- 🥝 **Local-first by design** — no hosted control plane required
+- 🧩 **Structured TaskGraph** planning from vague or concrete tickets
+- 🛡️ **Safe step execution** through preview and approval boundaries
+- 🔌 **MCP integration** for Cursor, Claude Code, Codex, and other compatible clients
+- 📦 **Reproducible run artifacts** under `.kiwi/runs/<run-id>/`
+- 📜 **Full audit trail** for decisions, attempts, diffs, gates, reviews, and cost evidence
+- 🗂️ **Single-repo and multi-repo** workspace support
+- ⚙️ **Provider-neutral** architecture with local CLI runner integrations
+
+---
+
+## 📦 Install
 
 ```bash
-# SSH
 git clone git@github.com:kiwijuicer/kiwi.git
-# or HTTPS
-git clone https://github.com/kiwijuicer/kiwi.git
-
 cd kiwi
+
 make install
 kiwi --version
 ```
 
-This installs versioned release wrappers:
+This installs:
 
-- `~/.local/bin/kiwi`
-- `~/.local/bin/kiwi-mcp-stdio`
+| Binary | Path |
+|---|---|
+| `kiwi` | `~/.local/bin/kiwi` |
+| `kiwi-mcp-stdio` | `~/.local/bin/kiwi-mcp-stdio` |
 
-Make sure `~/.local/bin` is on your `PATH`.
+> 💡 Make sure `~/.local/bin` is on your `PATH`.
 
-Refresh the release only (deps already installed):
+Refresh an existing install without reinstalling dependencies:
 
 ```bash
 make install INSTALL_DEPS=0
 ```
 
-### 2. Initialize a workspace, repo, or monorepo
+---
 
-In the project, repo, or workspace you want kiwi to control:
+## ⚙️ Configuration
+
+Initialize kiwi inside the workspace or repo you want it to control:
 
 ```bash
 cd /path/to/workspace
+
 kiwi init
-kiwi models update --apply
 kiwi doctor
 ```
 
-What `kiwi init` does:
-
-- writes shared defaults to `~/.kiwi/defaults/`
-- creates workspace state under `<workspace>/.kiwi/`
-- generates MCP config for Cursor, Claude Code, and Codex
-- adds local kiwi/MCP paths to git ignore rules
-
-Limit the MCP target if you only use one client:
+`kiwi init` already writes a baseline model registry to `~/.kiwi/defaults/`. To pull the latest curated release catalog (newer models, updated pricing), run:
 
 ```bash
-kiwi init --mcp cursor   # or: claude | codex | all | none
+kiwi models update --apply
 ```
 
-Reload the IDE/MCP client after init so it picks up the new config.
+Recommended on first install, optional afterwards.
 
-**Multi-repo workspace:**
+**Limit MCP config generation to one client:**
+
+```bash
+kiwi init --mcp cursor
+kiwi init --mcp claude
+kiwi init --mcp codex
+```
+
+**For multi-repo workspaces:**
 
 ```bash
 kiwi init --workspace /path/to/workspace
@@ -68,91 +123,7 @@ kiwi workspace list --workspace /path/to/workspace
 kiwi doctor --workspace /path/to/workspace --repo <repo-id>
 ```
 
-`repoId` maps to the ids shown by `kiwi workspace list`.
-
-### 3. Use kiwi from your IDE (Cursor, Claude Code, Codex)
-
-Once the workspace is initialized, drop this into chat:
-
-```text
-Use kiwi for this ticket in repo <repo-id>; follow kiwi_next and ask before running.
-```
-
-Longer prompt with explicit safety gates:
-
-```text
-Use kiwi for this ticket in repo <repo-id>. Run kiwi_doctor, plan it, follow kiwi_next,
-show me the preview confirmation summary before mutation, then finalize and report
-the evidence manifest path.
-```
-
-The assistant follows this MCP flow:
-
-```text
-kiwi_doctor → kiwi_plan → kiwi_next → kiwi_preview_run
-  → show decision.confirmationSummary
-  → wait for developer confirmation
-  → run decision.nextAction.recommendedToolCall
-  → kiwi_next → kiwi_finalize → kiwi_evidence_manifest
-```
-
-Why MCP is the default path: the assistant always knows the next safe call, mutations require a fresh `previewToken` from `kiwi_preview_run`, and every run produces artifacts and an audit trail under `.kiwi/runs/<run-id>/`.
-
-### 4. Simple CLI usage (fallback / scripting)
-
-MCP is the recommended interface. Use the CLI directly when scripting or running without an IDE assistant:
-
-```bash
-kiwi plan ./ticket.md --workspace /path/to/workspace --repo <repo-id>
-kiwi run <run-id>     --workspace /path/to/workspace
-kiwi finalize <run-id> --workspace /path/to/workspace
-kiwi evidence manifest <run-id> --workspace /path/to/workspace
-```
-
-Full CLI surface:
-
-```bash
-kiwi init        [--workspace <path>] [--mcp <target>]
-kiwi workspace list   [--workspace <path>]
-kiwi doctor      [--workspace <path>] [--repo <id|path>]
-kiwi models list|update [--apply]
-kiwi config set approver <identity>
-kiwi plan        <ticket|ticket-file>
-kiwi status      [run-id]
-kiwi run         <run-id>
-kiwi finalize    <run-id>
-kiwi evidence manifest <run-id>
-kiwi runs unlock <run-id> --approved-by <name>
-kiwi operator snapshot <run-id>
-```
-
-### Maintenance
-
-```bash
-make install                  # install / update
-make install INSTALL_DEPS=0   # refresh release only
-make rollback                 # revert to previous release
-make uninstall
-```
-
-Optional runner installers:
-
-```bash
-make install-cursor-agent
-make install-claude-code
-```
-
-Override the shared kiwi home:
-
-```bash
-export KIWI_HOME=/custom/path
-```
-
-`kiwi` never creates `~/.kiwi/config.yaml`, so the home directory is never treated as an initialized workspace.
-
-### Manual MCP config
-
-`kiwi init --mcp <target>` is preferred. For clients that need manual config, point them at the installed stdio server:
+**Manual MCP config:**
 
 ```json
 {
@@ -166,28 +137,58 @@ export KIWI_HOME=/custom/path
 }
 ```
 
-For multi-repo work, run one kiwi MCP server per workspace and pass the target repo in the MCP tool args or IDE prompt.
+---
 
-### Recovery
+## 🚀 Usage
 
-`kiwi doctor` reports stale run locks:
+Use kiwi through your IDE assistant:
 
 ```text
-stale run locks: 1
-  run_20260519_120000: run.lock
+Use kiwi for this ticket in repo <repo-id>; follow kiwi_next and ask before running.
 ```
 
-Release after confirming no owner process is active:
+With explicit safety gates:
+
+```text
+Use kiwi for this ticket in repo <repo-id>. Run kiwi_doctor, plan it, follow kiwi_next,
+show me the preview confirmation summary before mutation, then finalize and report
+the evidence manifest path.
+```
+
+### The normal MCP flow
+
+```text
+kiwi_doctor → kiwi_plan → kiwi_next → kiwi_preview_run
+  → confirm preview
+  → run recommended tool call
+  → kiwi_next → kiwi_finalize → kiwi_evidence_manifest
+```
+
+### CLI fallback
 
 ```bash
-kiwi runs unlock run_20260519_120000 --workspace /path/to/workspace --approved-by <name>
+kiwi plan ./ticket.md --workspace /path/to/workspace --repo <repo-id>
+kiwi run <run-id> --workspace /path/to/workspace
+kiwi finalize <run-id> --workspace /path/to/workspace
+kiwi evidence manifest <run-id> --workspace /path/to/workspace
 ```
 
-Use `--force` only when the lock owner is still alive and override is verified safe.
+### Useful commands
+
+| Command | Purpose |
+|---|---|
+| `kiwi init` | Initialize kiwi in the current workspace |
+| `kiwi doctor` | Diagnose configuration and environment |
+| `kiwi workspace list` | List configured workspaces / repos |
+| `kiwi models list` | Show available model configurations |
+| `kiwi models update --apply` | Refresh model definitions |
+| `kiwi status [run-id]` | Show run status |
+| `kiwi runs unlock <run-id> --approved-by <name>` | Unlock a stuck or held run |
+| `kiwi operator snapshot <run-id>` | Capture operator-level snapshot |
 
 ---
 
-## For contributors (developing kiwi itself)
+## 🤝 Contribution
 
 ```bash
 pnpm install
@@ -197,20 +198,19 @@ pnpm typecheck
 pnpm kiwi:src --help
 ```
 
-Conventions:
+Before proposing a change:
 
-- User-facing docs use `kiwi`, not `pnpm kiwi`.
-- Shared policy/model defaults live in `~/.kiwi/defaults/`. Optional overlays can live in `<workspace>/.kiwi/policy.yaml` and `<workspace>/.kiwi/model-registry.yaml`.
-- Real model execution uses local CLI logins (`claude`, `codex`, `cursor-agent`). Bitbucket publishing uses local git auth — kiwi never stores Bitbucket tokens.
+- Keep the change **scoped**
+- Preserve **typed package boundaries**
+- Update **docs and contracts** when behavior changes
+- Run **checks relevant** to the touched scope
 
 ---
 
-## Further reading
+## 👤 Author
 
-- [User guide](docs/user-guide.md)
-- [Architecture](docs/architecture.md)
-- [Claude integration](docs/integrations/claude.md)
-- [Cursor integration](docs/integrations/cursor.md)
-- [Codex integration](docs/integrations/codex.md)
-- [PhpStorm AI Assistant integration](docs/integrations/phpstorm.md)
-- [MCP server reference](apps/mcp-server/README.md)
+**KiWi** is written and maintained by [Norbert Hanauer](mailto:norbert.hanauer@check24.de).
+
+## 📄 License
+
+KiWi is available under the [MIT License](#).
