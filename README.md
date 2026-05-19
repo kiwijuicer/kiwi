@@ -100,7 +100,7 @@ kiwi_doctor
 - Run artifacts, audit trails, costs, and evidence stay under `.kiwi/runs/<run-id>/`.
 - Shared policy/model defaults come from `~/.kiwi/defaults/`; optional workspace overrides can live in `<workspace>/.kiwi/policy.yaml` and `<workspace>/.kiwi/model-registry.yaml`.
 
-Daily use does not require direct Anthropic/OpenAI API keys. Real model execution uses local CLI logins such as `claude`, `codex`, or `cursor-agent`. Bitbucket publishing uses local git auth; kiwi does not store Bitbucket tokens.
+Real model execution uses local CLI logins such as `claude`, `codex`, or `cursor-agent`. Bitbucket publishing uses local git auth; kiwi does not store Bitbucket tokens.
 
 ## Multi-repo workspaces
 

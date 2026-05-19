@@ -162,14 +162,15 @@ describe("provider registries", () => {
     expect(resolution.provider.name).toBe("cursor-agent-cli:default");
   });
 
-  it("selects reviewer providers only when a real access mode is available", () => {
+  it("selects reviewer providers only when a local CLI access mode is available", () => {
     const models: ModelEntry[] = [
       {
-        id: "claude-opus-4-6",
+        id: "claude-code-cli-opus",
+        providerModel: "opus",
         provider: "anthropic",
         capability: "frontier",
         roles: ["reviewer"],
-        accessMode: "anthropic-api",
+        accessMode: "claude-code-cli",
         enabled: true,
         pricing: zeroPricing,
       },
@@ -188,10 +189,10 @@ describe("provider registries", () => {
       registry.select({
         registryModels: models,
         policy,
-        env: { ANTHROPIC_API_KEY: "test-api-key" },
+        env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
         requestedCapability: "frontier",
       })?.provider.name,
-    ).toBe("anthropic:claude-opus-4-6");
+    ).toBe("claude-code-cli:opus");
   });
 
   it("can build Codex and Cursor reviewer providers", () => {

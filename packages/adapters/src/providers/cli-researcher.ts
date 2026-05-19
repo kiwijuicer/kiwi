@@ -1,5 +1,5 @@
 import { AccessMode } from "@kiwi/contracts";
-import { extractTextJson } from "../integrations/anthropic/common.js";
+import { extractTextJson } from "./json-utils.js";
 import { CliPlannerResult, extractCliPlannerText, formatExternalCliFailure } from "./cli-planner.js";
 import { redactForProvider } from "./redaction.js";
 import {

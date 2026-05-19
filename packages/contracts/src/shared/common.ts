@@ -92,8 +92,6 @@ export const CODEX_SANDBOX_VALUES = ["read-only", "workspace-write", "danger-ful
 export const EXECUTION_OWNER_VALUES = ["kiwi-codex-cli"] as const;
 export const MODEL_PROVIDER_VALUES = ["stub", "openai", "anthropic", "local"] as const;
 export const ACCESS_MODE_VALUES = [
-  "anthropic-api",
-  "openai-api",
   "claude-code-cli",
   "cursor-agent-cli",
   "codex-cli",
@@ -338,8 +336,6 @@ export const ModelProviders = {
 } as const;
 
 export const AccessModes = {
-  AnthropicApi: "anthropic-api",
-  OpenaiApi: "openai-api",
   ClaudeCodeCli: "claude-code-cli",
   CursorAgentCli: "cursor-agent-cli",
   CodexCli: "codex-cli",

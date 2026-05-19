@@ -273,33 +273,6 @@
       "functions": ["compactObject", "mutationScope", "safeReadOnlyToolCalls", "toolCall", "workspaceToolArgs"],
       "exportedFunctions": ["mutationScope", "safeReadOnlyToolCalls", "toolCall", "workspaceToolArgs"]
     },
-    "packages/adapters/src/integrations/anthropic/common.ts": {
-      "looseTopLevelFunctions": 11,
-      "exportedLooseTopLevelFunctions": 7,
-      "cohesiveContainers": 0,
-      "functions": [
-        "apiKeyFromAnthropicEnv",
-        "assertAnthropicOk",
-        "createAnthropicTransport",
-        "estimateAnthropicCostUsd",
-        "extractAnthropicUsage",
-        "extractTextJson",
-        "isRecord",
-        "numeric",
-        "priceForModel",
-        "responseErrorMessage",
-        "responseErrorType"
-      ],
-      "exportedFunctions": [
-        "apiKeyFromAnthropicEnv",
-        "assertAnthropicOk",
-        "createAnthropicTransport",
-        "estimateAnthropicCostUsd",
-        "extractAnthropicUsage",
-        "extractTextJson",
-        "isRecord"
-      ]
-    },
     "packages/adapters/src/providers/cli-planner.ts": {
       "looseTopLevelFunctions": 9,
       "exportedLooseTopLevelFunctions": 3,

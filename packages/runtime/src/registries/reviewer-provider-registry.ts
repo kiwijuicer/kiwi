@@ -1,5 +1,4 @@
 import {
-  AnthropicReviewerProvider,
   ClaudeCodeCliReviewerProvider,
   CodexCliReviewerProvider,
   CursorAgentReviewerProvider,
@@ -56,9 +55,6 @@ export class ReviewerProviderRegistry {
   }
 
   buildProvider(model: ModelEntry, env: Record<string, string | undefined>, policy: KiwiPolicy): ReviewerProvider {
-    if (model.accessMode === AccessModes.AnthropicApi) {
-      return new AnthropicReviewerProvider({ model: model.providerModel ?? model.id, env, policy });
-    }
     if (model.accessMode === AccessModes.ClaudeCodeCli) {
       return new ClaudeCodeCliReviewerProvider({
         ...(model.providerModel ? { model: model.providerModel } : {}),

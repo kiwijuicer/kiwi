@@ -195,7 +195,7 @@ For multi-repo work, start one server per workspace or set `KIWI_WORKSPACE` per 
 - `forceUnsafe` is not accepted over MCP.
 - `kiwi_request_approval` only records approval for the latest blocked attempt of a step and only for the approval-required files recorded in gate evidence.
 - Tool descriptions carry risk labels: `READ_ONLY`, `WRITES_RUN_ARTIFACTS`, `MUTATES_WORKTREE`, `APPLIES_PATCH`, `PUSHES_BRANCH`.
-- Direct Anthropic/OpenAI API keys are not required for daily use; local CLI auth is used for Claude, Codex, and Cursor Agent.
+- Model execution uses local CLI auth for Claude, Codex, and Cursor Agent.
 - Direct execution captures a pre-step git tree snapshot and persists only the step diff as run evidence.
 - Bitbucket PR draft publishing uses local git auth only, requires a clean tree including untracked files, stages only expected diff files, and does not store Bitbucket credentials.
 - Step worktrees copy only the selected repo when `KIWI_EXECUTION_ISOLATION=worktree` is enabled.

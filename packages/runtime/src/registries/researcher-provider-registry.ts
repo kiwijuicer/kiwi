@@ -1,5 +1,4 @@
 import {
-  AnthropicResearcherProvider,
   ClaudeCodeCliResearcherProvider,
   CodexCliResearcherProvider,
   CursorAgentResearcherProvider,
@@ -42,9 +41,6 @@ export class ResearcherProviderRegistry {
   }
 
   buildProvider(model: ModelEntry, env: Record<string, string | undefined>): ResearcherProvider {
-    if (model.accessMode === AccessModes.AnthropicApi) {
-      return new AnthropicResearcherProvider({ model: model.providerModel ?? model.id, env });
-    }
     if (model.accessMode === AccessModes.ClaudeCodeCli) {
       return new ClaudeCodeCliResearcherProvider({
         ...(model.providerModel ? { model: model.providerModel } : {}),

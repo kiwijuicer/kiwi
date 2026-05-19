@@ -1,8 +1,8 @@
 import { REVIEW_ISSUE_SEVERITY_VALUES, REVIEW_VERDICT_VALUE_VALUES } from "@kiwi/contracts";
 
-export const REVIEWER_TOOL_NAME = "emit_review_verdict";
+const REVIEWER_TOOL_NAME = "emit_review_verdict";
 
-interface AnthropicReviewerToolDefinition {
+interface ReviewerToolDefinition {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
@@ -11,7 +11,7 @@ interface AnthropicReviewerToolDefinition {
   };
 }
 
-export function reviewerToolDefinition(): AnthropicReviewerToolDefinition {
+export function reviewerToolDefinition(): ReviewerToolDefinition {
   return {
     name: REVIEWER_TOOL_NAME,
     description: "Emit one schema-valid kiwi ReviewVerdict for the focal step diff and gate evidence.",

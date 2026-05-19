@@ -170,6 +170,6 @@ describe("PR draft publishing", () => {
     expect(existsSync(path.join(workspace, ".kiwi", "runs", "run_demo", "final", "pr-draft.json"))).toBe(true);
     expect(
       readFileSync(path.join(workspace, ".kiwi", "runs", "run_demo", "final", "pr-draft.json"), "utf-8"),
-    ).not.toContain("ANTHROPIC_API_KEY");
+    ).not.toContain("do not publish");
   });
 });

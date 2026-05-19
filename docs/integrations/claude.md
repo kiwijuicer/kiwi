@@ -60,4 +60,4 @@ If you keep a project-scoped `.mcp.json`, use:
 
 Claude may ask for approval before using a project-scoped MCP server. That is expected.
 
-Claude execution uses the local `claude` CLI login. Kiwi does not require `ANTHROPIC_API_KEY` for the standard flow.
+Claude execution uses the local `claude` CLI login.

@@ -1,4 +1,4 @@
-import { extractTextJson } from "../anthropic/common.js";
+import { extractTextJson } from "../../providers/json-utils.js";
 import type { UsagePrecision } from "@kiwi/contracts";
 import type { CliOutputFormat } from "../../constants.js";
 import { runSubprocess, SubprocessOutputChunk } from "../../runners/subprocess.js";

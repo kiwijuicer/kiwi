@@ -41,9 +41,6 @@ importers:
       typescript-eslint:
         specifier: ^8.46.4
         version: 8.59.1(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
-      vite:
-        specifier: ^8.0.0
-        version: 8.0.13(@types/node@20.19.39)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.4)
 
   apps/cli:
     dependencies:

@@ -513,6 +513,33 @@ describe("contracts schemas", () => {
     expect(registry.models[0]?.providerModel).toBe("stub-provider-mid");
   });
 
+  it("requires explicit local access mode for external model provider families", () => {
+    expect(() =>
+      ModelRegistrySchema.parse({
+        version: "1",
+        models: [
+          {
+            id: "claude-frontier",
+            providerModel: "opus",
+            provider: "anthropic",
+            capability: "frontier",
+            roles: ["planner"],
+            enabled: true,
+            pricing: {
+              currency: "USD",
+              inputUsdPerMillion: 1,
+              outputUsdPerMillion: 5,
+              source: "catalog",
+              sourceUrl: "https://example.com/pricing",
+              sourceVersion: "2026-05-19",
+              pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z",
+            },
+          },
+        ],
+      }),
+    ).toThrow(/explicit local CLI accessMode/);
+  });
+
   it("parses operator, finalization, and protocol boundary contracts", () => {
     const contextPackage = ContextPackageSchema.parse({
       runId: "run_demo",

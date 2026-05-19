@@ -245,8 +245,8 @@ export interface SecretsScanResult {
 }
 
 const SECRET_PATTERNS: Array<{ name: string; regex: RegExp }> = [
-  { name: "anthropic_api_key", regex: /\bsk-ant-[A-Za-z0-9_-]{16,}\b/ },
-  { name: "openai_api_key", regex: /\bsk-[A-Za-z0-9_-]{16,}\b/ },
+  { name: "provider_secret_token_sk_ant", regex: /\bsk-ant-[A-Za-z0-9_-]{16,}\b/ },
+  { name: "provider_secret_token_sk", regex: /\bsk-[A-Za-z0-9_-]{16,}\b/ },
   { name: "aws_access_key", regex: /\bAKIA[0-9A-Z]{16}\b/ },
   { name: "github_token", regex: /\bghp_[A-Za-z0-9]{36}\b/ },
   { name: "private_key_block", regex: /-----BEGIN [A-Z ]+PRIVATE KEY-----/ },

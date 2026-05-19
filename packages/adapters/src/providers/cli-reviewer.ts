@@ -1,6 +1,6 @@
 import { AccessMode, ContractValues, KiwiPolicy } from "@kiwi/contracts";
 import type { ProviderAttemptType } from "../constants.js";
-import { extractTextJson, isRecord } from "../integrations/anthropic/common.js";
+import { extractTextJson, isRecord } from "./json-utils.js";
 import { CliPlannerResult, extractCliPlannerText, formatExternalCliFailure } from "./cli-planner.js";
 import {
   buildReviewerRepairEnvelope,

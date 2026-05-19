@@ -1,19 +1,5 @@
-import { ContractValues, ResearchReport, ResearchReportSchema, Initiative, KiwiPolicy } from "@kiwi/contracts";
+import { ResearchReport, ResearchReportSchema, Initiative, KiwiPolicy } from "@kiwi/contracts";
 import type { ProviderFailureCode } from "../constants.js";
-import {
-  ANTHROPIC_MESSAGES_ENDPOINT,
-  ANTHROPIC_VERSION,
-  AnthropicHttpRequest,
-  AnthropicHttpResponse,
-  AnthropicMessageRequest as AnthropicMessageRequestBase,
-  apiKeyFromAnthropicEnv,
-  assertAnthropicOk,
-  createAnthropicTransport,
-  estimateAnthropicCostUsd,
-  extractAnthropicUsage,
-  extractTextJson,
-  isRecord,
-} from "../integrations/anthropic/common.js";
 import {
   ClaudeCodeCliInvocation,
   ClaudeCodeCliRunner,
@@ -22,14 +8,13 @@ import {
   formatCliFailure,
   normalizeUsageFromCli,
 } from "../integrations/claude-code/client.js";
+import { extractTextJson } from "./json-utils.js";
 import { redactForProvider } from "./redaction.js";
 import { buildRepoContextEnvelope } from "./repo-context.js";
 import { buildRunnerEnv } from "../runners/env.js";
 
 const RESEARCHER_TOOL_NAME = "emit_research_report";
 export const RESEARCHER_PROMPT_VERSION = "researcher.v1";
-const DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5";
-const DEFAULT_MAX_TOKENS = 4096;
 const DEFAULT_TIMEOUT_MS = 120_000;
 
 export interface ResearcherProviderInput {
@@ -161,39 +146,6 @@ export function buildResearchEnvelope(input: ResearcherProviderInput): string {
   );
 }
 
-function extractResearchReport(responseBody: unknown): unknown {
-  if (!isRecord(responseBody) || !Array.isArray(responseBody.content)) {
-    throw providerError({
-      code: "provider_schema_invalid",
-      message: "Anthropic researcher response did not include content blocks",
-      retryable: false,
-    });
-  }
-  const textBlocks: string[] = [];
-
-  for (const block of responseBody.content) {
-    if (!isRecord(block)) {
-      continue;
-    }
-    if (block.type === "tool_use" && block.name === RESEARCHER_TOOL_NAME) {
-      return block.input;
-    }
-    if (block.type === "text" && typeof block.text === "string") {
-      textBlocks.push(block.text);
-    }
-  }
-  const parsed = extractTextJson(textBlocks.join("\n"));
-
-  if (parsed !== null) {
-    return parsed;
-  }
-  throw providerError({
-    code: "provider_schema_invalid",
-    message: `Anthropic researcher response did not call ${RESEARCHER_TOOL_NAME}`,
-    retryable: false,
-  });
-}
-
 export async function runResearcherProviderWithRetries(
   provider: ResearcherProvider,
   input: ResearcherProviderInput,
@@ -205,110 +157,6 @@ export async function runResearcherProviderWithRetries(
     researchReport: ResearchReportSchema.parse(output.researchReport),
     validation: { schema: "ResearchReportSchema", valid: true },
   };
-}
-
-type AnthropicResearcherMessageRequest = AnthropicMessageRequestBase<ReturnType<typeof researchToolDefinition>>;
-export type AnthropicResearcherHttpRequest = AnthropicHttpRequest<AnthropicResearcherMessageRequest>;
-export type AnthropicResearcherTransport = (request: AnthropicResearcherHttpRequest) => Promise<AnthropicHttpResponse>;
-
-export interface AnthropicResearcherProviderOptions {
-  apiKey?: string;
-  model?: string;
-  endpoint?: string;
-  maxTokens?: number;
-  timeoutMs?: number;
-  transport?: AnthropicResearcherTransport;
-  env?: Record<string, string | undefined>;
-}
-
-const defaultTransport = createAnthropicTransport<AnthropicResearcherMessageRequest, ResearcherProviderError>(
-  ContractValues.Researcher,
-  providerError,
-);
-
-export class AnthropicResearcherProvider implements ResearcherProvider {
-  readonly name: string;
-  private readonly apiKey: string | undefined;
-  private readonly model: string;
-  private readonly endpoint: string;
-  private readonly maxTokens: number;
-  private readonly timeoutMs: number;
-  private readonly transport: AnthropicResearcherTransport;
-  private readonly env: Record<string, string | undefined>;
-
-  constructor(options: AnthropicResearcherProviderOptions = {}) {
-    this.env = options.env ?? process.env;
-    this.apiKey = options.apiKey ?? apiKeyFromAnthropicEnv(this.env);
-    this.model = options.model ?? DEFAULT_ANTHROPIC_MODEL;
-    this.name = `anthropic:${this.model}`;
-    this.endpoint = options.endpoint ?? ANTHROPIC_MESSAGES_ENDPOINT;
-    this.maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
-    this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    this.transport = options.transport ?? defaultTransport;
-  }
-
-  async research(input: ResearcherProviderInput): Promise<ResearcherProviderOutput> {
-    if (!this.apiKey) {
-      throw providerError({
-        code: "provider_auth",
-        message: "ANTHROPIC_API_KEY is required for AnthropicResearcherProvider",
-        retryable: false,
-      });
-    }
-    const envelope = buildResearchEnvelope(input);
-    const redactedEnvelope = redactForProvider(envelope, input.policy, this.env);
-    const request: AnthropicResearcherMessageRequest = {
-      model: this.model,
-      max_tokens: this.maxTokens,
-      system: [
-        {
-          type: "text",
-          text: "You are kiwi's researcher agent. Return concise structured repository context only.",
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      tools: [researchToolDefinition()],
-      tool_choice: { type: "tool", name: RESEARCHER_TOOL_NAME },
-      messages: [{ role: "user", content: [{ type: "text", text: redactedEnvelope.redacted }] }],
-    };
-    const redactedRequest = redactForProvider(request, input.policy, this.env);
-    const response = await this.transport({
-      endpoint: this.endpoint,
-      timeoutMs: this.timeoutMs,
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": this.apiKey,
-        "anthropic-version": ANTHROPIC_VERSION,
-      },
-      body: redactedRequest.redacted,
-    });
-    assertAnthropicOk(response, providerError);
-    const usage = extractAnthropicUsage(response.body);
-    const researchReport = extractResearchReport(response.body);
-
-    return {
-      providerName: this.name,
-      researchReport,
-      modelUsage: { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
-      cost: { estimatedUsd: estimateAnthropicCostUsd(this.model, usage), currency: "USD" },
-      providerArtifacts: {
-        researcherInput: {
-          promptVersion: RESEARCHER_PROMPT_VERSION,
-          accessMode: "anthropic-api",
-          model: this.model,
-          request: redactedRequest.redacted,
-          redaction: redactedRequest.summary,
-        },
-        researcherOutput: {
-          promptVersion: RESEARCHER_PROMPT_VERSION,
-          accessMode: "anthropic-api",
-          model: this.model,
-          response: redactForProvider(response.body, input.policy, this.env).redacted,
-          researchReport,
-        },
-      },
-    };
-  }
 }
 
 export interface ClaudeCodeCliResearcherProviderOptions {

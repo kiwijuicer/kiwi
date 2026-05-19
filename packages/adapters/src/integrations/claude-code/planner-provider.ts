@@ -1,4 +1,4 @@
-import { extractTextJson } from "../anthropic/common.js";
+import { extractTextJson } from "../../providers/json-utils.js";
 import type { ProviderAttemptType } from "../../constants.js";
 import {
   ClaudeCodeCliInvocation,

@@ -22,15 +22,6 @@ const candidates: ModelEntry[] = [
     pricing: zeroPricing,
   },
   {
-    id: "claude-opus-4-6",
-    provider: "anthropic",
-    capability: "frontier",
-    roles: ["planner", "reviewer"],
-    accessMode: "anthropic-api",
-    enabled: true,
-    pricing: zeroPricing,
-  },
-  {
     id: "stub-frontier",
     provider: "stub",
     capability: "frontier",
@@ -59,12 +50,12 @@ describe("access mode resolver", () => {
     expect(result?.model.accessMode).toBe("claude-code-cli");
   });
 
-  it("falls back to anthropic-api when CLI binary is missing but key is set", () => {
+  it("requires a locally available access mode", () => {
     const result = selectEnabledModelByAccessMode({
       candidates,
-      env: { ANTHROPIC_API_KEY: "test-api-key", PATH: "/empty" },
+      env: { PATH: "/empty" },
     });
-    expect(result?.model.accessMode).toBe("anthropic-api");
+    expect(result).toBeNull();
   });
 
   it("does not fall back to stub when no real provider is available by default", () => {
@@ -84,17 +75,17 @@ describe("access mode resolver", () => {
   });
 
   it("respects KIWI_FORCE_ACCESS_MODE", () => {
-    const order = preferredAccessModes({ KIWI_FORCE_ACCESS_MODE: "anthropic-api" });
-    expect(order).toEqual(["anthropic-api"]);
+    const order = preferredAccessModes({ KIWI_FORCE_ACCESS_MODE: "codex-cli" });
+    expect(order).toEqual(["codex-cli"]);
   });
 
-  it("prioritizes Codex-first local CLIs before direct APIs", () => {
+  it("prioritizes Codex-first local CLIs", () => {
     expect(preferredAccessModes({}).slice(0, 5)).toEqual([
       "codex-cli",
       "claude-code-cli",
       "cursor-agent-cli",
-      "anthropic-api",
-      "openai-api",
+      "cursor",
+      "jetbrains",
     ]);
   });
 
@@ -103,8 +94,6 @@ describe("access mode resolver", () => {
     expect(
       evaluateAccessModeAvailability("stub", { KIWI_TEST_ALLOW_STUB: "1", KIWI_FORCE_ACCESS_MODE: "stub" }).available,
     ).toBe(true);
-    expect(evaluateAccessModeAvailability("anthropic-api", {}).available).toBe(false);
-    expect(evaluateAccessModeAvailability("anthropic-api", { ANTHROPIC_API_KEY: "x" }).available).toBe(true);
     expect(evaluateAccessModeAvailability("cursor-agent-cli", { PATH: "/empty" }).available).toBe(false);
   });
 

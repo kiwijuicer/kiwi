@@ -147,8 +147,6 @@ function printAccessModeProbes(env: NodeJS.ProcessEnv): void {
     { mode: "cursor-agent-cli", label: "cursor-agent", role: "local CLI auth: runner/planner/researcher/reviewer" },
     { mode: "cursor", label: "cursor", role: "IDE surface" },
     { mode: "jetbrains", label: "phpstorm", role: "IDE surface" },
-    { mode: "anthropic-api", label: "ANTHROPIC_API_KEY", role: "not required for daily use" },
-    { mode: "openai-api", label: "OPENAI_API_KEY", role: "not required for daily use" },
     { mode: "stub", label: "stub", role: "test-only; requires KIWI_TEST_ALLOW_STUB=1" },
   ];
   console.log(chalk.bold("\naccess modes:"));
@@ -159,7 +157,6 @@ function printAccessModeProbes(env: NodeJS.ProcessEnv): void {
     const reason = availability.reason ? ` ${chalk.dim(availability.reason)}` : "";
     console.log(`  ${probe.label.padEnd(20)} ${status} ${chalk.dim(probe.role)}${reason}`);
   }
-  console.log(chalk.dim("  direct API keys      optional only; default daily use relies on local CLI logins"));
 }
 
 export async function runDoctor(opts: DoctorOptions = {}, cwd: string = process.cwd()): Promise<void> {

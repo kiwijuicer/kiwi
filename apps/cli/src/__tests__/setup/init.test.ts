@@ -190,7 +190,6 @@ models:
 
     expect(policy.version).toBe("1");
     expect(registry.models.length).toBeGreaterThan(0);
-    expect(registry.models.some((model) => model.accessMode === "anthropic-api")).toBe(false);
     expect(registry.models.some((model) => model.accessMode === "codex-cli")).toBe(true);
     expect(registry.models.filter((model) => model.accessMode === "codex-cli").map((model) => model.id)).toEqual([
       "codex-cli-cheap",

@@ -67,7 +67,7 @@ flowchart TD
 `packages/adapters`
 
 - Planner, reviewer, researcher, runner, and SCM adapter implementations.
-- Includes Codex CLI, Claude Code CLI, Cursor Agent CLI, local shell, Anthropic API, stub providers, and Bitbucket Cloud SCM support.
+- Includes Codex CLI, Claude Code CLI, Cursor Agent CLI, local shell, stub providers, and Bitbucket Cloud SCM support.
 
 `packages/sandbox`
 

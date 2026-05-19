@@ -51,4 +51,4 @@ codex mcp add kiwi \
   -- kiwi-mcp-stdio --workspace /path/to/workspace
 ```
 
-Codex execution uses the local `codex` CLI login through `codex exec`. Kiwi does not require `OPENAI_API_KEY` for the standard flow.
+Codex execution uses the local `codex` CLI login through `codex exec`.

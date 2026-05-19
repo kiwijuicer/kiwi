@@ -6,9 +6,9 @@ import {
   STEP_TYPE_VALUES,
 } from "@kiwi/contracts";
 
-export const PLANNER_TOOL_NAME = "emit_task_graph";
+const PLANNER_TOOL_NAME = "emit_task_graph";
 
-interface AnthropicToolDefinition {
+interface PlannerToolDefinition {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
@@ -22,7 +22,7 @@ const stringArraySchema = {
   items: { type: "string", minLength: 1 },
 };
 
-export function plannerToolDefinition(): AnthropicToolDefinition {
+export function plannerToolDefinition(): PlannerToolDefinition {
   return {
     name: PLANNER_TOOL_NAME,
     description: "Emit one schema-valid kiwi TaskGraph for the requested Initiative.",

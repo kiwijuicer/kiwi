@@ -131,11 +131,11 @@ describe("runner resolution", () => {
     const resolution = resolveRunner({
       registryModels: [
         executorModel("claude-sonnet", "strong", "claude-code-cli"),
-        executorModel("anthropic-haiku", "cheap", "anthropic-api"),
+        executorModel("codex-cheap", "cheap", "codex-cli"),
       ],
       step: codingStep,
       requestedCapability: "cheap",
-      env: { KIWI_FAKE_BINARY_AVAILABLE: "1", ANTHROPIC_API_KEY: "test-key" },
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
     });
 
     expect(resolution.executorSelection).toMatchObject({
@@ -143,7 +143,7 @@ describe("runner resolution", () => {
       selectedCapability: "cheap",
       reason: "exact_match",
     });
-    expect(resolution.selectedExecutorModel?.id).toBe("anthropic-haiku");
+    expect(resolution.selectedExecutorModel?.id).toBe("codex-cheap");
   });
 
   it("escalates to the lowest available stronger executor model", () => {

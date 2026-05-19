@@ -67,4 +67,4 @@ Cursor should expose:
 - `kiwi_operator_snapshot`
 - `kiwi_publish_pr_draft`
 
-Cursor Agent execution uses the local `cursor-agent` login. No Anthropic/OpenAI API key is required by Kiwi.
+Cursor Agent execution uses the local `cursor-agent` login.

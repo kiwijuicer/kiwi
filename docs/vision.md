@@ -217,7 +217,7 @@ Default intent:
 Kiwi is Codex-first by default:
 
 - `kiwi init` writes shared defaults under `~/.kiwi/defaults/`.
-- The default registry routes through local CLI access modes before direct APIs.
+- The default registry routes through local CLI access modes only.
 - Codex CLI models are selected explicitly through `providerModel` and passed to the runner.
 - Claude Code CLI and Cursor Agent CLI are fallback local access modes when configured.
 - Stub models are for tests and development only.

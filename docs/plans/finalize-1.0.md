@@ -18,7 +18,7 @@ Der commit `bc6d1d0 feat: add curated model catalog and runtime cost forecasting
 - Audit-Event `model_registry_refreshed` ist in `cost-ledger.ts` registriert
 - `packages/runtime/src/policies/scheduler-context-package.ts` wurde aus `scheduler-policy.ts` extrahiert (`scheduler-policy.ts` jetzt 597 LoC, unter dem 600er Soft-Cap)
 
-Außerdem hat sich eine Annahme in Schritt 4 als falsch herausgestellt: Anthropic- und Codex-CLI-Planner verwenden **bereits symmetrisch** `extractTextJson` (siehe `packages/adapters/src/integrations/anthropic/common.ts:240` und `cli-planner.ts:235`). Die echte Schema-Validation des TaskGraph passiert downstream in `packages/core/src/planning/planner.ts:485` (`TaskGraphSchema.parse`). Es gibt keine Asymmetrie. Dieser Punkt entfällt.
+Außerdem hat sich eine Annahme in Schritt 4 als falsch herausgestellt: Claude-Code- und Codex-CLI-Planner verwenden **bereits symmetrisch** `extractTextJson` aus `packages/adapters/src/providers/json-utils.ts`. Die echte Schema-Validation des TaskGraph passiert downstream in `packages/core/src/planning/planner.ts:485` (`TaskGraphSchema.parse`). Es gibt keine Asymmetrie. Dieser Punkt entfällt.
 
 ## Leitprinzipien (unverändert)
 
@@ -68,14 +68,11 @@ user confirms              -> kiwi_models_update_apply --previewToken=...
 
 Optional, aber sinnvoll für 1.0, weil es das "kiwi ist über die IDE bedienbar"-Versprechen abrundet.
 
-**(e) Anthropic-API `DEFAULT_MODEL` in der Source auf 4-7 angleichen** (`packages/adapters/src/integrations/anthropic/planner-provider.ts:37`). Heute steht dort noch `claude-opus-4-6` als Fallback, der Katalog setzt aber bereits `claude-opus-4-7`. Kein Bug (Katalog gewinnt via `providerModel`), aber inkonsistent.
-
 ### Done-Kriterien
 
 - `kiwi doctor` zeigt keine warnungslose "cheap=mid mit gleichem Pricing"-Konfiguration mehr
 - `kiwi models list --json` liefert maschinenlesbare Modellübersicht
 - `kiwi_models_update` als MCP-Tool in `definitions.ts` registriert, mit Tests
-- Anthropic-Source-Defaults konsistent mit Katalog
 
 **Restaufwand:** ~0,75 Tag
 
@@ -171,7 +168,7 @@ Keine Schema-Änderungen, keine neuen Audit-Events, keine geänderten Default-Pf
 
 **Neu auf der Streichliste (Revision 2):**
 
-- Codex-CLI-Planner Zod-Validation. Bereits symmetrisch zu Anthropic; downstream-Validation passiert in `core/planning/planner.ts:485`. Kein Handlungsbedarf.
+- Codex-CLI-Planner Zod-Validation. Bereits symmetrisch zu den anderen CLI-Planner-Pfaden; downstream-Validation passiert in `core/planning/planner.ts:485`. Kein Handlungsbedarf.
 
 ---
 
@@ -215,4 +212,4 @@ Stichproben gegen `main` `bc6d1d0`:
 - `grep -rn "runs unlock\|process.kill.*ownerPid" packages apps` → keine Treffer ✗
 - `grep "version" package.json` → 0.1.0 ✗
 - `ls CHANGELOG*` → existiert nicht ✗
-- `extractTextJson` wird in beiden Anthropic- und Codex-Planner-Pfaden verwendet ✓ (Schritt 4-Punkt aus Revision 1 ist obsolet)
+- `extractTextJson` wird in den CLI-Planner-Pfaden verwendet ✓ (Schritt 4-Punkt aus Revision 1 ist obsolet)

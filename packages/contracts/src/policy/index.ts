@@ -118,14 +118,11 @@ export const KiwiPolicySchema = z.object({
 export function defaultAccessModeForProvider(
   provider: z.infer<typeof ModelProviderSchema>,
 ): z.infer<typeof AccessModeSchema> {
-  if (provider === ModelProviders.Anthropic) {
-    return AccessModes.AnthropicApi;
-  }
-  if (provider === ModelProviders.Openai) {
-    return AccessModes.OpenaiApi;
-  }
   if (provider === ModelProviders.Local) {
     return AccessModes.Local;
+  }
+  if (provider === ModelProviders.Anthropic || provider === ModelProviders.Openai) {
+    throw new Error(`Provider '${provider}' must define an explicit local CLI accessMode`);
   }
 
   return AccessModes.Stub;
@@ -145,6 +142,16 @@ export const ModelEntrySchema = z
     replacementModelId: z.union([z.string().min(1), z.null()]).optional(),
   })
   .superRefine((entry, ctx) => {
+    if (
+      (entry.provider === ModelProviders.Anthropic || entry.provider === ModelProviders.Openai) &&
+      entry.accessMode === undefined
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["accessMode"],
+        message: `Provider model '${entry.id}' must define an explicit local CLI accessMode`,
+      });
+    }
     if (entry.provider === ModelProviders.Stub) {
       return;
     }

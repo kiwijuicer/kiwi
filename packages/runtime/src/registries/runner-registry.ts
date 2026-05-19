@@ -104,7 +104,6 @@ const EXECUTOR_ACCESS_MODE_ORDER = [
   AccessModes.CodexCli,
   AccessModes.ClaudeCodeCli,
   AccessModes.CursorAgentCli,
-  AccessModes.AnthropicApi,
 ] as const;
 const CODING_RUNNER_PRIORITY: RunnerName[] = [
   RunnerNames.Codex,

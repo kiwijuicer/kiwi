@@ -15,11 +15,6 @@ const RECOGNIZED_BINARIES: Partial<Record<AccessMode, string>> = {
   [AccessModes.Jetbrains]: "phpstorm",
 };
 
-const ENV_KEY_FOR_API: Partial<Record<AccessMode, string>> = {
-  [AccessModes.AnthropicApi]: "ANTHROPIC_API_KEY",
-  [AccessModes.OpenaiApi]: "OPENAI_API_KEY",
-};
-
 function which(binary: string, env: Record<string, string | undefined>): boolean {
   if (env.KIWI_FAKE_BINARY_AVAILABLE === "1") {
     return true;
@@ -148,13 +143,6 @@ export function evaluateAccessModeAvailability(
       ? { accessMode, available: true }
       : { accessMode, available: false, reason: "KIWI_LOCAL_MODEL_ENDPOINT not set" };
   }
-  const apiKey = ENV_KEY_FOR_API[accessMode];
-
-  if (apiKey) {
-    return env[apiKey]
-      ? { accessMode, available: true }
-      : { accessMode, available: false, reason: `${apiKey} not set` };
-  }
   const binary = RECOGNIZED_BINARIES[accessMode];
 
   if (binary) {
@@ -181,8 +169,6 @@ const DEFAULT_PRIORITY: AccessMode[] = [
   AccessModes.CodexCli,
   AccessModes.ClaudeCodeCli,
   AccessModes.CursorAgentCli,
-  AccessModes.AnthropicApi,
-  AccessModes.OpenaiApi,
   AccessModes.Cursor,
   AccessModes.Jetbrains,
   AccessModes.Local,

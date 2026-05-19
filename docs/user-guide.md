@@ -212,15 +212,14 @@ errors include `data.recovery.recommendedToolCall`.
 
 ## Model And Auth Defaults
 
-No direct Anthropic/OpenAI API key is required for the standard flow.
+Model access uses local CLI authentication.
 
 Default model access order:
 
 1. Codex CLI with explicit `providerModel`
 2. Claude Code CLI fallback
 3. Cursor Agent CLI fallback
-4. direct provider APIs when configured
-5. stub only when explicitly allowed
+4. stub only when explicitly allowed
 
 Curated Claude defaults:
 

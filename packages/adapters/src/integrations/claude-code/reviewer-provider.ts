@@ -8,7 +8,7 @@ import {
 } from "./client.js";
 import type { ProviderAttemptType } from "../../constants.js";
 import { ContractValues, KiwiPolicy } from "@kiwi/contracts";
-import { extractTextJson } from "../anthropic/common.js";
+import { extractTextJson } from "../../providers/json-utils.js";
 import { redactForProvider, RedactionSummary } from "../../providers/redaction.js";
 import { buildRunnerEnv } from "../../runners/env.js";
 import {

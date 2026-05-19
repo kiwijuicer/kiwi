@@ -1,5 +1,4 @@
 import {
-  AnthropicPlannerProvider,
   ClaudeCodeCliPlannerProvider,
   CodexCliPlannerProvider,
   CursorAgentPlannerProvider,
@@ -110,9 +109,6 @@ export class PlannerProviderRegistry {
     env: Record<string, string | undefined>,
     options: Pick<ResolvePlannerProviderOptions, "now" | "planIdSuffix"> = {},
   ): PlannerProvider {
-    if (model.accessMode === AccessModes.AnthropicApi) {
-      return new AnthropicPlannerProvider({ model: model.providerModel ?? model.id, env });
-    }
     if (model.accessMode === AccessModes.ClaudeCodeCli) {
       return new ClaudeCodeCliPlannerProvider({
         ...(model.providerModel ? { model: model.providerModel } : {}),
