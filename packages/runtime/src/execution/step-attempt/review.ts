@@ -49,7 +49,7 @@ export async function runAttemptReview(params: {
     step: params.step,
     diff: params.attemptDiff?.diff ?? null,
     diffHash: params.attemptDiff?.diffHash ?? null,
-    riskHigh: params.reviewDepth === ContractValues.Frontier,
+    requestedCapability: params.reviewDepth,
   };
   const richExecution = reviewEngine.reviewWithExecution ? await reviewEngine.reviewWithExecution(reviewInput) : null;
   const rawReviewVerdict = richExecution ? richExecution.verdict : await reviewEngine.review(reviewInput);

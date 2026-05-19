@@ -21,6 +21,7 @@ import {
   StepRunnerExecutionInput,
   StepRunnerExecutionOutput,
 } from "../../execution/step-attempt-orchestrator";
+import { StubReviewEngine } from "../../review/review-engine";
 import { createRuntimeExecutionServices, executePlannedStep } from "../../execution/planned-steps";
 import { DirectExecutionUnsafeError, readExecutionRepoState } from "../../execution/direct-safety";
 
@@ -200,6 +201,7 @@ function writeExecutionConfig(_repo: string, env: Record<string, string | undefi
           roles: ["executor"],
           accessMode: "stub",
           enabled: true,
+          pricing: { currency: "USD", inputUsdPerMillion: 0, outputUsdPerMillion: 0 },
         },
       ],
     }),
@@ -284,7 +286,6 @@ describe("run lifecycle", () => {
         runId: "run_demo",
         stepId: "step_001",
         attemptId: "attempt_apply",
-        command: [process.execPath, "-e", "require('fs').writeFileSync('feature.txt', 'new\\n')"],
         now: new Date("2026-05-04T08:00:30.000Z"),
       });
     } finally {
@@ -297,12 +298,14 @@ describe("run lifecycle", () => {
 
     expect(result.status).toBe("completed");
     expect(result.materializedDiff.status).toBe("applied");
-    expect(readFileSync(path.join(repo, "feature.txt"), "utf-8")).toBe("new\n");
+    expect(readFileSync(path.join(repo, "kiwi-stub-output", "step_001.txt"), "utf-8")).toContain("Implement");
     expect(existsSync(path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_apply"))).toBe(false);
-    expect(execFileSync("git", ["status", "--short"], { cwd: repo, encoding: "utf-8" })).toContain("?? feature.txt\n");
+    expect(execFileSync("git", ["status", "--short"], { cwd: repo, encoding: "utf-8" })).toContain(
+      "?? kiwi-stub-output/",
+    );
     const diffRef = result.materializedDiff.status === "applied" ? result.materializedDiff.diffRef : "";
     const diff = readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", diffRef), "utf-8");
-    expect(diff).toContain("feature.txt");
+    expect(diff).toContain("kiwi-stub-output/step_001.txt");
     expect(diff).not.toContain("preexisting.txt");
   });
 
@@ -317,26 +320,36 @@ describe("run lifecycle", () => {
     });
     createRun(repo, [{ ...step, requiredGates: [] }], { ...initiative, repoPath: repo });
     writeExecutionConfig(repo);
+    const previousForceAccessMode = process.env.KIWI_FORCE_ACCESS_MODE;
+    process.env.KIWI_FORCE_ACCESS_MODE = "stub";
 
-    await expect(
-      executePlannedStep({
-        cwd: repo,
-        runId: "run_demo",
-        stepId: "step_001",
-        command: [process.execPath, "-e", "0"],
-      }),
-    ).rejects.toBeInstanceOf(DirectExecutionUnsafeError);
+    try {
+      await expect(
+        executePlannedStep({
+          cwd: repo,
+          runId: "run_demo",
+          stepId: "step_001",
+          command: [process.execPath, "-e", "0"],
+        }),
+      ).rejects.toBeInstanceOf(DirectExecutionUnsafeError);
 
-    execFileSync("git", ["switch", "-c", "feature"], { cwd: repo, stdio: "ignore" });
-    writeFileSync(path.join(repo, "scratch.txt"), "dirty\n", "utf-8");
-    await expect(
-      executePlannedStep({
-        cwd: repo,
-        runId: "run_demo",
-        stepId: "step_001",
-        command: [process.execPath, "-e", "0"],
-      }),
-    ).rejects.toThrow("untracked non-kiwi files");
+      execFileSync("git", ["switch", "-c", "feature"], { cwd: repo, stdio: "ignore" });
+      writeFileSync(path.join(repo, "scratch.txt"), "dirty\n", "utf-8");
+      await expect(
+        executePlannedStep({
+          cwd: repo,
+          runId: "run_demo",
+          stepId: "step_001",
+          command: [process.execPath, "-e", "0"],
+        }),
+      ).rejects.toThrow("untracked non-kiwi files");
+    } finally {
+      if (previousForceAccessMode === undefined) {
+        delete process.env.KIWI_FORCE_ACCESS_MODE;
+      } else {
+        process.env.KIWI_FORCE_ACCESS_MODE = previousForceAccessMode;
+      }
+    }
   });
 
   it("treats local kiwi MCP config files as kiwi state", () => {
@@ -401,9 +414,8 @@ describe("run lifecycle", () => {
       cwd: repo,
       step,
       schedulerDecision: decision,
-      runner: new PassRunner(),
+      runner: new DiffRunner(),
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_001"),
-      stepPrompt: "ok",
       now: new Date("2026-05-04T08:02:00.000Z"),
     });
 
@@ -416,9 +428,10 @@ describe("run lifecycle", () => {
     });
     expect(refreshed.status).toBe("completed");
 
-    const finalized = finalizeRun({
+    const finalized = await finalizeRun({
       cwd: repo,
       runId: "run_demo",
+      reviewEngine: new StubReviewEngine(),
       now: new Date("2026-05-04T08:04:00.000Z"),
     });
     expect(finalized.verdict.verdict).toBe("pass");
@@ -430,7 +443,7 @@ describe("run lifecycle", () => {
     const usageSummary = JSON.parse(
       readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", "final", "model-usage-summary.json"), "utf-8"),
     ) as { invocationCount: number; byPhase: { executor: { inputTokens: number }; reviewer: { inputTokens: number } } };
-    expect(usageSummary.invocationCount).toBe(2);
+    expect(usageSummary.invocationCount).toBe(3);
     expect(usageSummary.byPhase.executor.inputTokens).toBe(0);
     expect(usageSummary.byPhase.reviewer.inputTokens).toBe(0);
   });
@@ -467,9 +480,8 @@ describe("run lifecycle", () => {
       cwd: repo,
       step,
       schedulerDecision: decision,
-      runner: new PassRunner(),
+      runner: new DiffRunner(),
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_001"),
-      stepPrompt: "ok",
       now: new Date("2026-05-04T08:06:00.000Z"),
     });
 
@@ -507,7 +519,6 @@ describe("run lifecycle", () => {
       schedulerDecision: decision,
       runner: new PassRunner(),
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_001"),
-      stepPrompt: "ok",
       now: new Date("2026-05-04T08:11:00.000Z"),
     });
     writeFileSync(
@@ -516,7 +527,7 @@ describe("run lifecycle", () => {
       "utf-8",
     );
 
-    const finalized = finalizeRun({
+    const finalized = await finalizeRun({
       cwd: repo,
       runId: "run_demo",
       now: new Date("2026-05-04T08:12:00.000Z"),
@@ -551,7 +562,6 @@ describe("run lifecycle", () => {
       schedulerDecision: decision,
       runner: new DiffRunner(),
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_risk"),
-      stepPrompt: "ok",
       policy: highRiskPolicy,
       now: new Date("2026-05-04T08:21:00.000Z"),
     });
@@ -559,11 +569,12 @@ describe("run lifecycle", () => {
     const attempts = listStepAttemptEvidence(repo, "run_demo");
     expect(attempts[0]?.gateResults.map((gate) => gate.gateType)).toEqual([
       "tests",
+      "command_policy",
       "forbidden_file_checks",
       "secrets_check",
     ]);
 
-    const finalized = finalizeRun({
+    const finalized = await finalizeRun({
       cwd: repo,
       runId: "run_demo",
       now: new Date("2026-05-04T08:22:00.000Z"),

@@ -3,12 +3,15 @@ import type {
   BudgetProfile,
   BudgetProfileLimit,
   ContextLevel,
+  ContextPackage,
   ExecutionIsolation,
   ExecutionOwner,
   Initiative,
+  KiwiPolicy,
   ModelCapability,
   RunnerName,
   SchedulerDecisionStatus,
+  TaskGraph,
   Step,
 } from "@kiwi/contracts";
 
@@ -40,38 +43,22 @@ export type BlastRadius = (typeof BLAST_RADIUS_VALUES)[number];
 export type SecuritySensitivity = (typeof SECURITY_SENSITIVITY_VALUES)[number];
 export type ContextSize = (typeof CONTEXT_SIZE_VALUES)[number];
 
-export interface ContextPackage {
-  runId: string;
-  stepId: string;
-  attemptId: string;
-  level: ContextLevel;
-  include: {
-    initiative: boolean;
-    policy: boolean;
-    registry: boolean;
-    commands: boolean;
-    relevantFiles: string[];
-    tests: string[];
-    recentDiffFiles: string[];
-    symbolHits: string[];
-    traces: string[];
-    architectureFiles: string[];
-    historicalOutcomeRefs: string[];
-  };
-  generatedAt: string;
-}
+export type { ContextPackage } from "@kiwi/contracts";
 
 export interface SchedulerInput {
   cwd: string;
   runId: string;
   step: Step;
   initiative: Initiative;
+  taskGraph?: TaskGraph;
+  policy?: KiwiPolicy;
   budgetProfile: BudgetProfile;
   budgetRemainingUsdEstimate: number | null;
   blastRadius: BlastRadius;
   securitySensitivity: SecuritySensitivity;
   contextSize: ContextSize;
   runnerAvailability: RunnerName[];
+  explicitCommand?: boolean;
   relevantFiles?: string[];
   testFiles?: string[];
   recentDiffFiles?: string[];

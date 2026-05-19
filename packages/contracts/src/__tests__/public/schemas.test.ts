@@ -482,6 +482,7 @@ describe("contracts schemas", () => {
           roles: ["executor"],
           accessMode: "stub",
           enabled: true,
+          pricing: { currency: "USD", inputUsdPerMillion: 0, outputUsdPerMillion: 0 },
         },
       ],
     });
@@ -499,6 +500,41 @@ describe("contracts schemas", () => {
       stepId: "step_001",
       attemptId: "attempt_001",
       level: "L1",
+      initiative: {
+        title: "Demo",
+        rawInput: "# Demo",
+        riskProfile: "dev",
+        budgetProfile: "normal",
+      },
+      task: {
+        stepId: "step_001",
+        type: "coding",
+        title: "Implement",
+        successCriteria: ["Done"],
+        requiredGates: ["tests"],
+        acceptanceCriteria: ["Done"],
+      },
+      mutationRequirement: "must_change_files",
+      files: [
+        {
+          path: "src/index.ts",
+          content: "export const ok = true;\n",
+          truncated: false,
+          bytes: 24,
+        },
+      ],
+      commands: {
+        test: "pnpm test",
+        lint: "pnpm lint",
+        typecheck: "pnpm typecheck",
+      },
+      budget: {
+        modelCapability: "strong",
+        contextLevel: "L1",
+        selectedModelId: "stub-mid",
+        selectedProviderModel: "stub-provider-mid",
+        estimatedAttemptCostUsd: 0,
+      },
       include: {
         initiative: true,
         policy: true,

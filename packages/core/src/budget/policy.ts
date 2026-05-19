@@ -1,4 +1,4 @@
-import { BudgetProfile, BudgetProfileLimit, ContextLevel, ModelCapability } from "@kiwi/contracts";
+import { BudgetProfile, BudgetProfileLimit, ContextLevel, ModelCapability, ModelEntry } from "@kiwi/contracts";
 import { BudgetExceededError } from "../errors";
 import { readModelInvocations } from "../ledger/model-invocations";
 
@@ -58,11 +58,6 @@ export function budgetSoftCapExceeded(params: {
   return limit.hardCapUsd - params.remainingUsdEstimate >= limit.softCapUsd;
 }
 
-interface PricePerMillionTokens {
-  input: number;
-  output: number;
-}
-
 // Conservative context-level input token budgets for pre-flight guarding.
 const INPUT_TOKENS_BY_CONTEXT_LEVEL: Record<ContextLevel, number> = {
   L0: 2_000,
@@ -79,40 +74,15 @@ const OUTPUT_TOKENS_BY_CAPABILITY: Record<ModelCapability, number> = {
   frontier: 6_000,
 };
 
-const DEFAULT_MODEL_BY_CAPABILITY: Record<ModelCapability, string> = {
-  cheap: "claude-haiku-4-5",
-  mid: "claude-haiku-4-5",
-  strong: "claude-sonnet-4-6",
-  frontier: "claude-opus-4-6",
-};
-
-function priceForModel(modelId: string): PricePerMillionTokens {
-  if (modelId.includes("opus-4-6") || modelId.includes("opus-4-7") || modelId.includes("opus-4-5")) {
-    return { input: 5, output: 25 };
-  }
-  if (modelId.includes("sonnet")) {
-    return { input: 3, output: 15 };
-  }
-  if (modelId.includes("haiku-4-5")) {
-    return { input: 1, output: 5 };
-  }
-  if (modelId.includes("haiku")) {
-    return { input: 0.25, output: 1.25 };
-  }
-
-  return { input: 3, output: 15 };
-}
-
 export function estimateAttemptCostUsd(params: {
-  modelId: string | null;
+  model: Pick<ModelEntry, "pricing">;
   capability: ModelCapability;
   contextLevel: ContextLevel;
 }): number {
-  const modelId = params.modelId ?? DEFAULT_MODEL_BY_CAPABILITY[params.capability];
-  const price = priceForModel(modelId);
+  const price = params.model.pricing;
   const inputTokens = INPUT_TOKENS_BY_CONTEXT_LEVEL[params.contextLevel];
   const outputTokens = OUTPUT_TOKENS_BY_CAPABILITY[params.capability];
-  const usd = (inputTokens * price.input + outputTokens * price.output) / 1_000_000;
+  const usd = (inputTokens * price.inputUsdPerMillion + outputTokens * price.outputUsdPerMillion) / 1_000_000;
 
   return Number(usd.toFixed(8));
 }
@@ -120,7 +90,7 @@ export function estimateAttemptCostUsd(params: {
 export function assertWithinBudgetEstimate(params: {
   budgetProfile: BudgetProfile;
   remainingUsdEstimate: number | null;
-  modelId: string | null;
+  model: Pick<ModelEntry, "id" | "providerModel" | "pricing">;
   modelCapability: ModelCapability;
   contextLevel: ContextLevel;
   estimateAttemptCostUsdValue?: number;
@@ -131,7 +101,7 @@ export function assertWithinBudgetEstimate(params: {
   const estimate =
     params.estimateAttemptCostUsdValue ??
     estimateAttemptCostUsd({
-      modelId: params.modelId,
+      model: params.model,
       capability: params.modelCapability,
       contextLevel: params.contextLevel,
     });
@@ -144,7 +114,7 @@ export function assertWithinBudgetEstimate(params: {
     budgetProfile: params.budgetProfile,
     remainingUsdEstimate: params.remainingUsdEstimate,
     estimatedAttemptCostUsd: estimate,
-    modelId: params.modelId,
+    modelId: params.model.providerModel ?? params.model.id,
     modelCapability: params.modelCapability,
     contextLevel: params.contextLevel,
   });

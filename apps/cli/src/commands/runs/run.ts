@@ -4,6 +4,7 @@ import {
   buildRunCostForecast,
   firstBudgetProfileForCost,
   getRunStatusSummary,
+  loadEffectiveRegistry,
   loadPlannerCostReport,
   loadTaskGraph,
   withRunLock,
@@ -136,6 +137,7 @@ function assertWithinRunMaxCost(params: {
   const forecast = buildRunCostForecast({
     taskGraph: params.taskGraph,
     plannerCostUsd: plannerCostUsd(params.cwd, params.runId),
+    registryModels: loadEffectiveRegistry(params.cwd).models,
   });
 
   if (forecast.estimatedCostUsd <= params.maxCost) {

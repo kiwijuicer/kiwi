@@ -37,6 +37,7 @@ import type {
   ModelInvocationStatusSchema,
   NextActionTypeSchema,
   ModelProviderSchema,
+  ModelPricingSchema,
   ModelRegistrySchema,
   ModelUsageSchema,
   ModelUsageSummarySchema,
@@ -63,6 +64,7 @@ import type {
   RunnerExecutionOutputSchema,
   RunnerModelUsageSchema,
   RunnerNameSchema,
+  MutationRequirementSchema,
   SchedulerDecisionSchema,
   SchedulerDecisionStatusSchema,
   ScmAuthModeSchema,
@@ -92,6 +94,7 @@ export type ContractsMetadata = z.infer<typeof ContractsMetadataSchema>;
 export type AgentRole = z.infer<typeof AgentRoleSchema>;
 export type ModelCapability = z.infer<typeof ModelCapabilitySchema>;
 export type RunnerName = z.infer<typeof RunnerNameSchema>;
+export type MutationRequirement = z.infer<typeof MutationRequirementSchema>;
 export type StepType = z.infer<typeof StepTypeSchema>;
 export type StepStatus = z.infer<typeof StepStatusSchema>;
 export type RunStatus = z.infer<typeof RunStatusSchema>;
@@ -168,5 +171,6 @@ export type CodexSandbox = z.infer<typeof CodexSandboxSchema>;
 export type ExecutionDefaults = z.infer<typeof ExecutionDefaultsSchema>;
 export type KiwiPolicy = z.infer<typeof KiwiPolicySchema>;
 export type ModelProvider = z.infer<typeof ModelProviderSchema>;
+export type ModelPricing = z.infer<typeof ModelPricingSchema>;
 export type ModelEntry = z.infer<typeof ModelEntrySchema>;
 export type ModelRegistry = z.infer<typeof ModelRegistrySchema>;

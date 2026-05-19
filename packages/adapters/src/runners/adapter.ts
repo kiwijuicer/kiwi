@@ -2,10 +2,12 @@ import type {
   AccessMode,
   Artifact,
   CodexSandbox,
+  ContextPackage,
   ExecutionIsolation,
   GateResult,
   RunnerExecutionStatus as ContractRunnerExecutionStatus,
   RunnerName,
+  Step,
   UsagePrecision,
 } from "@kiwi/contracts";
 import { SandboxCommandPolicy } from "@kiwi/sandbox";
@@ -36,8 +38,8 @@ export interface RunnerExecutionInput {
   executionMode?: ExecutionIsolation;
   codexSandbox?: CodexSandbox;
   diffBaseTree?: string | null;
-  stepPrompt: string;
-  contextPackage: unknown;
+  step: Pick<Step, "stepId" | "type" | "title" | "successCriteria" | "requiredGates">;
+  contextPackage: ContextPackage;
   allowedTools: string[];
   timeouts: RunnerExecutionTimeouts;
   command?: string[];

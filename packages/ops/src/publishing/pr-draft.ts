@@ -10,7 +10,7 @@ import {
   loadTaskGraph,
   resolveRunArtifactPath,
 } from "@kiwi/core";
-import { finalizeRun, loadAttemptDiff } from "@kiwi/runtime";
+import { finalizeRun, loadAttemptDiff, ReviewEngine } from "@kiwi/runtime";
 import { writeEvidenceManifest } from "../evidence";
 import { writeJsonSafely } from "../storage/json-io";
 
@@ -29,6 +29,7 @@ export interface PublishPrDraftParams {
   branchName?: string;
   now?: Date;
   git?: GitCommandRunner;
+  reviewEngine?: ReviewEngine;
 }
 
 export interface PublishPrDraftResult {
@@ -200,7 +201,7 @@ function hasStagedChanges(repoPath: string, runner: GitCommandRunner): boolean {
   }
 }
 
-export function publishPrDraft(params: PublishPrDraftParams): PublishPrDraftResult {
+export async function publishPrDraft(params: PublishPrDraftParams): Promise<PublishPrDraftResult> {
   const now = params.now ?? new Date();
   const remote = params.remote ?? "origin";
   const targetBranch = params.targetBranch ?? "main";
@@ -210,7 +211,15 @@ export function publishPrDraft(params: PublishPrDraftParams): PublishPrDraftResu
   const run = loadRunManifest(params.runId, params.cwd);
   const initiative = loadInitiative(params.runId, params.cwd);
   const repoPath = run.repoPath ?? initiative.repoPath;
-  const verdict = finalizeRun({ cwd: params.cwd, runId: params.runId, now }).verdict;
+  ensureCleanWorkingTree(repoPath, runner);
+  const verdict = (
+    await finalizeRun({
+      cwd: params.cwd,
+      runId: params.runId,
+      now,
+      ...(params.reviewEngine ? { reviewEngine: params.reviewEngine } : {}),
+    })
+  ).verdict;
 
   if (!verdict.safeToApply) {
     throw new Error(`cannot publish PR draft because run is not safe to apply: ${verdict.reason}`);
@@ -222,7 +231,6 @@ export function publishPrDraft(params: PublishPrDraftParams): PublishPrDraftResu
     throw new Error("cannot publish PR draft without a diff artifact");
   }
 
-  ensureCleanWorkingTree(repoPath, runner);
   const branchName = params.branchName ?? branchFromRunId(params.runId);
   switchToPublishBranch({ repoPath, branchName, targetBranch, runner });
   applyDiffs({ repoPath, diffs, runner });

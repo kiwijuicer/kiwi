@@ -30,6 +30,7 @@ export const ExecutionToolNames = {
 export const ExecutorSelectionReasons = {
   LocalResearcher: "local_researcher",
   ResearcherProvider: "researcher_provider",
+  ExplicitCommand: "explicit_command",
   NoModelAvailable: "no_model_available",
 } as const;
 

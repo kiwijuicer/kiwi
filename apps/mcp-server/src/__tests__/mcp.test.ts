@@ -85,7 +85,11 @@ models:
   - id: stub-frontier
     provider: stub
     capability: frontier
-    roles: [planner, reviewer]
+    roles: [planner, executor, reviewer, researcher, rules]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0
+      outputUsdPerMillion: 0
     enabled: true
 `;
   mkdirSync(path.dirname(kiwiHomePolicyPath()), { recursive: true });
@@ -873,6 +877,10 @@ models:
     capability: frontier
     roles: [planner, reviewer]
     accessMode: stub
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0
+      outputUsdPerMillion: 0
     enabled: true
   - id: codex-cli-mid
     providerModel: gpt-5.4-mini
@@ -880,6 +888,10 @@ models:
     capability: mid
     roles: [executor, reviewer, researcher, rules]
     accessMode: codex-cli
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0.25
+      outputUsdPerMillion: 2
     enabled: true
   - id: codex-cli-strong
     providerModel: gpt-5.4
@@ -887,6 +899,10 @@ models:
     capability: strong
     roles: [executor, reviewer, planner, security, rules]
     accessMode: codex-cli
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 2
+      outputUsdPerMillion: 10
     enabled: true
 `,
       "utf-8",
@@ -1193,8 +1209,7 @@ models:
       os.tmpdir(),
     );
     expect(next.error).toBeUndefined();
-    expect((toolJson(next) as { nextAction: { recommendedToolCall: unknown } }).nextAction.recommendedToolCall).toBe(
-      null,
-    );
+    const nextParsed = toolJson(next) as { nextAction: { recommendedToolCall: { name: string } } };
+    expect(nextParsed.nextAction.recommendedToolCall.name).toBe("kiwi_diff");
   });
 });

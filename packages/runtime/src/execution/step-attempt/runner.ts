@@ -80,7 +80,7 @@ function normalizeRunnerException(error: unknown): {
 
 function buildRunnerInput<TCommandPolicy>(
   input: ExecuteStepAttemptInput<TCommandPolicy>,
-  contextPackage: unknown,
+  contextPackage: StepRunnerExecutionInput<TCommandPolicy>["contextPackage"],
   requestedAt: string,
 ): StepRunnerExecutionInput<TCommandPolicy> {
   const runnerInput: StepRunnerExecutionInput<TCommandPolicy> = {
@@ -92,7 +92,13 @@ function buildRunnerInput<TCommandPolicy>(
     executionMode: input.executionMode ?? ExecutionIsolations.Worktree,
     codexSandbox: input.codexSandbox ?? CodexSandboxes.WorkspaceWrite,
     diffBaseTree: input.diffBaseTree ?? null,
-    stepPrompt: input.stepPrompt,
+    step: {
+      stepId: input.step.stepId,
+      type: input.step.type,
+      title: input.step.title,
+      successCriteria: input.step.successCriteria,
+      requiredGates: input.step.requiredGates,
+    },
     contextPackage,
     allowedTools: input.allowedTools ?? [],
     timeouts: input.timeouts ?? { commandTimeoutMs: 120_000 },
@@ -120,7 +126,7 @@ function buildRunnerInput<TCommandPolicy>(
 
 export async function executeStepRunner<TCommandPolicy>(params: {
   input: ExecuteStepAttemptInput<TCommandPolicy>;
-  contextPackage: unknown;
+  contextPackage: StepRunnerExecutionInput<TCommandPolicy>["contextPackage"];
   startedAt: string;
 }): Promise<StepRunnerExecutionOutput> {
   let runnerOutput: StepRunnerExecutionOutput;

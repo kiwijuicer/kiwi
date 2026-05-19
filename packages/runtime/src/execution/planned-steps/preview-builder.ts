@@ -28,6 +28,7 @@ export class RunExecutionPreviewBuilder {
     runId: string;
     fromStep?: string;
     maxConcurrency?: number;
+    command?: string[];
     now?: Date;
   }): RunExecutionPreview {
     const context = this.contextLoader.load(params);
@@ -46,17 +47,25 @@ export class RunExecutionPreviewBuilder {
       executionIsolation: isolation,
       maxConcurrency: params.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
       subPlans: context.taskGraph.subPlans ?? [],
-      steps: context.taskGraph.steps.slice(startIndex).map((step) => this.stepPreview(context, step, isolation)),
+      steps: context.taskGraph.steps
+        .slice(startIndex)
+        .map((step) => this.stepPreview(context, step, isolation, params.command)),
     };
   }
 
-  private stepPreview(context: ExecutionRunContext, step: Step, isolation: ExecutionMode): RunExecutionPreviewStep {
+  private stepPreview(
+    context: ExecutionRunContext,
+    step: Step,
+    isolation: ExecutionMode,
+    command?: string[] | undefined,
+  ): RunExecutionPreviewStep {
     const session = new StepExecutionSession(
       {
         cwd: context.cwd,
         runId: context.runId,
         stepId: step.stepId,
         attemptId: `${PREVIEW_ATTEMPT_ID_PREFIX}${step.stepId.replace("step_", "")}`,
+        ...(command ? { command } : {}),
         now: context.now,
       },
       context,
@@ -84,11 +93,13 @@ export class RunExecutionPreviewBuilder {
       selectedProviderModel: selection.selectedModel?.providerModel ?? null,
       selectedAccessMode: selection.selectedModel?.accessMode ?? null,
       executorSelectionReason: selection.reason,
-      estimatedAttemptCostUsd: this.core.budgets.estimateAttemptCostUsd({
-        modelId: selection.selectedModelId,
-        capability: decision.modelCapability,
-        contextLevel: decision.contextLevel,
-      }),
+      estimatedAttemptCostUsd: selection.selectedModel
+        ? this.core.budgets.estimateAttemptCostUsd({
+            model: selection.selectedModel,
+            capability: decision.modelCapability,
+            contextLevel: decision.contextLevel,
+          })
+        : 0,
       reviewDepth: decision.reviewDepth,
       requiredGates: decision.requiredGates,
       routingReason: decision.routingReason,

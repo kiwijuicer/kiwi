@@ -1,4 +1,4 @@
-import { ContractValues, ModelCapability, TaskGraph } from "@kiwi/contracts";
+import { AgentRole, ContractValues, ModelCapability, ModelEntry, TaskGraph } from "@kiwi/contracts";
 import { BUDGET_PROFILE_LIMITS, estimateAttemptCostUsd } from "./policy";
 
 export interface StepCostForecast {
@@ -31,17 +31,67 @@ function reviewCapabilityFor(executionCapability: ModelCapability): ModelCapabil
   return ContractValues.Mid;
 }
 
-export function buildRunCostForecast(params: { taskGraph: TaskGraph; plannerCostUsd?: number }): RunCostForecast {
+const CAPABILITY_RANK: Record<ModelCapability, number> = {
+  cheap: 0,
+  mid: 1,
+  strong: 2,
+  frontier: 3,
+};
+
+function cheapestModelFor(params: {
+  models: ModelEntry[];
+  role: AgentRole;
+  capability: ModelCapability;
+}): ModelEntry | null {
+  const requestedRank = CAPABILITY_RANK[params.capability];
+  const candidates = params.models
+    .filter(
+      (model) =>
+        model.enabled &&
+        model.roles.includes(params.role) &&
+        CAPABILITY_RANK[model.capability] >= requestedRank,
+    )
+    .sort((a, b) => {
+      const aCost = estimateAttemptCostUsd({ model: a, capability: params.capability, contextLevel: "L0" });
+      const bCost = estimateAttemptCostUsd({ model: b, capability: params.capability, contextLevel: "L0" });
+
+      return aCost - bCost;
+    });
+
+  return candidates[0] ?? null;
+}
+
+function zeroPriceModel(): Pick<ModelEntry, "pricing"> {
+  return { pricing: { currency: "USD", inputUsdPerMillion: 0, outputUsdPerMillion: 0 } };
+}
+
+export function buildRunCostForecast(params: {
+  taskGraph: TaskGraph;
+  plannerCostUsd?: number;
+  registryModels?: ModelEntry[];
+}): RunCostForecast {
   const planner = roundUsd(params.plannerCostUsd ?? 0);
   const steps = params.taskGraph.steps.map((step): StepCostForecast => {
+    const registryModels = params.registryModels ?? [];
+    const executionModel = cheapestModelFor({
+      models: registryModels,
+      role: ContractValues.Executor,
+      capability: step.recommendedModelCapability,
+    });
+    const reviewCapability = reviewCapabilityFor(step.recommendedModelCapability);
+    const reviewerModel = cheapestModelFor({
+      models: registryModels,
+      role: ContractValues.Reviewer,
+      capability: reviewCapability,
+    });
     const executionCostUsd = estimateAttemptCostUsd({
-      modelId: null,
+      model: executionModel ?? zeroPriceModel(),
       capability: step.recommendedModelCapability,
       contextLevel: "L0",
     });
     const reviewCostUsd = estimateAttemptCostUsd({
-      modelId: null,
-      capability: reviewCapabilityFor(step.recommendedModelCapability),
+      model: reviewerModel ?? zeroPriceModel(),
+      capability: reviewCapability,
       contextLevel: "L0",
     });
 

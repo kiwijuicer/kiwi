@@ -18,6 +18,7 @@ const policy: KiwiPolicy = {
   approvals: { requireFor: [], commandApprovalStates: {} },
   commandProfiles: {},
 };
+const zeroPricing = { currency: "USD", inputUsdPerMillion: 0, outputUsdPerMillion: 0 } as const;
 
 describe("provider registries", () => {
   it("keeps planner resolver behavior while delegating provider construction", () => {
@@ -29,6 +30,7 @@ describe("provider registries", () => {
         roles: ["planner"],
         accessMode: "stub",
         enabled: true,
+        pricing: zeroPricing,
       },
     ];
 
@@ -51,6 +53,7 @@ describe("provider registries", () => {
         roles: ["planner"],
         accessMode: "stub",
         enabled: true,
+        pricing: zeroPricing,
       },
     ];
 
@@ -72,6 +75,7 @@ describe("provider registries", () => {
         roles: ["planner"],
         accessMode: "claude-code-cli",
         enabled: true,
+        pricing: zeroPricing,
       },
     ];
 
@@ -93,6 +97,7 @@ describe("provider registries", () => {
         roles: ["planner"],
         accessMode: "claude-code-cli",
         enabled: true,
+        pricing: zeroPricing,
       },
     ];
 
@@ -113,6 +118,7 @@ describe("provider registries", () => {
         roles: ["planner"],
         accessMode: "claude-code-cli",
         enabled: true,
+        pricing: zeroPricing,
       },
       {
         id: "codex-cli-strong",
@@ -122,6 +128,7 @@ describe("provider registries", () => {
         roles: ["planner"],
         accessMode: "codex-cli",
         enabled: true,
+        pricing: zeroPricing,
       },
     ];
 
@@ -143,6 +150,7 @@ describe("provider registries", () => {
         roles: ["planner"],
         accessMode: "cursor-agent-cli",
         enabled: true,
+        pricing: zeroPricing,
       },
     ];
 
@@ -164,16 +172,25 @@ describe("provider registries", () => {
         roles: ["reviewer"],
         accessMode: "anthropic-api",
         enabled: true,
+        pricing: zeroPricing,
       },
     ];
     const registry = new ReviewerProviderRegistry();
 
-    expect(registry.select({ registryModels: models, policy, env: { PATH: "/empty" } })).toBeNull();
+    expect(
+      registry.select({
+        registryModels: models,
+        policy,
+        env: { PATH: "/empty" },
+        requestedCapability: "frontier",
+      }),
+    ).toBeNull();
     expect(
       registry.select({
         registryModels: models,
         policy,
         env: { ANTHROPIC_API_KEY: "test-api-key" },
+        requestedCapability: "frontier",
       })?.provider.name,
     ).toBe("anthropic:claude-opus-4-6");
   });
@@ -188,6 +205,7 @@ describe("provider registries", () => {
         roles: ["reviewer"],
         accessMode: "codex-cli",
         enabled: true,
+        pricing: zeroPricing,
       },
       {
         id: "cursor-agent-auto",
@@ -196,6 +214,7 @@ describe("provider registries", () => {
         roles: ["reviewer"],
         accessMode: "cursor-agent-cli",
         enabled: true,
+        pricing: zeroPricing,
       },
     ];
     const registry = new ReviewerProviderRegistry();
@@ -205,6 +224,7 @@ describe("provider registries", () => {
         registryModels: models,
         policy,
         env: { KIWI_FAKE_BINARY_AVAILABLE: "1", KIWI_FORCE_ACCESS_MODE: "codex-cli" },
+        requestedCapability: "strong",
       })?.provider.name,
     ).toBe("codex-cli:gpt-5.4");
     expect(
@@ -212,6 +232,7 @@ describe("provider registries", () => {
         registryModels: models,
         policy,
         env: { KIWI_FAKE_BINARY_AVAILABLE: "1", KIWI_FORCE_ACCESS_MODE: "cursor-agent-cli" },
+        requestedCapability: "strong",
       })?.provider.name,
     ).toBe("cursor-agent-cli:default");
   });
@@ -225,6 +246,7 @@ describe("provider registries", () => {
         roles: ["researcher"],
         accessMode: "stub",
         enabled: true,
+        pricing: zeroPricing,
       },
     ];
 
@@ -242,6 +264,7 @@ describe("provider registries", () => {
         roles: ["researcher"],
         accessMode: "stub",
         enabled: true,
+        pricing: zeroPricing,
       },
     ];
 
@@ -264,6 +287,7 @@ describe("provider registries", () => {
         roles: ["researcher"],
         accessMode: "codex-cli",
         enabled: true,
+        pricing: zeroPricing,
       },
       {
         id: "cursor-agent-auto",
@@ -272,6 +296,7 @@ describe("provider registries", () => {
         roles: ["researcher"],
         accessMode: "cursor-agent-cli",
         enabled: true,
+        pricing: zeroPricing,
       },
     ];
     const registry = new ResearcherProviderRegistry();

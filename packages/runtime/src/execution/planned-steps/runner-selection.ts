@@ -93,6 +93,13 @@ export class StepRunnerSelector {
         reason: selected ? ExecutorSelectionReasons.ResearcherProvider : ExecutorSelectionReasons.NoModelAvailable,
       };
     }
+    if (params.decision.runner === RunnerNames.LocalShell) {
+      return {
+        selectedModel: null,
+        selectedModelId: null,
+        reason: ExecutorSelectionReasons.ExplicitCommand,
+      };
+    }
     const selection = params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
 
     return {
@@ -122,7 +129,10 @@ export class StepRunnerSelector {
       };
     }
     const researcherSelection = this.researcherSelection(params);
-    const executorSelection = params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
+    const executorSelection =
+      params.decision.runner === RunnerNames.LocalShell
+        ? null
+        : params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
 
     if (executorSelection) {
       this.auditReporter.executorModelSelected({
@@ -158,6 +168,9 @@ export class StepRunnerSelector {
         selectedModelId: researcherSelection.model.id,
         executorSelectionReason: ExecutorSelectionReasons.ResearcherProvider,
       };
+    }
+    if (params.decision.runner === RunnerNames.LocalShell) {
+      return this.executorRunnerSelection(params, null, ExecutorSelectionReasons.ExplicitCommand);
     }
 
     return this.executorRunnerSelection(params, executorSelection?.model, executorSelection?.reason ?? null);

@@ -5,7 +5,7 @@ import {
   runReviewerProviderWithRetries,
   ValidatedReviewerProviderOutput,
 } from "@kiwi/adapters";
-import { ContractValues, KiwiPolicy, ModelEntry, ReviewVerdict } from "@kiwi/contracts";
+import { ContractValues, KiwiPolicy, ModelCapability, ModelEntry, ReviewVerdict } from "@kiwi/contracts";
 import { appendAuditEvent } from "@kiwi/core";
 import { persistReviewerProviderArtifacts, ReviewEngine, ReviewExecutionResult, ReviewInput } from "./review-engine";
 import { ReviewerProviderRegistry, ReviewerProviderSelection } from "../registries/reviewer-provider-registry";
@@ -264,11 +264,13 @@ export class ProviderReviewEngine implements ReviewEngine {
     const reviewerInput = buildReviewerInput(input);
     const env = this.options.env ?? process.env;
     const registry = this.options.reviewerProviderRegistry ?? new ReviewerProviderRegistry();
+    const requestedCapability: ModelCapability =
+      input.requestedCapability ?? (input.riskHigh ? ContractValues.Frontier : ContractValues.Strong);
     const selected = registry.select({
       registryModels: this.options.registryModels,
       policy: this.options.policy,
       env,
-      riskHigh: input.riskHigh ?? false,
+      requestedCapability,
     });
 
     if (!selected) {
@@ -287,7 +289,7 @@ export class ProviderReviewEngine implements ReviewEngine {
         provider: model.provider,
         accessMode: model.accessMode,
         capability: model.capability,
-        riskHigh: input.riskHigh ?? false,
+        requestedCapability,
       },
     });
     if ((this.options.policy.routing.providerPreference.reviewer ?? []).length > 0) {
@@ -316,7 +318,7 @@ export class ProviderReviewEngine implements ReviewEngine {
         providerName: validated.providerName,
         accessMode: model.accessMode,
         selectedCapability: model.capability,
-        requestedCapability: model.capability,
+        requestedCapability,
         modelUsage: validated.modelUsage,
         estimatedCostUsd: validated.cost.estimatedUsd,
         diffHash: input.diffHash ?? null,

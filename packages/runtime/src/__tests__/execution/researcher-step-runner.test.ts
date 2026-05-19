@@ -29,7 +29,55 @@ const model: ModelEntry = {
   roles: ["researcher"],
   accessMode: "stub",
   enabled: true,
+  pricing: { currency: "USD", inputUsdPerMillion: 0, outputUsdPerMillion: 0 },
 };
+
+function contextPackage(runId: string, attemptId: string) {
+  return {
+    runId,
+    stepId: "step_001",
+    attemptId,
+    level: "L1" as const,
+    initiative: {
+      title: "Research auth",
+      rawInput: "Research auth files",
+      riskProfile: "dev",
+      budgetProfile: "normal",
+    },
+    task: {
+      stepId: "step_001",
+      type: "context_discovery" as const,
+      title: "Discover context",
+      successCriteria: ["Research report written"],
+      requiredGates: [],
+      acceptanceCriteria: ["Research report written"],
+    },
+    mutationRequirement: "may_change_files" as const,
+    files: [],
+    commands: { test: "pnpm test", lint: "pnpm lint", typecheck: "pnpm typecheck" },
+    budget: {
+      modelCapability: "mid" as const,
+      contextLevel: "L1" as const,
+      selectedModelId: "stub-mid",
+      selectedProviderModel: null,
+      estimatedAttemptCostUsd: 0,
+    },
+    include: {
+      initiative: true,
+      policy: true,
+      registry: true,
+      commands: true,
+      relevantFiles: ["src/auth.ts"],
+      tests: [],
+      recentDiffFiles: [],
+      symbolHits: [],
+      traces: [],
+      architectureFiles: [],
+      historicalOutcomeRefs: [],
+    },
+    generatedAt: "2026-05-06T12:00:00.000Z",
+  };
+}
 
 describe("ResearcherStepRunner", () => {
   it("can complete local-first research without an external provider", async () => {
@@ -55,12 +103,14 @@ describe("ResearcherStepRunner", () => {
       workspacePath: cwd,
       repoPath: cwd,
       worktreePath: path.join(cwd, ".kiwi", "worktrees", "attempt_local"),
-      stepPrompt: "Discover context",
-      contextPackage: {
-        include: {
-          relevantFiles: ["src/auth.ts"],
-        },
+      step: {
+        stepId: "step_001",
+        type: "context_discovery",
+        title: "Discover context",
+        successCriteria: ["Research report written"],
+        requiredGates: [],
       },
+      contextPackage: contextPackage(runId, "attempt_local"),
       allowedTools: [],
       timeouts: { commandTimeoutMs: 120_000 },
       requestedAt: "2026-05-06T12:00:00.000Z",
@@ -99,12 +149,14 @@ describe("ResearcherStepRunner", () => {
       workspacePath: cwd,
       repoPath: cwd,
       worktreePath: path.join(cwd, ".kiwi", "worktrees", "attempt_20260506120000000"),
-      stepPrompt: "Discover context",
-      contextPackage: {
-        include: {
-          relevantFiles: ["src/auth.ts"],
-        },
+      step: {
+        stepId: "step_001",
+        type: "context_discovery",
+        title: "Discover context",
+        successCriteria: ["Research report written"],
+        requiredGates: [],
       },
+      contextPackage: contextPackage(runId, "attempt_20260506120000000"),
       allowedTools: [],
       timeouts: { commandTimeoutMs: 120_000 },
       requestedAt: "2026-05-06T12:00:00.000Z",

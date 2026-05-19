@@ -1,6 +1,6 @@
 import { AccessMode, ContractValues, GateResultSchema, RunnerName, UsagePrecision } from "@kiwi/contracts";
-import { captureDiffArtifact } from "@kiwi/sandbox";
 import { RunnerExecutionInput, RunnerExecutionOutput } from "./adapter";
+import { captureRunnerDiffArtifact } from "./diff-artifact";
 import { persistRunnerLogs } from "./logs";
 
 export interface CliRunnerProcessResult {
@@ -58,21 +58,7 @@ export function cliRunnerOutput(params: {
     },
     secretValues: params.input.commandPolicy?.secretValues,
   });
-  const diffInput: Parameters<typeof captureDiffArtifact>[0] = {
-    cwd: params.input.workspacePath,
-    runId: params.input.runId,
-    stepId: params.input.stepId,
-    attemptId: params.input.attemptId,
-    worktreePath: params.input.worktreePath,
-  };
-
-  if (params.input.repoPath) {
-    diffInput.sourcePath = params.input.repoPath;
-  }
-  if (params.input.diffBaseTree !== undefined) {
-    diffInput.baseTree = params.input.diffBaseTree;
-  }
-  const diffArtifact = captureDiffArtifact(diffInput);
+  const diffArtifact = captureRunnerDiffArtifact(params.input);
   const artifactRefs = diffArtifact ? [logsArtifact, diffArtifact] : [logsArtifact];
   const baseOutput = {
     artifactRefs,

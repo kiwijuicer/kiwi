@@ -260,6 +260,7 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
   const forecast = buildRunCostForecast({
     taskGraph: planned.taskGraph,
     plannerCostUsd: planned.plannerOutput.cost.estimatedUsd,
+    registryModels: registry.models,
   });
   console.log(
     chalk.dim(

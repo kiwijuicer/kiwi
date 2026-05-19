@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TaskGraph } from "@kiwi/contracts";
+import { ModelEntry, TaskGraph } from "@kiwi/contracts";
 import { buildRunCostForecast, firstBudgetProfileForCost } from "../../budget/forecast";
 
 const graph: TaskGraph = {
@@ -38,10 +38,30 @@ const graph: TaskGraph = {
   complexityScore: 1,
   createdAt: "2026-05-08T10:00:00.000Z",
 };
+const registryModels: ModelEntry[] = [
+  {
+    id: "codex-cli-strong",
+    provider: "local",
+    capability: "strong",
+    roles: ["executor", "reviewer"],
+    accessMode: "codex-cli",
+    enabled: true,
+    pricing: { currency: "USD", inputUsdPerMillion: 2, outputUsdPerMillion: 8 },
+  },
+  {
+    id: "codex-cli-mid",
+    provider: "local",
+    capability: "mid",
+    roles: ["executor", "reviewer"],
+    accessMode: "codex-cli",
+    enabled: true,
+    pricing: { currency: "USD", inputUsdPerMillion: 0.4, outputUsdPerMillion: 1.6 },
+  },
+];
 
 describe("cost forecast", () => {
   it("builds a phase cost forecast for a TaskGraph", () => {
-    const forecast = buildRunCostForecast({ taskGraph: graph, plannerCostUsd: 0.04 });
+    const forecast = buildRunCostForecast({ taskGraph: graph, plannerCostUsd: 0.04, registryModels });
     expect(forecast.estimatedCostUsd).toBeGreaterThan(0.04);
     expect(forecast.phaseCostsUsd.planner).toBe(0.04);
     expect(forecast.phaseCostsUsd.execution).toBeGreaterThan(0);

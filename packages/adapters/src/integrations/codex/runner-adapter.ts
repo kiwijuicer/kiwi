@@ -10,6 +10,7 @@ import {
 import { cliRunnerOutput, runnerTimeoutMs } from "../../runners/cli-output";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../../runners/adapter";
 import { buildRunnerEnv } from "../../runners/env";
+import { buildContractRunnerPrompt } from "../../runners/contract-prompt";
 
 const DEFAULT_TIMEOUT_MS = 600_000;
 const CODEX_ACCESS_MODE = AccessModes.CodexCli;
@@ -20,28 +21,6 @@ export interface CodexCliRunnerAdapterOptions {
   timeoutMs?: number;
   cliRunner?: CodexCliRunner;
   env?: Record<string, string | undefined>;
-}
-
-function buildPrompt(input: RunnerExecutionInput): string {
-  return JSON.stringify(
-    {
-      request:
-        "Implement the focal step in this working directory. Keep the change minimal, satisfy success criteria, and stop with an inspectable working-tree diff.",
-      runId: input.runId,
-      stepId: input.stepId,
-      attemptId: input.attemptId,
-      stepPrompt: input.stepPrompt,
-      contextPackage: input.contextPackage,
-      allowedTools: input.allowedTools,
-      safety: {
-        doNotCommit: true,
-        doNotPush: true,
-        doNotModifyMainWorkspace: input.executionMode !== "direct",
-      },
-    },
-    null,
-    2,
-  );
 }
 
 export class CodexCliRunnerAdapter implements RunnerAdapter {
@@ -69,7 +48,7 @@ export class CodexCliRunnerAdapter implements RunnerAdapter {
     const invocation = {
       binary: this.binary,
       cwd: input.worktreePath,
-      prompt: buildPrompt(input),
+      prompt: buildContractRunnerPrompt(input),
       timeoutMs: runnerTimeoutMs(input, this.timeoutMs),
       env,
       sandbox: input.codexSandbox ?? CODEX_AUTO_REVIEW_SANDBOX,

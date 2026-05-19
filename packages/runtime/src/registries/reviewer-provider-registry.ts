@@ -5,7 +5,7 @@ import {
   CursorAgentReviewerProvider,
   ReviewerProvider,
 } from "@kiwi/adapters";
-import { AccessModes, ContractValues, KiwiPolicy, ModelEntry } from "@kiwi/contracts";
+import { AccessModes, ContractValues, KiwiPolicy, ModelCapability, ModelEntry } from "@kiwi/contracts";
 import { selectEnabledModelByAccessMode } from "./access-mode-resolver";
 
 export interface ReviewerProviderSelection {
@@ -17,13 +17,20 @@ export interface ReviewerProviderRegistrySelectOptions {
   registryModels: ModelEntry[];
   policy: KiwiPolicy;
   env?: Record<string, string | undefined>;
-  riskHigh?: boolean;
+  requestedCapability: ModelCapability;
 }
+
+const CAPABILITY_RANK: Record<ModelCapability, number> = {
+  cheap: 0,
+  mid: 1,
+  strong: 2,
+  frontier: 3,
+};
 
 export class ReviewerProviderRegistry {
   select(options: ReviewerProviderRegistrySelectOptions): ReviewerProviderSelection | null {
     const env = options.env ?? process.env;
-    const candidates = this.pickCandidates(options.registryModels, options.riskHigh ?? false);
+    const candidates = this.pickCandidates(options.registryModels, options.requestedCapability);
     const selected = selectEnabledModelByAccessMode({
       candidates,
       env,
@@ -42,9 +49,9 @@ export class ReviewerProviderRegistry {
     };
   }
 
-  hasAvailableReviewer(options: Omit<ReviewerProviderRegistrySelectOptions, "riskHigh">): boolean {
-    return (
-      this.select({ ...options, riskHigh: true }) !== null || this.select({ ...options, riskHigh: false }) !== null
+  hasAvailableReviewer(options: Omit<ReviewerProviderRegistrySelectOptions, "requestedCapability">): boolean {
+    return ([ContractValues.Frontier, ContractValues.Strong, ContractValues.Mid, ContractValues.Cheap] as const).some(
+      (requestedCapability) => this.select({ ...options, requestedCapability }) !== null,
     );
   }
 
@@ -80,25 +87,12 @@ export class ReviewerProviderRegistry {
     throw new Error(`Reviewer access mode '${model.accessMode}' is not supported yet (modelId: ${model.id}).`);
   }
 
-  pickCandidates(models: ModelEntry[], riskHigh: boolean): ModelEntry[] {
+  pickCandidates(models: ModelEntry[], requestedCapability: ModelCapability): ModelEntry[] {
     const reviewers = models.filter((model) => model.roles.includes(ContractValues.Reviewer));
-    const targetCapability = riskHigh ? ContractValues.Frontier : ContractValues.Strong;
-    const exact = reviewers.filter((model) => model.capability === targetCapability);
+    const minimumRank = CAPABILITY_RANK[requestedCapability];
 
-    if (exact.length > 0) {
-      return exact;
-    }
-    const frontier = reviewers.filter((model) => model.capability === ContractValues.Frontier);
-
-    if (frontier.length > 0) {
-      return frontier;
-    }
-    const strong = reviewers.filter((model) => model.capability === ContractValues.Strong);
-
-    if (strong.length > 0) {
-      return strong;
-    }
-
-    return reviewers;
+    return reviewers
+      .filter((model) => CAPABILITY_RANK[model.capability] >= minimumRank)
+      .sort((a, b) => CAPABILITY_RANK[a.capability] - CAPABILITY_RANK[b.capability]);
   }
 }

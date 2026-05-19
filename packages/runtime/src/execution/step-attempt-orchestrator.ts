@@ -222,8 +222,11 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
     if (params.input.schedulerDecision.routingReason.includes("risk_over_budget_hard_cap_override")) {
       return null;
     }
+    if (!params.input.selectedModel) {
+      return null;
+    }
     const estimateAttemptCostUsdValue = estimateAttemptCostUsd({
-      modelId: params.input.selectedModelId ?? null,
+      model: params.input.selectedModel,
       capability: params.input.schedulerDecision.modelCapability,
       contextLevel: params.input.schedulerDecision.contextLevel,
     });
@@ -232,7 +235,7 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       assertWithinBudgetEstimate({
         budgetProfile: budget.profile,
         remainingUsdEstimate: budget.remainingUsdEstimate,
-        modelId: params.input.selectedModelId ?? null,
+        model: params.input.selectedModel,
         modelCapability: params.input.schedulerDecision.modelCapability,
         contextLevel: params.input.schedulerDecision.contextLevel,
         estimateAttemptCostUsdValue,
@@ -437,6 +440,9 @@ export class StepAttemptOrchestrator<TCommandPolicy = unknown> {
       input,
       ...attemptScope,
       runnerGateResult: runnerOutput.gateResult,
+      runnerStatus: runnerOutput.status,
+      mutationRequirement: contextPackage.mutationRequirement,
+      runnerRawLogsRef: runnerOutput.rawLogsRef,
       attemptDiff,
       diffSubject,
     });

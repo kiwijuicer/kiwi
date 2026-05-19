@@ -3,6 +3,7 @@ import type {
   ContextLevel,
   KiwiConfig,
   ModelCapability,
+  ModelEntry,
   ModelInvocationRecord,
   RunStatus,
 } from "@kiwi/contracts";
@@ -258,7 +259,7 @@ export class BudgetPolicyService {
   }
 
   estimateAttemptCostUsd(params: {
-    modelId: string | null;
+    model: Pick<ModelEntry, "pricing">;
     capability: ModelCapability;
     contextLevel: ContextLevel;
   }): number {

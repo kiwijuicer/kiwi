@@ -1,7 +1,9 @@
 import { existsSync, readFileSync } from "fs";
+import path from "path";
 import {
   BudgetProfileLimit,
   ContractValues,
+  ContextPackageSchema,
   GateTypes,
   ModelCapability,
   ModelCapabilitySchema,
@@ -11,6 +13,7 @@ import {
   Step,
   StepAttempt,
   StepAttemptSchema,
+  RunnerNames,
 } from "@kiwi/contracts";
 import {
   appendAuditEvent,
@@ -29,6 +32,7 @@ import type {
   SchedulerInput,
   SecuritySensitivity,
 } from "./scheduler-types";
+import { mutationRequirementForStepType } from "./mutation-requirement";
 export type {
   BlastRadius,
   ContextLevel,
@@ -48,7 +52,7 @@ function readContextPackage(params: { cwd: string; runId: string; stepId: string
     throw new Error(`context package not found: ${relative}`);
   }
 
-  return JSON.parse(readFileSync(target, "utf-8")) as ContextPackage;
+  return ContextPackageSchema.parse(JSON.parse(readFileSync(target, "utf-8"))) as ContextPackage;
 }
 
 function readSchedulerDecision(params: {
@@ -114,6 +118,73 @@ function sanitizeList(entries: string[], limit: number): string[] {
     .slice(0, limit);
 }
 
+function safeRelativePath(filePath: string): string | null {
+  const normalized = filePath.replace(/\\/g, "/").replace(/^\/+/, "");
+
+  if (!normalized || normalized.startsWith("../") || normalized.includes("/../")) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function readFileSnapshot(params: {
+  repoPath: string;
+  filePath: string;
+  maxBytes: number;
+}): ContextPackage["files"][number] | null {
+  const relative = safeRelativePath(params.filePath);
+
+  if (!relative) {
+    return null;
+  }
+  const root = path.resolve(params.repoPath);
+  const target = path.resolve(root, relative);
+
+  if (!(target === root || target.startsWith(`${root}${path.sep}`)) || !existsSync(target)) {
+    return null;
+  }
+  const buffer = readFileSync(target);
+  const truncated = buffer.byteLength > params.maxBytes;
+  const content = buffer.subarray(0, params.maxBytes).toString("utf-8");
+
+  return {
+    path: relative,
+    content,
+    truncated,
+    bytes: buffer.byteLength,
+  };
+}
+
+function fileSnapshotPaths(params: {
+  level: ContextLevel;
+  relevantFiles: string[];
+  testFiles: string[];
+  recentDiffFiles: string[];
+  architectureFiles: string[];
+}): string[] {
+  if (params.level === "L0") {
+    return [];
+  }
+  const paths = new Set<string>();
+
+  for (const file of [...params.relevantFiles, ...params.testFiles]) {
+    paths.add(file);
+  }
+  if (params.level === "L2" || params.level === "L3") {
+    for (const file of params.recentDiffFiles) {
+      paths.add(file);
+    }
+  }
+  if (params.level === "L3") {
+    for (const file of params.architectureFiles) {
+      paths.add(file);
+    }
+  }
+
+  return Array.from(paths);
+}
+
 function determineContextLevel(params: {
   contextSize: ContextSize;
   riskHigh: boolean;
@@ -146,6 +217,7 @@ function determineContextLevel(params: {
 }
 
 function buildContextPackage(params: {
+  input: SchedulerInput;
   runId: string;
   stepId: string;
   attemptId: string;
@@ -161,12 +233,56 @@ function buildContextPackage(params: {
 }): ContextPackage {
   const levelLimits: Record<ContextLevel, number> = { L0: 4, L1: 12, L2: 25, L3: 40 };
   const limit = levelLimits[params.level];
+  const fileMaxBytes: Record<ContextLevel, number> = { L0: 0, L1: 16_000, L2: 28_000, L3: 40_000 };
+  const snapshotPaths = fileSnapshotPaths({
+    level: params.level,
+    relevantFiles: sanitizeList(params.relevantFiles, limit),
+    testFiles: sanitizeList(params.testFiles, Math.max(4, Math.floor(limit / 2))),
+    recentDiffFiles: sanitizeList(params.recentDiffFiles, Math.max(4, Math.floor(limit / 2))),
+    architectureFiles: sanitizeList(params.architectureFiles, Math.max(4, Math.floor(limit / 2))),
+  });
 
-  return {
+  return ContextPackageSchema.parse({
     runId: params.runId,
     stepId: params.stepId,
     attemptId: params.attemptId,
     level: params.level,
+    initiative: {
+      title: params.input.initiative.title,
+      rawInput: params.input.initiative.rawInput,
+      riskProfile: params.input.initiative.riskProfile,
+      budgetProfile: params.input.initiative.budgetProfile,
+    },
+    task: {
+      stepId: params.input.step.stepId,
+      type: params.input.step.type,
+      title: params.input.step.title,
+      successCriteria: params.input.step.successCriteria,
+      requiredGates: params.input.step.requiredGates,
+      acceptanceCriteria: params.input.taskGraph?.acceptanceCriteria ?? params.input.step.successCriteria,
+    },
+    mutationRequirement: mutationRequirementForStepType(params.input.step.type),
+    files: snapshotPaths
+      .map((filePath) =>
+        readFileSnapshot({
+          repoPath: params.input.initiative.repoPath || params.input.cwd,
+          filePath,
+          maxBytes: fileMaxBytes[params.level],
+        }),
+      )
+      .filter((entry): entry is ContextPackage["files"][number] => entry !== null),
+    commands: {
+      test: params.input.policy?.commands.test ?? "not configured",
+      lint: params.input.policy?.commands.lint ?? "not configured",
+      typecheck: params.input.policy?.commands.typecheck ?? "not configured",
+    },
+    budget: {
+      modelCapability: ModelCapabilitySchema.parse(params.input.step.recommendedModelCapability),
+      contextLevel: params.level,
+      selectedModelId: null,
+      selectedProviderModel: null,
+      estimatedAttemptCostUsd: null,
+    },
     include: {
       initiative: true,
       policy: true,
@@ -181,7 +297,7 @@ function buildContextPackage(params: {
       historicalOutcomeRefs: sanitizeList(params.historicalOutcomeRefs, Math.max(2, Math.floor(limit / 3))),
     },
     generatedAt: params.now.toISOString(),
-  };
+  });
 }
 
 function determineRiskHigh(input: SchedulerInput): boolean {
@@ -318,6 +434,14 @@ function writeSchedulerDecision(cwd: string, decision: SchedulerDecision): strin
   return relative;
 }
 
+function writeContextPackage(cwd: string, contextPackage: ContextPackage): string {
+  const relative = `steps/${contextPackage.stepId}/${contextPackage.attemptId}/context-package.json`;
+  const target = resolveRunArtifactPath(contextPackage.runId, relative, cwd);
+  writeJsonSafely(target, ContextPackageSchema.parse(contextPackage));
+
+  return relative;
+}
+
 interface PreparedScheduling {
   now: Date;
   attemptId: string;
@@ -340,7 +464,7 @@ function contextPackageRef(stepId: string, attemptId: string): string {
 function prepareScheduling(input: SchedulerInput): PreparedScheduling {
   const now = input.now ?? new Date();
   const attemptId = input.attemptId ?? defaultAttemptId(now);
-  const runner = pickRunner(input.runnerAvailability);
+  const runner = input.explicitCommand ? RunnerNames.LocalShell : pickRunner(input.runnerAvailability);
   const routingReason: string[] = [];
   const budgetLimit = budgetLimitForProfile(input.budgetProfile);
   const budget = {
@@ -350,6 +474,9 @@ function prepareScheduling(input: SchedulerInput): PreparedScheduling {
 
   if (input.budgetRemainingUsdEstimate === null) {
     routingReason.push("budget_remaining_unknown");
+  }
+  if (input.explicitCommand) {
+    routingReason.push("explicit_command_local_shell");
   }
   const agentRole = determineAgentRole(input, routingReason);
   const riskHigh = determineRiskHigh(input);
@@ -365,6 +492,7 @@ function prepareScheduling(input: SchedulerInput): PreparedScheduling {
   const reviewDepth = determineReviewDepth(input, modelCapability, routingReason);
   const requiredGates = determineRequiredGates(input, routingReason);
   const contextPackage = buildContextPackage({
+    input,
     runId: input.runId,
     stepId: input.step.stepId,
     attemptId,
@@ -615,6 +743,10 @@ export class SchedulerPolicyService {
     return writeSchedulerDecision(cwd, decision);
   }
 
+  saveContextPackage(cwd: string, contextPackage: ContextPackage): string {
+    return writeContextPackage(cwd, contextPackage);
+  }
+
   scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {
     return scheduleStepAttemptInternal(input);
   }
@@ -640,6 +772,10 @@ export function loadSchedulerDecision(
 
 export function saveSchedulerDecision(cwd: string, decision: SchedulerDecision): string {
   return schedulerPolicyService.saveSchedulerDecision(cwd, decision);
+}
+
+export function saveContextPackage(cwd: string, contextPackage: ContextPackage): string {
+  return schedulerPolicyService.saveContextPackage(cwd, contextPackage);
 }
 
 export function scheduleStepAttempt(input: SchedulerInput): SchedulerDecision {

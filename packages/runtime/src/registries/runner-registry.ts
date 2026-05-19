@@ -4,6 +4,7 @@ import {
   CursorAgentRunnerAdapter,
   LocalShellRunnerAdapter,
   RunnerAdapter,
+  StubRunnerAdapter,
 } from "@kiwi/adapters";
 import {
   AccessMode,
@@ -82,10 +83,9 @@ export interface RunnerResolution {
   runnerAvailabilityDetails: RunnerAvailabilityDetail[];
   buildAdapter(runner: RunnerName, executorModel?: ModelEntry | null): RunnerAdapter;
   /**
-   * Backwards-compatible: resolves the executor model with the step's
-   * recommended capability if the caller did not supply
-   * `requestedCapability`. Prefer calling {@link selectExecutorModel}
-   * after the scheduler has produced its final capability decision.
+   * Initial executor selection for the step's recommended capability.
+   * Prefer calling {@link selectExecutorModel} after the scheduler has
+   * produced its final capability decision.
    */
   selectedExecutorModel: ModelEntry | null;
   /** Detailed selection trace for the recommended capability. */
@@ -109,13 +109,13 @@ const CODING_RUNNER_PRIORITY: RunnerName[] = [
   RunnerNames.Codex,
   RunnerNames.ClaudeCode,
   RunnerNames.CursorAgent,
-  RunnerNames.LocalShell,
+  RunnerNames.Stub,
 ];
 const DEFAULT_RUNNER_PRIORITY: RunnerName[] = [
   RunnerNames.Codex,
   RunnerNames.ClaudeCode,
   RunnerNames.CursorAgent,
-  RunnerNames.LocalShell,
+  RunnerNames.Stub,
 ];
 
 function forcedRunnerForAccessMode(accessMode: string | undefined): RunnerName | null {
@@ -129,8 +129,9 @@ function forcedRunnerForAccessMode(accessMode: string | undefined): RunnerName |
     case AccessModes.CursorAgentCli:
       return RunnerNames.CursorAgent;
     case AccessModes.Local:
-    case AccessModes.Stub:
       return RunnerNames.LocalShell;
+    case AccessModes.Stub:
+      return RunnerNames.Stub;
     default:
       return null;
   }
@@ -156,6 +157,17 @@ function defaultRunnerDefinitions(): RunnerDefinition[] {
         available: true,
       }),
       buildAdapter: () => new LocalShellRunnerAdapter(),
+    },
+    {
+      runner: RunnerNames.Stub,
+      accessMode: AccessModes.Stub,
+      availability: ({ env }) => ({
+        runner: RunnerNames.Stub,
+        accessMode: AccessModes.Stub,
+        available: stubAccessAllowed(env),
+        ...(stubAccessAllowed(env) ? {} : { reason: "stub access is disabled" }),
+      }),
+      buildAdapter: () => new StubRunnerAdapter(),
     },
     {
       runner: RunnerNames.ClaudeCode,
@@ -377,7 +389,7 @@ function runnerForAccessMode(accessMode: AccessMode): RunnerName | null {
     return RunnerNames.CursorAgent;
   }
   if (accessMode === AccessModes.Local || accessMode === AccessModes.Stub) {
-    return RunnerNames.LocalShell;
+    return accessMode === AccessModes.Stub ? RunnerNames.Stub : RunnerNames.LocalShell;
   }
 
   return null;
@@ -408,7 +420,7 @@ function hasExecutorModelForRunner(
   env: Record<string, string | undefined>,
 ): boolean {
   if (detail.runner === RunnerNames.LocalShell || detail.accessMode === RunnerAccessModes.LocalShell) {
-    return true;
+    return false;
   }
 
   return models.some((model) => {

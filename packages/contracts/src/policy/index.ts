@@ -33,6 +33,12 @@ export const PolicyRoutingOverrideSchema = z.object({
   modelCapability: ModelCapabilitySchema,
 });
 
+export const ModelPricingSchema = z.object({
+  currency: z.literal("USD"),
+  inputUsdPerMillion: z.number().min(0),
+  outputUsdPerMillion: z.number().min(0),
+});
+
 export const ProviderPreferenceSchema = z
   .object({
     planner: z.array(AccessModeSchema).optional(),
@@ -121,6 +127,7 @@ export const ModelEntrySchema = z
     provider: ModelProviderSchema,
     capability: ModelCapabilitySchema,
     roles: z.array(AgentRoleSchema).min(1),
+    pricing: ModelPricingSchema,
     enabled: z.boolean(),
     accessMode: AccessModeSchema.optional(),
   })
@@ -148,6 +155,7 @@ export type ExecutionOwner = z.infer<typeof ExecutionOwnerSchema>;
 export type CodexSandbox = z.infer<typeof CodexSandboxSchema>;
 export type ExecutionDefaults = z.infer<typeof ExecutionDefaultsSchema>;
 export type KiwiPolicy = z.infer<typeof KiwiPolicySchema>;
+export type ModelPricing = z.infer<typeof ModelPricingSchema>;
 export type ModelProvider = z.infer<typeof ModelProviderSchema>;
 export type AccessMode = z.infer<typeof AccessModeSchema>;
 export type ModelEntry = z.infer<typeof ModelEntrySchema>;

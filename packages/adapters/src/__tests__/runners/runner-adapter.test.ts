@@ -89,6 +89,63 @@ function policy(overrides: Partial<SandboxCommandPolicy> = {}): SandboxCommandPo
   };
 }
 
+function step(title: string) {
+  return {
+    stepId: "step_001" as const,
+    type: "coding" as const,
+    title,
+    successCriteria: ["done"],
+    requiredGates: [],
+  };
+}
+
+function contextPackage(runId: string, attemptId: string, title: string) {
+  return {
+    runId,
+    stepId: "step_001" as const,
+    attemptId,
+    level: "L1" as const,
+    initiative: {
+      title: "Demo",
+      rawInput: "Demo",
+      riskProfile: "dev",
+      budgetProfile: "normal",
+    },
+    task: {
+      stepId: "step_001" as const,
+      type: "coding" as const,
+      title,
+      successCriteria: ["done"],
+      requiredGates: [],
+      acceptanceCriteria: ["done"],
+    },
+    mutationRequirement: "must_change_files" as const,
+    files: [],
+    commands: { test: "pnpm test", lint: "pnpm lint", typecheck: "pnpm typecheck" },
+    budget: {
+      modelCapability: "strong" as const,
+      contextLevel: "L1" as const,
+      selectedModelId: null,
+      selectedProviderModel: null,
+      estimatedAttemptCostUsd: null,
+    },
+    include: {
+      initiative: true,
+      policy: true,
+      registry: true,
+      commands: true,
+      relevantFiles: [],
+      tests: [],
+      recentDiffFiles: [],
+      symbolHits: [],
+      traces: [],
+      architectureFiles: [],
+      historicalOutcomeRefs: [],
+    },
+    generatedAt: "2026-05-04T12:00:00.000Z",
+  };
+}
+
 describe("runner adapters", () => {
   it("builds codex exec args with auto-review approvals by default", () => {
     const args = buildCodexCliArgs({
@@ -116,8 +173,8 @@ describe("runner adapters", () => {
       attemptId: "attempt_001",
       workspacePath: repo,
       worktreePath,
-      stepPrompt: "Create a sample file",
-      contextPackage: {},
+      step: step("Create a sample file"),
+      contextPackage: contextPackage("run_demo", "attempt_001", "Create a sample file"),
       allowedTools: ["shell"],
       timeouts: { commandTimeoutMs: 1000 },
       command: [nodeBin, "-e", "require('fs').writeFileSync('sample.txt', 'ok'); console.log('done')"],
@@ -142,8 +199,8 @@ describe("runner adapters", () => {
       attemptId: "attempt_002",
       workspacePath: repo,
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_002"),
-      stepPrompt: "Run command",
-      contextPackage: {},
+      step: step("Run command"),
+      contextPackage: contextPackage("run_demo", "attempt_002", "Run command"),
       allowedTools: ["shell"],
       timeouts: { commandTimeoutMs: 1000 },
       command: [nodeBin, "-e", "console.log('ok')"],
@@ -162,8 +219,8 @@ describe("runner adapters", () => {
       attemptId: "attempt_003",
       workspacePath: cwd(),
       worktreePath: "/tmp/unused",
-      stepPrompt: "Run external model",
-      contextPackage: {},
+      step: step("Run external model"),
+      contextPackage: contextPackage("run_demo", "attempt_003", "Run external model"),
       allowedTools: [],
       timeouts: { commandTimeoutMs: 1000 },
     });
@@ -212,8 +269,8 @@ describe("runner adapters", () => {
       workspacePath: repo,
       repoPath: repo,
       worktreePath,
-      stepPrompt: "Generate a file",
-      contextPackage: {},
+      step: step("Generate a file"),
+      contextPackage: contextPackage("run_demo", "attempt_cursor", "Generate a file"),
       allowedTools: ["shell"],
       timeouts: { commandTimeoutMs: 1000 },
       commandPolicy: policy({ envAllowlist: ["PATH"] }),
@@ -253,8 +310,8 @@ describe("runner adapters", () => {
       workspacePath: repo,
       repoPath: repo,
       worktreePath,
-      stepPrompt: "Generate a file",
-      contextPackage: {},
+      step: step("Generate a file"),
+      contextPackage: contextPackage("run_demo", "attempt_codex", "Generate a file"),
       allowedTools: ["shell"],
       timeouts: { commandTimeoutMs: 1000 },
       commandPolicy: policy({ envAllowlist: ["PATH"] }),

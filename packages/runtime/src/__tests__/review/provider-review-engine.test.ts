@@ -31,6 +31,7 @@ const model: ModelEntry = {
   roles: ["reviewer"],
   accessMode: "claude-code-cli",
   enabled: true,
+  pricing: { currency: "USD", inputUsdPerMillion: 0, outputUsdPerMillion: 0 },
 };
 
 const reviewInput: ReviewInput = {

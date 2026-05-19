@@ -2,6 +2,7 @@ import type {
   AccessMode,
   Artifact,
   CodexSandbox,
+  ContextPackage,
   ExecutionIsolation,
   GateResult,
   NextActionType,
@@ -37,8 +38,8 @@ export interface StepRunnerExecutionInput<TCommandPolicy = unknown> {
   executionMode?: ExecutionIsolation;
   codexSandbox?: CodexSandbox;
   diffBaseTree?: string | null;
-  stepPrompt: string;
-  contextPackage: unknown;
+  step: Pick<Step, "stepId" | "type" | "title" | "successCriteria" | "requiredGates">;
+  contextPackage: ContextPackage;
   allowedTools: string[];
   timeouts: StepRunnerExecutionTimeouts;
   command?: string[];
@@ -80,12 +81,12 @@ export interface ExecuteStepAttemptInput<TCommandPolicy = unknown> {
   step: Step;
   schedulerDecision: import("../policies/scheduler-policy").SchedulerDecision;
   selectedModelId?: string | null;
+  selectedModel?: import("@kiwi/contracts").ModelEntry | null;
   runner: StepAttemptRunner<TCommandPolicy>;
   worktreePath: string;
   executionMode?: ExecutionIsolation;
   codexSandbox?: CodexSandbox;
   diffBaseTree?: string | null;
-  stepPrompt: string;
   allowedTools?: string[];
   timeouts?: StepRunnerExecutionTimeouts;
   command?: string[];

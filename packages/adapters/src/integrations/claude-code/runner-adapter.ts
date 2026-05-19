@@ -8,6 +8,7 @@ import {
 import { cliRunnerOutput, runnerTimeoutMs } from "../../runners/cli-output";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../../runners/adapter";
 import { buildRunnerEnv } from "../../runners/env";
+import { buildContractRunnerPrompt } from "../../runners/contract-prompt";
 
 const DEFAULT_TIMEOUT_MS = 600_000;
 const CLAUDE_CODE_ACCESS_MODE = AccessModes.ClaudeCodeCli;
@@ -19,29 +20,6 @@ export interface ClaudeCodeRunnerAdapterOptions {
   cliRunner?: ClaudeCodeCliRunner;
   env?: Record<string, string | undefined>;
   allowedTools?: string[];
-}
-
-function buildPrompt(input: RunnerExecutionInput): string {
-  return JSON.stringify(
-    {
-      request:
-        "Implement the focal step in the current working directory. Make only the minimal code changes required by the success criteria. Use only allowed tools.",
-      runId: input.runId,
-      stepId: input.stepId,
-      attemptId: input.attemptId,
-      stepPrompt: input.stepPrompt,
-      contextPackage: input.contextPackage,
-      worktreePath: input.worktreePath,
-      allowedTools: input.allowedTools,
-      safety: {
-        doNotCommit: true,
-        doNotPush: true,
-        doNotModifyMainWorkspace: input.executionMode !== "direct",
-      },
-    },
-    null,
-    2,
-  );
 }
 
 export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
@@ -59,11 +37,11 @@ export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.cliRunner = options.cliRunner ?? new DefaultClaudeCodeCliRunner();
     this.env = options.env ?? process.env;
-    this.allowedTools = options.allowedTools ?? ["Read", "Write", "Edit", "Bash"];
+    this.allowedTools = options.allowedTools ?? ["Read", "Write", "Edit"];
   }
 
   async execute(input: RunnerExecutionInput): Promise<RunnerExecutionOutput> {
-    const prompt = buildPrompt(input);
+    const prompt = buildContractRunnerPrompt(input, { includeWorktreePath: true });
     const env = buildRunnerEnv({
       sourceEnv: this.env,
       inputEnv: input.env,

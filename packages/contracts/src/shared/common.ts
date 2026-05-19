@@ -10,7 +10,8 @@ export const RISK_PROFILE_VALUES = ["local", "dev", "staging", "production"] as 
 export const BUDGET_PROFILE_VALUES = ["tiny", "small", "normal", "large", "critical"] as const;
 export const AGENT_ROLE_VALUES = ["planner", "researcher", "executor", "reviewer", "security", "rules"] as const;
 export const MODEL_CAPABILITY_VALUES = ["cheap", "mid", "strong", "frontier"] as const;
-export const RUNNER_NAME_VALUES = ["codex", "claude-code", "cursor-agent", "local-shell", "api"] as const;
+export const RUNNER_NAME_VALUES = ["codex", "claude-code", "cursor-agent", "local-shell", "stub", "api"] as const;
+export const MUTATION_REQUIREMENT_VALUES = ["must_change_files", "may_change_files", "no_file_changes"] as const;
 export const STEP_TYPE_VALUES = [
   "context_discovery",
   "planning",
@@ -61,6 +62,8 @@ export const GATE_TYPE_VALUES = [
   "typecheck",
   "lint",
   "tests",
+  "diff_required",
+  "command_policy",
   "forbidden_file_checks",
   "secrets_check",
   "structured_review_json",
@@ -144,7 +147,14 @@ export const RunnerNames = {
   ClaudeCode: "claude-code",
   CursorAgent: "cursor-agent",
   LocalShell: "local-shell",
+  Stub: "stub",
   Api: "api",
+} as const;
+
+export const MutationRequirements = {
+  MustChangeFiles: "must_change_files",
+  MayChangeFiles: "may_change_files",
+  NoFileChanges: "no_file_changes",
 } as const;
 
 export const StepTypes = {
@@ -216,6 +226,8 @@ export const GateTypes = {
   Typecheck: "typecheck",
   Lint: "lint",
   Tests: "tests",
+  DiffRequired: "diff_required",
+  CommandPolicy: "command_policy",
   ForbiddenFileChecks: "forbidden_file_checks",
   SecretsCheck: "secrets_check",
   StructuredReviewJson: "structured_review_json",
@@ -351,6 +363,8 @@ export const ContractValues = {
   Typecheck: GateTypes.Typecheck,
   Lint: GateTypes.Lint,
   Tests: GateTypes.Tests,
+  DiffRequired: GateTypes.DiffRequired,
+  CommandPolicy: GateTypes.CommandPolicy,
   Pass: GateStatuses.Pass,
   Fail: GateStatuses.Fail,
   Blocked: GateStatuses.Blocked,
@@ -383,6 +397,7 @@ export const BudgetProfileSchema = enumFrom(BUDGET_PROFILE_VALUES);
 export const AgentRoleSchema = enumFrom(AGENT_ROLE_VALUES);
 export const ModelCapabilitySchema = enumFrom(MODEL_CAPABILITY_VALUES);
 export const RunnerNameSchema = enumFrom(RUNNER_NAME_VALUES);
+export const MutationRequirementSchema = enumFrom(MUTATION_REQUIREMENT_VALUES);
 export const StepTypeSchema = enumFrom(STEP_TYPE_VALUES);
 export const StepStatusSchema = enumFrom(STEP_STATUS_VALUES);
 export const RunStatusSchema = enumFrom(RUN_STATUS_VALUES);

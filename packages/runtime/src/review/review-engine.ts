@@ -25,6 +25,7 @@ export interface ReviewInput {
   step?: Step;
   diff?: string | null;
   diffHash?: string | null;
+  requestedCapability?: ModelCapability;
   riskHigh?: boolean;
 }
 

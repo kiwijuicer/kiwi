@@ -108,7 +108,7 @@ class SafeSampleRunner implements StepAttemptRunner {
 
   async execute(input: StepRunnerExecutionInput): Promise<StepRunnerExecutionOutput> {
     mkdirSync(input.worktreePath, { recursive: true });
-    writeFileSync(path.join(input.worktreePath, "feature.txt"), input.stepPrompt, "utf-8");
+    writeFileSync(path.join(input.worktreePath, "feature.txt"), input.step.title, "utf-8");
     const outputArtifact = commandOutputArtifact(input);
 
     return {
@@ -201,9 +201,8 @@ describe("step attempt orchestrator", () => {
       cwd: repo,
       step: fixtureStep(),
       schedulerDecision: decision,
-      runner: new SafeSampleRunner(),
+      runner: new DiffSampleRunner(),
       worktreePath,
-      stepPrompt: "safe sample",
       now: new Date("2026-05-04T06:00:01.000Z"),
     });
 
@@ -214,6 +213,7 @@ describe("step attempt orchestrator", () => {
     expect(existsSync(path.join(repo, "feature.txt"))).toBe(false);
     expect(result.artifactRefs.map((entry) => entry.type)).toEqual([
       "command_output",
+      "diff",
       "review_report",
       "cost_report",
       "summary",
@@ -226,7 +226,7 @@ describe("step attempt orchestrator", () => {
       ),
     ) as { status: string; artifacts: Artifact[]; modelInvocationRefs: string[] };
     expect(attempt.status).toBe("completed");
-    expect(attempt.artifacts).toHaveLength(4);
+    expect(attempt.artifacts).toHaveLength(5);
     expect(attempt.modelInvocationRefs).toHaveLength(2);
     const invocations = readModelInvocations(repo, "run_demo");
     expect(invocations.map((entry) => entry.phase)).toEqual(["executor", "reviewer"]);
@@ -287,7 +287,6 @@ describe("step attempt orchestrator", () => {
       schedulerDecision: decision,
       runner: new FailingRunner(),
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_002"),
-      stepPrompt: "failing sample",
       reviewEngine: new UnsafePositiveReviewEngine(),
       now: new Date("2026-05-04T06:00:01.000Z"),
     });
@@ -310,9 +309,8 @@ describe("step attempt orchestrator", () => {
       cwd: repo,
       step: fixtureStep(),
       schedulerDecision: decision,
-      runner: new SafeSampleRunner(),
+      runner: new DiffSampleRunner(),
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_004"),
-      stepPrompt: "safe sample with failing post gate",
       reviewEngine: new UnsafePositiveReviewEngine(),
       postRunnerGateExecutor: async () => ({
         gateResults: [
@@ -351,7 +349,6 @@ describe("step attempt orchestrator", () => {
       schedulerDecision: decision,
       runner: new DiffSampleRunner(),
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_review_error"),
-      stepPrompt: "review failure sample",
       reviewEngine: new ThrowingReviewEngine(),
       now: new Date("2026-05-04T06:00:01.000Z"),
     });
@@ -400,13 +397,19 @@ describe("step attempt orchestrator", () => {
       schedulerDecision: decision,
       runner: new SafeSampleRunner(),
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_no_diff_review"),
-      stepPrompt: "no diff sample",
       reviewEngine: new ThrowingReviewEngine(),
       now: new Date("2026-05-04T06:00:01.000Z"),
     });
 
-    expect(result.status).toBe("completed");
-    expect(result.reviewVerdict.verdict).toBe("pass");
+    expect(result.status).toBe("failed");
+    expect(result.reviewVerdict.verdict).toBe("needs_changes");
+    expect(result.gateResults).toContainEqual(
+      expect.objectContaining({
+        gateId: "gate_diff_required",
+        gateType: "diff_required",
+        status: "fail",
+      }),
+    );
     expect(result.error).toBeUndefined();
   });
 
@@ -420,7 +423,6 @@ describe("step attempt orchestrator", () => {
       schedulerDecision: decision,
       runner: new FailingRunner(),
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_runner_failed_before_review"),
-      stepPrompt: "runner failure sample",
       reviewEngine: new ThrowingReviewEngine(),
       now: new Date("2026-05-04T06:00:01.000Z"),
     });
@@ -471,9 +473,17 @@ describe("step attempt orchestrator", () => {
       step: fixtureStep({ recommendedModelCapability: "frontier" }),
       schedulerDecision: decision,
       selectedModelId: "claude-opus-4-6",
+      selectedModel: {
+        id: "claude-opus-4-6",
+        provider: "anthropic",
+        capability: "frontier",
+        roles: ["executor"],
+        accessMode: "claude-code-cli",
+        enabled: true,
+        pricing: { currency: "USD", inputUsdPerMillion: 5, outputUsdPerMillion: 25 },
+      },
       runner,
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_budget"),
-      stepPrompt: "budget guard sample",
       now: new Date("2026-05-04T06:00:01.000Z"),
     });
 
@@ -529,13 +539,12 @@ describe("step attempt orchestrator", () => {
       schedulerDecision: decision,
       runner,
       worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_003"),
-      stepPrompt: "exception sample",
       now: new Date("2026-05-04T06:00:01.000Z"),
     });
 
     expect(result.status).toBe("failed");
     expect(result.error?.code).toBe("RUNNER_CRASHED");
     expect(result.artifactRefs.some((entry) => entry.ref === artifact.ref)).toBe(true);
-    expect(result.nextAction.type).toBe("fix_step");
+    expect(result.nextAction.type).toBe("replan");
   });
 });

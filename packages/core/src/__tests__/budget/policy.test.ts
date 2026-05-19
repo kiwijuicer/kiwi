@@ -2,11 +2,17 @@ import { describe, expect, it } from "vitest";
 import { BudgetExceededError } from "../../errors";
 import { assertWithinBudgetEstimate, estimateAttemptCostUsd } from "../../budget/policy";
 
+const frontierModel = {
+  id: "claude-opus-4-6",
+  providerModel: "claude-opus-4-6",
+  pricing: { currency: "USD", inputUsdPerMillion: 5, outputUsdPerMillion: 25 },
+} as const;
+
 describe("budget policy pre-flight estimates", () => {
   it("estimates attempt cost from model, capability, and context level", () => {
     expect(
       estimateAttemptCostUsd({
-        modelId: "claude-opus-4-6",
+        model: frontierModel,
         capability: "frontier",
         contextLevel: "L2",
       }),
@@ -18,7 +24,7 @@ describe("budget policy pre-flight estimates", () => {
       assertWithinBudgetEstimate({
         budgetProfile: "tiny",
         remainingUsdEstimate: 0.1,
-        modelId: "claude-opus-4-6",
+        model: frontierModel,
         modelCapability: "frontier",
         contextLevel: "L2",
       }),
@@ -30,7 +36,7 @@ describe("budget policy pre-flight estimates", () => {
       assertWithinBudgetEstimate({
         budgetProfile: "tiny",
         remainingUsdEstimate: null,
-        modelId: "claude-opus-4-6",
+        model: frontierModel,
         modelCapability: "frontier",
         contextLevel: "L2",
       }),

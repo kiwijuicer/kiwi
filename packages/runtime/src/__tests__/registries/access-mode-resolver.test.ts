@@ -9,6 +9,8 @@ import {
   selectEnabledModelByAccessMode,
 } from "../../registries/access-mode-resolver";
 
+const zeroPricing = { currency: "USD", inputUsdPerMillion: 0, outputUsdPerMillion: 0 } as const;
+
 const candidates: ModelEntry[] = [
   {
     id: "claude-code-cli-opus-4-6",
@@ -17,6 +19,7 @@ const candidates: ModelEntry[] = [
     roles: ["planner", "reviewer"],
     accessMode: "claude-code-cli",
     enabled: true,
+    pricing: zeroPricing,
   },
   {
     id: "claude-opus-4-6",
@@ -25,6 +28,7 @@ const candidates: ModelEntry[] = [
     roles: ["planner", "reviewer"],
     accessMode: "anthropic-api",
     enabled: true,
+    pricing: zeroPricing,
   },
   {
     id: "stub-frontier",
@@ -33,6 +37,7 @@ const candidates: ModelEntry[] = [
     roles: ["planner", "reviewer"],
     accessMode: "stub",
     enabled: true,
+    pricing: zeroPricing,
   },
 ];
 

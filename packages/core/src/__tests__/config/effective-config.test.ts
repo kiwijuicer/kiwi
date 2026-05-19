@@ -55,6 +55,10 @@ models:
     roles: [planner, reviewer]
     accessMode: codex-cli
     enabled: true
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 10
+      outputUsdPerMillion: 40
   - id: codex-cli-mid
     providerModel: gpt-5.4-mini
     provider: local
@@ -62,6 +66,10 @@ models:
     roles: [executor]
     accessMode: codex-cli
     enabled: true
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0.4
+      outputUsdPerMillion: 1.6
 `;
 
 function tmp(): string {
@@ -138,7 +146,12 @@ riskZones:
     provider: stub
     capability: mid
     roles: [executor]
+    accessMode: stub
     enabled: true
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0
+      outputUsdPerMillion: 0
 `,
     );
 

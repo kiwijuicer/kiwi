@@ -12,6 +12,7 @@ import {
   ModelCapabilitySchema,
   ModelInvocationPhaseSchema,
   ModelInvocationStatusSchema,
+  MutationRequirementSchema,
   NEXT_ACTION_TYPE_VALUES,
   NetworkPolicySchema,
   RUNNER_EXECUTION_STATUS_VALUES,
@@ -21,6 +22,7 @@ import {
   RunnerNameSchema,
   SchedulerDecisionStatusSchema,
   StepAttemptStatusSchema,
+  StepTypeSchema,
   UsagePrecisionSchema,
   enumFrom,
 } from "../shared/common";
@@ -142,11 +144,46 @@ export const ResearchReportSchema = z.object({
   generatedAt: IsoDateTimeSchema,
 });
 
+const ContextPackageFileSchema = z.object({
+  path: z.string().min(1),
+  content: z.string(),
+  truncated: z.boolean(),
+  bytes: z.number().int().min(0),
+});
+
 export const ContextPackageSchema = z.object({
   runId: z.string().regex(/^run_[a-z0-9_]+$/),
   stepId: z.string().regex(/^step_\d{3}$/),
   attemptId: z.string().regex(/^attempt_[a-z0-9_]+$/),
   level: ContextLevelSchema,
+  initiative: z.object({
+    title: z.string().min(1),
+    rawInput: z.string().min(1),
+    riskProfile: z.string().min(1),
+    budgetProfile: z.string().min(1),
+  }),
+  task: z.object({
+    stepId: z.string().regex(/^step_\d{3}$/),
+    type: StepTypeSchema,
+    title: z.string().min(1),
+    successCriteria: z.array(z.string().min(1)),
+    requiredGates: z.array(z.string()),
+    acceptanceCriteria: z.array(z.string().min(1)),
+  }),
+  mutationRequirement: MutationRequirementSchema,
+  files: z.array(ContextPackageFileSchema),
+  commands: z.object({
+    test: z.string().min(1),
+    lint: z.string().min(1),
+    typecheck: z.string().min(1),
+  }),
+  budget: z.object({
+    modelCapability: ModelCapabilitySchema,
+    contextLevel: ContextLevelSchema,
+    selectedModelId: z.union([z.string().min(1), z.null()]),
+    selectedProviderModel: z.union([z.string().min(1), z.null()]),
+    estimatedAttemptCostUsd: z.union([z.number().min(0), z.null()]),
+  }),
   include: z.object({
     initiative: z.boolean(),
     policy: z.boolean(),
@@ -211,8 +248,14 @@ export const RunnerExecutionInputSchema = z.object({
   executionMode: ExecutionIsolationSchema.optional(),
   codexSandbox: CodexSandboxSchema.optional(),
   diffBaseTree: z.union([z.string().min(1), z.null()]).optional(),
-  stepPrompt: z.string(),
-  contextPackage: z.unknown(),
+  step: z.object({
+    stepId: z.string().regex(/^step_\d{3}$/),
+    type: StepTypeSchema,
+    title: z.string().min(1),
+    successCriteria: z.array(z.string().min(1)),
+    requiredGates: z.array(z.string()),
+  }),
+  contextPackage: ContextPackageSchema,
   allowedTools: z.array(z.string()),
   timeouts: z.object({
     commandTimeoutMs: z.number().int().positive(),
@@ -393,6 +436,7 @@ export type ReviewVerdictValue = z.infer<typeof ReviewVerdictValueSchema>;
 export type ReviewIssueSeverity = z.infer<typeof ReviewIssueSeveritySchema>;
 export type ResearchReport = z.infer<typeof ResearchReportSchema>;
 export type ContextPackage = z.infer<typeof ContextPackageSchema>;
+export type ContextPackageFile = z.infer<typeof ContextPackageFileSchema>;
 export type ContextLevel = z.infer<typeof ContextLevelSchema>;
 export type SchedulerDecision = z.infer<typeof SchedulerDecisionSchema>;
 export type SchedulerDecisionStatus = z.infer<typeof SchedulerDecisionStatusSchema>;

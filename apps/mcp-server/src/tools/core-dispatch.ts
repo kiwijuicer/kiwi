@@ -216,12 +216,12 @@ function applyTool(context: DispatchContext): Promise<unknown> {
   );
 }
 
-function finalizeTool(context: DispatchContext): unknown {
+function finalizeTool(context: DispatchContext): Promise<unknown> {
   return services().core.locks.withLock(
     { cwd: context.workspacePath, runId: context.runId, operation: "mcp_finalize" },
-    () => {
+    async () => {
       context.options.onProgress?.(`finalize started runId=${context.runId}`, 0);
-      const finalized = finalizeRun({ cwd: context.workspacePath, runId: context.runId });
+      const finalized = await finalizeRun({ cwd: context.workspacePath, runId: context.runId });
       context.options.onProgress?.(`finalize completed runId=${context.runId}`, 100);
 
       return withOperatorCard(

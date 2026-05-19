@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { GateResultSchema, ReviewVerdictSchema, StepAttemptSchema } from "@kiwi/contracts";
 import { savePlannedRun } from "@kiwi/core";
 import { publishPrDraft } from "../../publishing/pr-draft";
+import { StubReviewEngine } from "@kiwi/runtime";
 
 function tmp(): string {
   return mkdtempSync(path.join(os.tmpdir(), "kiwi-pr-draft-"));
@@ -22,7 +23,7 @@ function writeJson(target: string, value: unknown): void {
 }
 
 describe("PR draft publishing", () => {
-  it("uses local git, writes a Bitbucket PR draft artifact, and does not require API credentials", () => {
+  it("uses local git, writes a Bitbucket PR draft artifact, and does not require API credentials", async () => {
     const workspace = tmp();
     const repo = path.join(workspace, "repo");
     mkdirSync(repo);
@@ -142,20 +143,21 @@ describe("PR draft publishing", () => {
     };
 
     writeFileSync(path.join(repo, "secret.txt"), "do not publish\n", "utf-8");
-    expect(() =>
+    await expect(
       publishPrDraft({
         cwd: workspace,
         runId: "run_demo",
         git: runner,
         now: new Date("2026-05-05T08:00:30.000Z"),
       }),
-    ).toThrow("target repo has local changes");
+    ).rejects.toThrow("target repo has local changes");
     unlinkSync(path.join(repo, "secret.txt"));
 
-    const result = publishPrDraft({
+    const result = await publishPrDraft({
       cwd: workspace,
       runId: "run_demo",
       git: runner,
+      reviewEngine: new StubReviewEngine(),
       now: new Date("2026-05-05T08:01:00.000Z"),
     });
 

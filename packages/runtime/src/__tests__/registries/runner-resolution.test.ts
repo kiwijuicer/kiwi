@@ -4,6 +4,8 @@ import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "@kiw
 import { RunnerRegistry } from "../../registries/runner-registry";
 import { resolveRunner } from "../../registries/runner-resolution";
 
+const zeroPricing = { currency: "USD", inputUsdPerMillion: 0, outputUsdPerMillion: 0 } as const;
+
 class FakeCodexAdapter implements RunnerAdapter {
   readonly name = "codex";
 
@@ -41,6 +43,7 @@ const models: ModelEntry[] = [
     roles: ["executor"],
     enabled: true,
     accessMode: "codex-cli",
+    pricing: zeroPricing,
   },
   {
     id: "cursor-agent-auto",
@@ -49,6 +52,7 @@ const models: ModelEntry[] = [
     roles: ["executor"],
     enabled: true,
     accessMode: "cursor-agent-cli",
+    pricing: zeroPricing,
   },
 ];
 
@@ -64,6 +68,7 @@ function executorModel(
     roles: ["executor"],
     enabled: true,
     accessMode,
+    pricing: zeroPricing,
   };
 
   if (accessMode === "codex-cli") {
@@ -210,7 +215,7 @@ describe("runner resolution", () => {
       env: { PATH: "/empty", KIWI_FAKE_BINARY_AVAILABLE: "1" },
     });
 
-    expect(resolution.runnerAvailability).toEqual(["local-shell"]);
+    expect(resolution.runnerAvailability).toEqual([]);
     expect(() => resolution.buildAdapter("api")).toThrow("has no adapter wiring yet");
   });
 
@@ -224,9 +229,9 @@ describe("runner resolution", () => {
     expect(resolution.runnerAvailability[0]).toBe("codex");
   });
 
-  it("forces hermetic local-shell execution when stub access mode is selected", () => {
+  it("forces stub execution when stub access mode is selected", () => {
     const resolution = resolveRunner({
-      registryModels: models,
+      registryModels: [executorModel("stub-strong", "strong", "stub"), ...models],
       step: codingStep,
       env: {
         KIWI_FAKE_BINARY_AVAILABLE: "1",
@@ -234,14 +239,14 @@ describe("runner resolution", () => {
       },
     });
 
-    expect(resolution.runnerAvailability).toEqual(["local-shell"]);
+    expect(resolution.runnerAvailability).toEqual(["stub"]);
     expect(resolution.runnerAvailabilityDetails).toContainEqual({
       runner: "claude-code",
       accessMode: "claude-code-cli",
       available: false,
       reason: "KIWI_FORCE_ACCESS_MODE=stub",
     });
-    expect(resolution.buildAdapter("local-shell").name).toBe("local-shell");
+    expect(resolution.buildAdapter("stub").name).toBe("stub");
   });
 
   it("allows fake adapter registration without probing a real CLI", () => {

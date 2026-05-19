@@ -84,6 +84,7 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
   const costForecast = buildRunCostForecast({
     taskGraph: planned.taskGraph,
     plannerCostUsd: planned.plannerOutput.cost.estimatedUsd,
+    registryModels: registry.models,
   });
   const nextAction = planNextAction(planned);
 

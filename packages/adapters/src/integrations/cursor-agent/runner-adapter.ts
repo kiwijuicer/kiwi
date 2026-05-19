@@ -8,6 +8,7 @@ import {
 import { cliRunnerOutput, runnerTimeoutMs } from "../../runners/cli-output";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../../runners/adapter";
 import { buildRunnerEnv } from "../../runners/env";
+import { buildContractRunnerPrompt } from "../../runners/contract-prompt";
 
 const DEFAULT_TIMEOUT_MS = 600_000;
 const CURSOR_AGENT_ACCESS_MODE = AccessModes.CursorAgentCli;
@@ -18,32 +19,6 @@ export interface CursorAgentRunnerAdapterOptions {
   timeoutMs?: number;
   cliRunner?: CursorAgentCliRunner;
   env?: Record<string, string | undefined>;
-}
-
-function buildPrompt(input: RunnerExecutionInput): string {
-  return JSON.stringify(
-    {
-      request:
-        "Implement the focal step in this working directory. Keep the change minimal, satisfy success criteria, and stop with an inspectable working-tree diff.",
-      runId: input.runId,
-      stepId: input.stepId,
-      attemptId: input.attemptId,
-      stepPrompt: input.stepPrompt,
-      contextPackage: input.contextPackage,
-      worktreePath: input.worktreePath,
-      successCriteria: Array.isArray((input.contextPackage as { successCriteria?: unknown }).successCriteria)
-        ? (input.contextPackage as { successCriteria: unknown[] }).successCriteria
-        : [],
-      allowedTools: input.allowedTools,
-      safety: {
-        doNotCommit: true,
-        doNotPush: true,
-        doNotModifyMainWorkspace: input.executionMode !== "direct",
-      },
-    },
-    null,
-    2,
-  );
 }
 
 export class CursorAgentRunnerAdapter implements RunnerAdapter {
@@ -71,7 +46,7 @@ export class CursorAgentRunnerAdapter implements RunnerAdapter {
     const invocation: CursorAgentCliInvocation = {
       binary: this.binary,
       cwd: input.worktreePath,
-      prompt: buildPrompt(input),
+      prompt: buildContractRunnerPrompt(input, { includeWorktreePath: true }),
       outputFormat: "json",
       timeoutMs: runnerTimeoutMs(input, this.timeoutMs),
       env,

@@ -38,6 +38,7 @@ const plannerModel: ModelEntry = {
   roles: ["planner"],
   accessMode: "stub",
   enabled: true,
+  pricing: { currency: "USD", inputUsdPerMillion: 0, outputUsdPerMillion: 0 },
 };
 
 function cwd(): string {

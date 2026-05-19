@@ -140,7 +140,7 @@ describe("kiwi operator flow", () => {
     const finalizeOutput = finalizeSpy.mock.calls.flat().join("\n");
     finalizeSpy.mockRestore();
     expect(finalizeOutput).toContain("cost: $0.00 estimated");
-    expect(finalizeOutput).toContain("verdict: pass");
+    expect(finalizeOutput).toContain("verdict: needs_changes");
     await runEvidenceManifest("run_20260504_110000_op01", { now: new Date("2026-05-04T09:03:00.000Z") }, cwd);
     await runOperatorSnapshot("run_20260504_110000_op01", { now: new Date("2026-05-04T09:04:00.000Z") }, cwd);
 
@@ -160,7 +160,7 @@ describe("kiwi operator flow", () => {
     ).toBe(true);
     expect(
       readFileSync(path.join(cwd, ".kiwi", "runs", "run_20260504_110000_op01", "final", "final-summary.md"), "utf-8"),
-    ).toContain("safeToApply: true");
+    ).toContain("safeToApply: false");
 
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
     await runStatus(cwd, "run_20260504_110000_op01", { verbose: true });
@@ -194,7 +194,7 @@ describe("kiwi operator flow", () => {
     );
     expect(executorEvent?.payload).toMatchObject({
       attemptId: "attempt_001",
-      runner: "local-shell",
+      runner: "stub",
       requestedCapability: "strong",
       selectedCapability: "strong",
       accessMode: "stub",
@@ -342,6 +342,7 @@ describe("kiwi operator flow", () => {
     expect(existsSync(worktree)).toBe(false);
     expect(existsSync(path.join(core, "changed.txt"))).toBe(true);
     expect(existsSync(path.join(agent, "changed.txt"))).toBe(false);
+    expect(existsSync(path.join(agent, "kiwi-stub-output", "step_001.txt"))).toBe(false);
     const diff = path.join(
       workspace,
       ".kiwi",

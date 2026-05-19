@@ -70,7 +70,11 @@ models:
   - id: stub-frontier
     provider: stub
     capability: frontier
-    roles: [planner, reviewer]
+    roles: [planner, executor, reviewer, researcher, rules]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0
+      outputUsdPerMillion: 0
     enabled: true
 `;
   mkdirSync(path.dirname(kiwiHomePolicyPath()), { recursive: true });

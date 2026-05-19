@@ -5,6 +5,7 @@ import {
   DirectExecutionUnsafeError,
   type RunExecutionPreview,
   runScheduledSubPlans,
+  splitCommandLine,
 } from "@kiwi/runtime";
 import { withOperatorCard } from "../ux/operator-card";
 import {
@@ -187,6 +188,7 @@ export function previewRunTool(args: Record<string, unknown>, cwd: string): unkn
     runId,
     ...(fromStep ? { fromStep } : {}),
     ...(maxConcurrency !== undefined ? { maxConcurrency } : {}),
+    ...(command ? { command: splitCommandLine(command) } : {}),
   });
 
   if (preview.executionIsolation === "direct") {
@@ -309,6 +311,7 @@ function buildPreviewFromRecord(params: {
     ...(params.previewInput.maxConcurrencyExplicit === true
       ? { maxConcurrency: params.previewInput.maxConcurrency }
       : {}),
+    ...(params.previewInput.command ? { command: splitCommandLine(params.previewInput.command) } : {}),
   });
 }
 
