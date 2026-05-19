@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, symlinkSync, writeFileSync } from "fs";
 import { once } from "events";
 import { AddressInfo } from "net";
 import { execFileSync } from "child_process";
@@ -15,6 +15,7 @@ import {
 import {
   createMcpMessageDrainer,
   handleMcpRequest,
+  isMcpServerEntrypoint,
   McpServerBootstrap,
   resolveMcpBootstrapOptions,
   startHttpMcpServer,
@@ -416,6 +417,16 @@ describe("MCP server", () => {
     expect(responses).toHaveLength(2);
     expect(responses.map((response) => (response as { id: number }).id)).toEqual([1, 2]);
     expect(JSON.stringify(responses[1])).toContain("kiwi_plan");
+  });
+
+  it("detects the stdio entrypoint when launched through a symlink", () => {
+    const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-mcp-entrypoint-"));
+    const target = path.join(cwd, "index.js");
+    const link = path.join(cwd, "current.js");
+    writeFileSync(target, "export {};\n", "utf-8");
+    symlinkSync(target, link);
+
+    expect(isMcpServerEntrypoint(link, new URL(`file://${target}`).href)).toBe(true);
   });
 
   it("drains batched stdio messages", async () => {
