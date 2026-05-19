@@ -403,7 +403,12 @@ describe("run lifecycle", () => {
         runId: "run_demo",
         stepId: "step_001",
         attemptId: "attempt_first",
-        command: [process.execPath, "-e", "require('fs').writeFileSync('shared.txt','from step 1\\n')"],
+        command: [
+          process.execPath,
+          "--input-type=module",
+          "-e",
+          "import { writeFileSync } from 'node:fs'; writeFileSync('shared.txt','from step 1\\n')",
+        ],
       });
       expect(first.status).toBe("completed");
       expect(existsSync(path.join(repo, "shared.txt"))).toBe(false);
@@ -415,8 +420,9 @@ describe("run lifecycle", () => {
         attemptId: "attempt_second",
         command: [
           process.execPath,
+          "--input-type=module",
           "-e",
-          "const fs=require('fs');if(!fs.existsSync('shared.txt'))process.exit(7);fs.writeFileSync('second.txt',fs.readFileSync('shared.txt'))",
+          "import { existsSync, readFileSync, writeFileSync } from 'node:fs'; if(!existsSync('shared.txt')) process.exit(7); writeFileSync('second.txt', readFileSync('shared.txt'))",
         ],
       });
       expect(second.status).toBe("completed");

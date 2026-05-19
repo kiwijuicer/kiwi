@@ -338,7 +338,8 @@ describe("kiwi operator flow", () => {
       {
         workspace,
         attemptId: "attempt_ws",
-        command: "node -e require('fs').writeFileSync('changed.txt','ok')",
+        command:
+          "node --input-type=module -e \"import { writeFileSync } from 'node:fs'; writeFileSync('changed.txt','ok')\"",
         now: new Date("2026-05-04T10:01:00.000Z"),
       },
       workspace,

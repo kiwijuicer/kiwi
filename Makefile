@@ -103,7 +103,7 @@ install:
 	fi; \
 	rm -f "$$LINK_TMP"; \
 	ln -s "$$RELEASE_PATH" "$$LINK_TMP"; \
-	node -e 'const fs = require("fs"); fs.renameSync(process.argv[1], process.argv[2]);' "$$LINK_TMP" "$$CURRENT_LINK"; \
+	node --input-type=module -e 'import { renameSync } from "node:fs"; renameSync(process.argv[1], process.argv[2]);' "$$LINK_TMP" "$$CURRENT_LINK"; \
 	mkdir -p "$(BINDIR)"; \
 	printf '%s\n' \
 		'#!/usr/bin/env sh' \
@@ -273,7 +273,7 @@ rollback:
 	fi; \
 	rm -f "$$CURRENT_LINK.next"; \
 	ln -s "$$PREVIOUS_RELEASE" "$$CURRENT_LINK.next"; \
-	node -e 'const fs = require("fs"); fs.renameSync(process.argv[1], process.argv[2]);' "$$CURRENT_LINK.next" "$$CURRENT_LINK"; \
+	node --input-type=module -e 'import { renameSync } from "node:fs"; renameSync(process.argv[1], process.argv[2]);' "$$CURRENT_LINK.next" "$$CURRENT_LINK"; \
 	echo "kiwi rolled back to: $$PREVIOUS_RELEASE"
 
 build:

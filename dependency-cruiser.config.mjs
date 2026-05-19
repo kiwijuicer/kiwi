@@ -1,6 +1,4 @@
-"use strict";
-
-module.exports = {
+export default {
   forbidden: [
     {
       name: "no-app-imports-from-packages",

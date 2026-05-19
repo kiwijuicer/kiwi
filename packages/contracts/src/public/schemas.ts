@@ -166,7 +166,6 @@ export {
   ExecutionOwnerSchema,
   ExecutionDefaultsSchema,
   KiwiPolicySchema,
-  defaultAccessModeForProvider,
   ModelProviderSchema,
   AccessModeSchema,
   ModelEntrySchema,

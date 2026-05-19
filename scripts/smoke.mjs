@@ -111,7 +111,7 @@ kiwi([
   "--workspace",
   workspace,
   "--command",
-  "node -e \"require('fs').writeFileSync('smoke.txt','ok\\\\n')\"",
+  "node --input-type=module -e \"import { writeFileSync } from 'node:fs'; writeFileSync('smoke.txt','ok\\\\n')\"",
 ]);
 const diffOutput = kiwi(["diff", workspaceRunId, "--workspace", workspace]);
 

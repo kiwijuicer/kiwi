@@ -62,7 +62,6 @@ class ModelsUpdateCommand {
     console.log(`removed: ${this.formatValues(result.diff.removedModelIds)}`);
     console.log(`pricing changed: ${this.formatValues(result.diff.pricingChanges)}`);
     console.log(`disabled: ${this.formatValues(result.diff.disabledModelIds)}`);
-    console.log(`deprecated: ${this.formatValues(result.diff.deprecatedModelIds)}`);
     if (result.diff.providerModelChanges.length > 0) {
       console.log("provider model changes:");
       for (const change of result.diff.providerModelChanges) {
@@ -128,8 +127,6 @@ class ModelsListCommand {
           sourceVersion: model.pricing.sourceVersion ?? null,
           pricingLastVerifiedAt: model.pricing.pricingLastVerifiedAt ?? null,
         },
-        deprecatedAt: model.deprecatedAt ?? null,
-        replacementModelId: model.replacementModelId ?? null,
       };
     });
 

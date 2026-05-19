@@ -70,19 +70,6 @@ function printRoleCounts(enabled: ModelEntry[]): void {
   );
 }
 
-function printDeprecatedModels(models: ModelEntry[]): void {
-  const deprecated = models.filter((entry) => entry.deprecatedAt);
-
-  if (deprecated.length === 0) {
-    return;
-  }
-  console.log(chalk.yellow(`deprecated models: ${deprecated.length}`));
-  for (const model of deprecated) {
-    const replacement = model.replacementModelId ? ` -> ${model.replacementModelId}` : "";
-    console.log(`  ${model.id}${replacement}`);
-  }
-}
-
 const doctorWorkspaceChecks = {
   printUnconfiguredModels(models: ModelEntry[]): void {
     const unconfigured = models.filter((entry) => entry.enabled && !modelAccessConfigured(entry).configured);
@@ -132,7 +119,6 @@ function printInitializedWorkspaceDiagnostics(workspacePath: string, env: NodeJS
   printRunnerRegistry(registry.models, env);
   printRoleCounts(enabled);
   doctorWorkspaceChecks.printUnconfiguredModels(registry.models);
-  printDeprecatedModels(registry.models);
   doctorWorkspaceChecks.printStaleRunLocks(workspacePath);
   if (!env.KIWI_MCP_APPROVED_BY && !doctorWorkspaceChecks.configuredApproverIdentity(workspacePath)) {
     console.log(chalk.yellow("approval identity: not configured"));

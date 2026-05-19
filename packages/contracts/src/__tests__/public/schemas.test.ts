@@ -513,7 +513,7 @@ describe("contracts schemas", () => {
     expect(registry.models[0]?.providerModel).toBe("stub-provider-mid");
   });
 
-  it("requires explicit local access mode for external model provider families", () => {
+  it("requires explicit access mode for model entries", () => {
     expect(() =>
       ModelRegistrySchema.parse({
         version: "1",
@@ -537,7 +537,7 @@ describe("contracts schemas", () => {
           },
         ],
       }),
-    ).toThrow(/explicit local CLI accessMode/);
+    ).toThrow(/accessMode/);
   });
 
   it("parses operator, finalization, and protocol boundary contracts", () => {

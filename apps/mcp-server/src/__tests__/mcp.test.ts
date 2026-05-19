@@ -94,6 +94,7 @@ models:
     provider: stub
     capability: frontier
     roles: [planner, executor, reviewer, researcher, rules]
+    accessMode: stub
     pricing:
       currency: USD
       inputUsdPerMillion: 0
@@ -326,8 +327,6 @@ describe("MCP server", () => {
               accessMode: "stub",
               enabled: true,
               pricingRef: "test:stub",
-              deprecatedAt: null,
-              replacementModelId: null,
             },
           ],
         },

@@ -40,7 +40,7 @@ function testCatalog(): object {
       },
     },
     tierMapping: {
-      mid: ["codex-cli-mid", "codex-cli-deprecated"],
+      mid: ["codex-cli-mid", "codex-cli-alt"],
     },
     models: [
       {
@@ -52,20 +52,16 @@ function testCatalog(): object {
         accessMode: "codex-cli",
         enabled: true,
         pricingRef: "openai:gpt-5.4-mini",
-        deprecatedAt: null,
-        replacementModelId: null,
       },
       {
-        id: "codex-cli-deprecated",
+        id: "codex-cli-alt",
         providerModel: "gpt-5.3",
         provider: "local",
         capability: "mid",
         roles: ["executor"],
         accessMode: "codex-cli",
-        enabled: true,
+        enabled: false,
         pricingRef: "openai:gpt-5.3",
-        deprecatedAt: "2026-05-19T00:00:00.000Z",
-        replacementModelId: "codex-cli-mid",
       },
     ],
   };
@@ -114,24 +110,22 @@ describe("models update command", () => {
     await runSilenced({ apply: true, catalogPath: writeCatalog(cwd), env, now: NOW }, cwd);
 
     const registry = loadRegistry(kiwiHomeModelRegistryPath(env));
-    const deprecated = registry.models.find((model) => model.id === "codex-cli-deprecated");
+    const disabled = registry.models.find((model) => model.id === "codex-cli-alt");
     const audit = readFileSync(path.join(env.KIWI_HOME ?? "", "logs", "audit.log"), "utf-8")
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line) as { eventType: string; payload: Record<string, unknown> });
 
     expect(registry.catalogVersion).toBe("test-2026-05-19");
-    expect(deprecated).toMatchObject({
+    expect(disabled).toMatchObject({
       enabled: false,
-      deprecatedAt: "2026-05-19T00:00:00.000Z",
-      replacementModelId: "codex-cli-mid",
     });
     expect(readFileSync(workspaceRegistryPath, "utf-8")).toBe(workspaceRegistry);
     expect(audit.at(-1)).toMatchObject({
       eventType: "model_registry_refreshed",
       payload: {
         catalogVersion: "test-2026-05-19",
-        addedModelIds: ["codex-cli-deprecated", "codex-cli-mid"],
+        addedModelIds: ["codex-cli-alt", "codex-cli-mid"],
       },
     });
   });
@@ -142,7 +136,7 @@ describe("models update command", () => {
     const result = JSON.parse(output) as { applied: boolean; diff: { addedModelIds: string[] } };
 
     expect(result.applied).toBe(false);
-    expect(result.diff.addedModelIds).toEqual(["codex-cli-deprecated", "codex-cli-mid"]);
+    expect(result.diff.addedModelIds).toEqual(["codex-cli-alt", "codex-cli-mid"]);
   });
 
   it("lists effective models as JSON", async () => {

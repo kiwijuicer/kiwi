@@ -50,7 +50,12 @@ describe("worktree sandbox command execution", () => {
       stepId: "step_001",
       attemptId: "attempt_001",
       worktreePath: sandbox.worktreePath,
-      command: [nodeBin, "-e", "require('fs').writeFileSync('out.txt', 'ok'); console.log(process.env.KIWI_SECRET)"],
+      command: [
+        nodeBin,
+        "--input-type=module",
+        "-e",
+        "import { writeFileSync } from 'node:fs'; writeFileSync('out.txt', 'ok'); console.log(process.env.KIWI_SECRET)",
+      ],
       env: {
         PATH: process.env.PATH ?? "",
         KIWI_SECRET: "s3cr3t",
@@ -227,7 +232,12 @@ describe("worktree sandbox command execution", () => {
       stepId: "step_001",
       attemptId: "attempt_007",
       worktreePath: sandbox.worktreePath,
-      command: [nodeBin, "-e", "require('fs').writeFileSync('feature.txt', 'new')"],
+      command: [
+        nodeBin,
+        "--input-type=module",
+        "-e",
+        "import { writeFileSync } from 'node:fs'; writeFileSync('feature.txt', 'new')",
+      ],
       env: { PATH: process.env.PATH ?? "" },
       policy: policy(),
     });

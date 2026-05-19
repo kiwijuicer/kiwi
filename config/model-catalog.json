@@ -96,9 +96,7 @@
       "roles": ["researcher", "executor", "reviewer", "rules"],
       "accessMode": "codex-cli",
       "enabled": false,
-      "pricingRef": "manual:codex-cli-unpriced",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "manual:codex-cli-unpriced"
     },
     {
       "id": "codex-cli-mid",
@@ -108,9 +106,7 @@
       "roles": ["researcher", "executor", "reviewer", "rules"],
       "accessMode": "codex-cli",
       "enabled": true,
-      "pricingRef": "manual:codex-cli-unpriced",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "manual:codex-cli-unpriced"
     },
     {
       "id": "codex-cli-strong",
@@ -120,9 +116,7 @@
       "roles": ["planner", "researcher", "executor", "reviewer", "security", "rules"],
       "accessMode": "codex-cli",
       "enabled": true,
-      "pricingRef": "manual:codex-cli-unpriced",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "manual:codex-cli-unpriced"
     },
     {
       "id": "codex-cli-frontier",
@@ -132,9 +126,7 @@
       "roles": ["planner", "reviewer", "security"],
       "accessMode": "codex-cli",
       "enabled": true,
-      "pricingRef": "manual:codex-cli-unpriced",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "manual:codex-cli-unpriced"
     },
     {
       "id": "claude-code-cli-frontier",
@@ -144,9 +136,7 @@
       "roles": ["planner", "reviewer", "security"],
       "accessMode": "claude-code-cli",
       "enabled": true,
-      "pricingRef": "anthropic:claude-opus-4-7",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "anthropic:claude-opus-4-7"
     },
     {
       "id": "claude-code-cli-strong",
@@ -156,9 +146,7 @@
       "roles": ["executor", "reviewer", "security"],
       "accessMode": "claude-code-cli",
       "enabled": true,
-      "pricingRef": "anthropic:claude-sonnet-4-6",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "anthropic:claude-sonnet-4-6"
     },
     {
       "id": "claude-code-cli-mid",
@@ -168,9 +156,7 @@
       "roles": ["researcher", "executor", "rules"],
       "accessMode": "claude-code-cli",
       "enabled": true,
-      "pricingRef": "anthropic:claude-haiku-4-5-20251001",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "anthropic:claude-haiku-4-5-20251001"
     },
     {
       "id": "cursor-agent-auto",
@@ -180,9 +166,7 @@
       "roles": ["planner", "researcher", "executor", "reviewer"],
       "accessMode": "cursor-agent-cli",
       "enabled": true,
-      "pricingRef": "manual:cursor-agent-auto",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "manual:cursor-agent-auto"
     },
     {
       "id": "cursor-agent-mid",
@@ -192,9 +176,7 @@
       "roles": ["researcher", "executor", "reviewer"],
       "accessMode": "cursor-agent-cli",
       "enabled": true,
-      "pricingRef": "manual:cursor-agent-mid",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "manual:cursor-agent-mid"
     },
     {
       "id": "stub-cheap",
@@ -203,9 +185,7 @@
       "roles": ["executor", "rules"],
       "accessMode": "stub",
       "enabled": true,
-      "pricingRef": "test:stub",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "test:stub"
     },
     {
       "id": "stub-mid",
@@ -214,9 +194,7 @@
       "roles": ["researcher", "executor", "rules"],
       "accessMode": "stub",
       "enabled": true,
-      "pricingRef": "test:stub",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "test:stub"
     },
     {
       "id": "stub-strong",
@@ -225,9 +203,7 @@
       "roles": ["executor", "reviewer", "security"],
       "accessMode": "stub",
       "enabled": true,
-      "pricingRef": "test:stub",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "test:stub"
     },
     {
       "id": "stub-frontier",
@@ -236,9 +212,7 @@
       "roles": ["planner", "reviewer", "security"],
       "accessMode": "stub",
       "enabled": true,
-      "pricingRef": "test:stub",
-      "deprecatedAt": null,
-      "replacementModelId": null
+      "pricingRef": "test:stub"
     }
   ]
 }

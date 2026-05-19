@@ -36,8 +36,6 @@ export interface ModelCatalogEntry {
   accessMode: string;
   enabled: boolean;
   pricingRef: string;
-  deprecatedAt?: string | null;
-  replacementModelId?: string | null;
 }
 
 export interface ModelCatalog {
@@ -58,7 +56,6 @@ export interface ModelRegistryDiff {
   pricingChanges: string[];
   pricingVersionChanges: Array<{ modelId: string; before: string | null; after: string | null }>;
   disabledModelIds: string[];
-  deprecatedModelIds: string[];
   workspaceOverrideConflicts: string[];
 }
 
@@ -124,10 +121,8 @@ function catalogEntryToModel(entry: ModelCatalogEntry, pricing: Record<string, M
     capability: ModelCapabilitySchema.parse(entry.capability),
     roles: entry.roles.map((role) => AgentRoleSchema.parse(role)),
     pricing: modelPricing,
-    enabled: entry.deprecatedAt ? false : entry.enabled,
+    enabled: entry.enabled,
     accessMode: AccessModeSchema.parse(entry.accessMode),
-    ...(entry.deprecatedAt !== undefined ? { deprecatedAt: entry.deprecatedAt } : {}),
-    ...(entry.replacementModelId !== undefined ? { replacementModelId: entry.replacementModelId } : {}),
   };
 }
 
@@ -189,7 +184,6 @@ function diffRegistries(params: {
   const pricingChanges: string[] = [];
   const pricingVersionChanges: ModelRegistryDiff["pricingVersionChanges"] = [];
   const disabledModelIds: string[] = [];
-  const deprecatedModelIds: string[] = [];
 
   for (const [id, after] of afterById) {
     const before = beforeById.get(id);
@@ -212,9 +206,6 @@ function diffRegistries(params: {
     if (after.enabled === false && before?.enabled !== false) {
       disabledModelIds.push(id);
     }
-    if (after.deprecatedAt) {
-      deprecatedModelIds.push(id);
-    }
   }
 
   return {
@@ -225,7 +216,6 @@ function diffRegistries(params: {
     pricingChanges: pricingChanges.sort(),
     pricingVersionChanges: pricingVersionChanges.sort((a, b) => a.modelId.localeCompare(b.modelId)),
     disabledModelIds: disabledModelIds.sort(),
-    deprecatedModelIds: deprecatedModelIds.sort(),
     workspaceOverrideConflicts: params.workspaceOverrideIds.filter((id) => afterIds.has(id)).sort(),
   };
 }
@@ -257,7 +247,6 @@ function appendRegistryRefreshAudit(params: {
       pricingChanges: params.diff.pricingChanges,
       pricingVersionChanges: params.diff.pricingVersionChanges,
       disabledModelIds: params.diff.disabledModelIds,
-      deprecatedModelIds: params.diff.deprecatedModelIds,
     },
   });
 }

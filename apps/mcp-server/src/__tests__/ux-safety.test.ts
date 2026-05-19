@@ -73,6 +73,7 @@ models:
     provider: stub
     capability: frontier
     roles: [planner, executor, reviewer, researcher, rules]
+    accessMode: stub
     pricing:
       currency: USD
       inputUsdPerMillion: 0
@@ -651,7 +652,7 @@ execution:
       expect(planned.error).toBeUndefined();
       const runId = (toolJson(planned) as { runId: string }).runId;
       const writeApprovedFile =
-        "node -e \"const fs=require('fs');fs.mkdirSync('src/auth',{recursive:true});fs.writeFileSync('src/auth/new.ts','x\\n')\"";
+        "node --input-type=module -e \"import { mkdirSync, writeFileSync } from 'node:fs'; mkdirSync('src/auth',{recursive:true}); writeFileSync('src/auth/new.ts','x\\n')\"";
       const firstToken = await previewRun(cwd, runId, { command: writeApprovedFile });
       const blocked = await handleMcpRequest(
         {
@@ -727,7 +728,7 @@ execution:
       expect(JSON.stringify(approvedRun.result)).toContain("completed");
 
       const writeNewRiskFile =
-        "node -e \"const fs=require('fs');fs.mkdirSync('src/auth',{recursive:true});fs.writeFileSync('src/auth/other.ts','x\\n')\"";
+        "node --input-type=module -e \"import { mkdirSync, writeFileSync } from 'node:fs'; mkdirSync('src/auth',{recursive:true}); writeFileSync('src/auth/other.ts','x\\n')\"";
       const thirdPreview = await handleMcpRequest(
         {
           id: 9,

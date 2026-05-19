@@ -1,7 +1,6 @@
 import { z } from "zod";
 import {
   ACCESS_MODE_VALUES,
-  AccessModes,
   AgentRoleSchema,
   ApprovalStateSchema,
   BudgetProfileSchema,
@@ -115,19 +114,6 @@ export const KiwiPolicySchema = z.object({
   execution: ExecutionDefaultsSchema.optional(),
 });
 
-export function defaultAccessModeForProvider(
-  provider: z.infer<typeof ModelProviderSchema>,
-): z.infer<typeof AccessModeSchema> {
-  if (provider === ModelProviders.Local) {
-    return AccessModes.Local;
-  }
-  if (provider === ModelProviders.Anthropic || provider === ModelProviders.Openai) {
-    throw new Error(`Provider '${provider}' must define an explicit local CLI accessMode`);
-  }
-
-  return AccessModes.Stub;
-}
-
 export const ModelEntrySchema = z
   .object({
     id: z.string().min(1),
@@ -137,21 +123,9 @@ export const ModelEntrySchema = z
     roles: z.array(AgentRoleSchema).min(1),
     pricing: ModelPricingSchema,
     enabled: z.boolean(),
-    accessMode: AccessModeSchema.optional(),
-    deprecatedAt: z.union([IsoDateTimeSchema, z.null()]).optional(),
-    replacementModelId: z.union([z.string().min(1), z.null()]).optional(),
+    accessMode: AccessModeSchema,
   })
   .superRefine((entry, ctx) => {
-    if (
-      (entry.provider === ModelProviders.Anthropic || entry.provider === ModelProviders.Openai) &&
-      entry.accessMode === undefined
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["accessMode"],
-        message: `Provider model '${entry.id}' must define an explicit local CLI accessMode`,
-      });
-    }
     if (entry.provider === ModelProviders.Stub) {
       return;
     }
@@ -164,11 +138,7 @@ export const ModelEntrySchema = z
         });
       }
     }
-  })
-  .transform((entry) => ({
-    ...entry,
-    accessMode: entry.accessMode ?? defaultAccessModeForProvider(entry.provider),
-  }));
+  });
 
 export const ModelRegistrySchema = z.object({
   version: z.literal("1"),

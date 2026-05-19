@@ -186,7 +186,12 @@ describe("runner adapters", () => {
       contextPackage: contextPackage("run_demo", "attempt_001", "Create a sample file"),
       allowedTools: ["shell"],
       timeouts: { commandTimeoutMs: 1000 },
-      command: [nodeBin, "-e", "require('fs').writeFileSync('sample.txt', 'ok'); console.log('done')"],
+      command: [
+        nodeBin,
+        "--input-type=module",
+        "-e",
+        "import { writeFileSync } from 'node:fs'; writeFileSync('sample.txt', 'ok'); console.log('done')",
+      ],
       commandPolicy: policy(),
       env: { PATH: process.env.PATH ?? "" },
     });
