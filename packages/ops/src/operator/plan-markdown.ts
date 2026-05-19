@@ -44,73 +44,87 @@ function writeTextSafely(target: string, value: string): void {
   renameSync(tempPath, target);
 }
 
-function tableCell(value: string | number | null | undefined): string {
-  return String(value ?? "-").replaceAll("|", "\\|").replaceAll("\n", " ");
-}
+class PlanMarkdownRenderer {
+  constructor(private readonly input: WritePlanMarkdownInput) {}
 
-function list(items: string[]): string {
-  if (items.length === 0) {
-    return "- none";
+  render(): string {
+    const plannerModel = this.modelLabel(
+      this.input.plannerModelId,
+      this.input.providerModel ?? null,
+      AgentRoles.Planner,
+    );
+    const stepRows = this.input.steps
+      .map((step, index) =>
+        [
+          index + 1,
+          step.stepId,
+          step.title,
+          step.type,
+          step.agentRole,
+          this.modelLabel(step.modelId, step.providerModel, step.modelCapability),
+          `$${step.estimatedCostUsd.toFixed(4)}`,
+        ]
+          .map((value) => this.tableCell(value))
+          .join(" | "),
+      )
+      .map((row) => `| ${row} |`)
+      .join("\n");
+
+    return [
+      `# Kiwi Plan ${this.input.runId}`,
+      "",
+      `Plan: \`${this.input.taskGraph.planId}\``,
+      `Planner model: **${plannerModel} via ${this.input.providerName}**`,
+      `Estimated cost: **$${this.input.estimatedCostUsd.toFixed(4)}**`,
+      "",
+      "## Summary",
+      "",
+      this.input.taskGraph.summary,
+      "",
+      "## Steps",
+      "",
+      "| # | Step | Title | Type | Role | Model | Cost |",
+      "|---:|---|---|---|---|---|---:|",
+      stepRows,
+      "",
+      "## Acceptance Criteria",
+      "",
+      this.list(this.input.taskGraph.acceptanceCriteria),
+      "",
+      "## Assumptions",
+      "",
+      this.list(this.input.taskGraph.assumptions),
+      "",
+      "## Open Questions",
+      "",
+      this.list(this.input.taskGraph.openQuestions),
+      "",
+    ].join("\n");
   }
 
-  return items.map((item) => `- ${item}`).join("\n");
-}
+  private tableCell(value: string | number | null | undefined): string {
+    return String(value ?? "-")
+      .replaceAll("|", "\\|")
+      .replaceAll("\n", " ");
+  }
 
-function modelLabel(modelId: string | null, providerModel: string | null, capability: string): string {
-  const resolvedModel = providerModel ?? modelId ?? capability;
+  private list(items: string[]): string {
+    if (items.length === 0) {
+      return "- none";
+    }
 
-  return modelId && providerModel && modelId !== providerModel ? `${providerModel} (${modelId})` : resolvedModel;
+    return items.map((item) => `- ${item}`).join("\n");
+  }
+
+  private modelLabel(modelId: string | null, providerModel: string | null, capability: string): string {
+    const resolvedModel = providerModel ?? modelId ?? capability;
+
+    return modelId && providerModel && modelId !== providerModel ? `${providerModel} (${modelId})` : resolvedModel;
+  }
 }
 
 export function renderPlanMarkdownArtifact(input: WritePlanMarkdownInput): string {
-  const plannerModel = modelLabel(input.plannerModelId, input.providerModel ?? null, AgentRoles.Planner);
-  const stepRows = input.steps
-    .map((step, index) =>
-      [
-        index + 1,
-        step.stepId,
-        step.title,
-        step.type,
-        step.agentRole,
-        modelLabel(step.modelId, step.providerModel, step.modelCapability),
-        `$${step.estimatedCostUsd.toFixed(4)}`,
-      ]
-        .map(tableCell)
-        .join(" | "),
-    )
-    .map((row) => `| ${row} |`)
-    .join("\n");
-
-  return [
-    `# Kiwi Plan ${input.runId}`,
-    "",
-    `Plan: \`${input.taskGraph.planId}\``,
-    `Planner model: **${plannerModel} via ${input.providerName}**`,
-    `Estimated cost: **$${input.estimatedCostUsd.toFixed(4)}**`,
-    "",
-    "## Summary",
-    "",
-    input.taskGraph.summary,
-    "",
-    "## Steps",
-    "",
-    "| # | Step | Title | Type | Role | Model | Cost |",
-    "|---:|---|---|---|---|---|---:|",
-    stepRows,
-    "",
-    "## Acceptance Criteria",
-    "",
-    list(input.taskGraph.acceptanceCriteria),
-    "",
-    "## Assumptions",
-    "",
-    list(input.taskGraph.assumptions),
-    "",
-    "## Open Questions",
-    "",
-    list(input.taskGraph.openQuestions),
-    "",
-  ].join("\n");
+  return new PlanMarkdownRenderer(input).render();
 }
 
 export function writePlanMarkdown(input: WritePlanMarkdownInput): PlanMarkdownResult {

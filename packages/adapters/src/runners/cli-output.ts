@@ -124,7 +124,9 @@ export function cliRunnerOutput(params: {
 
   if (!params.result.ok) {
     const rateLimitMessage = providerLimitMessage(params.result, params.label);
-    const errorCode = rateLimitMessage ? ProviderFailureCodes.RateLimited : `RUNNER_EXIT_${params.result.exitCode ?? "UNKNOWN"}`;
+    const errorCode = rateLimitMessage
+      ? ProviderFailureCodes.RateLimited
+      : `RUNNER_EXIT_${params.result.exitCode ?? "UNKNOWN"}`;
     const errorMessage = rateLimitMessage ?? (params.result.stderr.slice(0, 500) || `${params.label} runner failed`);
 
     return {
@@ -135,7 +137,9 @@ export function cliRunnerOutput(params: {
         gateType: "forbidden_file_checks",
         status: ContractValues.Fail,
         evidenceRefs: [logsArtifact.ref],
-        reason: rateLimitMessage ?? `${params.label} runner exited ${params.result.exitCode}: ${params.result.stderr.slice(0, 200)}`,
+        reason:
+          rateLimitMessage ??
+          `${params.label} runner exited ${params.result.exitCode}: ${params.result.stderr.slice(0, 200)}`,
       }),
       error: {
         code: errorCode,

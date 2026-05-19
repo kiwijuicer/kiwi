@@ -9,7 +9,12 @@ import { SchedulerDecisionService } from "./scheduler.js";
 import { StepRunnerSelector } from "./runner-selection.js";
 import { StepExecutionSession, type ApprovalContext } from "./session.js";
 import { ExecutionTargetResolver } from "./target.js";
-import type { ExecutePlannedStepInput, ExecutePlannedStepResult, ProviderFallbackResult, RunAttemptResult } from "./types.js";
+import type {
+  ExecutePlannedStepInput,
+  ExecutePlannedStepResult,
+  ProviderFallbackResult,
+  RunAttemptResult,
+} from "./types.js";
 
 export class PlannedStepExecutionService {
   constructor(
@@ -125,7 +130,9 @@ export class PlannedStepExecutionService {
     if (error?.code !== ProviderFailureCodes.RateLimited || !failedRunner || !params.session.runnerResolution) {
       return null;
     }
-    const runnerAvailability = params.session.runnerResolution.runnerAvailability.filter((runner) => runner !== failedRunner);
+    const runnerAvailability = params.session.runnerResolution.runnerAvailability.filter(
+      (runner) => runner !== failedRunner,
+    );
 
     if (runnerAvailability.length === 0) {
       return null;

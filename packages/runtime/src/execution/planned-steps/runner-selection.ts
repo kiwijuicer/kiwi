@@ -135,7 +135,10 @@ export class StepRunnerSelector {
       params.decision.runner === RunnerNames.LocalShell
         ? null
         : params.decision.runner
-          ? params.runnerResolution?.selectExecutorModelForRunner(params.decision.runner, params.decision.modelCapability)
+          ? params.runnerResolution?.selectExecutorModelForRunner(
+              params.decision.runner,
+              params.decision.modelCapability,
+            )
           : null;
 
     if (executorSelection) {

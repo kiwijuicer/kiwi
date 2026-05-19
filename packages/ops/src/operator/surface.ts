@@ -4,12 +4,17 @@ import {
   appendAuditEvent,
   ensureRunLayout,
   getRunStatusSummary,
-  listStepAttemptEvidence,
   loadInitiative,
   loadRunManifest,
   loadTaskGraph,
   resolveRunArtifactPath,
 } from "@kiwi/core";
+import { buildRunActivityTimeline } from "../summaries/activity-timeline.js";
+import {
+  RunActivityStatuses,
+  type RunActivityEntry,
+  type RunActivityStatus,
+} from "../summaries/activity-timeline-types.js";
 
 export interface OperatorSnapshotResult {
   runId: string;
@@ -36,22 +41,67 @@ function renderList(items: string[]): string {
   return items.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
+const ACTIVITY_MARKERS: Record<RunActivityStatus, string> = {
+  [RunActivityStatuses.Pending]: "○",
+  [RunActivityStatuses.Running]: "●",
+  [RunActivityStatuses.Completed]: "✓",
+  [RunActivityStatuses.Failed]: "!",
+  [RunActivityStatuses.Blocked]: "■",
+  [RunActivityStatuses.Skipped]: "-",
+};
+
+class OperatorSnapshotActivityRenderer {
+  constructor(private readonly activities: RunActivityEntry[]) {}
+
+  render(parentActivityId?: string): string {
+    const children = this.activities.filter((activity) => activity.parentActivityId === parentActivityId);
+
+    if (children.length === 0) {
+      return "";
+    }
+
+    return `<ol class="${parentActivityId ? "activity-children" : "activity-timeline"}">${children
+      .map((activity) => {
+        const metadata = this.metadataText(activity);
+
+        return `<li class="activity activity-${escapeHtml(activity.status)}"><span class="activity-marker">${escapeHtml(ACTIVITY_MARKERS[activity.status])}</span><span class="activity-main"><span class="activity-title">${escapeHtml(activity.title)}</span>${
+          metadata ? `<span class="activity-meta">${escapeHtml(metadata)}</span>` : ""
+        }</span>${this.render(activity.activityId)}</li>`;
+      })
+      .join("")}</ol>`;
+  }
+
+  private metadataText(activity: RunActivityEntry): string {
+    const metadata = activity.metadata ?? {};
+    const values = [
+      typeof metadata.runner === "string" ? metadata.runner : null,
+      typeof metadata.accessMode === "string" ? metadata.accessMode : null,
+      typeof metadata.model === "string" ? metadata.model : null,
+      typeof metadata.capability === "string" ? metadata.capability : null,
+      typeof metadata.verdict === "string" ? `review:${metadata.verdict}` : null,
+      typeof metadata.gateStatus === "string" ? `gates:${metadata.gateStatus}` : null,
+      typeof metadata.reason === "string" ? metadata.reason : null,
+    ].filter((value): value is string => typeof value === "string" && value.length > 0);
+
+    return values.join(" · ");
+  }
+}
+
 export function renderOperatorSnapshotHtml(params: { cwd: string; runId: string; generatedAt: string }): string {
   const run = loadRunManifest(params.runId, params.cwd);
   const initiative = loadInitiative(params.runId, params.cwd);
   const taskGraph = loadTaskGraph(params.runId, params.cwd);
   const status = getRunStatusSummary(params.cwd, params.runId).latest[0];
-  const attempts = listStepAttemptEvidence(params.cwd, params.runId);
-
-  const stepRows = taskGraph.steps
-    .map((step) => {
-      const latestAttempt = attempts.filter((attempt) => attempt.stepId === step.stepId).at(-1);
-      const attemptStatus = latestAttempt?.attempt.status ?? "missing";
-      const review = latestAttempt?.reviewVerdict?.verdict ?? "missing";
-
-      return `<tr><td>${escapeHtml(step.stepId)}</td><td>${escapeHtml(step.type)}</td><td>${escapeHtml(step.title)}</td><td>${escapeHtml(step.dependsOn.join(", ") || "none")}</td><td>${escapeHtml(attemptStatus)}</td><td>${escapeHtml(review)}</td></tr>`;
-    })
-    .join("");
+  const timeline = buildRunActivityTimeline({
+    cwd: params.cwd,
+    runId: params.runId,
+    now: new Date(params.generatedAt),
+  });
+  const attempts = new Set(
+    timeline.activities
+      .map((activity) => activity.attemptId)
+      .filter((attemptId): attemptId is string => typeof attemptId === "string"),
+  ).size;
 
   const artifactRows = status?.artifactPaths
     ? Object.entries(status.artifactPaths)
@@ -74,9 +124,23 @@ export function renderOperatorSnapshotHtml(params: { cwd: string; runId: string;
     h2 { margin: 28px 0 10px; font-size: 16px; }
     .meta { color: #5b6570; font-size: 13px; }
     .pill { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border: 1px solid #a8b1a3; background: #eef3e8; font-size: 13px; }
-    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 18px; }
     .metric { border: 1px solid #d7d1c6; background: #fffdf9; padding: 12px; }
     .metric strong { display: block; font-size: 22px; }
+    .activity-timeline, .activity-children { list-style: none; margin: 0; padding: 0; }
+    .activity-timeline { border: 1px solid #d7d1c6; background: #fffdf9; }
+    .activity { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; padding: 9px 10px; border-bottom: 1px solid #e7e1d8; }
+    .activity:last-child { border-bottom: 0; }
+    .activity-children { grid-column: 2; margin-top: 8px; border-left: 2px solid #d7d1c6; padding-left: 10px; }
+    .activity-children .activity { padding: 6px 0 6px 8px; border-bottom: 0; }
+    .activity-marker { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 720; }
+    .activity-title { display: block; font-size: 13px; }
+    .activity-meta { display: block; margin-top: 2px; color: #5b6570; font-size: 12px; }
+    .activity-completed .activity-marker { color: #166534; }
+    .activity-running .activity-marker { color: #0f5ea8; }
+    .activity-pending .activity-marker, .activity-skipped .activity-marker { color: #69737d; }
+    .activity-failed .activity-marker { color: #b42318; }
+    .activity-blocked .activity-marker { color: #8a4b00; }
     table { width: 100%; border-collapse: collapse; background: #fffdf9; border: 1px solid #d7d1c6; }
     th, td { text-align: left; border-bottom: 1px solid #e7e1d8; padding: 9px 10px; font-size: 13px; vertical-align: top; }
     th { color: #45515c; background: #ece7dd; font-weight: 650; }
@@ -96,12 +160,15 @@ export function renderOperatorSnapshotHtml(params: { cwd: string; runId: string;
     </header>
     <section class="grid">
       <div class="metric"><span>steps</span><strong>${taskGraph.steps.length}</strong></div>
-      <div class="metric"><span>attempts</span><strong>${attempts.length}</strong></div>
+      <div class="metric"><span>completed</span><strong>${timeline.summary.completed}</strong></div>
+      <div class="metric"><span>active</span><strong>${timeline.summary.running}</strong></div>
+      <div class="metric"><span>failed/blocked</span><strong>${timeline.summary.failed + timeline.summary.blocked}</strong></div>
+      <div class="metric"><span>attempts</span><strong>${attempts}</strong></div>
       <div class="metric"><span>risk</span><strong>${taskGraph.riskScore}</strong></div>
       <div class="metric"><span>complexity</span><strong>${taskGraph.complexityScore}</strong></div>
     </section>
-    <h2>Steps</h2>
-    <table><thead><tr><th>Step</th><th>Type</th><th>Title</th><th>Depends On</th><th>Attempt</th><th>Review</th></tr></thead><tbody>${stepRows}</tbody></table>
+    <h2>Activity</h2>
+    ${new OperatorSnapshotActivityRenderer(timeline.activities).render()}
     <h2>Acceptance</h2>
     <ul>${renderList(taskGraph.acceptanceCriteria)}</ul>
     <h2>Artifacts</h2>

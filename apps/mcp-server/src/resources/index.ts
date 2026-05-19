@@ -13,7 +13,13 @@ import {
   resolveRunArtifactPath,
   summarizeModelInvocations,
 } from "@kiwi/core";
-import { loadEvidenceManifest } from "@kiwi/ops";
+import {
+  buildRunActivityTimeline,
+  buildWorkspaceActivityTimeline,
+  loadEvidenceManifest,
+  renderActivityTimelineMarkdown,
+  renderWorkspaceActivityTimelineMarkdown,
+} from "@kiwi/ops";
 
 interface McpResourceContent {
   uri: string;
@@ -48,65 +54,81 @@ export class McpResourceNotFoundError extends Error {
   }
 }
 
+const MIME_JSON = "application/json";
+const MIME_MARKDOWN = "text/markdown";
+const MIME_HTML = "text/html";
+
 const MCP_RESOURCE_TEMPLATES = [
-  { uriTemplate: "kiwi://runs/{runId}", name: "Run Status", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/manifest", name: "Run Manifest", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/initiative", name: "Initiative", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/task-graph", name: "TaskGraph", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/planner-input", name: "Planner Input", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/planner-output", name: "Planner Output", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/planner-cost", name: "Planner Cost", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/model-invocations", name: "Model Invocations", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/model-usage-summary", name: "Model Usage Summary", mimeType: "application/json" },
+  { uriTemplate: "kiwi://workspace/activity-timeline", name: "Workspace Activity Timeline", mimeType: MIME_JSON },
+  {
+    uriTemplate: "kiwi://workspace/activity-timeline.md",
+    name: "Workspace Activity Timeline Markdown",
+    mimeType: MIME_MARKDOWN,
+  },
+  { uriTemplate: "kiwi://runs/{runId}", name: "Run Status", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/manifest", name: "Run Manifest", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/initiative", name: "Initiative", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/task-graph", name: "TaskGraph", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/planner-input", name: "Planner Input", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/planner-output", name: "Planner Output", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/planner-cost", name: "Planner Cost", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/model-invocations", name: "Model Invocations", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/model-usage-summary", name: "Model Usage Summary", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/activity-timeline", name: "Activity Timeline", mimeType: MIME_JSON },
+  {
+    uriTemplate: "kiwi://runs/{runId}/activity-timeline.md",
+    name: "Activity Timeline Markdown",
+    mimeType: MIME_MARKDOWN,
+  },
   {
     uriTemplate: "kiwi://runs/{runId}/previews/{previewToken}",
     name: "MCP Preview Token",
-    mimeType: "application/json",
+    mimeType: MIME_JSON,
   },
-  { uriTemplate: "kiwi://runs/{runId}/attempts", name: "Step Attempts", mimeType: "application/json" },
+  { uriTemplate: "kiwi://runs/{runId}/attempts", name: "Step Attempts", mimeType: MIME_JSON },
   {
     uriTemplate: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}",
     name: "StepAttempt",
-    mimeType: "application/json",
+    mimeType: MIME_JSON,
   },
   {
     uriTemplate: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/gate-results",
     name: "Gate Results",
-    mimeType: "application/json",
+    mimeType: MIME_JSON,
   },
   {
     uriTemplate: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/review-verdict",
     name: "Review Verdict",
-    mimeType: "application/json",
+    mimeType: MIME_JSON,
   },
   {
     uriTemplate: "kiwi://runs/{runId}/attempts/{stepId}/{attemptId}/attempt-summary",
     name: "Attempt Summary",
-    mimeType: "application/json",
+    mimeType: MIME_JSON,
   },
-  { uriTemplate: "kiwi://runs/{runId}/final-verdict", name: "Final Verdict", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/final-cost-report", name: "Final Cost Report", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/final-summary", name: "Final Summary", mimeType: "text/markdown" },
-  { uriTemplate: "kiwi://runs/{runId}/pr-draft", name: "PR Draft", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/audit", name: "Audit Events", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/audit-snapshot", name: "Audit Snapshot", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/evidence-manifest", name: "Evidence Manifest", mimeType: "application/json" },
-  { uriTemplate: "kiwi://runs/{runId}/operator-snapshot", name: "Operator Snapshot", mimeType: "text/html" },
+  { uriTemplate: "kiwi://runs/{runId}/final-verdict", name: "Final Verdict", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/final-cost-report", name: "Final Cost Report", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/final-summary", name: "Final Summary", mimeType: MIME_MARKDOWN },
+  { uriTemplate: "kiwi://runs/{runId}/pr-draft", name: "PR Draft", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/audit", name: "Audit Events", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/audit-snapshot", name: "Audit Snapshot", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/evidence-manifest", name: "Evidence Manifest", mimeType: MIME_JSON },
+  { uriTemplate: "kiwi://runs/{runId}/operator-snapshot", name: "Operator Snapshot", mimeType: MIME_HTML },
   { uriTemplate: "kiwi://runs/{runId}/artifacts/{artifactRef}", name: "Artifact" },
 ];
 
 function mimeTypeForRef(ref: string): string {
   if (ref.endsWith(".json")) {
-    return "application/json";
+    return MIME_JSON;
   }
   if (ref.endsWith(".md") || ref.endsWith(".markdown")) {
-    return "text/markdown";
+    return MIME_MARKDOWN;
   }
   if (ref.endsWith(".patch") || ref.endsWith(".diff")) {
     return "text/x-diff";
   }
   if (ref.endsWith(".html")) {
-    return "text/html";
+    return MIME_HTML;
   }
 
   return "text/plain";
@@ -149,12 +171,30 @@ export function listResourceTemplates(): McpResourceTemplate[] {
 export function listResources(cwd: string): McpResource[] {
   const runs = listRunIds(cwd).filter(isValidRunId);
   const concreteRuns: McpResource[] = [
-    { uri: "kiwi://runs", name: "Runs", mimeType: "application/json" },
+    { uri: "kiwi://runs", name: "Runs", mimeType: MIME_JSON },
+    { uri: "kiwi://workspace/activity-timeline", name: "Workspace Activity Timeline", mimeType: MIME_JSON },
+    {
+      uri: "kiwi://workspace/activity-timeline.md",
+      name: "Workspace Activity Timeline Markdown",
+      mimeType: MIME_MARKDOWN,
+    },
     ...runs.map((runId) => ({
       uri: `kiwi://runs/${runId}`,
       name: `${runId} Status`,
-      mimeType: "application/json",
+      mimeType: MIME_JSON,
     })),
+    ...runs.flatMap((runId) => [
+      {
+        uri: `kiwi://runs/${runId}/activity-timeline`,
+        name: `${runId} Activity Timeline`,
+        mimeType: MIME_JSON,
+      },
+      {
+        uri: `kiwi://runs/${runId}/activity-timeline.md`,
+        name: `${runId} Activity Timeline Markdown`,
+        mimeType: MIME_MARKDOWN,
+      },
+    ]),
   ];
   const dynamic = runs.flatMap((runId) =>
     ["plan", "previews", "steps", "final"].flatMap((relativeDir) =>
@@ -219,43 +259,49 @@ const RUN_JSON_RESOURCE_REFS: Record<string, string> = {
 };
 
 const RUN_TEXT_RESOURCE_REFS: Record<string, { ref: string; mimeType: string }> = {
-  "final-summary": { ref: "final/final-summary.md", mimeType: "text/markdown" },
-  "operator-snapshot": { ref: "operator/index.html", mimeType: "text/html" },
+  "final-summary": { ref: "final/final-summary.md", mimeType: MIME_MARKDOWN },
+  "operator-snapshot": { ref: "operator/index.html", mimeType: MIME_HTML },
 };
 
 function readNamedRunResource(uri: string, runId: string, tail: string, cwd: string): McpResourceContent | null {
   if (!tail) {
-    return asContent(uri, getRunStatusSummary(cwd, runId), "application/json");
+    return asContent(uri, getRunStatusSummary(cwd, runId), MIME_JSON);
   }
   if (tail === "manifest") {
-    return asContent(uri, loadRunManifest(runId, cwd), "application/json");
+    return asContent(uri, loadRunManifest(runId, cwd), MIME_JSON);
   }
   if (tail === "initiative") {
-    return asContent(uri, loadInitiative(runId, cwd), "application/json");
+    return asContent(uri, loadInitiative(runId, cwd), MIME_JSON);
   }
   if (tail === "task-graph") {
-    return asContent(uri, loadTaskGraph(runId, cwd), "application/json");
+    return asContent(uri, loadTaskGraph(runId, cwd), MIME_JSON);
   }
   if (tail === "model-invocations") {
-    return asContent(uri, readModelInvocations(cwd, runId), "application/json");
+    return asContent(uri, readModelInvocations(cwd, runId), MIME_JSON);
   }
   if (tail === "model-usage-summary") {
-    return asContent(uri, summarizeModelInvocations({ cwd, runId }), "application/json");
+    return asContent(uri, summarizeModelInvocations({ cwd, runId }), MIME_JSON);
+  }
+  if (tail === "activity-timeline") {
+    return asContent(uri, buildRunActivityTimeline({ cwd, runId }), MIME_JSON);
+  }
+  if (tail === "activity-timeline.md") {
+    return asContent(uri, renderActivityTimelineMarkdown(buildRunActivityTimeline({ cwd, runId })), MIME_MARKDOWN);
   }
   if (tail === "attempts") {
-    return asContent(uri, listStepAttemptEvidence(cwd, runId), "application/json");
+    return asContent(uri, listStepAttemptEvidence(cwd, runId), MIME_JSON);
   }
   if (tail === "audit") {
-    return asContent(uri, readAuditEvents(cwd, runId), "application/json");
+    return asContent(uri, readAuditEvents(cwd, runId), MIME_JSON);
   }
   if (tail === "evidence-manifest") {
-    return asContent(uri, loadEvidenceManifest({ cwd, runId }), "application/json");
+    return asContent(uri, loadEvidenceManifest({ cwd, runId }), MIME_JSON);
   }
 
   const jsonRef = RUN_JSON_RESOURCE_REFS[tail];
 
   if (jsonRef) {
-    return asContent(uri, readJsonRunArtifact(runId, jsonRef, cwd), "application/json");
+    return asContent(uri, readJsonRunArtifact(runId, jsonRef, cwd), MIME_JSON);
   }
   const textRef = RUN_TEXT_RESOURCE_REFS[tail];
 
@@ -283,12 +329,22 @@ function readAttemptResource(uri: string, runId: string, tail: string, cwd: stri
   };
   const ref = refs[section];
 
-  return ref ? asContent(uri, readJsonRunArtifact(runId, ref, cwd), "application/json") : null;
+  return ref ? asContent(uri, readJsonRunArtifact(runId, ref, cwd), MIME_JSON) : null;
 }
 
 function readResource(uri: string, cwd: string): McpResourceContent {
   if (uri === "kiwi://runs") {
-    return asContent(uri, getRunStatusSummary(cwd), "application/json");
+    return asContent(uri, getRunStatusSummary(cwd), MIME_JSON);
+  }
+  if (uri === "kiwi://workspace/activity-timeline") {
+    return asContent(uri, buildWorkspaceActivityTimeline({ cwd }), MIME_JSON);
+  }
+  if (uri === "kiwi://workspace/activity-timeline.md") {
+    return asContent(
+      uri,
+      renderWorkspaceActivityTimelineMarkdown(buildWorkspaceActivityTimeline({ cwd })),
+      MIME_MARKDOWN,
+    );
   }
   const runMatch = uri.match(/^kiwi:\/\/runs\/([^/]+)(?:\/(.+))?$/);
   const runId = runMatch?.[1];
@@ -316,7 +372,7 @@ function readResource(uri: string, cwd: string): McpResourceContent {
     return asContent(
       uri,
       readJsonRunArtifact(runId, `previews/${decodeURIComponent(previewMatch[1])}.json`, cwd),
-      "application/json",
+      MIME_JSON,
     );
   }
 

@@ -1,5 +1,5 @@
 import { ContractValues, ProgressStatuses, RiskProfiles, RunStatuses, type TaskGraph } from "@kiwi/contracts";
-import { buildRunCompletionSummary } from "@kiwi/ops";
+import { buildRunActivityTimeline, buildRunCompletionSummary } from "@kiwi/ops";
 import {
   assertDirectExecutionSafe,
   DirectExecutionUnsafeError,
@@ -368,6 +368,7 @@ function runExecutionResult(context: RunToolExecutionContext): unknown {
       status: run?.currentStatus ?? "missing",
       steps,
       summary: buildRunCompletionSummary({ cwd: context.workspacePath, runId: context.runId }),
+      activityTimeline: buildRunActivityTimeline({ cwd: context.workspacePath, runId: context.runId }),
     },
     {
       cwd: context.workspacePath,

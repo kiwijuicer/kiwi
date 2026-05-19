@@ -1,6 +1,7 @@
-import { ProgressStatuses, StepStatuses } from "@kiwi/contracts";
+import { ContractValues, ProgressStatuses, StepStatuses } from "@kiwi/contracts";
+import { ActivityTimelineChildModes, renderActivityTimelineMarkdown, type RunActivityTimeline } from "@kiwi/ops";
 
-export interface PlanStepRenderInput {
+interface PlanStepRenderInput {
   stepId: string;
   title: string;
   type: string;
@@ -11,7 +12,7 @@ export interface PlanStepRenderInput {
   estimatedCostUsd?: number | null | undefined;
 }
 
-export interface PlanRenderInput {
+interface PlanRenderInput {
   runId: string;
   planId: string;
   workspacePath: string;
@@ -29,7 +30,7 @@ export interface PlanRenderInput {
   steps?: PlanStepRenderInput[] | undefined;
 }
 
-export interface DiffStepRenderInput {
+interface DiffStepRenderInput {
   stepId: string;
   attemptId: string;
   stat: string;
@@ -37,13 +38,13 @@ export interface DiffStepRenderInput {
   reviewVerdict: string;
 }
 
-export interface DiffRenderInput {
+interface DiffRenderInput {
   runId: string;
   items: DiffStepRenderInput[];
   stat: string;
 }
 
-export interface StepProgressRenderInput {
+interface StepProgressRenderInput {
   phase: string;
   status: string;
   stepId: string;
@@ -102,7 +103,9 @@ function modelLabel(params: {
 }
 
 function tableCell(value: string | number | null | undefined): string {
-  return String(value ?? "-").replaceAll("|", "\\|").replaceAll("\n", " ");
+  return String(value ?? "-")
+    .replaceAll("|", "\\|")
+    .replaceAll("\n", " ");
 }
 
 function operatorHeader(value: JsonRecord): string | null {
@@ -135,9 +138,11 @@ function nextActionLines(value: JsonRecord): string[] {
     return [];
   }
 
-  return ["", `Next: \`${name}\``, stringValue(nextAction.whyThisTool) ? stringValue(nextAction.whyThisTool) : ""].filter(
-    (line) => line !== "",
-  );
+  return [
+    "",
+    `Next: \`${name}\``,
+    stringValue(nextAction.whyThisTool) ? stringValue(nextAction.whyThisTool) : "",
+  ].filter((line) => line !== "");
 }
 
 function resourceLines(value: JsonRecord): string[] {
@@ -166,35 +171,39 @@ function renderWithHeader(value: JsonRecord, body: string): string {
   return lines.join("\n\n");
 }
 
-export function renderPlanMarkdown(input: PlanRenderInput): string {
+function renderPlanMarkdown(input: PlanRenderInput): string {
   const planUri = input.planMarkdownUri ?? input.planMarkdownPath;
   const planLine =
-    input.planMarkdownPath && planUri ? `Plan file: [\`${input.planMarkdownPath}\`](${planUri})` : "Plan file: not written";
+    input.planMarkdownPath && planUri
+      ? `Plan file: [\`${input.planMarkdownPath}\`](${planUri})`
+      : "Plan file: not written";
   const stepLines =
     input.steps && input.steps.length > 0
       ? [
           "",
           "| # | Step | Title | Type | Model | Cost |",
           "|---:|---|---|---|---|---:|",
-          ...input.steps.map((step, index) =>
-            [
-              index + 1,
-              step.stepId,
-              step.title,
-              step.type,
-              modelLabel({
-                modelId: step.modelId,
-                providerModel: step.providerModel,
-                capability: step.modelCapability,
-                runner: step.agentRole,
-              }),
-              step.estimatedCostUsd === null || step.estimatedCostUsd === undefined
-                ? "-"
-                : `$${step.estimatedCostUsd.toFixed(4)}`,
-            ]
-              .map(tableCell)
-              .join(" | "),
-          ).map((row) => `| ${row} |`),
+          ...input.steps
+            .map((step, index) =>
+              [
+                index + 1,
+                step.stepId,
+                step.title,
+                step.type,
+                modelLabel({
+                  modelId: step.modelId,
+                  providerModel: step.providerModel,
+                  capability: step.modelCapability,
+                  runner: step.agentRole,
+                }),
+                step.estimatedCostUsd === null || step.estimatedCostUsd === undefined
+                  ? "-"
+                  : `$${step.estimatedCostUsd.toFixed(4)}`,
+              ]
+                .map(tableCell)
+                .join(" | "),
+            )
+            .map((row) => `| ${row} |`),
         ]
       : [];
 
@@ -221,7 +230,7 @@ export function renderPlanMarkdown(input: PlanRenderInput): string {
   ].join("\n");
 }
 
-export function renderDiffMarkdown(input: DiffRenderInput): string {
+function renderDiffMarkdown(input: DiffRenderInput): string {
   if (input.items.length === 0) {
     return `## Diff ${input.runId}\n\nNo diff items.`;
   }
@@ -233,7 +242,9 @@ export function renderDiffMarkdown(input: DiffRenderInput): string {
     `\`\`\`diff\n${item.patch}\n\`\`\``,
   ]);
 
-  return [`## Diff ${input.runId}`, "", input.stat ? `\`\`\`text\n${input.stat}\n\`\`\`` : "", "", ...sections].join("\n");
+  return [`## Diff ${input.runId}`, "", input.stat ? `\`\`\`text\n${input.stat}\n\`\`\`` : "", "", ...sections].join(
+    "\n",
+  );
 }
 
 export function renderStepProgressLine(input: StepProgressRenderInput): string {
@@ -274,7 +285,7 @@ export function renderStepProgressLine(input: StepProgressRenderInput): string {
   return `${prefix}${input.phase} ${input.status} ${input.stepId}`;
 }
 
-export function renderOperatorStatusLine(params: {
+function renderOperatorStatusLine(params: {
   runId: string;
   currentState: string;
   plannerModel?: string | null | undefined;
@@ -288,167 +299,214 @@ export function renderOperatorStatusLine(params: {
   return parts.join(" - ");
 }
 
-function renderPlannedRun(value: JsonRecord): string {
-  const workspace = record(value.workspace);
-  const taskGraph = record(value.taskGraph);
-  const planner = record(value.planner);
-  const cost = record(value.cost);
-  const artifacts = record(value.artifacts);
-  const planMarkdown = record(artifacts.planMarkdown);
-  const forecast = record(cost.forecast);
-  const forecastSteps = Array.isArray(forecast.steps) ? forecast.steps : [];
+class McpToolResultRenderer {
+  constructor(private readonly value: JsonRecord) {}
 
-  return renderWithHeader(
-    value,
-    renderPlanMarkdown({
-      runId: stringValue(value.runId),
-      planId: stringValue(value.planId),
-      workspacePath: stringValue(workspace.workspacePath),
-      plannerModelId: stringValue(planner.modelId, "unknown"),
-      providerName: stringValue(planner.providerName, "unknown"),
-      providerModel: stringValue(planner.providerModel) || undefined,
-      stepCount: numberValue(taskGraph.stepCount),
-      summary: stringValue(taskGraph.summary),
-      acceptanceCriteria: stringArray(taskGraph.acceptanceCriteria),
-      assumptions: stringArray(taskGraph.assumptions),
-      openQuestions: stringArray(taskGraph.openQuestions),
-      estimatedCostUsd: numberValue(cost.estimatedCostUsd),
-      planMarkdownPath: stringValue(planMarkdown.path) || undefined,
-      planMarkdownUri: stringValue(planMarkdown.uri) || undefined,
-      steps: forecastSteps.map((step): PlanStepRenderInput => {
-        const item = record(step);
-
-        return {
-          stepId: stringValue(item.stepId),
-          title: stringValue(item.title),
-          type: "-",
-          modelId: stringValue(item.executorModelId) || undefined,
-          estimatedCostUsd: numberValue(item.totalCostUsd),
-        };
-      }),
-    }),
-  );
-}
-
-function renderPreview(value: JsonRecord): string {
-  const cost = record(value.cost);
-  const execution = record(value.execution);
-  const decision = record(value.decision);
-  const steps = Array.isArray(value.steps) ? value.steps.map(record) : [];
-  const stepLines = steps.map((step) => {
-    const label = modelLabel({
-      modelId: stringValue(step.selectedModelId) || undefined,
-      providerModel: stringValue(step.selectedProviderModel) || undefined,
-      capability: stringValue(step.modelCapability) || undefined,
-      runner: stringValue(step.selectedAccessMode) || stringValue(step.runner) || undefined,
-    });
-
-    return `- ${step.index}/${step.count} \`${stringValue(step.stepId)}\` ${stringValue(step.title)} - ${label}`;
-  });
-
-  return renderWithHeader(
-    value,
-    [
-      `## Execution Preview ${stringValue(value.runId)}`,
-      "",
-      stringValue(decision.confirmationSummary),
-      "",
-      `Mode: **${stringValue(execution.isolation, "unknown")}**`,
-      `Estimated cost: **$${numberValue(cost.estimatedCostUsd).toFixed(4)}**`,
-      "",
-      "Planned steps:",
-      ...stepLines,
-    ].join("\n"),
-  );
-}
-
-function renderRunDiff(value: JsonRecord): string {
-  const diff = record(value.diff);
-  const items = Array.isArray(diff.items) ? diff.items.map(record) : [];
-
-  return renderWithHeader(
-    value,
-    renderDiffMarkdown({
-      runId: stringValue(diff.runId, stringValue(value.runId)),
-      stat: stringValue(diff.stat),
-      items: items.map((item): DiffStepRenderInput => ({
-        stepId: stringValue(item.stepId),
-        attemptId: stringValue(item.attemptId),
-        stat: stringValue(item.stat),
-        patch: stringValue(item.patch),
-        reviewVerdict: stringValue(item.reviewVerdict, "unknown"),
-      })),
-    }),
-  );
-}
-
-function renderStatus(value: JsonRecord): string {
-  const status = record(value.status);
-  const latest = Array.isArray(status.latest) ? status.latest.map(record) : [];
-  const run = latest[0];
-  const steps = run && Array.isArray(run.steps) ? run.steps.map(record) : [];
-
-  if (!run) {
-    return renderWithHeader(value, `## Run Status\n\nNo runs found.`);
+  render(): string {
+    switch (stringValue(this.value.kind)) {
+      case "planned_run":
+        return this.renderPlannedRun();
+      case "run_execution_preview":
+        return this.renderPreview();
+      case "run_diff":
+        return this.renderRunDiff();
+      case "run_status":
+        return this.renderStatus();
+      case "run_execution_result":
+        return this.renderExecutionResult();
+      default:
+        return this.renderSimple();
+    }
   }
 
-  return renderWithHeader(
-    value,
-    [
-      `## Run Status ${stringValue(run.runId)}`,
-      "",
-      `State: **${stringValue(run.currentStatus, stringValue(run.status, "unknown"))}**`,
-      `Plan: \`${stringValue(run.currentPlanId)}\``,
-      "",
-      "Steps:",
-      ...steps.map(
-        (step) =>
-          `- \`${stringValue(step.stepId)}\` ${stringValue(
-            step.status,
-            stringValue(step.plannedStatus, StepStatuses.Pending),
-          )}: ${stringValue(step.title)}`,
-      ),
-    ].join("\n"),
-  );
-}
+  private renderPlannedRun(): string {
+    const workspace = record(this.value.workspace);
+    const taskGraph = record(this.value.taskGraph);
+    const planner = record(this.value.planner);
+    const cost = record(this.value.cost);
+    const artifacts = record(this.value.artifacts);
+    const planMarkdown = record(artifacts.planMarkdown);
+    const forecast = record(cost.forecast);
+    const forecastSteps = Array.isArray(forecast.steps) ? forecast.steps : [];
 
-function renderExecutionResult(value: JsonRecord): string {
-  const summary = record(value.summary);
-  const steps = Array.isArray(value.steps) ? value.steps.map(record) : [];
+    return renderWithHeader(
+      this.value,
+      renderPlanMarkdown({
+        runId: stringValue(this.value.runId),
+        planId: stringValue(this.value.planId),
+        workspacePath: stringValue(workspace.workspacePath),
+        plannerModelId: stringValue(planner.modelId, "unknown"),
+        providerName: stringValue(planner.providerName, "unknown"),
+        providerModel: stringValue(planner.providerModel) || undefined,
+        stepCount: numberValue(taskGraph.stepCount),
+        summary: stringValue(taskGraph.summary),
+        acceptanceCriteria: stringArray(taskGraph.acceptanceCriteria),
+        assumptions: stringArray(taskGraph.assumptions),
+        openQuestions: stringArray(taskGraph.openQuestions),
+        estimatedCostUsd: numberValue(cost.estimatedCostUsd),
+        planMarkdownPath: stringValue(planMarkdown.path) || undefined,
+        planMarkdownUri: stringValue(planMarkdown.uri) || undefined,
+        steps: forecastSteps.map((step): PlanStepRenderInput => {
+          const item = record(step);
 
-  return renderWithHeader(
-    value,
-    [
-      `## Run ${stringValue(value.runId)}`,
-      "",
-      `Status: **${stringValue(value.status)}**`,
-      `Cost: **$${numberValue(summary.totalEstimatedCostUsd).toFixed(4)}**`,
-      `Next: **${stringValue(summary.nextAction, "unknown")}**`,
-      "",
-      "Steps:",
-      ...steps.map((step) => {
-        const fallback = record(step.fallback);
-        const fallbackLabel = stringValue(fallback.replacementRunner)
-          ? ` - fallback: ${stringValue(fallback.failedRunner)} -> ${stringValue(fallback.replacementRunner)}`
-          : "";
-
-        return `- \`${stringValue(step.stepId)}\` ${stringValue(step.status)} (${stringValue(step.attemptId)})${fallbackLabel}`;
+          return {
+            stepId: stringValue(item.stepId),
+            title: stringValue(item.title),
+            type: "-",
+            modelId: stringValue(item.executorModelId) || undefined,
+            estimatedCostUsd: numberValue(item.totalCostUsd),
+          };
+        }),
       }),
-    ].join("\n"),
-  );
-}
+    );
+  }
 
-function renderSimple(value: JsonRecord): string {
-  const kind = stringValue(value.kind, "kiwi_result");
-  const runId = stringValue(value.runId);
-  const status = stringValue(value.status);
+  private renderPreview(): string {
+    const cost = record(this.value.cost);
+    const execution = record(this.value.execution);
+    const decision = record(this.value.decision);
+    const steps = Array.isArray(this.value.steps) ? this.value.steps.map(record) : [];
+    const stepLines = steps.map((step) => {
+      const label = modelLabel({
+        modelId: stringValue(step.selectedModelId) || undefined,
+        providerModel: stringValue(step.selectedProviderModel) || undefined,
+        capability: stringValue(step.modelCapability) || undefined,
+        runner: stringValue(step.selectedAccessMode) || stringValue(step.runner) || undefined,
+      });
+      const marker = stringValue(step.status) === ContractValues.Blocked ? "■" : "○";
 
-  return renderWithHeader(
-    value,
-    [`## ${kind}`, runId ? `Run: \`${runId}\`` : "", status ? `Status: **${status}**` : ""]
-      .filter((line) => line.length > 0)
-      .join("\n\n"),
-  );
+      return `${marker} ${step.index}/${step.count} ${stringValue(step.stepId)} ${stringValue(step.title)} - ${label}`;
+    });
+
+    return renderWithHeader(
+      this.value,
+      [
+        `## Execution Preview ${stringValue(this.value.runId)}`,
+        "",
+        stringValue(decision.confirmationSummary),
+        "",
+        `Mode: **${stringValue(execution.isolation, "unknown")}**`,
+        `Estimated cost: **$${numberValue(cost.estimatedCostUsd).toFixed(4)}**`,
+        "",
+        "Activity:",
+        ...stepLines,
+      ].join("\n"),
+    );
+  }
+
+  private activityTimeline(): RunActivityTimeline | null {
+    const timeline = record(this.value.activityTimeline);
+
+    if (stringValue(timeline.schemaVersion) !== "1" || !Array.isArray(timeline.activities)) {
+      return null;
+    }
+
+    return timeline as unknown as RunActivityTimeline;
+  }
+
+  private renderRunDiff(): string {
+    const diff = record(this.value.diff);
+    const items = Array.isArray(diff.items) ? diff.items.map(record) : [];
+
+    return renderWithHeader(
+      this.value,
+      renderDiffMarkdown({
+        runId: stringValue(diff.runId, stringValue(this.value.runId)),
+        stat: stringValue(diff.stat),
+        items: items.map(
+          (item): DiffStepRenderInput => ({
+            stepId: stringValue(item.stepId),
+            attemptId: stringValue(item.attemptId),
+            stat: stringValue(item.stat),
+            patch: stringValue(item.patch),
+            reviewVerdict: stringValue(item.reviewVerdict, "unknown"),
+          }),
+        ),
+      }),
+    );
+  }
+
+  private renderStatus(): string {
+    const timeline = this.activityTimeline();
+
+    if (timeline) {
+      return renderWithHeader(
+        this.value,
+        renderActivityTimelineMarkdown(timeline, { includeChildren: ActivityTimelineChildModes.Focused }),
+      );
+    }
+    const status = record(this.value.status);
+    const latest = Array.isArray(status.latest) ? status.latest.map(record) : [];
+    const run = latest[0];
+    const steps = run && Array.isArray(run.steps) ? run.steps.map(record) : [];
+
+    if (!run) {
+      return renderWithHeader(this.value, `## Run Status\n\nNo runs found.`);
+    }
+
+    return renderWithHeader(
+      this.value,
+      [
+        `## Run Status ${stringValue(run.runId)}`,
+        "",
+        `State: **${stringValue(run.currentStatus, stringValue(run.status, "unknown"))}**`,
+        `Plan: \`${stringValue(run.currentPlanId)}\``,
+        "",
+        "Activity:",
+        ...steps.map(
+          (step) =>
+            `○ ${stringValue(step.stepId)} ${stringValue(
+              step.status,
+              stringValue(step.plannedStatus, StepStatuses.Pending),
+            )}: ${stringValue(step.title)}`,
+        ),
+      ].join("\n"),
+    );
+  }
+
+  private renderExecutionResult(): string {
+    const timeline = this.activityTimeline();
+
+    if (timeline) {
+      return renderWithHeader(this.value, renderActivityTimelineMarkdown(timeline));
+    }
+    const summary = record(this.value.summary);
+    const steps = Array.isArray(this.value.steps) ? this.value.steps.map(record) : [];
+
+    return renderWithHeader(
+      this.value,
+      [
+        `## Run ${stringValue(this.value.runId)}`,
+        "",
+        `Status: **${stringValue(this.value.status)}**`,
+        `Cost: **$${numberValue(summary.totalEstimatedCostUsd).toFixed(4)}**`,
+        `Next: **${stringValue(summary.nextAction, "unknown")}**`,
+        "",
+        "Activity:",
+        ...steps.map((step) => {
+          const fallback = record(step.fallback);
+          const fallbackLabel = stringValue(fallback.replacementRunner)
+            ? ` - fallback: ${stringValue(fallback.failedRunner)} -> ${stringValue(fallback.replacementRunner)}`
+            : "";
+
+          return `- \`${stringValue(step.stepId)}\` ${stringValue(step.status)} (${stringValue(step.attemptId)})${fallbackLabel}`;
+        }),
+      ].join("\n"),
+    );
+  }
+
+  private renderSimple(): string {
+    const kind = stringValue(this.value.kind, "kiwi_result");
+    const runId = stringValue(this.value.runId);
+    const status = stringValue(this.value.status);
+
+    return renderWithHeader(
+      this.value,
+      [`## ${kind}`, runId ? `Run: \`${runId}\`` : "", status ? `Status: **${status}**` : ""]
+        .filter((line) => line.length > 0)
+        .join("\n\n"),
+    );
+  }
 }
 
 export function renderMcpToolResult(value: unknown): string {
@@ -459,18 +517,5 @@ export function renderMcpToolResult(value: unknown): string {
     return String(value);
   }
 
-  switch (stringValue(value.kind)) {
-    case "planned_run":
-      return renderPlannedRun(value);
-    case "run_execution_preview":
-      return renderPreview(value);
-    case "run_diff":
-      return renderRunDiff(value);
-    case "run_status":
-      return renderStatus(value);
-    case "run_execution_result":
-      return renderExecutionResult(value);
-    default:
-      return renderSimple(value);
-  }
+  return new McpToolResultRenderer(value).render();
 }

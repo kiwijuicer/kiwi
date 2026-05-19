@@ -17,7 +17,7 @@ import {
   RunCostForecastService,
   runScheduledSubPlans,
 } from "@kiwi/runtime";
-import { buildRunCompletionSummary } from "@kiwi/ops";
+import { buildRunActivityTimeline, buildRunCompletionSummary, renderActivityTreeLines } from "@kiwi/ops";
 import { runAttemptUnlocked, AttemptOptions } from "../execution/attempt.js";
 import { resolveCliWorkspace } from "../../workspace/options.js";
 import { printRunCompletionSummary } from "./run-summary.js";
@@ -50,68 +50,75 @@ interface RunProgressReporter {
   stopAll(): void;
 }
 
-function createRunProgressReporter(opts: RunProgressOptions | undefined): RunProgressReporter {
-  const enabled = opts?.enabled ?? process.stderr.isTTY;
-  const write = opts?.write ?? ((line: string) => process.stderr.write(`${line}\n`));
-  const nowMs = opts?.nowMs ?? (() => Date.now());
-  const active = new Map<string, { startedAt: number; timer: NodeJS.Timeout }>();
+class TerminalRunProgressReporter implements RunProgressReporter {
+  private readonly enabled: boolean;
+  private readonly writeLine: (line: string) => void;
+  private readonly nowMs: () => number;
+  private readonly active = new Map<string, { startedAt: number; timer: NodeJS.Timeout }>();
 
-  function stopStep(stepId: string): void {
-    const entry = active.get(stepId);
+  constructor(opts: RunProgressOptions | undefined) {
+    this.enabled = opts?.enabled ?? process.stderr.isTTY;
+    this.writeLine = opts?.write ?? ((line: string) => process.stderr.write(`${line}\n`));
+    this.nowMs = opts?.nowMs ?? (() => Date.now());
+  }
+
+  line(line: string): void {
+    if (!this.enabled) {
+      return;
+    }
+    this.writeLine(line);
+  }
+
+  stepStart(stepId: string, title?: string): void {
+    if (!this.enabled) {
+      return;
+    }
+    this.writeLine(title ? `● ${stepId} ${title} - Run executor` : `● ${stepId} - Run executor`);
+    const startedAt = this.nowMs();
+    const timer = setInterval(() => {
+      const elapsedSeconds = Math.max(0, Math.floor((this.nowMs() - startedAt) / 1000));
+      this.writeLine(`● ${stepId} Run executor still running... ${elapsedSeconds}s elapsed`);
+    }, 30_000);
+    this.active.set(stepId, { startedAt, timer });
+  }
+
+  stepDone(stepId: string, result: ExecutePlannedStepResult, runStatus?: string): void {
+    if (!this.enabled) {
+      return;
+    }
+    this.stopStep(stepId);
+    this.writeLine(
+      `✓ ${stepId} status=${result.status} next=${result.nextAction.type} runStatus=${runStatus ?? result.runStatus}`,
+    );
+  }
+
+  stepFailed(stepId: string, error: unknown): void {
+    if (!this.enabled) {
+      return;
+    }
+    this.stopStep(stepId);
+    this.writeLine(`! ${stepId} ${this.message(error)}`);
+  }
+
+  stopAll(): void {
+    for (const stepId of this.active.keys()) {
+      this.stopStep(stepId);
+    }
+  }
+
+  private stopStep(stepId: string): void {
+    const entry = this.active.get(stepId);
 
     if (!entry) {
       return;
     }
     clearInterval(entry.timer);
-    active.delete(stepId);
+    this.active.delete(stepId);
   }
 
-  function message(error: unknown): string {
+  private message(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
   }
-
-  return {
-    line(line: string): void {
-      if (!enabled) {
-        return;
-      }
-      write(line);
-    },
-    stepStart(stepId: string, title?: string): void {
-      if (!enabled) {
-        return;
-      }
-      write(title ? `step ${stepId}: ${title}` : `step ${stepId}`);
-      write("executing attempt and review...");
-      const startedAt = nowMs();
-      const timer = setInterval(() => {
-        const elapsedSeconds = Math.max(0, Math.floor((nowMs() - startedAt) / 1000));
-        write(`still running ${stepId}... ${elapsedSeconds}s elapsed`);
-      }, 30_000);
-      active.set(stepId, { startedAt, timer });
-    },
-    stepDone(stepId: string, result: ExecutePlannedStepResult, runStatus?: string): void {
-      if (!enabled) {
-        return;
-      }
-      stopStep(stepId);
-      write(
-        `step ${stepId} done: status=${result.status} next=${result.nextAction.type} runStatus=${runStatus ?? result.runStatus}`,
-      );
-    },
-    stepFailed(stepId: string, error: unknown): void {
-      if (!enabled) {
-        return;
-      }
-      stopStep(stepId);
-      write(`step ${stepId} failed: ${message(error)}`);
-    },
-    stopAll(): void {
-      for (const stepId of active.keys()) {
-        stopStep(stepId);
-      }
-    },
-  };
 }
 
 function formatUsd(value: number): string {
@@ -262,7 +269,7 @@ export async function runRun(runId: string, opts: RunOptions = {}, cwd: string =
     throw new Error(`--max-cost must be a non-negative number; received ${opts.maxCost}`);
   }
 
-  const progress = createRunProgressReporter(opts.progress);
+  const progress = new TerminalRunProgressReporter(opts.progress);
   const workspace = resolveCliWorkspace(opts, cwd, false);
   progress.line("Running run...");
   progress.line(chalk.dim(`runId: ${runId}`));
@@ -294,6 +301,12 @@ export async function runRun(runId: string, opts: RunOptions = {}, cwd: string =
         progress.line(chalk.dim(`steps: ${taskGraph.steps.length}`));
         if (opts.fromStep) {
           progress.line(chalk.dim(`fromStep: ${opts.fromStep}`));
+        }
+        progress.line("activity:");
+        for (const line of renderActivityTreeLines(buildRunActivityTimeline({ cwd: workspace.workspacePath, runId }), {
+          ascii: !process.stderr.isTTY,
+        })) {
+          progress.line(`  ${line}`);
         }
         const attemptOptions: AttemptOptions = {};
 

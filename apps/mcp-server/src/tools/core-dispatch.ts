@@ -14,6 +14,7 @@ import {
   finalizeRun,
 } from "@kiwi/runtime";
 import {
+  buildRunActivityTimeline,
   buildRunCompletionSummary,
   buildRunExplanation,
   writeEvidenceManifest,
@@ -118,7 +119,12 @@ function statusTool(context: DispatchContext): unknown {
 
   return typeof context.args.runId === "string"
     ? withOperatorCard(
-        { schemaVersion: "2", kind: "run_status", status },
+        {
+          schemaVersion: "2",
+          kind: "run_status",
+          status,
+          activityTimeline: buildRunActivityTimeline({ cwd: context.workspacePath, runId: context.args.runId }),
+        },
         { cwd: context.workspacePath, runId: context.args.runId, lastAction: "kiwi_status" },
       )
     : { schemaVersion: "2", kind: "run_status_list", status };

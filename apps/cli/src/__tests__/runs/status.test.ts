@@ -208,10 +208,10 @@ describe("kiwi status", () => {
     expect(output).toContain("steps: 4");
     expect(output).toContain("subplans:");
     expect(output).toContain("subplan_1 [max=1]");
-    expect(output).toContain("step_status:");
-    expect(output).toContain("edited_files:");
-    expect(output).toContain("none");
-    expect(output).toContain("active_activity:");
+    expect(output).toContain("activity:");
+    expect(output).toContain("[todo] step_001 Analyze");
+    expect(output).toContain("[todo] step_004 Validate");
+    expect(output).toContain("[todo] Finalize run");
     expect(output).toContain(".kiwi/runs/run_20260504_060000_s001/run.json");
     expect(output).toContain(".kiwi/runs/run_20260504_060000_s001/initiative.json");
     expect(output).toContain(".kiwi/runs/run_20260504_060000_s001/plan/task-graph.json");
@@ -264,14 +264,12 @@ describe("kiwi status", () => {
 
     expect(output).toContain("run_state: running");
     expect(output).toContain("manifest_status: planned");
-    expect(output).toContain("step_001  completed  Implement details attempt:attempt_done");
-    expect(output).toContain("step_002  running  Cover details attempt:attempt_running");
-    expect(output).toContain("step_003  pending  Validate details");
-    expect(output).toContain("completed_steps: step_001");
-    expect(output).toContain("remaining_steps: step_002:running, step_003:pending");
-    expect(output).toContain("packages/core/src/status.ts  step_001/attempt_done");
-    expect(output).toContain("step_002/attempt_running  running  runner:local-shell scheduler:scheduled");
-    expect(output).toContain("context: steps/step_002/attempt_running/context-package.json");
+    expect(output).toContain("[done] step_001 Implement details");
+    expect(output).toContain("[run] step_002 Cover details");
+    expect(output).toContain("[todo] step_003 Validate details");
+    expect(output).toContain("[done] Capture diff");
+    expect(output).toContain("[run] Run executor (local-shell)");
+    expect(output).toContain("step_002/attempt_running  running  gates:missing  review:missing  next:missing");
   });
 
   it("supports selected run view", async () => {

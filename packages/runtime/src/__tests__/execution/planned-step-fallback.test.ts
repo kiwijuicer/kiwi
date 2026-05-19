@@ -3,7 +3,14 @@ import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
 import { readAuditEvents } from "@kiwi/core";
-import { ContractValues, ExecutionIsolations, NextActionTypes, RunnerNames, type Step, type TaskGraph } from "@kiwi/contracts";
+import {
+  ContractValues,
+  ExecutionIsolations,
+  NextActionTypes,
+  RunnerNames,
+  type Step,
+  type TaskGraph,
+} from "@kiwi/contracts";
 import { ProviderFailureCodes } from "@kiwi/adapters";
 import { ExecutionRunContext } from "../../execution/planned-steps/context.js";
 import { PlannedStepExecutionService } from "../../execution/planned-steps/service.js";
@@ -186,7 +193,9 @@ describe("planned step provider fallback", () => {
       {
         resolveRunnerResolution: () => runnerResolution,
         select: (session: StepExecutionSession) => {
-          const selection = runnerResolution.selectExecutorModelForRunner(session.decision.runner ?? RunnerNames.ClaudeCode);
+          const selection = runnerResolution.selectExecutorModelForRunner(
+            session.decision.runner ?? RunnerNames.ClaudeCode,
+          );
 
           session.setRunnerSelection({
             runnerAdapter: {

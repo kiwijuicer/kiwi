@@ -1,6 +1,11 @@
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { AgentRoles, ContractValues, ModelCapabilities, ProgressStatuses } from "@kiwi/contracts";
-import { recordFeedbackAndReplan, resolvePlannerProvider, RunCostForecastService, type RunCostForecast } from "@kiwi/runtime";
+import {
+  recordFeedbackAndReplan,
+  resolvePlannerProvider,
+  RunCostForecastService,
+  type RunCostForecast,
+} from "@kiwi/runtime";
 import { loadEffectivePolicy, loadEffectiveRegistry, planRun, type WorkspaceResolution } from "@kiwi/core";
 import { writePlanMarkdown } from "@kiwi/ops";
 import { callCoreTool } from "./core-dispatch.js";
@@ -33,51 +38,100 @@ const ACTIVE_RUN_TOOLS = new Set([
   "kiwi_publish_pr_draft",
 ]);
 
-function planNextAction(planned: Awaited<ReturnType<typeof planRun>>): McpNextAction {
-  return {
-    recommendedToolCall: toolCall("kiwi_preview_run", {
-      workspacePath: planned.workspacePath,
-      repoId: planned.repoId,
-      repoPath: planned.repoPath,
-      runId: planned.runId,
-    }),
-    whyThisTool: "Planning wrote run artifacts; preview is the required decision step before any execution.",
-    requiresUserConfirmation: false,
-    expectedMutation: "WRITES_RUN_ARTIFACTS",
-    expectedAfter: "Show the preview decision card and ask the user before running.",
-  };
-}
+type PlannedRun = Awaited<ReturnType<typeof planRun>>;
 
-function writePlannedRunMarkdown(params: {
-  planned: Awaited<ReturnType<typeof planRun>>;
-  costForecast: RunCostForecast;
-  providerModel: string | null;
-}): ReturnType<typeof writePlanMarkdown> {
-  const taskStepsById = new Map(params.planned.taskGraph.steps.map((step) => [step.stepId, step]));
+class PlannedRunToolPresenter {
+  constructor(
+    private readonly planned: PlannedRun,
+    private readonly costForecast: RunCostForecast,
+    private readonly policy: ReturnType<typeof loadEffectivePolicy>,
+    private readonly providerModel: string | null,
+  ) {}
 
-  return writePlanMarkdown({
-    cwd: params.planned.workspacePath,
-    runId: params.planned.runId,
-    taskGraph: params.planned.taskGraph,
-    plannerModelId: params.planned.plannerModelId,
-    providerName: params.planned.providerName,
-    providerModel: params.providerModel,
-    estimatedCostUsd: params.costForecast.estimatedCostUsd,
-    steps: params.costForecast.steps.map((step) => {
-      const plannedStep = taskStepsById.get(step.stepId);
+  nextAction(): McpNextAction {
+    return {
+      recommendedToolCall: toolCall("kiwi_preview_run", {
+        workspacePath: this.planned.workspacePath,
+        repoId: this.planned.repoId,
+        repoPath: this.planned.repoPath,
+        runId: this.planned.runId,
+      }),
+      whyThisTool: "Planning wrote run artifacts; preview is the required decision step before any execution.",
+      requiresUserConfirmation: false,
+      expectedMutation: "WRITES_RUN_ARTIFACTS",
+      expectedAfter: "Show the preview decision card and ask the user before running.",
+    };
+  }
 
-      return {
-        stepId: step.stepId,
-        title: step.title,
-        type: plannedStep?.type ?? "unknown",
-        agentRole: plannedStep?.recommendedAgentRole ?? AgentRoles.Executor,
-        modelCapability: plannedStep?.recommendedModelCapability ?? ModelCapabilities.Mid,
-        modelId: step.executorModelId,
-        providerModel: null,
-        estimatedCostUsd: step.totalCostUsd,
-      };
-    }),
-  });
+  writeMarkdown(): ReturnType<typeof writePlanMarkdown> {
+    const taskStepsById = new Map(this.planned.taskGraph.steps.map((step) => [step.stepId, step]));
+
+    return writePlanMarkdown({
+      cwd: this.planned.workspacePath,
+      runId: this.planned.runId,
+      taskGraph: this.planned.taskGraph,
+      plannerModelId: this.planned.plannerModelId,
+      providerName: this.planned.providerName,
+      providerModel: this.providerModel,
+      estimatedCostUsd: this.costForecast.estimatedCostUsd,
+      steps: this.costForecast.steps.map((step) => {
+        const plannedStep = taskStepsById.get(step.stepId);
+
+        return {
+          stepId: step.stepId,
+          title: step.title,
+          type: plannedStep?.type ?? "unknown",
+          agentRole: plannedStep?.recommendedAgentRole ?? AgentRoles.Executor,
+          modelCapability: plannedStep?.recommendedModelCapability ?? ModelCapabilities.Mid,
+          modelId: step.executorModelId,
+          providerModel: null,
+          estimatedCostUsd: step.totalCostUsd,
+        };
+      }),
+    });
+  }
+
+  payload(planMarkdown: ReturnType<typeof writePlanMarkdown>, nextAction: McpNextAction): object {
+    return {
+      schemaVersion: "2",
+      kind: "planned_run",
+      runId: this.planned.runId,
+      planId: this.planned.taskGraph.planId,
+      workspace: {
+        workspacePath: this.planned.workspacePath,
+        repoId: this.planned.repoId,
+        repoPath: this.planned.repoPath,
+      },
+      taskGraph: {
+        summary: this.planned.taskGraph.summary,
+        stepCount: this.planned.taskGraph.steps.length,
+        acceptanceCriteria: this.planned.taskGraph.acceptanceCriteria,
+        assumptions: this.planned.taskGraph.assumptions,
+        openQuestions: this.planned.taskGraph.openQuestions,
+      },
+      planner: {
+        modelId: this.planned.plannerModelId,
+        providerName: this.planned.providerName,
+        providerModel: this.providerModel,
+      },
+      cost: {
+        estimatedCostUsd: this.costForecast.estimatedCostUsd,
+        forecast: this.costForecast,
+      },
+      artifacts: {
+        planMarkdown,
+      },
+      execution: {
+        owner: this.policy.execution?.owner ?? "kiwi-codex-cli",
+        isolation: this.policy.execution?.isolation ?? "direct",
+        sandbox: this.policy.execution?.sandbox ?? "workspace-write",
+        forbidStaging: this.policy.execution?.forbidStaging ?? true,
+        forbidCommits: this.policy.execution?.forbidCommits ?? true,
+        forbidPushes: this.policy.execution?.forbidPushes ?? true,
+      },
+      nextAction,
+    };
+  }
 }
 
 async function planTool(args: Record<string, unknown>, cwd: string, options: ToolCallOptions = {}): Promise<unknown> {
@@ -106,7 +160,7 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     progressLine({ phase: ContractValues.Planner, status: ProgressStatuses.Running }),
     options.onProgress,
   );
-  let planned: Awaited<ReturnType<typeof planRun>>;
+  let planned: PlannedRun;
 
   try {
     planned = await planRun({
@@ -117,7 +171,8 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
       source: "mcp",
       policy,
       plannerModel: resolution.model,
-      executePlanner: (plannerInput, options) => runPlannerProviderWithRetries(resolution.provider, plannerInput, options),
+      executePlanner: (plannerInput, options) =>
+        runPlannerProviderWithRetries(resolution.provider, plannerInput, options),
       riskProfile: args.riskProfile === "production" ? "production" : "dev",
       budgetProfile: args.budgetProfile === "tiny" ? "tiny" : "normal",
       now,
@@ -141,66 +196,22 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     plannerCostUsd: planned.plannerOutput.cost.estimatedUsd,
     plannerModelId: planned.plannerModelId,
   });
-  const planMarkdown = writePlannedRunMarkdown({
-    planned,
-    costForecast,
-    providerModel: resolution.model.providerModel ?? null,
-  });
-  const nextAction = planNextAction(planned);
+  const presenter = new PlannedRunToolPresenter(planned, costForecast, policy, resolution.model.providerModel ?? null);
+  const planMarkdown = presenter.writeMarkdown();
+  const nextAction = presenter.nextAction();
 
-  return withOperatorCard(
-    {
-      schemaVersion: "2",
-      kind: "planned_run",
-      runId: planned.runId,
-      planId: planned.taskGraph.planId,
-      workspace: {
-        workspacePath: planned.workspacePath,
-        repoId: planned.repoId,
-        repoPath: planned.repoPath,
-      },
-      taskGraph: {
-        summary: planned.taskGraph.summary,
-        stepCount: planned.taskGraph.steps.length,
-        acceptanceCriteria: planned.taskGraph.acceptanceCriteria,
-        assumptions: planned.taskGraph.assumptions,
-        openQuestions: planned.taskGraph.openQuestions,
-      },
-      planner: {
-        modelId: planned.plannerModelId,
-        providerName: planned.providerName,
-        providerModel: resolution.model.providerModel ?? null,
-      },
-      cost: {
-        estimatedCostUsd: costForecast.estimatedCostUsd,
-        forecast: costForecast,
-      },
-      artifacts: {
-        planMarkdown,
-      },
-      execution: {
-        owner: policy.execution?.owner ?? "kiwi-codex-cli",
-        isolation: policy.execution?.isolation ?? "direct",
-        sandbox: policy.execution?.sandbox ?? "workspace-write",
-        forbidStaging: policy.execution?.forbidStaging ?? true,
-        forbidCommits: policy.execution?.forbidCommits ?? true,
-        forbidPushes: policy.execution?.forbidPushes ?? true,
-      },
-      nextAction,
-    },
-    {
-      cwd: planned.workspacePath,
-      runId: planned.runId,
-      lastAction: "kiwi_plan",
-      nextAction,
-      mutationScope: mutationScope({
-        riskLabel: "WRITES_RUN_ARTIFACTS",
-        workspacePath: planned.workspacePath,
-        repoPath: planned.repoPath,
-        executionMode: policy.execution?.isolation ?? "direct",
-      }),
-    },
-  );
+  return withOperatorCard(presenter.payload(planMarkdown, nextAction), {
+    cwd: planned.workspacePath,
+    runId: planned.runId,
+    lastAction: "kiwi_plan",
+    nextAction,
+    mutationScope: mutationScope({
+      riskLabel: "WRITES_RUN_ARTIFACTS",
+      workspacePath: planned.workspacePath,
+      repoPath: planned.repoPath,
+      executionMode: policy.execution?.isolation ?? "direct",
+    }),
+  });
 }
 
 function resolveActiveRunArgs(

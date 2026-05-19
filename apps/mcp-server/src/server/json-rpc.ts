@@ -22,7 +22,10 @@ export function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 }
 
-export function textContent(value: unknown): { content: Array<{ type: "text"; text: string }>; structuredContent?: unknown } {
+export function textContent(value: unknown): {
+  content: Array<{ type: "text"; text: string }>;
+  structuredContent?: unknown;
+} {
   const result: { content: Array<{ type: "text"; text: string }>; structuredContent?: unknown } = {
     content: [
       {

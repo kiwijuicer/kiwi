@@ -286,9 +286,10 @@ describe("kiwi operator flow", () => {
     const output = lines.join("\n");
     expect(output).toContain("Running run...");
     expect(output).toContain("runId: run_20260504_140000_r001");
-    expect(output).toContain("step step_001: Validate");
-    expect(output).toContain("executing attempt and review...");
-    expect(output).toContain("step step_001 done: status=completed next=continue runStatus=completed");
+    expect(output).toContain("activity:");
+    expect(output).toContain("[todo] step_001 Validate");
+    expect(output).toContain("● step_001 Validate - Run executor");
+    expect(output).toContain("✓ step_001 status=completed next=continue runStatus=completed");
   }, 10000);
 
   it("edits only the selected repo directly by default", async () => {

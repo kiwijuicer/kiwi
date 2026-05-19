@@ -405,6 +405,7 @@ describe("MCP server", () => {
     const resources = await handleMcpRequest({ id: 1, method: "resources/list" }, cwd);
     expect(resources.error).toBeUndefined();
     expect(JSON.stringify(resources.result)).toContain("kiwi://runs");
+    expect(JSON.stringify(resources.result)).toContain("kiwi://workspace/activity-timeline");
     expect(JSON.stringify(resources.result)).not.toContain("{runId}");
 
     const templates = await handleMcpRequest({ id: 2, method: "resources/templates/list" }, cwd);
@@ -412,6 +413,7 @@ describe("MCP server", () => {
     expect(JSON.stringify(templates.result)).toContain("resourceTemplates");
     expect(JSON.stringify(templates.result)).toContain("uriTemplate");
     expect(JSON.stringify(templates.result)).toContain("kiwi://runs/{runId}");
+    expect(JSON.stringify(templates.result)).toContain("kiwi://runs/{runId}/activity-timeline");
   });
 
   it("returns structured invalid params errors for malformed tool payloads", async () => {
@@ -988,10 +990,24 @@ describe("MCP server", () => {
 
     const resources = await handleMcpRequest({ id: 2, method: "resources/list" }, cwd);
     const taskGraphUri = `kiwi://runs/${parsed.runId}/artifacts/plan%2Ftask-graph.json`;
+    const activityUri = `kiwi://runs/${parsed.runId}/activity-timeline`;
+    const activityMarkdownUri = `kiwi://runs/${parsed.runId}/activity-timeline.md`;
     expect(JSON.stringify(resources.result)).toContain(taskGraphUri);
+    expect(JSON.stringify(resources.result)).toContain(activityUri);
 
     const taskGraph = await handleMcpRequest({ id: 3, method: "resources/read", params: { uri: taskGraphUri } }, cwd);
     expect(JSON.stringify(taskGraph.result)).toContain("Resource MCP");
+    const activity = await handleMcpRequest({ id: 4, method: "resources/read", params: { uri: activityUri } }, cwd);
+    const activityText = (activity.result as { contents: Array<{ text: string }> }).contents[0]?.text ?? "";
+    expect(activityText).toContain('"schemaVersion": "1"');
+    expect(activityText).toContain("step_001");
+    const activityMarkdown = await handleMcpRequest(
+      { id: 5, method: "resources/read", params: { uri: activityMarkdownUri } },
+      cwd,
+    );
+    const markdownText = (activityMarkdown.result as { contents: Array<{ text: string }> }).contents[0]?.text ?? "";
+    expect(markdownText).toContain("## Activity Timeline");
+    expect(markdownText).toContain("○ step_001");
   });
 
   it("returns MCP resource not found errors for missing artifacts", async () => {

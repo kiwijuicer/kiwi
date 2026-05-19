@@ -1,7 +1,9 @@
 import { loadEvidenceManifest, writeEvidenceManifest, writeRunAuditSnapshot } from "./evidence/index.js";
 import { renderOperatorSnapshotHtml, writeOperatorSnapshot } from "./operator/surface.js";
 import { publishPrDraft } from "./publishing/pr-draft.js";
+import { RunActivityTimelineBuilder } from "./summaries/activity-timeline.js";
 import { RunExplanationBuilder, RunSummaryBuilder } from "./summaries/run-summary.js";
+import { WorkspaceActivityTimelineBuilder } from "./summaries/workspace-activity-timeline.js";
 
 export class EvidenceService {
   constructor(
@@ -71,6 +73,8 @@ export interface OpsServices {
   prDrafts: PrDraftPublisher;
   runSummaries: RunSummaryBuilder;
   runExplanations: RunExplanationBuilder;
+  activityTimelines: RunActivityTimelineBuilder;
+  workspaceActivityTimelines: WorkspaceActivityTimelineBuilder;
 }
 
 export function createOpsServices(): OpsServices {
@@ -80,5 +84,7 @@ export function createOpsServices(): OpsServices {
     prDrafts: new PrDraftPublisher(),
     runSummaries: new RunSummaryBuilder(),
     runExplanations: new RunExplanationBuilder(),
+    activityTimelines: new RunActivityTimelineBuilder(),
+    workspaceActivityTimelines: new WorkspaceActivityTimelineBuilder(),
   };
 }
