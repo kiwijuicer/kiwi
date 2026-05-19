@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "tsup",
-    "test": "KIWI_TEST_ALLOW_STUB=1 KIWI_FORCE_ACCESS_MODE=stub vitest run",
+    "test": "KIWI_FAKE_BINARY_AVAILABLE=1 KIWI_TEST_ALLOW_STUB=1 KIWI_FORCE_ACCESS_MODE=stub vitest run",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
