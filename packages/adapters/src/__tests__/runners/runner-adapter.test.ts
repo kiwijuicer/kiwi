@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import os from "os";
 import path from "path";
 import { describe, expect, it } from "vitest";
+import { KiwiRunnerEnvVars } from "@kiwi/contracts";
 import { SandboxCommandPolicy } from "@kiwi/sandbox";
 import {
   buildCodexCliArgs,
@@ -11,6 +12,7 @@ import {
 } from "../../integrations/codex/client.js";
 import { CodexCliRunnerAdapter } from "../../integrations/codex/runner-adapter.js";
 import {
+  buildClaudeCodeCliArgs,
   ClaudeCodeCliInvocation,
   ClaudeCodeCliResult,
   ClaudeCodeCliRunner,
@@ -18,6 +20,7 @@ import {
 import { ClaudeCodeRunnerAdapter } from "../../integrations/claude-code/runner-adapter.js";
 import { CursorAgentRunnerAdapter } from "../../integrations/cursor-agent/runner-adapter.js";
 import {
+  buildCursorAgentCliArgs,
   CursorAgentCliInvocation,
   CursorAgentCliResult,
   CursorAgentCliRunner,
@@ -38,6 +41,7 @@ class FakeCursorRunner implements CursorAgentCliRunner {
 
   async run(invocation: CursorAgentCliInvocation): Promise<CursorAgentCliResult> {
     this.invocations.push(invocation);
+    invocation.onOutputChunk?.({ stream: "stdout", text: "cursor emitted supersecret\n" });
     mkdirSync(invocation.cwd, { recursive: true });
     writeFileSync(path.join(invocation.cwd, "generated.txt"), "from cursor\n", "utf-8");
     const stdout = JSON.stringify({
@@ -66,6 +70,7 @@ class FakeCodexRunner implements CodexCliRunner {
 
   async run(invocation: CodexCliInvocation): Promise<CodexCliResult> {
     this.invocations.push(invocation);
+    invocation.onOutputChunk?.({ stream: "stderr", text: "codex emitted supersecret\n" });
     mkdirSync(invocation.cwd, { recursive: true });
     writeFileSync(path.join(invocation.cwd, "generated-codex.txt"), "from codex\n", "utf-8");
     const parsed = [{ type: "turn.completed", usage: { inputTokens: 13, outputTokens: 5 } }];
@@ -88,6 +93,7 @@ class FakeCodexRunner implements CodexCliRunner {
 
 class RateLimitedClaudeRunner implements ClaudeCodeCliRunner {
   async run(invocation: ClaudeCodeCliInvocation): Promise<ClaudeCodeCliResult> {
+    invocation.onOutputChunk?.({ stream: "stdout", text: "claude emitted supersecret\n" });
     const stdout = JSON.stringify({
       type: "result",
       subtype: "success",
@@ -189,7 +195,7 @@ function contextPackage(runId: string, attemptId: string, title: string) {
 }
 
 describe("runner adapters", () => {
-  it("builds codex exec args with auto-review approvals by default", () => {
+  it("builds codex exec args with fail-closed approvals by default", () => {
     const args = buildCodexCliArgs({
       binary: "codex",
       cwd: "/tmp/repo",
@@ -199,9 +205,57 @@ describe("runner adapters", () => {
 
     expect(args).toContain("--sandbox");
     expect(args).toContain("workspace-write");
-    expect(args).toContain('approval_policy="on-request"');
+    expect(args).toContain("--ignore-user-config");
+    expect(args).toContain('approval_policy="never"');
     expect(args).toContain('approvals_reviewer="auto_review"');
     expect(args).not.toContain("--dangerously-bypass-approvals-and-sandbox");
+  });
+
+  it("builds claude-code args with isolated non-interactive defaults", () => {
+    const args = buildClaudeCodeCliArgs({
+      binary: "claude",
+      cwd: "/tmp/repo",
+      prompt: "do it",
+      outputFormat: "json",
+      allowedTools: ["Read", "Write", "Edit"],
+      timeoutMs: 1000,
+    });
+
+    expect(args).toContain("--permission-mode");
+    expect(args).toContain("dontAsk");
+    expect(args).toContain("--strict-mcp-config");
+    expect(args).toContain("--mcp-config");
+    expect(args).toContain('{"mcpServers":{}}');
+    expect(args).toContain("--no-session-persistence");
+    expect(args).toContain("--allowedTools");
+    expect(args).toContain("Read,Write,Edit");
+    expect(args).not.toContain("--dangerously-skip-permissions");
+  });
+
+  it("builds cursor-agent args with explicit headless controls", () => {
+    const args = buildCursorAgentCliArgs({
+      binary: "cursor-agent",
+      cwd: "/tmp/repo",
+      prompt: "do it",
+      outputFormat: "json",
+      timeoutMs: 1000,
+    });
+
+    expect(args).toEqual(
+      expect.arrayContaining([
+        "-p",
+        "do it",
+        "--output-format",
+        "json",
+        "--trust",
+        "--force",
+        "--sandbox",
+        "enabled",
+        "--workspace",
+        "/tmp/repo",
+        "--approve-mcps",
+      ]),
+    );
   });
 
   it("executes local-shell commands through the sandbox", async () => {
@@ -295,13 +349,15 @@ describe("runner adapters", () => {
       contextPackage: contextPackage("run_demo", "attempt_rate_limited", "Generate a file"),
       allowedTools: ["shell"],
       timeouts: { commandTimeoutMs: 1000 },
-      commandPolicy: policy({ envAllowlist: ["PATH"] }),
+      commandPolicy: policy({ envAllowlist: ["PATH"], secretValues: ["supersecret"] }),
     });
 
     expect(output.status).toBe("failed");
     expect(output.error?.code).toBe(ProviderFailureCodes.RateLimited);
     expect(output.error?.message).toContain("HTTP 429");
     expect(output.gateResult.reason).toContain("provider rate limited");
+    expect(output.liveLogPath).toContain("claude-code-runner-stream.jsonl");
+    expect(readFileSync(output.liveLogPath!, "utf-8")).toContain("[REDACTED]");
   });
 
   it("filters runner env to safe keys and policy allowlist", () => {
@@ -317,6 +373,7 @@ describe("runner adapters", () => {
     });
 
     expect(env).toMatchObject({ PATH: "/bin", HOME: "/home/test", CI: "1", CUSTOM_ALLOWED: "ok" });
+    expect(env[KiwiRunnerEnvVars.Active]).toBe("1");
     expect(env.SECRET_TOKEN).toBeUndefined();
   });
 
@@ -347,7 +404,7 @@ describe("runner adapters", () => {
       contextPackage: contextPackage("run_demo", "attempt_cursor", "Generate a file"),
       allowedTools: ["shell"],
       timeouts: { commandTimeoutMs: 1000 },
-      commandPolicy: policy({ envAllowlist: ["PATH"] }),
+      commandPolicy: policy({ envAllowlist: ["PATH"], secretValues: ["supersecret"] }),
     });
 
     expect(output.status).toBe("completed");
@@ -355,8 +412,11 @@ describe("runner adapters", () => {
     expect(output.usagePrecision).toBe("exact");
     expect(output.estimatedCostUsd).toBe(0.123);
     expect(output.rawLogsRef).toBe("steps/step_001/attempt_cursor/artifacts/cursor-agent-runner-logs.json");
+    expect(output.liveLogPath).toContain("cursor-agent-runner-stream.jsonl");
+    expect(readFileSync(output.liveLogPath!, "utf-8")).toContain("[REDACTED]");
     expect(output.artifactRefs.some((artifact) => artifact.type === "diff")).toBe(true);
     expect(runner.invocations[0]?.env?.SECRET_TOKEN).toBeUndefined();
+    expect(runner.invocations[0]?.env?.[KiwiRunnerEnvVars.Active]).toBe("1");
     const logs = readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", output.rawLogsRef!), "utf-8");
     expect(logs).toContain("total_cost_usd");
   });
@@ -388,18 +448,21 @@ describe("runner adapters", () => {
       contextPackage: contextPackage("run_demo", "attempt_codex", "Generate a file"),
       allowedTools: ["shell"],
       timeouts: { commandTimeoutMs: 1000 },
-      commandPolicy: policy({ envAllowlist: ["PATH"] }),
+      commandPolicy: policy({ envAllowlist: ["PATH"], secretValues: ["supersecret"] }),
     });
 
     expect(output.status).toBe("completed");
     expect(output.providerName).toBe("codex-cli");
     expect(output.usagePrecision).toBe("estimated");
     expect(output.estimatedCostUsd).toBeNull();
+    expect(output.liveLogPath).toContain("codex-runner-stream.jsonl");
+    expect(readFileSync(output.liveLogPath!, "utf-8")).toContain("[REDACTED]");
     expect(output.artifactRefs.some((artifact) => artifact.type === "diff")).toBe(true);
     expect(runner.invocations[0]?.env?.SECRET_TOKEN).toBeUndefined();
+    expect(runner.invocations[0]?.env?.[KiwiRunnerEnvVars.Active]).toBe("1");
     expect(runner.invocations[0]?.model).toBe("gpt-5.4");
     expect(runner.invocations[0]?.sandbox).toBe("workspace-write");
-    expect(runner.invocations[0]?.approvalPolicy).toBe("on-request");
+    expect(runner.invocations[0]?.approvalPolicy).toBe("never");
     expect(runner.invocations[0]?.approvalsReviewer).toBe("auto_review");
     expect(runner.invocations[0]?.prompt).toContain("doNotPush");
   });

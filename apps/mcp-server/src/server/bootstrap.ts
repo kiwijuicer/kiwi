@@ -1,3 +1,4 @@
+import { KiwiRunnerEnvVars } from "@kiwi/contracts";
 import { defaultServerCwd } from "./protocol.js";
 import { parsePort, startHttpMcpServer, type HttpMcpServerOptions } from "./http.js";
 import { startMcpServer } from "./stdio.js";
@@ -7,6 +8,7 @@ interface McpBootstrapOptions {
   cwd: string;
   transport: McpTransportName;
   http: HttpMcpServerOptions;
+  runnerActive: boolean;
 }
 
 type BootstrapEnv = Record<string, string | undefined>;
@@ -18,6 +20,7 @@ interface McpServerBootstrapTransports {
 
 interface McpServerBootstrapConfig {
   transports?: Partial<McpServerBootstrapTransports>;
+  stderr?: { write(message: string): unknown };
 }
 
 function cliOption(argv: string[], name: string): string | undefined {
@@ -64,12 +67,13 @@ export function resolveMcpBootstrapOptions(
     http.authToken = env.KIWI_MCP_HTTP_TOKEN;
   }
 
-  return { cwd, transport, http };
+  return { cwd, transport, http, runnerActive: env[KiwiRunnerEnvVars.Active] === "1" };
 }
 
 export class McpServerBootstrap {
   private readonly options: McpBootstrapOptions;
   private readonly transports: McpServerBootstrapTransports;
+  private readonly stderr: { write(message: string): unknown };
 
   constructor(options: McpBootstrapOptions, config: McpServerBootstrapConfig = {}) {
     this.options = options;
@@ -77,10 +81,17 @@ export class McpServerBootstrap {
       startStdio: config.transports?.startStdio ?? startMcpServer,
       startHttp: config.transports?.startHttp ?? startHttpMcpServer,
     };
+    this.stderr = config.stderr ?? process.stderr;
   }
 
   start(): void {
     if (this.options.transport === McpTransportNames.Stdio) {
+      if (this.options.runnerActive) {
+        this.stderr.write("kiwi MCP disabled inside kiwi runner process\n");
+
+        return;
+      }
+
       this.transports.startStdio(this.options.cwd);
 
       return;

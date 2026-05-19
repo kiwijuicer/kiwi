@@ -25,7 +25,7 @@ function redactValue(value: string, secrets: string[]): string {
 export interface StreamingRunnerLog {
   /** Absolute path to the live NDJSON stream file (one JSON object per line). */
   path: string;
-  /** Relative artifact ref (for inclusion in RunnerExecutionOutput.liveLogPath). */
+  /** Relative artifact ref for callers that need a run-local reference. */
   ref: string;
   /** Append one output chunk to the stream file. Secrets are redacted inline. */
   append(chunk: SubprocessOutputChunk): void;
@@ -52,6 +52,7 @@ export function openStreamingRunnerLog(params: {
   const ref = `steps/${params.stepId}/${params.attemptId}/artifacts/${params.runner}-runner-stream.jsonl`;
   const target = path.join(params.workspacePath, ".kiwi", "runs", params.runId, ref);
   mkdirSync(path.dirname(target), { recursive: true });
+  writeFileSync(target, "", "utf-8");
   const secrets = params.secretValues ?? [];
 
   return {

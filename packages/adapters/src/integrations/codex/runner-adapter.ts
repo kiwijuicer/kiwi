@@ -11,6 +11,7 @@ import { cliRunnerOutput, runnerTimeoutMs } from "../../runners/cli-output.js";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../../runners/adapter.js";
 import { buildRunnerEnv } from "../../runners/env.js";
 import { buildContractRunnerPrompt } from "../../runners/contract-prompt.js";
+import { openStreamingRunnerLog } from "../../runners/logs.js";
 
 const DEFAULT_TIMEOUT_MS = 600_000;
 const CODEX_ACCESS_MODE = AccessModes.CodexCli;
@@ -45,6 +46,14 @@ export class CodexCliRunnerAdapter implements RunnerAdapter {
       inputEnv: input.env,
       policy: input.commandPolicy,
     });
+    const liveLog = openStreamingRunnerLog({
+      workspacePath: input.workspacePath,
+      runId: input.runId,
+      stepId: input.stepId,
+      attemptId: input.attemptId,
+      runner: this.name,
+      secretValues: input.commandPolicy?.secretValues,
+    });
     const invocation = {
       binary: this.binary,
       cwd: input.worktreePath,
@@ -54,9 +63,16 @@ export class CodexCliRunnerAdapter implements RunnerAdapter {
       sandbox: input.codexSandbox ?? CODEX_AUTO_REVIEW_SANDBOX,
       approvalPolicy: CODEX_AUTO_REVIEW_APPROVAL_POLICY,
       approvalsReviewer: CODEX_AUTO_REVIEW_APPROVALS_REVIEWER,
+      onOutputChunk: liveLog.append,
       ...(this.model ? { model: this.model } : {}),
     };
-    const result = await this.cliRunner.run(invocation);
+    const result = await (async () => {
+      try {
+        return await this.cliRunner.run(invocation);
+      } finally {
+        liveLog.close();
+      }
+    })();
     const usage = normalizeUsageFromCodex(result.parsed);
 
     return cliRunnerOutput({
@@ -68,6 +84,7 @@ export class CodexCliRunnerAdapter implements RunnerAdapter {
       providerName: CODEX_ACCESS_MODE,
       timeoutMs: invocation.timeoutMs,
       label: "codex",
+      liveLogPath: liveLog.path,
     });
   }
 }

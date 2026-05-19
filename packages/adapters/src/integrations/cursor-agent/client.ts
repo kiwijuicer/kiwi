@@ -69,8 +69,20 @@ function tryParseJson(text: string): unknown {
   }
 }
 
-function buildArgs(invocation: CursorAgentCliInvocation): string[] {
-  const args = ["-p", invocation.prompt, "--output-format", invocation.outputFormat ?? "json"];
+export function buildCursorAgentCliArgs(invocation: CursorAgentCliInvocation): string[] {
+  const args = [
+    "-p",
+    invocation.prompt,
+    "--output-format",
+    invocation.outputFormat ?? "json",
+    "--trust",
+    "--force",
+    "--sandbox",
+    "enabled",
+    "--workspace",
+    invocation.cwd,
+    "--approve-mcps",
+  ];
 
   if (invocation.model) {
     args.push("--model", invocation.model);
@@ -81,7 +93,7 @@ function buildArgs(invocation: CursorAgentCliInvocation): string[] {
 
 export class DefaultCursorAgentCliRunner implements CursorAgentCliRunner {
   async run(invocation: CursorAgentCliInvocation): Promise<CursorAgentCliResult> {
-    const args = buildArgs(invocation);
+    const args = buildCursorAgentCliArgs(invocation);
     const result = await runSubprocess({
       binary: invocation.binary,
       args,

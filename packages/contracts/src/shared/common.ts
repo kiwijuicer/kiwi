@@ -102,6 +102,10 @@ export const ACCESS_MODE_VALUES = [
 ] as const;
 export const USAGE_PRECISION_VALUES = ["exact", "estimated", "unknown"] as const;
 
+export const KiwiRunnerEnvVars = {
+  Active: "KIWI_RUNNER_ACTIVE",
+} as const;
+
 export const InitiativeSources = {
   Cli: "cli",
   File: "file",

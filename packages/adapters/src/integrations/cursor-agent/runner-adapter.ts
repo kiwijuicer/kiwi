@@ -9,6 +9,7 @@ import { cliRunnerOutput, runnerTimeoutMs } from "../../runners/cli-output.js";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../../runners/adapter.js";
 import { buildRunnerEnv } from "../../runners/env.js";
 import { buildContractRunnerPrompt } from "../../runners/contract-prompt.js";
+import { openStreamingRunnerLog } from "../../runners/logs.js";
 
 const DEFAULT_TIMEOUT_MS = 600_000;
 const CURSOR_AGENT_ACCESS_MODE = AccessModes.CursorAgentCli;
@@ -43,6 +44,14 @@ export class CursorAgentRunnerAdapter implements RunnerAdapter {
       inputEnv: input.env,
       policy: input.commandPolicy,
     });
+    const liveLog = openStreamingRunnerLog({
+      workspacePath: input.workspacePath,
+      runId: input.runId,
+      stepId: input.stepId,
+      attemptId: input.attemptId,
+      runner: this.name,
+      secretValues: input.commandPolicy?.secretValues,
+    });
     const invocation: CursorAgentCliInvocation = {
       binary: this.binary,
       cwd: input.worktreePath,
@@ -50,13 +59,20 @@ export class CursorAgentRunnerAdapter implements RunnerAdapter {
       outputFormat: "json",
       timeoutMs: runnerTimeoutMs(input, this.timeoutMs),
       env,
+      onOutputChunk: liveLog.append,
     };
 
     if (this.model) {
       invocation.model = this.model;
     }
 
-    const result = await this.cliRunner.run(invocation);
+    const result = await (async () => {
+      try {
+        return await this.cliRunner.run(invocation);
+      } finally {
+        liveLog.close();
+      }
+    })();
     const usage = normalizeUsageFromCursorAgent(result.parsed);
 
     return cliRunnerOutput({
@@ -68,6 +84,7 @@ export class CursorAgentRunnerAdapter implements RunnerAdapter {
       providerName: CURSOR_AGENT_ACCESS_MODE,
       timeoutMs: invocation.timeoutMs,
       label: "cursor-agent",
+      liveLogPath: liveLog.path,
     });
   }
 }

@@ -151,7 +151,7 @@ describe("CLI planner providers", () => {
     expect(runner.invocations[0]?.prompt).toContain("TaskGraph JSON schema");
     expect(runner.invocations[0]?.env?.SECRET_TOKEN).toBeUndefined();
     expect(runner.invocations[0]?.sandbox).toBe("workspace-write");
-    expect(runner.invocations[0]?.approvalPolicy).toBe("on-request");
+    expect(runner.invocations[0]?.approvalPolicy).toBe("never");
     expect(runner.invocations[0]?.approvalsReviewer).toBe("auto_review");
   });
 

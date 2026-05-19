@@ -4,22 +4,22 @@ overview: Stop hidden approval/MCP hangs in external CLI runners by making all r
 todos:
   - id: stabilize-run
     content: Confirm and safely stop the current hidden child runner if still active
-    status: pending
+    status: completed
   - id: runner-env-guard
     content: Inject KIWI_RUNNER_ACTIVE into external runner environments and test filtering
-    status: pending
+    status: completed
   - id: mcp-reentrancy-guard
     content: Block Kiwi MCP stdio startup inside runner child processes
-    status: pending
+    status: completed
   - id: cli-flags
     content: Add non-interactive flags for Claude, Codex, and Cursor CLI clients
-    status: pending
+    status: completed
   - id: live-logs
     content: Wire streaming logs into external execution runner adapters
-    status: pending
+    status: completed
   - id: focused-tests
     content: Update and run focused adapter and MCP tests
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -104,3 +104,11 @@ Run focused checks only:
 ## Expected Outcome
 
 External CLI runners either proceed without hidden prompts or fail quickly with persisted evidence. Claude no longer loads workspace MCP config during runner execution, recursive Kiwi MCP startup is blocked for all runner children, and long-running attempts expose live logs before completion.
+
+## Implementation Status
+
+Completed on 2026-05-19.
+
+- No `.kiwi/runs/**/run.lock` was present, and no active hidden Claude/Codex/Cursor child runner required termination.
+- Codex `config.toml` had no configured MCP servers; the reported Codex schema error was fixed in `kiwi_plan` by removing the top-level `anyOf` from the MCP tool schema while keeping runtime validation.
+- Runner env sentinel, MCP reentrancy guard, non-interactive CLI flags, live logs, and focused tests are implemented.

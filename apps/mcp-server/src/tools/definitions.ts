@@ -109,7 +109,6 @@ const TOOL_SPECS = [
         riskProfile: { type: "string", enum: ["dev", "production"], description: "Risk profile for planning policy." },
         budgetProfile: { type: "string", enum: ["tiny", "normal"], description: "Budget profile for planning policy." },
       },
-      anyOf: [{ required: ["ticket"] }, { required: ["rawInput"] }],
       additionalProperties: false,
     },
   },

@@ -36,6 +36,7 @@ export {
   MODEL_PROVIDER_VALUES,
   ACCESS_MODE_VALUES,
   USAGE_PRECISION_VALUES,
+  KiwiRunnerEnvVars,
   InitiativeSources,
   RiskProfiles,
   BudgetProfiles,

@@ -37,7 +37,7 @@ export interface ClaudeCodeCliRunner {
   run(invocation: ClaudeCodeCliInvocation): Promise<ClaudeCodeCliResult>;
 }
 
-function buildArgs(invocation: ClaudeCodeCliInvocation): string[] {
+export function buildClaudeCodeCliArgs(invocation: ClaudeCodeCliInvocation): string[] {
   const args: string[] = ["-p", invocation.prompt];
 
   if (invocation.outputFormat) {
@@ -55,6 +55,14 @@ function buildArgs(invocation: ClaudeCodeCliInvocation): string[] {
   if (invocation.allowedTools && invocation.allowedTools.length > 0) {
     args.push("--allowedTools", invocation.allowedTools.join(","));
   }
+  args.push(
+    "--permission-mode",
+    "dontAsk",
+    "--strict-mcp-config",
+    "--mcp-config",
+    '{"mcpServers":{}}',
+    "--no-session-persistence",
+  );
   if (invocation.extraArgs && invocation.extraArgs.length > 0) {
     args.push(...invocation.extraArgs);
   }
@@ -64,7 +72,7 @@ function buildArgs(invocation: ClaudeCodeCliInvocation): string[] {
 
 export class DefaultClaudeCodeCliRunner implements ClaudeCodeCliRunner {
   async run(invocation: ClaudeCodeCliInvocation): Promise<ClaudeCodeCliResult> {
-    const args = buildArgs(invocation);
+    const args = buildClaudeCodeCliArgs(invocation);
     const result = await runSubprocess({
       binary: invocation.binary,
       args,

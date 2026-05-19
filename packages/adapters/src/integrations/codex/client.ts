@@ -7,7 +7,7 @@ import {
 } from "../../constants.js";
 import { runSubprocess, SubprocessOutputChunk } from "../../runners/subprocess.js";
 
-export const CODEX_AUTO_REVIEW_APPROVAL_POLICY = CodexApprovalPolicies.OnRequest;
+export const CODEX_AUTO_REVIEW_APPROVAL_POLICY = CodexApprovalPolicies.Never;
 export const CODEX_AUTO_REVIEW_APPROVALS_REVIEWER = CodexApprovalsReviewers.AutoReview;
 export const CODEX_AUTO_REVIEW_SANDBOX = CodexSandboxes.WorkspaceWrite;
 
@@ -58,7 +58,15 @@ function parseJsonLines(text: string): unknown[] {
 }
 
 export function buildCodexCliArgs(invocation: CodexCliInvocation): string[] {
-  const args = ["exec", "--json", "--cd", invocation.cwd, "--skip-git-repo-check", "--ephemeral"];
+  const args = [
+    "exec",
+    "--json",
+    "--cd",
+    invocation.cwd,
+    "--skip-git-repo-check",
+    "--ephemeral",
+    "--ignore-user-config",
+  ];
   args.push(
     "--sandbox",
     invocation.sandbox ?? CODEX_AUTO_REVIEW_SANDBOX,

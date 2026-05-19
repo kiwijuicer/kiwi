@@ -5,6 +5,7 @@ import { execFileSync } from "child_process";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { KiwiRunnerEnvVars } from "@kiwi/contracts";
 import {
   kiwiHomeModelRegistryPath,
   kiwiHomePolicyPath,
@@ -245,6 +246,27 @@ describe("MCP server", () => {
     expect(started).toEqual(["/repo"]);
   });
 
+  it("refuses stdio bootstrap inside kiwi runner children", () => {
+    const started: string[] = [];
+    const messages: string[] = [];
+    const bootstrap = new McpServerBootstrap(
+      resolveMcpBootstrapOptions(["node", "index.js", "--workspace", "/repo"], {
+        [KiwiRunnerEnvVars.Active]: "1",
+      }),
+      {
+        transports: {
+          startStdio: (cwd) => started.push(cwd),
+        },
+        stderr: { write: (message) => messages.push(message) },
+      },
+    );
+
+    bootstrap.start();
+
+    expect(started).toEqual([]);
+    expect(messages.join("")).toContain("kiwi MCP disabled inside kiwi runner process");
+  });
+
   it("starts HTTP from constructor-resolved bootstrap options", () => {
     const started: unknown[] = [];
     const bootstrap = new McpServerBootstrap(
@@ -274,11 +296,23 @@ describe("MCP server", () => {
     expect(JSON.stringify(tools.result)).toContain("inputSchema");
     const listedTools = (
       tools.result as {
-        tools: Array<{ name: string; annotations?: unknown; inputSchema?: { additionalProperties?: boolean } }>;
+        tools: Array<{
+          name: string;
+          annotations?: unknown;
+          inputSchema?: { additionalProperties?: boolean; type?: string } & Record<string, unknown>;
+        }>;
       }
     ).tools;
     expect(listedTools.every((tool) => tool.annotations)).toBe(true);
+    expect(listedTools.every((tool) => tool.inputSchema?.type === "object")).toBe(true);
     expect(listedTools.every((tool) => tool.inputSchema?.additionalProperties === false)).toBe(true);
+    expect(
+      listedTools.flatMap((tool) =>
+        ["oneOf", "anyOf", "allOf", "enum", "not"].filter((key) =>
+          Object.prototype.hasOwnProperty.call(tool.inputSchema ?? {}, key),
+        ),
+      ),
+    ).toEqual([]);
     expect(listedTools.find((tool) => tool.name === "kiwi_next")?.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,

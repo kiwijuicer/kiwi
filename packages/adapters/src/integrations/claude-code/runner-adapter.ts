@@ -9,6 +9,7 @@ import { cliRunnerOutput, runnerTimeoutMs } from "../../runners/cli-output.js";
 import { RunnerAdapter, RunnerExecutionInput, RunnerExecutionOutput } from "../../runners/adapter.js";
 import { buildRunnerEnv } from "../../runners/env.js";
 import { buildContractRunnerPrompt } from "../../runners/contract-prompt.js";
+import { openStreamingRunnerLog } from "../../runners/logs.js";
 
 const DEFAULT_TIMEOUT_MS = 600_000;
 const CLAUDE_CODE_ACCESS_MODE = AccessModes.ClaudeCodeCli;
@@ -47,6 +48,14 @@ export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
       inputEnv: input.env,
       policy: input.commandPolicy,
     });
+    const liveLog = openStreamingRunnerLog({
+      workspacePath: input.workspacePath,
+      runId: input.runId,
+      stepId: input.stepId,
+      attemptId: input.attemptId,
+      runner: this.name,
+      secretValues: input.commandPolicy?.secretValues,
+    });
     const invocation: ClaudeCodeCliInvocation = {
       binary: this.binary,
       cwd: input.worktreePath,
@@ -56,8 +65,15 @@ export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
       allowedTools: this.allowedTools,
       timeoutMs: runnerTimeoutMs(input, this.timeoutMs),
       env,
+      onOutputChunk: liveLog.append,
     };
-    const result = await this.cliRunner.run(invocation);
+    const result = await (async () => {
+      try {
+        return await this.cliRunner.run(invocation);
+      } finally {
+        liveLog.close();
+      }
+    })();
     const usage = normalizeUsageFromCli(result.parsed);
 
     return cliRunnerOutput({
@@ -69,6 +85,7 @@ export class ClaudeCodeRunnerAdapter implements RunnerAdapter {
       providerName: CLAUDE_CODE_ACCESS_MODE,
       timeoutMs: invocation.timeoutMs,
       label: "claude-code",
+      liveLogPath: liveLog.path,
     });
   }
 }

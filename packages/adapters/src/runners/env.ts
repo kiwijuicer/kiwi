@@ -1,3 +1,5 @@
+import { KiwiRunnerEnvVars } from "@kiwi/contracts";
+
 const BASE_RUNNER_ENV = ["PATH", "HOME", "USER", "LOGNAME", "TMPDIR", "SHELL", "CI"] as const;
 
 interface RunnerEnvPolicy {
@@ -38,6 +40,8 @@ export function buildRunnerEnv(params: {
       selected[key] = value;
     }
   }
+
+  selected[KiwiRunnerEnvVars.Active] = "1";
 
   return selected;
 }
