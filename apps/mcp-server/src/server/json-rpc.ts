@@ -1,3 +1,5 @@
+import { renderMcpToolResult } from "../ux/render.js";
+
 export interface JsonRpcRequest {
   jsonrpc?: "2.0";
   id?: string | number | null;
@@ -20,13 +22,19 @@ export function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 }
 
-export function textContent(value: unknown): { content: Array<{ type: "text"; text: string }> } {
-  return {
+export function textContent(value: unknown): { content: Array<{ type: "text"; text: string }>; structuredContent?: unknown } {
+  const result: { content: Array<{ type: "text"; text: string }>; structuredContent?: unknown } = {
     content: [
       {
         type: "text",
-        text: typeof value === "string" ? value : JSON.stringify(value, null, 2),
+        text: renderMcpToolResult(value),
       },
     ],
   };
+
+  if (typeof value === "object" && value !== null) {
+    result.structuredContent = value;
+  }
+
+  return result;
 }

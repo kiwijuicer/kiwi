@@ -6,7 +6,8 @@ import {
   splitCommandLine,
 } from "@kiwi/runtime";
 import { getMcpServerServices } from "../services.js";
-import { errorMessage, progressLine, type ToolCallOptions } from "./helpers.js";
+import { renderStepProgressLine } from "../ux/render.js";
+import { errorMessage, type ToolCallOptions } from "./helpers.js";
 
 export interface RunStepToolResult {
   stepId: string;
@@ -15,6 +16,7 @@ export interface RunStepToolResult {
   nextAction: unknown;
   runStatus: string;
   materializedDiff: unknown;
+  fallback?: unknown;
 }
 
 interface InternalAttemptOptions {
@@ -90,15 +92,14 @@ function emitRoutingProgress(params: {
     return;
   }
   params.options.onProgress?.(
-    progressLine({
+    renderStepProgressLine({
       phase: "routing",
       status: ProgressStatuses.Selected,
       stepId: params.stepId,
-      model: params.preview.selectedModelId,
+      modelId: params.preview.selectedModelId,
       providerModel: params.preview.selectedProviderModel,
       capability: params.preview.modelCapability,
       runner: params.preview.runner,
-      isolation: params.preview.executionIsolation,
       reason: params.preview.executorSelectionReason ?? params.preview.routingReason.join(","),
       stepIndex: params.progressContext.stepIndex,
       stepCount: params.progressContext.stepCount,
@@ -119,7 +120,7 @@ function skippedCompletedResult(params: {
     services().core.runStatus.summary(params.workspacePath, params.runId).latest[0]?.currentStatus ?? "missing";
 
   params.options.onProgress?.(
-    progressLine({
+    renderStepProgressLine({
       phase: "step",
       status: ProgressStatuses.Skipped,
       stepId: params.stepId,
@@ -152,7 +153,7 @@ function emitStepStartProgress(params: {
   progressContext: RunStepProgressContext;
 }): void {
   params.options.onProgress?.(
-    progressLine({
+    renderStepProgressLine({
       phase: "step",
       status: ProgressStatuses.Started,
       stepId: params.stepId,
@@ -162,7 +163,7 @@ function emitStepStartProgress(params: {
     0,
   );
   params.options.onProgress?.(
-    progressLine({
+    renderStepProgressLine({
       phase: "gate",
       status: ProgressStatuses.Running,
       stepId: params.stepId,
@@ -182,7 +183,7 @@ async function executePlannedStep(params: {
     return await services().runtime.execution.plannedSteps.execute(params.input);
   } catch (error) {
     params.options.onProgress?.(
-      progressLine({
+      renderStepProgressLine({
         phase: "step",
         status: ProgressStatuses.Failed,
         stepId: params.stepId,
@@ -217,7 +218,7 @@ function emitPostAttemptProgress(params: {
   }
   for (const gate of evidence.gateResults) {
     params.options.onProgress(
-      progressLine({
+      renderStepProgressLine({
         phase: "gate",
         status: gate.status,
         stepId: params.stepId,
@@ -231,7 +232,7 @@ function emitPostAttemptProgress(params: {
   }
   if (evidence.reviewVerdict) {
     params.options.onProgress(
-      progressLine({
+      renderStepProgressLine({
         phase: "review",
         status: ProgressStatuses.Completed,
         stepId: params.stepId,
@@ -251,13 +252,19 @@ function emitStepResultProgress(params: {
   options: ToolCallOptions;
   progressContext: RunStepProgressContext;
 }): void {
+  if (params.result.fallback) {
+    params.options.onProgress?.(
+      `Provider limit on ${params.result.fallback.failedRunner}; retried ${params.stepId} with ${params.result.fallback.replacementRunner}${
+        params.result.fallback.replacementModelId ? ` (${params.result.fallback.replacementModelId})` : ""
+      }`,
+    );
+  }
   params.options.onProgress?.(
-    progressLine({
+    renderStepProgressLine({
       phase: "step",
       status: params.result.status,
       stepId: params.stepId,
       attemptId: params.result.attemptId,
-      next: params.result.nextAction.type,
       runStatus: params.result.runStatus,
       stepIndex: params.progressContext.stepIndex,
       stepCount: params.progressContext.stepCount,
@@ -267,7 +274,7 @@ function emitStepResultProgress(params: {
 }
 
 function toRunStepToolResult(stepId: string, result: ExecutePlannedStepResult): RunStepToolResult {
-  return {
+  const output: RunStepToolResult = {
     stepId,
     attemptId: result.attemptId,
     status: result.status,
@@ -275,6 +282,12 @@ function toRunStepToolResult(stepId: string, result: ExecutePlannedStepResult): 
     runStatus: result.runStatus,
     materializedDiff: result.materializedDiff,
   };
+
+  if (result.fallback) {
+    output.fallback = result.fallback;
+  }
+
+  return output;
 }
 
 export async function runStepToolUnlocked(

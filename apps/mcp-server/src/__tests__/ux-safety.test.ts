@@ -102,9 +102,7 @@ models:
 }
 
 function toolJson(response: Awaited<ReturnType<typeof handleMcpRequest>>): unknown {
-  const text = (response.result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
-
-  return JSON.parse(text) as unknown;
+  return (response.result as { structuredContent: unknown }).structuredContent;
 }
 
 async function planRun(cwd: string, riskProfile: "dev" | "production" = "dev"): Promise<string> {

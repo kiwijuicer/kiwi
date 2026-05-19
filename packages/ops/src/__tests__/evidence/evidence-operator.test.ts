@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { Initiative, TaskGraph } from "@kiwi/contracts";
 import { appendAuditEvent, savePlannedRun } from "@kiwi/core";
 import { writeEvidenceManifest } from "../../evidence/index.js";
+import { writePlanMarkdown } from "../../operator/plan-markdown.js";
 import { writeOperatorSnapshot } from "../../operator/surface.js";
 
 function cwd(): string {
@@ -106,5 +107,40 @@ describe("evidence and operator surfaces", () => {
     expect(result.ref).toBe("operator/index.html");
     expect(html).toContain("Operator Demo");
     expect(html).toContain("step_001");
+  });
+
+  it("writes a clickable Markdown plan artifact with model labels", () => {
+    const repo = cwd();
+    createRun(repo);
+
+    const result = writePlanMarkdown({
+      cwd: repo,
+      runId: "run_demo",
+      taskGraph,
+      plannerModelId: "stub-frontier",
+      providerName: "stub",
+      providerModel: "stub-model",
+      estimatedCostUsd: 0,
+      steps: [
+        {
+          stepId: "step_001",
+          title: "Plan",
+          type: "planning",
+          agentRole: "planner",
+          modelCapability: "frontier",
+          modelId: "stub-frontier",
+          providerModel: "stub-model",
+          estimatedCostUsd: 0,
+        },
+      ],
+      now: new Date("2026-05-04T11:04:00.000Z"),
+    });
+    const markdown = readFileSync(path.join(repo, ".kiwi", "runs", "run_demo", result.ref), "utf-8");
+
+    expect(result.ref).toBe("plan.md");
+    expect(result.uri).toContain("file://");
+    expect(markdown).toContain("# Kiwi Plan run_demo");
+    expect(markdown).toContain("Planner model: **stub-model (stub-frontier) via stub**");
+    expect(markdown).toContain("| 1 | step_001 | Plan | planning | planner | stub-model (stub-frontier) | $0.0000 |");
   });
 });

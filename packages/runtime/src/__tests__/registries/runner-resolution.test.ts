@@ -127,6 +127,21 @@ describe("runner resolution", () => {
     expect(resolution.selectedExecutorModel?.id).toBe("codex-strong");
   });
 
+  it("selects replacement executor models constrained to the fallback runner", () => {
+    const resolution = resolveRunner({
+      registryModels: [
+        executorModel("claude-sonnet", "strong", "claude-code-cli"),
+        executorModel("codex-strong", "strong", "codex-cli"),
+      ],
+      step: codingStep,
+      env: { KIWI_FAKE_BINARY_AVAILABLE: "1" },
+      preferenceByRole: { executor: ["claude-code-cli", "codex-cli"] },
+    });
+
+    expect(resolution.selectedExecutorModel?.id).toBe("claude-sonnet");
+    expect(resolution.selectExecutorModelForRunner("codex", "strong").model?.id).toBe("codex-strong");
+  });
+
   it("honors a cheap scheduler decision before choosing stronger executor models", () => {
     const resolution = resolveRunner({
       registryModels: [

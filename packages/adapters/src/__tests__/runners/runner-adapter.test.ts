@@ -10,6 +10,12 @@ import {
   CodexCliRunner,
 } from "../../integrations/codex/client.js";
 import { CodexCliRunnerAdapter } from "../../integrations/codex/runner-adapter.js";
+import {
+  ClaudeCodeCliInvocation,
+  ClaudeCodeCliResult,
+  ClaudeCodeCliRunner,
+} from "../../integrations/claude-code/client.js";
+import { ClaudeCodeRunnerAdapter } from "../../integrations/claude-code/runner-adapter.js";
 import { CursorAgentRunnerAdapter } from "../../integrations/cursor-agent/runner-adapter.js";
 import {
   CursorAgentCliInvocation,
@@ -19,6 +25,7 @@ import {
 import { buildRunnerEnv } from "../../runners/env.js";
 import { LocalShellRunnerAdapter } from "../../runners/local-shell.js";
 import { StubExternalRunnerAdapter } from "../../runners/stub-external.js";
+import { ProviderFailureCodes } from "../../constants.js";
 
 const nodeBin = process.execPath;
 
@@ -74,6 +81,32 @@ class FakeCodexRunner implements CodexCliRunner {
       completedAt: "2026-05-04T12:00:00.010Z",
       binary: invocation.binary,
       args: ["exec", "--json", invocation.prompt],
+      timedOut: false,
+    };
+  }
+}
+
+class RateLimitedClaudeRunner implements ClaudeCodeCliRunner {
+  async run(invocation: ClaudeCodeCliInvocation): Promise<ClaudeCodeCliResult> {
+    const stdout = JSON.stringify({
+      type: "result",
+      subtype: "success",
+      is_error: true,
+      api_error_status: 429,
+      result: "You've hit your limit",
+    });
+
+    return {
+      ok: false,
+      exitCode: 1,
+      stdout,
+      stderr: "",
+      parsed: JSON.parse(stdout),
+      durationMs: 10,
+      startedAt: "2026-05-04T12:00:00.000Z",
+      completedAt: "2026-05-04T12:00:00.010Z",
+      binary: invocation.binary,
+      args: ["-p", invocation.prompt, "--output-format", "json"],
       timedOut: false,
     };
   }
@@ -242,6 +275,33 @@ describe("runner adapters", () => {
     expect(output.status).toBe("failed");
     expect(output.error?.code).toBe("RUNNER_NOT_IMPLEMENTED");
     expect(output.gateResult.status).toBe("fail");
+  });
+
+  it("classifies provider 429 output as a rate-limit fallback signal", async () => {
+    const repo = cwd();
+    const adapter = new ClaudeCodeRunnerAdapter({
+      binary: "claude",
+      model: "claude-sonnet-4-6",
+      cliRunner: new RateLimitedClaudeRunner(),
+      env: { PATH: "/bin" },
+    });
+    const output = await adapter.execute({
+      runId: "run_demo",
+      stepId: "step_001",
+      attemptId: "attempt_rate_limited",
+      workspacePath: repo,
+      worktreePath: path.join(repo, ".kiwi", "runs", "run_demo", "worktrees", "attempt_rate_limited"),
+      step: step("Generate a file"),
+      contextPackage: contextPackage("run_demo", "attempt_rate_limited", "Generate a file"),
+      allowedTools: ["shell"],
+      timeouts: { commandTimeoutMs: 1000 },
+      commandPolicy: policy({ envAllowlist: ["PATH"] }),
+    });
+
+    expect(output.status).toBe("failed");
+    expect(output.error?.code).toBe(ProviderFailureCodes.RateLimited);
+    expect(output.error?.message).toContain("HTTP 429");
+    expect(output.gateResult.reason).toContain("provider rate limited");
   });
 
   it("filters runner env to safe keys and policy allowlist", () => {

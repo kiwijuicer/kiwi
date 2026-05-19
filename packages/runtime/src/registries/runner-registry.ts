@@ -93,6 +93,8 @@ export interface RunnerResolution {
   executorSelection: ExecutorSelection;
   /** Re-run the executor selection with a different capability. */
   selectExecutorModel(requestedCapability: ModelCapability): ExecutorSelection;
+  /** Select an executor model constrained to a specific runner. */
+  selectExecutorModelForRunner(runner: RunnerName, requestedCapability: ModelCapability): ExecutorSelection;
 }
 
 export interface RunnerRegistryOptions {
@@ -398,6 +400,25 @@ function runnerForAccessMode(accessMode: AccessMode): RunnerName | null {
   return null;
 }
 
+function accessModeForRunner(runner: RunnerName): AccessMode | null {
+  switch (runner) {
+    case RunnerNames.ClaudeCode:
+      return AccessModes.ClaudeCodeCli;
+    case RunnerNames.Codex:
+      return AccessModes.CodexCli;
+    case RunnerNames.CursorAgent:
+      return AccessModes.CursorAgentCli;
+    case RunnerNames.Stub:
+      return AccessModes.Stub;
+    case RunnerNames.LocalShell:
+      return AccessModes.Local;
+    case RunnerNames.Api:
+      return null;
+    default:
+      return null;
+  }
+}
+
 function priorityForStep(step: Step, preferenceByRole?: ProviderPreference | undefined): RunnerName[] {
   const base = CODING_STEP_TYPES.has(step.type) ? CODING_RUNNER_PRIORITY : DEFAULT_RUNNER_PRIORITY;
   const preferred = (preferenceByRole?.[ContractValues.Executor] ?? [])
@@ -477,6 +498,14 @@ export class RunnerRegistry {
     );
     const selectExecutorModel = (capability: ModelCapability): ExecutorSelection =>
       pickExecutorModel(options.registryModels, env, capability, options.preferenceByRole);
+    const selectExecutorModelForRunner = (runner: RunnerName, capability: ModelCapability): ExecutorSelection => {
+      const accessMode = accessModeForRunner(runner);
+      const models = accessMode
+        ? options.registryModels.filter((model) => model.accessMode === accessMode)
+        : options.registryModels;
+
+      return pickExecutorModel(models, env, capability, options.preferenceByRole);
+    };
 
     return {
       runnerAvailability,
@@ -486,6 +515,7 @@ export class RunnerRegistry {
       selectedExecutorModel: executorSelection.model,
       executorSelection,
       selectExecutorModel,
+      selectExecutorModelForRunner,
     };
   }
 

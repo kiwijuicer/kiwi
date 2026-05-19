@@ -1,0 +1,476 @@
+import { ProgressStatuses, StepStatuses } from "@kiwi/contracts";
+
+export interface PlanStepRenderInput {
+  stepId: string;
+  title: string;
+  type: string;
+  agentRole?: string | null | undefined;
+  modelCapability?: string | null | undefined;
+  modelId?: string | null | undefined;
+  providerModel?: string | null | undefined;
+  estimatedCostUsd?: number | null | undefined;
+}
+
+export interface PlanRenderInput {
+  runId: string;
+  planId: string;
+  workspacePath: string;
+  plannerModelId: string;
+  providerName: string;
+  providerModel?: string | null | undefined;
+  stepCount: number;
+  summary: string;
+  acceptanceCriteria: string[];
+  assumptions?: string[] | undefined;
+  openQuestions?: string[] | undefined;
+  estimatedCostUsd: number;
+  planMarkdownPath?: string | undefined;
+  planMarkdownUri?: string | undefined;
+  steps?: PlanStepRenderInput[] | undefined;
+}
+
+export interface DiffStepRenderInput {
+  stepId: string;
+  attemptId: string;
+  stat: string;
+  patch: string;
+  reviewVerdict: string;
+}
+
+export interface DiffRenderInput {
+  runId: string;
+  items: DiffStepRenderInput[];
+  stat: string;
+}
+
+export interface StepProgressRenderInput {
+  phase: string;
+  status: string;
+  stepId: string;
+  attemptId?: string | null | undefined;
+  modelId?: string | null | undefined;
+  providerModel?: string | null | undefined;
+  capability?: string | null | undefined;
+  runner?: string | null | undefined;
+  stepIndex?: number | undefined;
+  stepCount?: number | undefined;
+  reason?: string | null | undefined;
+  verdict?: string | null | undefined;
+  safeToContinue?: boolean | null | undefined;
+  gate?: string | null | undefined;
+  runStatus?: string | null | undefined;
+  error?: string | null | undefined;
+}
+
+type JsonRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function record(value: unknown): JsonRecord {
+  return isRecord(value) ? value : {};
+}
+
+function stringValue(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function numberValue(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function bulletList(items: string[]): string[] {
+  return items.length === 0 ? ["- none"] : items.map((item) => `- ${item}`);
+}
+
+function modelLabel(params: {
+  modelId?: string | null | undefined;
+  providerModel?: string | null | undefined;
+  capability?: string | null | undefined;
+  runner?: string | null | undefined;
+  providerName?: string | null | undefined;
+}): string {
+  const model = params.providerModel ?? params.modelId ?? params.capability ?? "model unknown";
+  const via = params.providerName ?? params.runner;
+
+  return via ? `${model} via ${via}` : model;
+}
+
+function tableCell(value: string | number | null | undefined): string {
+  return String(value ?? "-").replaceAll("|", "\\|").replaceAll("\n", " ");
+}
+
+function operatorHeader(value: JsonRecord): string | null {
+  const operatorCard = record(value.operatorCard);
+  const runId = stringValue(operatorCard.runId, stringValue(value.runId));
+
+  if (!runId) {
+    return null;
+  }
+  const planner = record(value.planner);
+  const plannerModel = modelLabel({
+    modelId: stringValue(planner.modelId) || undefined,
+    providerModel: stringValue(planner.providerModel) || undefined,
+    providerName: stringValue(planner.providerName) || undefined,
+  });
+
+  return renderOperatorStatusLine({
+    runId,
+    currentState: stringValue(operatorCard.currentState, stringValue(value.status, "unknown")),
+    plannerModel: plannerModel === "model unknown" ? null : plannerModel,
+  });
+}
+
+function nextActionLines(value: JsonRecord): string[] {
+  const nextAction = record(value.nextAction ?? record(value.operatorCard).nextAction);
+  const tool = record(nextAction.recommendedToolCall);
+  const name = stringValue(tool.name);
+
+  if (!name) {
+    return [];
+  }
+
+  return ["", `Next: \`${name}\``, stringValue(nextAction.whyThisTool) ? stringValue(nextAction.whyThisTool) : ""].filter(
+    (line) => line !== "",
+  );
+}
+
+function resourceLines(value: JsonRecord): string[] {
+  const resources = record(value.operatorCard).resources;
+
+  if (!Array.isArray(resources) || resources.length === 0) {
+    return [];
+  }
+
+  return [
+    "",
+    "Resources:",
+    ...resources.map((resource) => {
+      const item = record(resource);
+
+      return `- ${stringValue(item.name, "resource")}: \`${stringValue(item.uri)}\``;
+    }),
+  ];
+}
+
+function renderWithHeader(value: JsonRecord, body: string): string {
+  const lines = [operatorHeader(value), body, ...nextActionLines(value), ...resourceLines(value)].filter(
+    (line): line is string => typeof line === "string" && line.length > 0,
+  );
+
+  return lines.join("\n\n");
+}
+
+export function renderPlanMarkdown(input: PlanRenderInput): string {
+  const planUri = input.planMarkdownUri ?? input.planMarkdownPath;
+  const planLine =
+    input.planMarkdownPath && planUri ? `Plan file: [\`${input.planMarkdownPath}\`](${planUri})` : "Plan file: not written";
+  const stepLines =
+    input.steps && input.steps.length > 0
+      ? [
+          "",
+          "| # | Step | Title | Type | Model | Cost |",
+          "|---:|---|---|---|---|---:|",
+          ...input.steps.map((step, index) =>
+            [
+              index + 1,
+              step.stepId,
+              step.title,
+              step.type,
+              modelLabel({
+                modelId: step.modelId,
+                providerModel: step.providerModel,
+                capability: step.modelCapability,
+                runner: step.agentRole,
+              }),
+              step.estimatedCostUsd === null || step.estimatedCostUsd === undefined
+                ? "-"
+                : `$${step.estimatedCostUsd.toFixed(4)}`,
+            ]
+              .map(tableCell)
+              .join(" | "),
+          ).map((row) => `| ${row} |`),
+        ]
+      : [];
+
+  return [
+    `## Plan ${input.runId}`,
+    "",
+    input.summary,
+    "",
+    `Model: **${modelLabel({
+      modelId: input.plannerModelId,
+      providerModel: input.providerModel,
+      providerName: input.providerName,
+    })}**`,
+    `Steps: **${input.stepCount}**`,
+    `Estimated cost: **$${input.estimatedCostUsd.toFixed(4)}**`,
+    planLine,
+    ...stepLines,
+    "",
+    "Acceptance criteria:",
+    ...bulletList(input.acceptanceCriteria),
+    "",
+    "Open questions:",
+    ...bulletList(input.openQuestions ?? []),
+  ].join("\n");
+}
+
+export function renderDiffMarkdown(input: DiffRenderInput): string {
+  if (input.items.length === 0) {
+    return `## Diff ${input.runId}\n\nNo diff items.`;
+  }
+  const sections = input.items.flatMap((item) => [
+    `### ${item.stepId} - ${item.reviewVerdict}`,
+    "",
+    item.stat ? `Stat:\n\`\`\`text\n${item.stat}\n\`\`\`` : "",
+    "",
+    `\`\`\`diff\n${item.patch}\n\`\`\``,
+  ]);
+
+  return [`## Diff ${input.runId}`, "", input.stat ? `\`\`\`text\n${input.stat}\n\`\`\`` : "", "", ...sections].join("\n");
+}
+
+export function renderStepProgressLine(input: StepProgressRenderInput): string {
+  const prefix =
+    input.stepIndex !== undefined && input.stepCount !== undefined ? `[${input.stepIndex}/${input.stepCount}] ` : "";
+  const model = modelLabel({
+    modelId: input.modelId,
+    providerModel: input.providerModel,
+    capability: input.capability,
+    runner: input.runner,
+  });
+  const suffix = input.reason ? ` (${input.reason})` : "";
+
+  if (input.phase === "routing" && input.status === "selected") {
+    return `${prefix}Routing ${input.stepId}: ${model}${suffix}`;
+  }
+  if (input.phase === "step" && input.status === "started") {
+    return `${prefix}Running ${input.stepId}`;
+  }
+  if (input.phase === "gate" && input.status === ProgressStatuses.Running) {
+    return `${prefix}Checking gates for ${input.stepId}`;
+  }
+  if (input.phase === "gate") {
+    return `${prefix}Gate ${input.gate ?? "gate"} ${input.status} for ${input.stepId}${suffix}`;
+  }
+  if (input.phase === "review") {
+    const verdict = input.verdict ?? input.status;
+
+    return `${prefix}Review ${verdict} for ${input.stepId}`;
+  }
+  if (input.phase === "step" && input.status === ProgressStatuses.Failed) {
+    return `${prefix}Failed ${input.stepId}: ${input.error ?? "unknown error"}`;
+  }
+  if (input.phase === "step") {
+    return `${prefix}${input.status} ${input.stepId}`;
+  }
+
+  return `${prefix}${input.phase} ${input.status} ${input.stepId}`;
+}
+
+export function renderOperatorStatusLine(params: {
+  runId: string;
+  currentState: string;
+  plannerModel?: string | null | undefined;
+}): string {
+  const parts = [`Run ${params.runId}`, params.currentState];
+
+  if (params.plannerModel) {
+    parts.push(`model: ${params.plannerModel}`);
+  }
+
+  return parts.join(" - ");
+}
+
+function renderPlannedRun(value: JsonRecord): string {
+  const workspace = record(value.workspace);
+  const taskGraph = record(value.taskGraph);
+  const planner = record(value.planner);
+  const cost = record(value.cost);
+  const artifacts = record(value.artifacts);
+  const planMarkdown = record(artifacts.planMarkdown);
+  const forecast = record(cost.forecast);
+  const forecastSteps = Array.isArray(forecast.steps) ? forecast.steps : [];
+
+  return renderWithHeader(
+    value,
+    renderPlanMarkdown({
+      runId: stringValue(value.runId),
+      planId: stringValue(value.planId),
+      workspacePath: stringValue(workspace.workspacePath),
+      plannerModelId: stringValue(planner.modelId, "unknown"),
+      providerName: stringValue(planner.providerName, "unknown"),
+      providerModel: stringValue(planner.providerModel) || undefined,
+      stepCount: numberValue(taskGraph.stepCount),
+      summary: stringValue(taskGraph.summary),
+      acceptanceCriteria: stringArray(taskGraph.acceptanceCriteria),
+      assumptions: stringArray(taskGraph.assumptions),
+      openQuestions: stringArray(taskGraph.openQuestions),
+      estimatedCostUsd: numberValue(cost.estimatedCostUsd),
+      planMarkdownPath: stringValue(planMarkdown.path) || undefined,
+      planMarkdownUri: stringValue(planMarkdown.uri) || undefined,
+      steps: forecastSteps.map((step): PlanStepRenderInput => {
+        const item = record(step);
+
+        return {
+          stepId: stringValue(item.stepId),
+          title: stringValue(item.title),
+          type: "-",
+          modelId: stringValue(item.executorModelId) || undefined,
+          estimatedCostUsd: numberValue(item.totalCostUsd),
+        };
+      }),
+    }),
+  );
+}
+
+function renderPreview(value: JsonRecord): string {
+  const cost = record(value.cost);
+  const execution = record(value.execution);
+  const decision = record(value.decision);
+  const steps = Array.isArray(value.steps) ? value.steps.map(record) : [];
+  const stepLines = steps.map((step) => {
+    const label = modelLabel({
+      modelId: stringValue(step.selectedModelId) || undefined,
+      providerModel: stringValue(step.selectedProviderModel) || undefined,
+      capability: stringValue(step.modelCapability) || undefined,
+      runner: stringValue(step.selectedAccessMode) || stringValue(step.runner) || undefined,
+    });
+
+    return `- ${step.index}/${step.count} \`${stringValue(step.stepId)}\` ${stringValue(step.title)} - ${label}`;
+  });
+
+  return renderWithHeader(
+    value,
+    [
+      `## Execution Preview ${stringValue(value.runId)}`,
+      "",
+      stringValue(decision.confirmationSummary),
+      "",
+      `Mode: **${stringValue(execution.isolation, "unknown")}**`,
+      `Estimated cost: **$${numberValue(cost.estimatedCostUsd).toFixed(4)}**`,
+      "",
+      "Planned steps:",
+      ...stepLines,
+    ].join("\n"),
+  );
+}
+
+function renderRunDiff(value: JsonRecord): string {
+  const diff = record(value.diff);
+  const items = Array.isArray(diff.items) ? diff.items.map(record) : [];
+
+  return renderWithHeader(
+    value,
+    renderDiffMarkdown({
+      runId: stringValue(diff.runId, stringValue(value.runId)),
+      stat: stringValue(diff.stat),
+      items: items.map((item): DiffStepRenderInput => ({
+        stepId: stringValue(item.stepId),
+        attemptId: stringValue(item.attemptId),
+        stat: stringValue(item.stat),
+        patch: stringValue(item.patch),
+        reviewVerdict: stringValue(item.reviewVerdict, "unknown"),
+      })),
+    }),
+  );
+}
+
+function renderStatus(value: JsonRecord): string {
+  const status = record(value.status);
+  const latest = Array.isArray(status.latest) ? status.latest.map(record) : [];
+  const run = latest[0];
+  const steps = run && Array.isArray(run.steps) ? run.steps.map(record) : [];
+
+  if (!run) {
+    return renderWithHeader(value, `## Run Status\n\nNo runs found.`);
+  }
+
+  return renderWithHeader(
+    value,
+    [
+      `## Run Status ${stringValue(run.runId)}`,
+      "",
+      `State: **${stringValue(run.currentStatus, stringValue(run.status, "unknown"))}**`,
+      `Plan: \`${stringValue(run.currentPlanId)}\``,
+      "",
+      "Steps:",
+      ...steps.map(
+        (step) =>
+          `- \`${stringValue(step.stepId)}\` ${stringValue(
+            step.status,
+            stringValue(step.plannedStatus, StepStatuses.Pending),
+          )}: ${stringValue(step.title)}`,
+      ),
+    ].join("\n"),
+  );
+}
+
+function renderExecutionResult(value: JsonRecord): string {
+  const summary = record(value.summary);
+  const steps = Array.isArray(value.steps) ? value.steps.map(record) : [];
+
+  return renderWithHeader(
+    value,
+    [
+      `## Run ${stringValue(value.runId)}`,
+      "",
+      `Status: **${stringValue(value.status)}**`,
+      `Cost: **$${numberValue(summary.totalEstimatedCostUsd).toFixed(4)}**`,
+      `Next: **${stringValue(summary.nextAction, "unknown")}**`,
+      "",
+      "Steps:",
+      ...steps.map((step) => {
+        const fallback = record(step.fallback);
+        const fallbackLabel = stringValue(fallback.replacementRunner)
+          ? ` - fallback: ${stringValue(fallback.failedRunner)} -> ${stringValue(fallback.replacementRunner)}`
+          : "";
+
+        return `- \`${stringValue(step.stepId)}\` ${stringValue(step.status)} (${stringValue(step.attemptId)})${fallbackLabel}`;
+      }),
+    ].join("\n"),
+  );
+}
+
+function renderSimple(value: JsonRecord): string {
+  const kind = stringValue(value.kind, "kiwi_result");
+  const runId = stringValue(value.runId);
+  const status = stringValue(value.status);
+
+  return renderWithHeader(
+    value,
+    [`## ${kind}`, runId ? `Run: \`${runId}\`` : "", status ? `Status: **${status}**` : ""]
+      .filter((line) => line.length > 0)
+      .join("\n\n"),
+  );
+}
+
+export function renderMcpToolResult(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (!isRecord(value)) {
+    return String(value);
+  }
+
+  switch (stringValue(value.kind)) {
+    case "planned_run":
+      return renderPlannedRun(value);
+    case "run_execution_preview":
+      return renderPreview(value);
+    case "run_diff":
+      return renderRunDiff(value);
+    case "run_status":
+      return renderStatus(value);
+    case "run_execution_result":
+      return renderExecutionResult(value);
+    default:
+      return renderSimple(value);
+  }
+}

@@ -56,6 +56,16 @@ export interface ExecutePlannedStepResult {
   nextAction: StepAttemptExecutionResult["nextAction"];
   runStatus: ReturnType<typeof refreshRunStatusFromAttempts>["status"];
   materializedDiff: AttemptDiffMaterialization;
+  fallback?: ProviderFallbackResult;
+}
+
+export interface ProviderFallbackResult {
+  reason: string;
+  failedAttemptId: string;
+  failedRunner: string;
+  replacementAttemptId: string;
+  replacementRunner: string;
+  replacementModelId: string | null;
 }
 
 export type AttemptDiffMaterialization =

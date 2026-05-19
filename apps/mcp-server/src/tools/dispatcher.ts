@@ -1,7 +1,8 @@
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
-import { ContractValues, ProgressStatuses } from "@kiwi/contracts";
-import { recordFeedbackAndReplan, resolvePlannerProvider, RunCostForecastService } from "@kiwi/runtime";
+import { AgentRoles, ContractValues, ModelCapabilities, ProgressStatuses } from "@kiwi/contracts";
+import { recordFeedbackAndReplan, resolvePlannerProvider, RunCostForecastService, type RunCostForecast } from "@kiwi/runtime";
 import { loadEffectivePolicy, loadEffectiveRegistry, planRun, type WorkspaceResolution } from "@kiwi/core";
+import { writePlanMarkdown } from "@kiwi/ops";
 import { callCoreTool } from "./core-dispatch.js";
 import { doctorTool } from "./doctor.js";
 import { withOperatorCard } from "../ux/operator-card.js";
@@ -47,6 +48,38 @@ function planNextAction(planned: Awaited<ReturnType<typeof planRun>>): McpNextAc
   };
 }
 
+function writePlannedRunMarkdown(params: {
+  planned: Awaited<ReturnType<typeof planRun>>;
+  costForecast: RunCostForecast;
+  providerModel: string | null;
+}): ReturnType<typeof writePlanMarkdown> {
+  const taskStepsById = new Map(params.planned.taskGraph.steps.map((step) => [step.stepId, step]));
+
+  return writePlanMarkdown({
+    cwd: params.planned.workspacePath,
+    runId: params.planned.runId,
+    taskGraph: params.planned.taskGraph,
+    plannerModelId: params.planned.plannerModelId,
+    providerName: params.planned.providerName,
+    providerModel: params.providerModel,
+    estimatedCostUsd: params.costForecast.estimatedCostUsd,
+    steps: params.costForecast.steps.map((step) => {
+      const plannedStep = taskStepsById.get(step.stepId);
+
+      return {
+        stepId: step.stepId,
+        title: step.title,
+        type: plannedStep?.type ?? "unknown",
+        agentRole: plannedStep?.recommendedAgentRole ?? AgentRoles.Executor,
+        modelCapability: plannedStep?.recommendedModelCapability ?? ModelCapabilities.Mid,
+        modelId: step.executorModelId,
+        providerModel: null,
+        estimatedCostUsd: step.totalCostUsd,
+      };
+    }),
+  });
+}
+
 async function planTool(args: Record<string, unknown>, cwd: string, options: ToolCallOptions = {}): Promise<unknown> {
   const rawInput = String(args.ticket ?? args.rawInput ?? "");
   const workspace = workspaceArgs(args, cwd, true);
@@ -84,8 +117,7 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
       source: "mcp",
       policy,
       plannerModel: resolution.model,
-      executePlanner: (plannerInput, options) =>
-        runPlannerProviderWithRetries(resolution.provider, plannerInput, options),
+      executePlanner: (plannerInput, options) => runPlannerProviderWithRetries(resolution.provider, plannerInput, options),
       riskProfile: args.riskProfile === "production" ? "production" : "dev",
       budgetProfile: args.budgetProfile === "tiny" ? "tiny" : "normal",
       now,
@@ -108,6 +140,11 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     registry,
     plannerCostUsd: planned.plannerOutput.cost.estimatedUsd,
     plannerModelId: planned.plannerModelId,
+  });
+  const planMarkdown = writePlannedRunMarkdown({
+    planned,
+    costForecast,
+    providerModel: resolution.model.providerModel ?? null,
   });
   const nextAction = planNextAction(planned);
 
@@ -137,6 +174,9 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
       cost: {
         estimatedCostUsd: costForecast.estimatedCostUsd,
         forecast: costForecast,
+      },
+      artifacts: {
+        planMarkdown,
       },
       execution: {
         owner: policy.execution?.owner ?? "kiwi-codex-cli",

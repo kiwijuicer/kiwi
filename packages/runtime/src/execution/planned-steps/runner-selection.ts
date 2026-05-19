@@ -100,7 +100,9 @@ export class StepRunnerSelector {
         reason: ExecutorSelectionReasons.ExplicitCommand,
       };
     }
-    const selection = params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
+    const selection = params.decision.runner
+      ? params.runnerResolution?.selectExecutorModelForRunner(params.decision.runner, params.decision.modelCapability)
+      : null;
 
     return {
       selectedModel: selection?.model ?? null,
@@ -132,7 +134,9 @@ export class StepRunnerSelector {
     const executorSelection =
       params.decision.runner === RunnerNames.LocalShell
         ? null
-        : params.runnerResolution?.selectExecutorModel(params.decision.modelCapability);
+        : params.decision.runner
+          ? params.runnerResolution?.selectExecutorModelForRunner(params.decision.runner, params.decision.modelCapability)
+          : null;
 
     if (executorSelection) {
       this.auditReporter.executorModelSelected({

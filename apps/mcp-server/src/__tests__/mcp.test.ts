@@ -138,9 +138,7 @@ function setupWorkspace(): { root: string; core: string; agent: string } {
 }
 
 function toolJson(response: Awaited<ReturnType<typeof handleMcpRequest>>): unknown {
-  const text = (response.result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
-
-  return JSON.parse(text) as unknown;
+  return (response.result as { structuredContent: unknown }).structuredContent;
 }
 
 function lineMessage(value: unknown): Buffer {
@@ -682,8 +680,7 @@ describe("MCP server", () => {
       cwd,
     );
     expect(planned.error).toBeUndefined();
-    const text = (planned.result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
-    const parsed = JSON.parse(text) as { runId: string };
+    const parsed = toolJson(planned) as { runId: string };
     expect(parsed.runId).toMatch(/^run_/);
 
     const runs = await handleMcpRequest(
@@ -766,6 +763,30 @@ describe("MCP server", () => {
     );
     expect(snapshotResource.error).toBeUndefined();
     expect(JSON.stringify(snapshotResource.result)).toContain("<!doctype html>");
+  });
+
+  it("renders planned runs as Markdown by default and links the plan artifact", async () => {
+    const cwd = setupRepo();
+    const planned = await handleMcpRequest(
+      {
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "kiwi_plan",
+          arguments: { rawInput: "# Markdown Plan\n\n## Plan" },
+        },
+      },
+      cwd,
+    );
+    const text = (planned.result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
+    const runId = text.match(/## Plan (run_[a-z0-9_]+)/)?.[1] ?? "";
+
+    expect(planned.error).toBeUndefined();
+    expect(text).toContain("Model: **");
+    expect(text).toContain("Plan file: [");
+    expect(text).toContain("file://");
+    expect(runId).toMatch(/^run_/);
+    expect(existsSync(path.join(cwd, ".kiwi", "runs", runId, "plan.md"))).toBe(true);
   });
 
   it("plans with object arguments and exposes model evidence resources", async () => {
@@ -1174,8 +1195,7 @@ models:
       os.tmpdir(),
     );
     expect(planned.error).toBeUndefined();
-    const text = (planned.result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
-    const parsed = JSON.parse(text) as { runId: string; workspace: { repoPath: string } };
+    const parsed = toolJson(planned) as { runId: string; workspace: { repoPath: string } };
     expect(parsed.workspace.repoPath).toBe(workspace.core);
     const preview = await handleMcpRequest(
       {
@@ -1223,15 +1243,15 @@ models:
     };
     const notificationText = JSON.stringify(notifications);
     expect(notificationText).toContain("phase=run status=started");
-    expect(notificationText).toContain("phase=routing status=selected");
-    expect(notificationText).toContain("phase=step status=started");
-    expect(notificationText).toContain("phase=gate status=");
-    expect(notificationText).toContain("phase=review status=completed");
+    expect(notificationText).toContain("Routing step_");
+    expect(notificationText).toContain("Running step_");
+    expect(notificationText).toContain("Checking gates");
+    expect(notificationText).toContain("Review");
     expect(notificationText).toContain("run-progress");
     const routingStepIndices = notifications
       .map((notification) => (notification as { params?: { message?: unknown } }).params?.message)
-      .filter((message): message is string => typeof message === "string" && message.includes("phase=routing"))
-      .map((message) => Number(message.match(/stepIndex=(\d+)/)?.[1] ?? 0))
+      .filter((message): message is string => typeof message === "string" && message.includes("Routing step_"))
+      .map((message) => Number(message.match(/^\[(\d+)\//)?.[1] ?? 0))
       .filter((index) => index > 0);
 
     expect(routingStepIndices).toHaveLength(runParsed.steps.length);
