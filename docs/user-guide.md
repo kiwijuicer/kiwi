@@ -190,7 +190,7 @@ Default model access order:
 Useful environment overrides:
 
 - `KIWI_FORCE_ACCESS_MODE=<mode>`
-- `KIWI_ALLOW_STUB=1`
+- `KIWI_TEST_ALLOW_STUB=1 KIWI_FORCE_ACCESS_MODE=stub`
 - `KIWI_EXECUTION_ISOLATION=worktree`
 - `KIWI_HOME=<kiwi-home>`
 

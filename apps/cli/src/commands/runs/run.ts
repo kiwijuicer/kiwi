@@ -1,9 +1,9 @@
 import chalk from "chalk";
-import { ContractValues } from "@kiwi/contracts";
+import { ContractValues, SchedulerDecisionStatuses } from "@kiwi/contracts";
 import {
-  buildRunCostForecast,
   firstBudgetProfileForCost,
   getRunStatusSummary,
+  loadEffectivePolicy,
   loadEffectiveRegistry,
   loadPlannerCostReport,
   loadTaskGraph,
@@ -14,6 +14,7 @@ import {
   ExecutePlannedStepResult,
   injectFixStep,
   loadReviewVerdict,
+  RunCostForecastService,
   runScheduledSubPlans,
 } from "@kiwi/runtime";
 import { buildRunCompletionSummary } from "@kiwi/ops";
@@ -134,12 +135,17 @@ function assertWithinRunMaxCost(params: {
   if (params.maxCost === undefined) {
     return;
   }
-  const forecast = buildRunCostForecast({
+  const registry = loadEffectiveRegistry(params.cwd);
+  const forecast = new RunCostForecastService().build({
     taskGraph: params.taskGraph,
+    policy: loadEffectivePolicy(params.cwd),
+    registry,
     plannerCostUsd: plannerCostUsd(params.cwd, params.runId),
-    registryModels: loadEffectiveRegistry(params.cwd).models,
   });
 
+  if (forecast.status === SchedulerDecisionStatuses.Blocked) {
+    throw new Error(`Estimated run cost is blocked: ${forecast.blockedReasons.join("; ")}`);
+  }
   if (forecast.estimatedCostUsd <= params.maxCost) {
     return;
   }

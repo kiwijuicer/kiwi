@@ -28,4 +28,3 @@ export function mutationRequirementForStepType(stepType: StepType): MutationRequ
 
   return MutationRequirements.MayChangeFiles;
 }
-

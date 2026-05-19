@@ -17,12 +17,15 @@ import { runRulesSync } from "../../commands/setup/rules";
 import { runStatus } from "../../commands/runs/status";
 
 let previousForceAccessMode: string | undefined;
+let previousTestAllowStub: string | undefined;
 let previousKiwiHome: string | undefined;
 
 function commandEnv(env: Record<string, string | undefined> = {}): Record<string, string | undefined> {
   return {
     ...env,
     KIWI_HOME: env.KIWI_HOME ?? process.env.KIWI_HOME,
+    KIWI_TEST_ALLOW_STUB: env.KIWI_TEST_ALLOW_STUB ?? "1",
+    KIWI_FORCE_ACCESS_MODE: env.KIWI_FORCE_ACCESS_MODE ?? "stub",
   };
 }
 
@@ -90,8 +93,10 @@ function initSafeGitRepo(cwd: string): void {
 describe("kiwi operator flow", () => {
   beforeEach(() => {
     previousForceAccessMode = process.env.KIWI_FORCE_ACCESS_MODE;
+    previousTestAllowStub = process.env.KIWI_TEST_ALLOW_STUB;
     previousKiwiHome = process.env.KIWI_HOME;
     process.env.KIWI_FORCE_ACCESS_MODE = "stub";
+    process.env.KIWI_TEST_ALLOW_STUB = "1";
     process.env.KIWI_HOME = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-home-"));
   });
 
@@ -100,6 +105,11 @@ describe("kiwi operator flow", () => {
       delete process.env.KIWI_FORCE_ACCESS_MODE;
     } else {
       process.env.KIWI_FORCE_ACCESS_MODE = previousForceAccessMode;
+    }
+    if (previousTestAllowStub === undefined) {
+      delete process.env.KIWI_TEST_ALLOW_STUB;
+    } else {
+      process.env.KIWI_TEST_ALLOW_STUB = previousTestAllowStub;
     }
     if (previousKiwiHome === undefined) {
       delete process.env.KIWI_HOME;
@@ -116,7 +126,6 @@ describe("kiwi operator flow", () => {
     await runPlan(
       "# Feature: Operator\n\n## Validate",
       {
-        allowStub: true,
         env: commandEnv({ PATH: "/empty" }),
         now: new Date("2026-05-04T09:00:00.000Z"),
         runIdSuffix: "op01",
@@ -210,7 +219,6 @@ describe("kiwi operator flow", () => {
     await runPlan(
       "# Feature: Dependencies\n\n## First\n\n## Second",
       {
-        allowStub: true,
         env: commandEnv({ PATH: "/empty" }),
         now: new Date("2026-05-04T09:10:00.000Z"),
         runIdSuffix: "deps",
@@ -253,7 +261,6 @@ describe("kiwi operator flow", () => {
     await runPlan(
       "# Feature: Run Progress\n\n## Validate",
       {
-        allowStub: true,
         env: commandEnv({ PATH: "/empty" }),
         now: new Date("2026-05-04T12:00:00.000Z"),
         runIdSuffix: "r001",
@@ -314,7 +321,6 @@ describe("kiwi operator flow", () => {
     await runPlan(
       "# Feature: Workspace Attempt\n\n## Implement",
       {
-        allowStub: true,
         env: commandEnv({ PATH: "/empty" }),
         workspace,
         repo: "api-service",

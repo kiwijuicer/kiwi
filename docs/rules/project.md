@@ -21,6 +21,8 @@ Build `kiwi` as a local-first control plane for AI-assisted coding work:
 - Prefer deterministic behavior over magic.
 - Keep architecture evolvable without over-engineering.
 - Keep user-facing commands simple and explicit.
+- Required gates must always persist a `pass`, `fail`, or `blocked` GateResult.
+- Model pricing and tiering must come from the versioned model catalog, not scraping.
 
 ## Source Of Truth
 

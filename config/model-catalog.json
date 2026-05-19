@@ -1,0 +1,269 @@
+{
+  "catalogVersion": "2026-05-19",
+  "generatedAt": "2026-05-19T00:00:00.000Z",
+  "pricingLastVerifiedAt": "2026-05-19T00:00:00.000Z",
+  "providers": [
+    {
+      "name": "openai",
+      "sourceUrl": "https://openai.com/api/pricing/"
+    },
+    {
+      "name": "anthropic",
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing"
+    },
+    {
+      "name": "manual",
+      "sourceUrl": "https://cursor.com/pricing"
+    },
+    {
+      "name": "test",
+      "sourceUrl": "https://github.com/kiwi-juicer/ai-kiwi"
+    }
+  ],
+  "pricing": {
+    "openai:gpt-5.4-mini": {
+      "currency": "USD",
+      "inputUsdPerMillion": 0.75,
+      "cacheReadUsdPerMillion": 0.075,
+      "outputUsdPerMillion": 4.5,
+      "source": "openai",
+      "sourceUrl": "https://openai.com/api/pricing/",
+      "sourceVersion": "2026-05-19",
+      "pricingLastVerifiedAt": "2026-05-19T00:00:00.000Z"
+    },
+    "openai:gpt-5.4": {
+      "currency": "USD",
+      "inputUsdPerMillion": 2.5,
+      "cacheReadUsdPerMillion": 0.25,
+      "outputUsdPerMillion": 15,
+      "source": "openai",
+      "sourceUrl": "https://openai.com/api/pricing/",
+      "sourceVersion": "2026-05-19",
+      "pricingLastVerifiedAt": "2026-05-19T00:00:00.000Z"
+    },
+    "openai:gpt-5.5": {
+      "currency": "USD",
+      "inputUsdPerMillion": 5,
+      "cacheReadUsdPerMillion": 0.5,
+      "outputUsdPerMillion": 30,
+      "source": "openai",
+      "sourceUrl": "https://openai.com/api/pricing/",
+      "sourceVersion": "2026-05-19",
+      "pricingLastVerifiedAt": "2026-05-19T00:00:00.000Z"
+    },
+    "anthropic:claude-opus-4-7": {
+      "currency": "USD",
+      "inputUsdPerMillion": 5,
+      "outputUsdPerMillion": 25,
+      "source": "anthropic",
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "sourceVersion": "2026-05-19",
+      "pricingLastVerifiedAt": "2026-05-19T00:00:00.000Z"
+    },
+    "anthropic:claude-sonnet-4-6": {
+      "currency": "USD",
+      "inputUsdPerMillion": 3,
+      "outputUsdPerMillion": 15,
+      "source": "anthropic",
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "sourceVersion": "2026-05-19",
+      "pricingLastVerifiedAt": "2026-05-19T00:00:00.000Z"
+    },
+    "anthropic:claude-haiku-4-5-20251001": {
+      "currency": "USD",
+      "inputUsdPerMillion": 1,
+      "outputUsdPerMillion": 5,
+      "source": "anthropic",
+      "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "sourceVersion": "2026-05-19",
+      "pricingLastVerifiedAt": "2026-05-19T00:00:00.000Z"
+    },
+    "manual:cursor-agent-auto": {
+      "currency": "USD",
+      "inputUsdPerMillion": 3,
+      "outputUsdPerMillion": 15,
+      "source": "manual",
+      "sourceUrl": "https://cursor.com/pricing",
+      "sourceVersion": "2026-05-19",
+      "pricingLastVerifiedAt": "2026-05-19T00:00:00.000Z"
+    },
+    "manual:cursor-agent-mid": {
+      "currency": "USD",
+      "inputUsdPerMillion": 1,
+      "outputUsdPerMillion": 5,
+      "source": "manual",
+      "sourceUrl": "https://cursor.com/pricing",
+      "sourceVersion": "2026-05-19",
+      "pricingLastVerifiedAt": "2026-05-19T00:00:00.000Z"
+    },
+    "test:stub": {
+      "currency": "USD",
+      "inputUsdPerMillion": 0,
+      "outputUsdPerMillion": 0,
+      "source": "test",
+      "sourceUrl": "https://github.com/kiwi-juicer/ai-kiwi",
+      "sourceVersion": "2026-05-19",
+      "pricingLastVerifiedAt": "2026-05-19T00:00:00.000Z"
+    }
+  },
+  "tierMapping": {
+    "cheap": ["codex-cli-cheap", "stub-cheap"],
+    "mid": ["codex-cli-mid", "claude-code-cli-mid", "cursor-agent-mid", "stub-mid"],
+    "strong": ["codex-cli-strong", "claude-code-cli-strong", "cursor-agent-auto", "stub-strong"],
+    "frontier": ["codex-cli-frontier", "claude-code-cli-frontier", "stub-frontier"]
+  },
+  "models": [
+    {
+      "id": "codex-cli-cheap",
+      "providerModel": "gpt-5.4-mini",
+      "provider": "local",
+      "capability": "cheap",
+      "roles": ["researcher", "executor", "reviewer", "rules"],
+      "accessMode": "codex-cli",
+      "enabled": true,
+      "pricingRef": "openai:gpt-5.4-mini",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "codex-cli-mid",
+      "providerModel": "gpt-5.4-mini",
+      "provider": "local",
+      "capability": "mid",
+      "roles": ["researcher", "executor", "reviewer", "rules"],
+      "accessMode": "codex-cli",
+      "enabled": true,
+      "pricingRef": "openai:gpt-5.4-mini",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "codex-cli-strong",
+      "providerModel": "gpt-5.4",
+      "provider": "local",
+      "capability": "strong",
+      "roles": ["planner", "researcher", "executor", "reviewer", "security", "rules"],
+      "accessMode": "codex-cli",
+      "enabled": true,
+      "pricingRef": "openai:gpt-5.4",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "codex-cli-frontier",
+      "providerModel": "gpt-5.5",
+      "provider": "local",
+      "capability": "frontier",
+      "roles": ["planner", "reviewer", "security"],
+      "accessMode": "codex-cli",
+      "enabled": true,
+      "pricingRef": "openai:gpt-5.5",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "claude-code-cli-frontier",
+      "providerModel": "claude-opus-4-7",
+      "provider": "anthropic",
+      "capability": "frontier",
+      "roles": ["planner", "reviewer", "security"],
+      "accessMode": "claude-code-cli",
+      "enabled": true,
+      "pricingRef": "anthropic:claude-opus-4-7",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "claude-code-cli-strong",
+      "providerModel": "claude-sonnet-4-6",
+      "provider": "anthropic",
+      "capability": "strong",
+      "roles": ["executor", "reviewer", "security"],
+      "accessMode": "claude-code-cli",
+      "enabled": true,
+      "pricingRef": "anthropic:claude-sonnet-4-6",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "claude-code-cli-mid",
+      "providerModel": "claude-haiku-4-5-20251001",
+      "provider": "anthropic",
+      "capability": "mid",
+      "roles": ["researcher", "executor", "rules"],
+      "accessMode": "claude-code-cli",
+      "enabled": true,
+      "pricingRef": "anthropic:claude-haiku-4-5-20251001",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "cursor-agent-auto",
+      "providerModel": "auto",
+      "provider": "local",
+      "capability": "strong",
+      "roles": ["planner", "researcher", "executor", "reviewer"],
+      "accessMode": "cursor-agent-cli",
+      "enabled": true,
+      "pricingRef": "manual:cursor-agent-auto",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "cursor-agent-mid",
+      "providerModel": "auto",
+      "provider": "local",
+      "capability": "mid",
+      "roles": ["researcher", "executor", "reviewer"],
+      "accessMode": "cursor-agent-cli",
+      "enabled": true,
+      "pricingRef": "manual:cursor-agent-mid",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "stub-cheap",
+      "provider": "stub",
+      "capability": "cheap",
+      "roles": ["executor", "rules"],
+      "accessMode": "stub",
+      "enabled": true,
+      "pricingRef": "test:stub",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "stub-mid",
+      "provider": "stub",
+      "capability": "mid",
+      "roles": ["researcher", "executor", "rules"],
+      "accessMode": "stub",
+      "enabled": true,
+      "pricingRef": "test:stub",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "stub-strong",
+      "provider": "stub",
+      "capability": "strong",
+      "roles": ["executor", "reviewer", "security"],
+      "accessMode": "stub",
+      "enabled": true,
+      "pricingRef": "test:stub",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    },
+    {
+      "id": "stub-frontier",
+      "provider": "stub",
+      "capability": "frontier",
+      "roles": ["planner", "reviewer", "security"],
+      "accessMode": "stub",
+      "enabled": true,
+      "pricingRef": "test:stub",
+      "deprecatedAt": null,
+      "replacementModelId": null
+    }
+  ]
+}

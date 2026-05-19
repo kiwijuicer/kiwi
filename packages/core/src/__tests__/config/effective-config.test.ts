@@ -57,8 +57,13 @@ models:
     enabled: true
     pricing:
       currency: USD
-      inputUsdPerMillion: 10
-      outputUsdPerMillion: 40
+      inputUsdPerMillion: 5
+      cacheReadUsdPerMillion: 0.5
+      outputUsdPerMillion: 30
+      source: openai
+      sourceUrl: https://openai.com/api/pricing/
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
   - id: codex-cli-mid
     providerModel: gpt-5.4-mini
     provider: local
@@ -68,8 +73,13 @@ models:
     enabled: true
     pricing:
       currency: USD
-      inputUsdPerMillion: 0.4
-      outputUsdPerMillion: 1.6
+      inputUsdPerMillion: 0.75
+      cacheReadUsdPerMillion: 0.075
+      outputUsdPerMillion: 4.5
+      source: openai
+      sourceUrl: https://openai.com/api/pricing/
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
 `;
 
 function tmp(): string {

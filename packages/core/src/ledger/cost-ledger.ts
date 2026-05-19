@@ -34,6 +34,7 @@ export const AuditEventTypes = {
   RunLockReleased: "run_lock_released",
   RunLockBusy: "run_lock_busy",
   ModelInvocationRecorded: "model_invocation_recorded",
+  ModelRegistryRefreshed: "model_registry_refreshed",
   RunAuditSnapshotWritten: "run_audit_snapshot_written",
   EvidenceManifestWritten: "evidence_manifest_written",
   OperatorSnapshotWritten: "operator_snapshot_written",

@@ -32,7 +32,7 @@ function printRegistryAccessModes(enabled: ModelEntry[], env: NodeJS.ProcessEnv)
     }
     const availability = evaluateAccessModeAvailability(accessMode, env);
     const status = availability.available ? chalk.green("available") : chalk.yellow("unavailable");
-    const reasonText = accessMode === "stub" ? "tests/dev only; disabled for plan by default" : availability.reason;
+    const reasonText = accessMode === "stub" ? "test-only; requires KIWI_TEST_ALLOW_STUB=1" : availability.reason;
     const reason = reasonText ? chalk.dim(` (${reasonText})`) : "";
     console.log(`  ${chalk.cyan(accessMode)}: ${count} entries — ${status}${reason}`);
   }
@@ -64,11 +64,26 @@ function printRoleCounts(enabled: ModelEntry[]): void {
   );
 }
 
+function printDeprecatedModels(models: ModelEntry[]): void {
+  const deprecated = models.filter((entry) => entry.deprecatedAt);
+
+  if (deprecated.length === 0) {
+    return;
+  }
+  console.log(chalk.yellow(`deprecated models: ${deprecated.length}`));
+  for (const model of deprecated) {
+    const replacement = model.replacementModelId ? ` -> ${model.replacementModelId}` : "";
+    console.log(`  ${model.id}${replacement}`);
+  }
+}
+
 function printInitializedWorkspaceDiagnostics(workspacePath: string, env: NodeJS.ProcessEnv): void {
   const policy = loadEffectivePolicy(workspacePath, { env });
   const registry = loadEffectiveRegistry(workspacePath, { env });
   console.log(`policy: ${chalk.green(policy.project.name)} (${policy.routing.defaultModelCapability} default)`);
-  console.log(`registry: ${chalk.green(registry.models.length)} entries`);
+  console.log(
+    `registry: ${chalk.green(registry.models.length)} entries${registry.catalogVersion ? chalk.dim(` (catalog ${registry.catalogVersion})`) : ""}`,
+  );
 
   const enabled = registry.models.filter((entry) => entry.enabled);
   printRegistryAccessModes(enabled, env);
@@ -77,6 +92,7 @@ function printInitializedWorkspaceDiagnostics(workspacePath: string, env: NodeJS
   console.log(`preferred order: ${order.join(" > ")}`);
   printRunnerRegistry(registry.models, env);
   printRoleCounts(enabled);
+  printDeprecatedModels(registry.models);
 }
 
 function printAccessModeProbes(env: NodeJS.ProcessEnv): void {
@@ -88,7 +104,7 @@ function printAccessModeProbes(env: NodeJS.ProcessEnv): void {
     { mode: "jetbrains", label: "phpstorm", role: "IDE surface" },
     { mode: "anthropic-api", label: "ANTHROPIC_API_KEY", role: "not required for daily use" },
     { mode: "openai-api", label: "OPENAI_API_KEY", role: "not required for daily use" },
-    { mode: "stub", label: "stub", role: "tests/dev only; disabled for plan by default" },
+    { mode: "stub", label: "stub", role: "test-only; requires KIWI_TEST_ALLOW_STUB=1" },
   ];
   console.log(chalk.bold("\naccess modes:"));
   for (const probe of probes) {

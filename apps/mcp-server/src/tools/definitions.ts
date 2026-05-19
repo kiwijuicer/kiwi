@@ -11,6 +11,9 @@ const OPTIONAL_RUN_ID_SCHEMA = {
 
 const NO_AUTO_COMMIT_NOTE =
   "Do not stage, commit, tag, or push unless the user explicitly requested that git operation.";
+const FRESH_PREVIEW_TOKEN = "fresh previewToken";
+const OPTIONAL_ACTIVE_RUN = "optional runId; omitted means active repo run";
+const ACTIVE_RUN_FALLBACK = "runId may be omitted when there is one active repo run";
 
 interface ToolAnnotations {
   title: string;
@@ -134,7 +137,7 @@ const TOOL_SPECS = [
       includeSafetyNote: true,
       risk: "MUTATES_WORKTREE",
       when: "execute the exact plan after kiwi_preview_run has shown the decision card and user confirmed",
-      requires: "fresh previewToken; runId may be omitted when there is one active repo run",
+      requires: `${FRESH_PREVIEW_TOKEN}; ${ACTIVE_RUN_FALLBACK}`,
       returns: "step results, final run state, and operatorCard",
     }),
     inputSchema: {
@@ -161,8 +164,8 @@ const TOOL_SPECS = [
       includeSafetyNote: true,
       risk: "WRITES_RUN_ARTIFACTS",
       when: "always before kiwi_run, kiwi_run_step, or kiwi_apply",
-      requires: "optional runId; omitted means active repo run",
-      returns: "decision card, step order, model/runner choices, cost, gates, mutation scope, and fresh previewToken",
+      requires: OPTIONAL_ACTIVE_RUN,
+      returns: `decision card, step order, model/runner choices, cost, gates, mutation scope, and ${FRESH_PREVIEW_TOKEN}`,
       next: "ask the user to confirm, then call the returned recommendedToolCall",
     }),
     inputSchema: {
@@ -187,7 +190,7 @@ const TOOL_SPECS = [
       includeSafetyNote: true,
       risk: "MUTATES_WORKTREE",
       when: "advanced single-step execution only after previewing that step",
-      requires: "stepId and fresh previewToken; runId may be omitted when there is one active repo run",
+      requires: `stepId and ${FRESH_PREVIEW_TOKEN}; ${ACTIVE_RUN_FALLBACK}`,
       returns: "attempt result and operatorCard",
     }),
     inputSchema: {
@@ -228,7 +231,7 @@ const TOOL_SPECS = [
       includeSafetyNote: true,
       risk: "WRITES_RUN_ARTIFACTS",
       when: "the user gives human feedback or change requests after a kiwi run/review",
-      requires: "message; runId may be omitted when there is one active repo run",
+      requires: `message; ${ACTIVE_RUN_FALLBACK}`,
       returns: "feedback artifact, replan result, and next preview action",
       next: "show the preview decision card before running",
     }),
@@ -252,7 +255,7 @@ const TOOL_SPECS = [
       includeSafetyNote: true,
       risk: "APPLIES_PATCH",
       when: "apply a persisted kiwi patch to the source repo after inspecting kiwi_diff and previewing the run",
-      requires: "runId and fresh previewToken. Unsafe apply overrides are not exposed over MCP",
+      requires: `runId and ${FRESH_PREVIEW_TOKEN}. Unsafe apply overrides are not exposed over MCP`,
       returns: "apply result and operatorCard",
     }),
     inputSchema: {
@@ -273,7 +276,7 @@ const TOOL_SPECS = [
       includeSafetyNote: true,
       risk: "WRITES_RUN_ARTIFACTS",
       when: "after run completion to write final verdict, summary, and cost report",
-      requires: "optional runId; omitted means active repo run",
+      requires: OPTIONAL_ACTIVE_RUN,
       returns: "finalization result and operatorCard",
     }),
     inputSchema: OPTIONAL_RUN_ID_SCHEMA,
@@ -283,7 +286,7 @@ const TOOL_SPECS = [
     description: describeTool({
       risk: "READ_ONLY",
       when: "inspect deterministic cost and model usage",
-      requires: "optional runId; omitted means active repo run",
+      requires: OPTIONAL_ACTIVE_RUN,
       returns: "cost summary and operatorCard",
     }),
     inputSchema: OPTIONAL_RUN_ID_SCHEMA,
@@ -293,7 +296,7 @@ const TOOL_SPECS = [
     description: describeTool({
       risk: "READ_ONLY",
       when: "explain why models/runners/gates were selected",
-      requires: "optional runId; omitted means active repo run",
+      requires: OPTIONAL_ACTIVE_RUN,
       returns: "routing, gates, cost summary, and operatorCard",
     }),
     inputSchema: OPTIONAL_RUN_ID_SCHEMA,
@@ -303,7 +306,7 @@ const TOOL_SPECS = [
     description: describeTool({
       risk: "READ_ONLY",
       when: "default router after every run-related tool, error, or user interruption",
-      requires: "optional runId; omitted means active repo run",
+      requires: OPTIONAL_ACTIVE_RUN,
       returns:
         "one executable recommendedToolCall when available, why it is safe now, expected mutation, and safe alternatives",
     }),
@@ -329,7 +332,7 @@ const TOOL_SPECS = [
       includeSafetyNote: true,
       risk: "WRITES_RUN_ARTIFACTS",
       when: "only when kiwi_next says the run needs approval",
-      requires: "attemptId and an explicit approvedBy identity; runId may be omitted when there is one active repo run",
+      requires: `attemptId and an explicit approvedBy identity; ${ACTIVE_RUN_FALLBACK}`,
       returns: "approval evidence and operatorCard",
     }),
     inputSchema: {
@@ -355,7 +358,7 @@ const TOOL_SPECS = [
       includeSafetyNote: true,
       risk: "WRITES_RUN_ARTIFACTS",
       when: "after finalization to hash run evidence and write audit snapshot",
-      requires: "optional runId; omitted means active repo run",
+      requires: OPTIONAL_ACTIVE_RUN,
       returns: "manifest artifact and operatorCard",
     }),
     inputSchema: OPTIONAL_RUN_ID_SCHEMA,
@@ -366,7 +369,7 @@ const TOOL_SPECS = [
       includeSafetyNote: true,
       risk: "WRITES_RUN_ARTIFACTS",
       when: "after evidence is ready or when the operator view should be refreshed",
-      requires: "optional runId; omitted means active repo run",
+      requires: OPTIONAL_ACTIVE_RUN,
       returns: "snapshot artifact and operatorCard",
     }),
     inputSchema: OPTIONAL_RUN_ID_SCHEMA,
@@ -377,7 +380,7 @@ const TOOL_SPECS = [
       includeSafetyNote: true,
       risk: "PUSHES_BRANCH",
       when: "only when the user explicitly requested PR draft publishing",
-      requires: "local git auth; runId may be omitted when there is one active repo run",
+      requires: `local git auth; ${ACTIVE_RUN_FALLBACK}`,
       returns: "branch push result, Bitbucket create-PR URL, and operatorCard. Does not store API credentials",
     }),
     inputSchema: {

@@ -36,8 +36,7 @@ describe("provider registries", () => {
 
     const resolution = new PlannerProviderRegistry().resolve({
       registryModels: models,
-      env: { PATH: "/empty" },
-      allowStub: true,
+      env: { PATH: "/empty", KIWI_TEST_ALLOW_STUB: "1", KIWI_FORCE_ACCESS_MODE: "stub" },
     });
 
     expect(resolution.model.id).toBe("stub-frontier");
@@ -270,7 +269,7 @@ describe("provider registries", () => {
 
     const selected = new ResearcherProviderRegistry().select({
       registryModels: models,
-      env: { PATH: "/empty", KIWI_ALLOW_STUB: "1" },
+      env: { PATH: "/empty", KIWI_TEST_ALLOW_STUB: "1", KIWI_FORCE_ACCESS_MODE: "stub" },
     });
 
     expect(selected?.model.id).toBe("stub-mid");

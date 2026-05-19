@@ -191,7 +191,9 @@ export class StepRunnerSelector {
     });
 
     if (!selection) {
-      throw new Error("No enabled researcher model with an available access mode found in the effective model registry");
+      throw new Error(
+        "No enabled researcher model with an available access mode found in the effective model registry",
+      );
     }
 
     return selection;

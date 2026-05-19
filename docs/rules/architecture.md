@@ -48,3 +48,5 @@ Use only canonical terms from `docs/vision.md`:
 - Internal orchestration must depend on services/repositories/adapters, not exported wrapper functions from sibling modules.
 - `packages/contracts` is the source of truth for serialized domain values; runtime packages should consume contract constants instead of repeating string literals.
 - Package-local serialized values must be centralized in package constants when they do not belong in `packages/contracts`.
+- Forecasting must reuse runtime access-mode and capability selection; do not duplicate provider routing in Core.
+- Real provider pricing must be source/version stamped; missing pricing blocks cost guards.

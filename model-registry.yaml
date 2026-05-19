@@ -1,4 +1,5 @@
 version: "1"
+catalogVersion: "2026-05-19"
 # Model registry. Capability tiers map to real Codex CLI models below.
 #
 # Each entry declares an `accessMode`. Resolution priority at invocation:
@@ -6,7 +7,7 @@ version: "1"
 #   2. codex-cli (uses local `codex` authentication)
 #   3. claude-code-cli / cursor-agent-cli (uses local CLI auth)
 #   4. cursor / jetbrains as IDE surfaces, plus local
-#   5. stub (tests only)
+#   5. stub (tests only via KIWI_TEST_ALLOW_STUB=1 and KIWI_FORCE_ACCESS_MODE=stub)
 models:
   # Codex CLI — preferred default, uses local codex auth and explicit model switching.
   - id: codex-cli-cheap
@@ -14,6 +15,15 @@ models:
     provider: local
     capability: cheap
     roles: [researcher, executor, reviewer, rules]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0.75
+      cacheReadUsdPerMillion: 0.075
+      outputUsdPerMillion: 4.5
+      source: openai
+      sourceUrl: https://openai.com/api/pricing/
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: codex-cli
     enabled: true
   - id: codex-cli-mid
@@ -21,6 +31,15 @@ models:
     provider: local
     capability: mid
     roles: [researcher, executor, reviewer, rules]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0.75
+      cacheReadUsdPerMillion: 0.075
+      outputUsdPerMillion: 4.5
+      source: openai
+      sourceUrl: https://openai.com/api/pricing/
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: codex-cli
     enabled: true
   - id: codex-cli-strong
@@ -28,6 +47,15 @@ models:
     provider: local
     capability: strong
     roles: [planner, researcher, executor, reviewer, security, rules]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 2.5
+      cacheReadUsdPerMillion: 0.25
+      outputUsdPerMillion: 15
+      source: openai
+      sourceUrl: https://openai.com/api/pricing/
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: codex-cli
     enabled: true
   - id: codex-cli-frontier
@@ -35,69 +63,151 @@ models:
     provider: local
     capability: frontier
     roles: [planner, reviewer, security]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 5
+      cacheReadUsdPerMillion: 0.5
+      outputUsdPerMillion: 30
+      source: openai
+      sourceUrl: https://openai.com/api/pricing/
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: codex-cli
     enabled: true
 
   # Claude Code CLI — fallback, reuses local claude auth.
-  # `id` is Kiwi-local. Omit `providerModel` by default so the Claude CLI
-  # resolves its current configured/default model dynamically.
   - id: claude-code-cli-frontier
+    providerModel: claude-opus-4-7
     provider: anthropic
     capability: frontier
     roles: [planner, reviewer, security]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 5
+      outputUsdPerMillion: 25
+      source: anthropic
+      sourceUrl: https://platform.claude.com/docs/en/about-claude/pricing
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: claude-code-cli
     enabled: true
   - id: claude-code-cli-strong
+    providerModel: claude-sonnet-4-6
     provider: anthropic
     capability: strong
     roles: [executor, reviewer, security]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 3
+      outputUsdPerMillion: 15
+      source: anthropic
+      sourceUrl: https://platform.claude.com/docs/en/about-claude/pricing
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: claude-code-cli
     enabled: true
   - id: claude-code-cli-mid
+    providerModel: claude-haiku-4-5-20251001
     provider: anthropic
     capability: mid
     roles: [researcher, executor, rules]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 1
+      outputUsdPerMillion: 5
+      source: anthropic
+      sourceUrl: https://platform.claude.com/docs/en/about-claude/pricing
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: claude-code-cli
     enabled: true
 
   # Cursor Agent CLI — uses local cursor-agent login, no direct provider API key
   - id: cursor-agent-auto
+    providerModel: auto
     provider: local
     capability: strong
     roles: [planner, researcher, executor, reviewer]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 3
+      outputUsdPerMillion: 15
+      source: manual
+      sourceUrl: https://cursor.com/pricing
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: cursor-agent-cli
     enabled: true
   - id: cursor-agent-mid
+    providerModel: auto
     provider: local
     capability: mid
     roles: [researcher, executor, reviewer]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 1
+      outputUsdPerMillion: 5
+      source: manual
+      sourceUrl: https://cursor.com/pricing
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: cursor-agent-cli
     enabled: true
 
-  # Stub providers — tests/dev fixtures only. CLI/MCP planning and execution
-  # ignore these unless explicitly enabled with --allow-stub, KIWI_ALLOW_STUB=1,
-  # or KIWI_FORCE_ACCESS_MODE=stub.
+  # Stub providers — test fixtures only.
   - id: stub-cheap
     provider: stub
     capability: cheap
     roles: [executor, rules]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0
+      outputUsdPerMillion: 0
+      source: test
+      sourceUrl: https://github.com/kiwi-juicer/ai-kiwi
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: stub
     enabled: true
   - id: stub-mid
     provider: stub
     capability: mid
     roles: [researcher, executor, rules]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0
+      outputUsdPerMillion: 0
+      source: test
+      sourceUrl: https://github.com/kiwi-juicer/ai-kiwi
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: stub
     enabled: true
   - id: stub-strong
     provider: stub
     capability: strong
     roles: [executor, reviewer, security]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0
+      outputUsdPerMillion: 0
+      source: test
+      sourceUrl: https://github.com/kiwi-juicer/ai-kiwi
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: stub
     enabled: true
   - id: stub-frontier
     provider: stub
     capability: frontier
     roles: [planner, reviewer, security]
+    pricing:
+      currency: USD
+      inputUsdPerMillion: 0
+      outputUsdPerMillion: 0
+      source: test
+      sourceUrl: https://github.com/kiwi-juicer/ai-kiwi
+      sourceVersion: "2026-05-19"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     accessMode: stub
     enabled: true

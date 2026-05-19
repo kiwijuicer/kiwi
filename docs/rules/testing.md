@@ -12,6 +12,7 @@
 - Keep tests deterministic and hermetic.
 - Use fixtures for realistic ticket/policy/registry inputs.
 - Prefer focused unit tests plus a small number of integration tests.
+- Stub access modes are test-only and require `KIWI_TEST_ALLOW_STUB=1`.
 
 ## Gate Alignment
 

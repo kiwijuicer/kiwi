@@ -36,7 +36,13 @@ export const PolicyRoutingOverrideSchema = z.object({
 export const ModelPricingSchema = z.object({
   currency: z.literal("USD"),
   inputUsdPerMillion: z.number().min(0),
+  cacheReadUsdPerMillion: z.number().min(0).optional(),
+  cacheWriteUsdPerMillion: z.number().min(0).optional(),
   outputUsdPerMillion: z.number().min(0),
+  source: z.string().min(1).optional(),
+  sourceUrl: z.string().url().optional(),
+  sourceVersion: z.string().min(1).optional(),
+  pricingLastVerifiedAt: IsoDateTimeSchema.optional(),
 });
 
 export const ProviderPreferenceSchema = z
@@ -130,6 +136,22 @@ export const ModelEntrySchema = z
     pricing: ModelPricingSchema,
     enabled: z.boolean(),
     accessMode: AccessModeSchema.optional(),
+    deprecatedAt: z.union([IsoDateTimeSchema, z.null()]).optional(),
+    replacementModelId: z.union([z.string().min(1), z.null()]).optional(),
+  })
+  .superRefine((entry, ctx) => {
+    if (entry.provider === ModelProviders.Stub) {
+      return;
+    }
+    for (const key of ["source", "sourceUrl", "sourceVersion", "pricingLastVerifiedAt"] as const) {
+      if (!entry.pricing[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pricing", key],
+          message: `Real provider model '${entry.id}' must define pricing.${key}`,
+        });
+      }
+    }
   })
   .transform((entry) => ({
     ...entry,
@@ -138,6 +160,7 @@ export const ModelEntrySchema = z
 
 export const ModelRegistrySchema = z.object({
   version: z.literal("1"),
+  catalogVersion: z.string().min(1).optional(),
   models: z.array(ModelEntrySchema).min(1),
 });
 

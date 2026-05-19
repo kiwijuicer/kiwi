@@ -250,6 +250,7 @@ function collectCommandEvents(value: unknown): { commands: string[][]; suspected
   const visit = (entry: unknown): void => {
     if (Array.isArray(entry)) {
       entry.forEach(visit);
+
       return;
     }
     if (!isRecord(entry)) {
@@ -258,12 +259,16 @@ function collectCommandEvents(value: unknown): { commands: string[][]; suspected
 
         if (parsed.length === 0) {
           suspectedShellUsage = true;
+
           return;
         }
+
         parsed.forEach(visit);
       }
+
       return;
     }
+
     const name = shellRecordName(entry);
     const hasShellName = Array.from(SHELL_TOOL_NAMES).some((toolName) => name.includes(toolName));
 

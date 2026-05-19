@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BudgetExceededError } from "../../errors";
+import { firstBudgetProfileForCost } from "../../budget/forecast";
 import { assertWithinBudgetEstimate, estimateAttemptCostUsd } from "../../budget/policy";
 
 const frontierModel = {
@@ -41,5 +42,10 @@ describe("budget policy pre-flight estimates", () => {
         contextLevel: "L2",
       }),
     ).not.toThrow();
+  });
+
+  it("finds the first budget profile that can hold an estimated cost", () => {
+    expect(firstBudgetProfileForCost(0.4)).toBe("tiny");
+    expect(firstBudgetProfileForCost(3)).toBe("normal");
   });
 });

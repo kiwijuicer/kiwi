@@ -75,6 +75,7 @@ function contextPackage(runId: string, attemptId: string) {
       architectureFiles: [],
       historicalOutcomeRefs: [],
     },
+    retrieval: { strategyVersion: "test", files: [] },
     generatedAt: "2026-05-06T12:00:00.000Z",
   };
 }

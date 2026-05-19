@@ -14,6 +14,8 @@ function testEnv(cwd: string, env: Record<string, string | undefined> = {}): Rec
   return {
     ...env,
     KIWI_HOME: env.KIWI_HOME ?? path.join(path.dirname(cwd), `${path.basename(cwd)}-home`),
+    KIWI_TEST_ALLOW_STUB: env.KIWI_TEST_ALLOW_STUB ?? "1",
+    KIWI_FORCE_ACCESS_MODE: env.KIWI_FORCE_ACCESS_MODE ?? "stub",
   };
 }
 
@@ -22,7 +24,6 @@ async function setupRun(cwd: string): Promise<void> {
   await runPlan(
     "# Cost Report\n\n## Implement",
     {
-      allowStub: true,
       env: testEnv(cwd, { PATH: "/empty" }),
       now: NOW,
       runIdSuffix: "cost",

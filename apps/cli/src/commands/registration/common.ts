@@ -34,7 +34,7 @@ export function mapErrorToHelp(error: unknown): string | null {
   const message = error instanceof Error ? error.message : String(error);
 
   if (message.includes("No real planner model") || message.includes("No enabled planner model")) {
-    return "Run `kiwi doctor`, then log in/configure a real planner. Use `--allow-stub` only for tests/dev.";
+    return "Run `kiwi doctor`, then log in/configure a real planner.";
   }
   if (message.includes("No reviewer model with an available access mode")) {
     return "Check `~/.kiwi/defaults/model-registry.yaml` and any workspace `.kiwi/model-registry.yaml` override, then run `kiwi doctor`.";

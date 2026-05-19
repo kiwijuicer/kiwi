@@ -435,7 +435,9 @@ export async function finalizeRun(params: {
     blockedStepIds: evidence.blockedStepIds,
     missingStepIds: evidence.missingStepIds,
     gateResultRefs: evidence.gateResultRefs,
-    reviewReportRefs: finalReview.verdictRef ? [...evidence.reviewReportRefs, finalReview.verdictRef] : evidence.reviewReportRefs,
+    reviewReportRefs: finalReview.verdictRef
+      ? [...evidence.reviewReportRefs, finalReview.verdictRef]
+      : evidence.reviewReportRefs,
     reason: finalReview.reason,
     createdAt: now.toISOString(),
   });

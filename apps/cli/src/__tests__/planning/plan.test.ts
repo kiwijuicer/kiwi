@@ -14,6 +14,8 @@ function testEnv(cwd: string, env: Record<string, string | undefined> = {}): Rec
   return {
     ...env,
     KIWI_HOME: env.KIWI_HOME ?? path.join(path.dirname(cwd), `${path.basename(cwd)}-home`),
+    KIWI_TEST_ALLOW_STUB: env.KIWI_TEST_ALLOW_STUB ?? "1",
+    KIWI_FORCE_ACCESS_MODE: env.KIWI_FORCE_ACCESS_MODE ?? "stub",
   };
 }
 
@@ -42,7 +44,6 @@ describe("kiwi plan", () => {
     await runPlan(
       ticketPath,
       {
-        allowStub: true,
         env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-03T19:00:00.000Z"),
         runIdSuffix: "abcd",
@@ -103,7 +104,7 @@ describe("kiwi plan", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-inline-"));
     await init(cwd);
 
-    await runPlan("Implement inline ticket planning", { allowStub: true, env: testEnv(cwd, { PATH: "/empty" }) }, cwd);
+    await runPlan("Implement inline ticket planning", { env: testEnv(cwd, { PATH: "/empty" }) }, cwd);
 
     const runsRoot = path.join(cwd, ".kiwi", "runs");
     const runs = readdirSync(runsRoot);
@@ -128,7 +129,6 @@ describe("kiwi plan", () => {
     await runPlan(
       "Implement workspace-aware planning",
       {
-        allowStub: true,
         env: testEnv(workspace, { PATH: "/empty" }),
         workspace,
         repo: "api-service",
@@ -155,9 +155,13 @@ describe("kiwi plan", () => {
     const cwd = mkdtempSync(path.join(os.tmpdir(), "kiwi-cli-plan-no-stub-"));
     await init(cwd);
 
-    await expect(runPlan("Implement real planning", { env: testEnv(cwd, { PATH: "/empty" }) }, cwd)).rejects.toThrow(
-      /No real planner model[\s\S]*stub-frontier \(stub\): disabled by default/,
-    );
+    await expect(
+      runPlan(
+        "Implement real planning",
+        { env: { KIWI_HOME: path.join(path.dirname(cwd), `${path.basename(cwd)}-home`), PATH: "/empty" } },
+        cwd,
+      ),
+    ).rejects.toThrow(/No real planner model[\s\S]*stub-frontier \(stub\): disabled by default/);
   });
 
   it("writes safe progress to the configured progress writer", async () => {
@@ -168,7 +172,6 @@ describe("kiwi plan", () => {
     await runPlan(
       "Implement visible planning progress",
       {
-        allowStub: true,
         env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T12:00:00.000Z"),
         runIdSuffix: "prog",
@@ -237,7 +240,6 @@ describe("kiwi plan", () => {
       "Implement dry-run planning",
       {
         dryRun: true,
-        allowStub: true,
         env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T12:00:00.000Z"),
         runIdSuffix: "dry1",

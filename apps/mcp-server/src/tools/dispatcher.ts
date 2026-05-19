@@ -1,13 +1,7 @@
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
 import { ContractValues, ProgressStatuses } from "@kiwi/contracts";
-import { recordFeedbackAndReplan, resolvePlannerProvider } from "@kiwi/runtime";
-import {
-  buildRunCostForecast,
-  loadEffectivePolicy,
-  loadEffectiveRegistry,
-  planRun,
-  type WorkspaceResolution,
-} from "@kiwi/core";
+import { recordFeedbackAndReplan, resolvePlannerProvider, RunCostForecastService } from "@kiwi/runtime";
+import { loadEffectivePolicy, loadEffectiveRegistry, planRun, type WorkspaceResolution } from "@kiwi/core";
 import { callCoreTool } from "./core-dispatch";
 import { doctorTool } from "./doctor";
 import { withOperatorCard } from "../ux/operator-card";
@@ -107,10 +101,12 @@ async function planTool(args: Record<string, unknown>, cwd: string, options: Too
     }),
     100,
   );
-  const costForecast = buildRunCostForecast({
+  const costForecast = new RunCostForecastService().build({
     taskGraph: planned.taskGraph,
+    policy,
+    registry,
     plannerCostUsd: planned.plannerOutput.cost.estimatedUsd,
-    registryModels: registry.models,
+    plannerModelId: planned.plannerModelId,
   });
   const nextAction = planNextAction(planned);
 

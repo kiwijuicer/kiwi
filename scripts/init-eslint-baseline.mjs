@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import {
+  collectEslintReportIssues,
   eslintBaselinePath,
-  eslintIssueKey,
   eslintReportPath,
-  isHardEslintIssue,
-  relativeReportPath,
+  printHardIssues,
+  readEslintReport,
   repoRootFromMeta,
 } from "./eslint-baseline-utils.mjs";
 
@@ -17,33 +17,13 @@ if (!existsSync(reportPath)) {
   process.exit(1);
 }
 
-const report = JSON.parse(readFileSync(reportPath, "utf-8"));
-const issueKeys = [];
-const hardIssues = [];
-
-for (const file of report) {
-  const filePath = relativeReportPath(repoRoot, file.filePath);
-  const source = file.source ?? "";
-
-  for (const message of file.messages) {
-    if (isHardEslintIssue(message)) {
-      hardIssues.push({ file: filePath, ...message, ruleId: message.ruleId ?? "unknown" });
-      continue;
-    }
-    issueKeys.push(eslintIssueKey(filePath, message, source));
-  }
-}
+const { hardIssues, issueKeys } = collectEslintReportIssues(repoRoot, readEslintReport(repoRoot));
 
 if (hardIssues.length > 0) {
-  console.error(`Found ${hardIssues.length} hard ESLint issue(s). Fix these before writing a warning baseline.`);
-  for (const issue of hardIssues.slice(0, 40)) {
-    console.error(
-      `${issue.file}:${issue.line ?? "?"}:${issue.column ?? "?"} [${issue.severity}] ${issue.ruleId} ${issue.message}`,
-    );
-  }
-  if (hardIssues.length > 40) {
-    console.error(`... and ${hardIssues.length - 40} more`);
-  }
+  printHardIssues(
+    `Found ${hardIssues.length} hard ESLint issue(s). Fix these before writing a warning baseline.`,
+    hardIssues,
+  );
   process.exit(1);
 }
 

@@ -1,50 +1,12 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { sourceRepoRoot, toRelativePath, walkSourceFiles } from "./source-file-walk.mjs";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = sourceRepoRoot(import.meta.url);
 const baselinePath = path.join(repoRoot, "config", "oop-structure-baseline.json");
-const sourceRoots = ["apps", "packages"];
 const maxLooseTopLevelFunctions = 4;
 const writeBaseline = process.argv.includes("--write-baseline");
-
-function toRelativePath(filePath) {
-  return path.relative(repoRoot, filePath).replace(/\\/g, "/");
-}
-
-function isSourceFile(filePath) {
-  return /\.(ts|tsx|mts|cts)$/.test(filePath) && !filePath.endsWith(".d.ts") && !filePath.endsWith(".test.ts");
-}
-
-function shouldSkipPath(filePath) {
-  return (
-    filePath.includes(`${path.sep}dist${path.sep}`) ||
-    filePath.includes(`${path.sep}node_modules${path.sep}`) ||
-    filePath.includes(`${path.sep}.kiwi${path.sep}`) ||
-    filePath.includes(`${path.sep}coverage${path.sep}`) ||
-    filePath.includes(`${path.sep}__tests__${path.sep}`)
-  );
-}
-
-function walk(dirPath, files = []) {
-  for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
-    const fullPath = path.join(dirPath, entry.name);
-
-    if (shouldSkipPath(fullPath)) {
-      continue;
-    }
-    if (entry.isDirectory()) {
-      walk(fullPath, files);
-      continue;
-    }
-    if (entry.isFile() && isSourceFile(fullPath)) {
-      files.push(fullPath);
-    }
-  }
-
-  return files;
-}
 
 function declarationName(name) {
   if (!name) {
@@ -126,7 +88,7 @@ function analyzeFile(filePath) {
   }
 
   return {
-    file: toRelativePath(filePath),
+    file: toRelativePath(repoRoot, filePath),
     looseTopLevelFunctions: looseFunctions.length,
     exportedLooseTopLevelFunctions: exportedLooseFunctions.length,
     cohesiveContainers: classCount + objectContainerCount,
@@ -140,8 +102,7 @@ function isOopStructureIssue(analysis) {
 }
 
 function currentIssues() {
-  return sourceRoots
-    .flatMap((root) => walk(path.join(repoRoot, root)))
+  return walkSourceFiles(repoRoot)
     .map(analyzeFile)
     .filter(isOopStructureIssue)
     .sort((left, right) => left.file.localeCompare(right.file));

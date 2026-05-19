@@ -12,6 +12,8 @@ function testEnv(cwd: string, env: Record<string, string | undefined> = {}): Rec
   return {
     ...env,
     KIWI_HOME: env.KIWI_HOME ?? path.join(path.dirname(cwd), `${path.basename(cwd)}-home`),
+    KIWI_TEST_ALLOW_STUB: env.KIWI_TEST_ALLOW_STUB ?? "1",
+    KIWI_FORCE_ACCESS_MODE: env.KIWI_FORCE_ACCESS_MODE ?? "stub",
   };
 }
 
@@ -161,7 +163,6 @@ describe("kiwi status", () => {
     await runPlan(
       "# Feature: Compact Status\n\n## Analyze\n## Implement",
       {
-        allowStub: true,
         env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T04:00:00.000Z"),
         runIdSuffix: "s000",
@@ -187,7 +188,6 @@ describe("kiwi status", () => {
     await runPlan(
       "# Feature: Status Details\n\n## Analyze\n## Plan\n## Implement\n## Validate",
       {
-        allowStub: true,
         env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T04:00:00.000Z"),
         runIdSuffix: "s001",
@@ -280,7 +280,6 @@ describe("kiwi status", () => {
     await runPlan(
       "Ticket A",
       {
-        allowStub: true,
         env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T04:00:00.000Z"),
         runIdSuffix: "a001",
@@ -292,7 +291,6 @@ describe("kiwi status", () => {
     await runPlan(
       "Ticket B",
       {
-        allowStub: true,
         env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T04:00:01.000Z"),
         runIdSuffix: "b002",
@@ -318,7 +316,6 @@ describe("kiwi status", () => {
     await runPlan(
       "Ticket A",
       {
-        allowStub: true,
         env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-04T04:00:00.000Z"),
         runIdSuffix: "a001",

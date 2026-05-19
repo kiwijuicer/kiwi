@@ -567,6 +567,10 @@ describe("contracts schemas", () => {
         architectureFiles: ["docs/architecture.md"],
         historicalOutcomeRefs: [],
       },
+      retrieval: {
+        strategyVersion: "test",
+        files: [{ path: "src/index.ts", reason: "mentioned" }],
+      },
       generatedAt: "2026-05-04T08:00:00.000Z",
     });
     const decision = SchedulerDecisionSchema.parse({

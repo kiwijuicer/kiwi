@@ -78,8 +78,7 @@ describe("access mode resolver", () => {
   it("allows stub only when explicitly enabled", () => {
     const result = selectEnabledModelByAccessMode({
       candidates,
-      env: { PATH: "/empty" },
-      allowStub: true,
+      env: { PATH: "/empty", KIWI_TEST_ALLOW_STUB: "1", KIWI_FORCE_ACCESS_MODE: "stub" },
     });
     expect(result?.model.accessMode).toBe("stub");
   });
@@ -100,7 +99,10 @@ describe("access mode resolver", () => {
   });
 
   it("evaluates explicit access mode availability", () => {
-    expect(evaluateAccessModeAvailability("stub", {}).available).toBe(true);
+    expect(evaluateAccessModeAvailability("stub", {}).available).toBe(false);
+    expect(
+      evaluateAccessModeAvailability("stub", { KIWI_TEST_ALLOW_STUB: "1", KIWI_FORCE_ACCESS_MODE: "stub" }).available,
+    ).toBe(true);
     expect(evaluateAccessModeAvailability("anthropic-api", {}).available).toBe(false);
     expect(evaluateAccessModeAvailability("anthropic-api", { ANTHROPIC_API_KEY: "x" }).available).toBe(true);
     expect(evaluateAccessModeAvailability("cursor-agent-cli", { PATH: "/empty" }).available).toBe(false);

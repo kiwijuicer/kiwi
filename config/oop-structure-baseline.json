@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-18T15:27:04.689Z",
+  "generatedAt": "2026-05-19T09:41:54.303Z",
   "maxLooseTopLevelFunctions": 4,
   "files": {
     "apps/cli/src/commands/planning/plan.ts": {
@@ -74,11 +74,12 @@
       "exportedFunctions": ["runTail"]
     },
     "apps/cli/src/commands/setup/doctor.ts": {
-      "looseTopLevelFunctions": 6,
+      "looseTopLevelFunctions": 7,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
       "functions": [
         "printAccessModeProbes",
+        "printDeprecatedModels",
         "printInitializedWorkspaceDiagnostics",
         "printRegistryAccessModes",
         "printRoleCounts",
@@ -129,6 +130,20 @@
       ],
       "exportedFunctions": ["callCoreTool"]
     },
+    "apps/mcp-server/src/tools/dispatcher.ts": {
+      "looseTopLevelFunctions": 5,
+      "exportedLooseTopLevelFunctions": 1,
+      "cohesiveContainers": 0,
+      "functions": ["callTool", "feedbackTool", "planNextAction", "planTool", "resolveActiveRunArgs"],
+      "exportedFunctions": ["callTool"]
+    },
+    "apps/mcp-server/src/tools/doctor.ts": {
+      "looseTopLevelFunctions": 5,
+      "exportedLooseTopLevelFunctions": 1,
+      "cohesiveContainers": 0,
+      "functions": ["configStatus", "doctorTool", "layeredPathLabel", "policyStatus", "registryStatus"],
+      "exportedFunctions": ["doctorTool"]
+    },
     "apps/mcp-server/src/tools/helpers.ts": {
       "looseTopLevelFunctions": 7,
       "exportedLooseTopLevelFunctions": 6,
@@ -152,7 +167,7 @@
       ]
     },
     "apps/mcp-server/src/tools/next-action.ts": {
-      "looseTopLevelFunctions": 10,
+      "looseTopLevelFunctions": 11,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
       "functions": [
@@ -165,6 +180,7 @@
         "needsApprovalAction",
         "nextTool",
         "resolveNextAction",
+        "resolveNextRunId",
         "runnableRunAction"
       ],
       "exportedFunctions": ["nextTool"]
@@ -342,7 +358,7 @@
       "exportedFunctions": ["buildRepoContextEnvelope", "renderRepoContext"]
     },
     "packages/core/src/budget/policy.ts": {
-      "looseTopLevelFunctions": 8,
+      "looseTopLevelFunctions": 7,
       "exportedLooseTopLevelFunctions": 7,
       "cohesiveContainers": 0,
       "functions": [
@@ -351,7 +367,6 @@
         "budgetSoftCapExceeded",
         "estimateAttemptCostUsd",
         "estimatedSpentUsd",
-        "priceForModel",
         "remainingBudgetAfterEstimatedCost",
         "remainingBudgetUsdEstimate"
       ],
@@ -365,34 +380,13 @@
         "remainingBudgetUsdEstimate"
       ]
     },
-    "packages/core/src/config/index.ts": {
-      "looseTopLevelFunctions": 7,
-      "exportedLooseTopLevelFunctions": 6,
-      "cohesiveContainers": 0,
-      "functions": [
-        "kiwiModelRegistryPath",
-        "kiwiPolicyPath",
-        "loadKiwiConfig",
-        "loadPolicy",
-        "loadRegistry",
-        "saveKiwiConfig",
-        "writeYamlSafely"
-      ],
-      "exportedFunctions": [
-        "kiwiModelRegistryPath",
-        "kiwiPolicyPath",
-        "loadKiwiConfig",
-        "loadPolicy",
-        "loadRegistry",
-        "saveKiwiConfig"
-      ]
-    },
     "packages/core/src/ids.ts": {
-      "looseTopLevelFunctions": 9,
-      "exportedLooseTopLevelFunctions": 4,
+      "looseTopLevelFunctions": 10,
+      "exportedLooseTopLevelFunctions": 5,
       "cohesiveContainers": 0,
       "functions": [
         "datePart",
+        "generateFeedbackId",
         "generateInitiativeId",
         "generatePlanId",
         "generateRunId",
@@ -402,7 +396,13 @@
         "plannedRunDateToken",
         "suffix"
       ],
-      "exportedFunctions": ["generateInitiativeId", "generatePlanId", "generateRunId", "generateStepId"]
+      "exportedFunctions": [
+        "generateFeedbackId",
+        "generateInitiativeId",
+        "generatePlanId",
+        "generateRunId",
+        "generateStepId"
+      ]
     },
     "packages/core/src/ledger/cost-ledger.ts": {
       "looseTopLevelFunctions": 5,
@@ -478,26 +478,31 @@
       "exportedFunctions": ["assertStepDependenciesCompleted", "latestAttemptByStep", "listStepAttemptEvidence"]
     },
     "packages/core/src/runs/status.ts": {
-      "looseTopLevelFunctions": 14,
-      "exportedLooseTopLevelFunctions": 1,
+      "looseTopLevelFunctions": 19,
+      "exportedLooseTopLevelFunctions": 2,
       "cohesiveContainers": 0,
       "functions": [
         "addDiffPath",
         "artifactPathsFor",
         "assertRunFolderReadable",
         "attemptStatusEntries",
+        "attemptTimestamp",
+        "attemptsForCurrentPlan",
         "deriveCurrentRunStatus",
         "editedFilesForAttempt",
         "finalArtifactPathsFor",
         "finalRunStatusFor",
         "gateStatusFor",
         "getRunStatusSummary",
+        "isActiveRunStatus",
         "latestStepEntries",
         "loadRunStatusEntry",
+        "matchesRepo",
         "normalizeDiffPath",
-        "parseDiffEditedFiles"
+        "parseDiffEditedFiles",
+        "resolveActiveRun"
       ],
-      "exportedFunctions": ["getRunStatusSummary"]
+      "exportedFunctions": ["getRunStatusSummary", "resolveActiveRun"]
     },
     "packages/core/src/runs/store.ts": {
       "looseTopLevelFunctions": 15,
@@ -606,7 +611,7 @@
       "exportedFunctions": ["publishPrDraft"]
     },
     "packages/runtime/src/execution/diff-workflow.ts": {
-      "looseTopLevelFunctions": 7,
+      "looseTopLevelFunctions": 8,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
       "functions": [
@@ -614,6 +619,7 @@
         "attemptApplyModes",
         "blockedVerdict",
         "buildRunDiff",
+        "finalVerdictSafeToApply",
         "formatRunDiff",
         "patchStat",
         "selectedAttempts"
@@ -643,15 +649,24 @@
       ]
     },
     "packages/runtime/src/execution/step-attempt/gates.ts": {
-      "looseTopLevelFunctions": 5,
+      "looseTopLevelFunctions": 14,
       "exportedLooseTopLevelFunctions": 3,
       "cohesiveContainers": 0,
       "functions": [
         "bindGateSubject",
+        "collectCommandEvents",
+        "commandFromShellRecord",
+        "commandPolicyGate",
+        "commandTokens",
         "coordinateAttemptGates",
+        "diffRequiredGate",
         "enforceGateResultsBeforePositiveReview",
+        "isRecord",
+        "isSandboxCommandPolicy",
         "mapRunnerStatusToAttemptStatus",
-        "policyGateResults"
+        "parseJsonValuesFromText",
+        "policyGateResults",
+        "shellRecordName"
       ],
       "exportedFunctions": [
         "coordinateAttemptGates",
@@ -710,17 +725,39 @@
       ]
     },
     "packages/runtime/src/lifecycle/finalize.ts": {
-      "looseTopLevelFunctions": 5,
+      "looseTopLevelFunctions": 8,
       "exportedLooseTopLevelFunctions": 1,
       "cohesiveContainers": 0,
       "functions": [
+        "buildFinalReviewDigest",
         "collectFinalEvidence",
         "evidenceFailureReasons",
         "finalizeRun",
         "requiredGateTypes",
+        "runFinalFrontierReview",
+        "sha256",
         "writeFinalSummary"
       ],
       "exportedFunctions": ["finalizeRun"]
+    },
+    "packages/runtime/src/planning/replanner.ts": {
+      "looseTopLevelFunctions": 11,
+      "exportedLooseTopLevelFunctions": 3,
+      "cohesiveContainers": 0,
+      "functions": [
+        "attemptReplan",
+        "diffFiles",
+        "diffSummaries",
+        "injectFixStep",
+        "latestProblemAttempts",
+        "nextFixStepId",
+        "nextReplanVersion",
+        "plannerInvocationRecord",
+        "problemAttemptRefs",
+        "recordFeedbackAndReplan",
+        "resumeFromStepId"
+      ],
+      "exportedFunctions": ["attemptReplan", "injectFixStep", "recordFeedbackAndReplan"]
     },
     "packages/runtime/src/registries/access-mode-resolver.ts": {
       "looseTopLevelFunctions": 10,

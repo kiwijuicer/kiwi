@@ -1,4 +1,4 @@
-import { ContractValues, EvidenceSubject, GateResult, ModelCapability, ReviewVerdict, Step } from "@kiwi/contracts";
+import { EvidenceSubject, GateResult, ModelCapability, ReviewVerdict, Step } from "@kiwi/contracts";
 import {
   AttemptDiff,
   classifyReviewAction,

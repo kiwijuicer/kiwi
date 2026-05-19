@@ -125,8 +125,8 @@ if (!applyOutput.includes("already applied during run")) {
 }
 const tailOutput = kiwi(["tail", workspaceRunId, "--workspace", workspace, "--no-color", "--no-follow"]);
 
-if (!tailOutput.includes("provider_preference_applied")) {
-  throw new Error(`workspace smoke tail did not include provider preference event:\n${tailOutput}`);
+if (!tailOutput.includes("scheduler_routing_decided")) {
+  throw new Error(`workspace smoke tail did not include scheduler routing event:\n${tailOutput}`);
 }
 const workspaceRun = readFileSync(path.join(workspace, ".kiwi", "runs", workspaceRunId, "run.json"), "utf-8");
 

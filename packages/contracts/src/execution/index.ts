@@ -151,6 +151,11 @@ const ContextPackageFileSchema = z.object({
   bytes: z.number().int().min(0),
 });
 
+const ContextRetrievalFileSchema = z.object({
+  path: z.string().min(1),
+  reason: z.string().min(1),
+});
+
 export const ContextPackageSchema = z.object({
   runId: z.string().regex(/^run_[a-z0-9_]+$/),
   stepId: z.string().regex(/^step_\d{3}$/),
@@ -196,6 +201,10 @@ export const ContextPackageSchema = z.object({
     traces: z.array(z.string()),
     architectureFiles: z.array(z.string()),
     historicalOutcomeRefs: z.array(z.string()),
+  }),
+  retrieval: z.object({
+    strategyVersion: z.string().min(1),
+    files: z.array(ContextRetrievalFileSchema),
   }),
   generatedAt: IsoDateTimeSchema,
 });

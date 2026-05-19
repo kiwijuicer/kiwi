@@ -18,7 +18,7 @@ PNPM_VERSION ?= 10.23.0
 SHELL_PROFILE ?= $(HOME)/.zshrc
 REPO_ROOT := $(patsubst %/,%,$(abspath $(dir $(lastword $(MAKEFILE_LIST)))))
 
-.PHONY: install install-cursor-agent install-claude-code rollback uninstall build check fix smoke
+.PHONY: install install-cursor-agent install-claude-code rollback uninstall build check fix smoke update-models
 
 install:
 	@set -eu; \
@@ -68,10 +68,11 @@ install:
 	test -f "$(REPO_ROOT)/apps/mcp-server/dist/index.js"; \
 	test -f "$(REPO_ROOT)/apps/mcp-server/bin/stdio-launcher.cjs"; \
 	rm -rf "$$CANDIDATE" "$$SMOKE_WORKSPACE"; \
-	mkdir -p "$$CANDIDATE/apps/cli/dist" "$$CANDIDATE/apps/mcp-server/dist" "$$CANDIDATE/apps/mcp-server/bin" "$$CANDIDATE/bin" "$$RELEASES_DIR" "$$TMP_ROOT"; \
+	mkdir -p "$$CANDIDATE/apps/cli/dist" "$$CANDIDATE/apps/mcp-server/dist" "$$CANDIDATE/apps/mcp-server/bin" "$$CANDIDATE/bin" "$$CANDIDATE/config" "$$RELEASES_DIR" "$$TMP_ROOT"; \
 	cp -R "$(REPO_ROOT)/apps/cli/dist/." "$$CANDIDATE/apps/cli/dist/"; \
 	cp -R "$(REPO_ROOT)/apps/mcp-server/dist/." "$$CANDIDATE/apps/mcp-server/dist/"; \
 	cp "$(REPO_ROOT)/apps/mcp-server/bin/stdio-launcher.cjs" "$$CANDIDATE/apps/mcp-server/bin/stdio-launcher.cjs"; \
+	cp "$(REPO_ROOT)/config/model-catalog.json" "$$CANDIDATE/config/model-catalog.json"; \
 	printf '{\n  "releaseId": "%s",\n  "sha": "%s",\n  "installedAt": "%s",\n  "repoRoot": "%s"\n}\n' "$$RELEASE_ID" "$$KIWI_BUILD_SHA" "$$INSTALLED_AT" "$(REPO_ROOT)" > "$$CANDIDATE/manifest.json"; \
 	printf '%s\n' \
 		'#!/usr/bin/env sh' \
@@ -96,7 +97,7 @@ install:
 	node -e 'const server = require(process.argv[1]); if (typeof server.startMcpServer !== "function") throw new Error("startMcpServer export not found");' "$$CANDIDATE/apps/mcp-server/dist/index.js"; \
 	mkdir -p "$$SMOKE_WORKSPACE" "$$SMOKE_KIWI_HOME"; \
 	KIWI_HOME="$$SMOKE_KIWI_HOME" "$$CANDIDATE/bin/kiwi" init --workspace "$$SMOKE_WORKSPACE" >/dev/null; \
-	KIWI_HOME="$$SMOKE_KIWI_HOME" KIWI_FORCE_ACCESS_MODE=stub "$$CANDIDATE/bin/kiwi" doctor --workspace "$$SMOKE_WORKSPACE" >/dev/null; \
+	KIWI_HOME="$$SMOKE_KIWI_HOME" KIWI_TEST_ALLOW_STUB=1 KIWI_FORCE_ACCESS_MODE=stub "$$CANDIDATE/bin/kiwi" doctor --workspace "$$SMOKE_WORKSPACE" >/dev/null; \
 	mv "$$CANDIDATE" "$$RELEASE_PATH"; \
 	if [ -e "$$CURRENT_LINK" ] && [ ! -L "$$CURRENT_LINK" ]; then \
 		echo "kiwi current path exists and is not a symlink: $$CURRENT_LINK" >&2; \
@@ -160,6 +161,14 @@ install:
 			echo "  make install-cursor-agent"; \
 			echo "  # or: make install INSTALL_CURSOR_AGENT=1"; \
 		fi; \
+	fi
+
+update-models:
+	@set -eu; \
+	if [ -x "$(KIWI_BIN)" ]; then \
+		"$(KIWI_BIN)" models update --apply; \
+	else \
+		pnpm --filter '@kiwi/cli' kiwi -- models update --apply; \
 	fi
 	@if command -v claude >/dev/null 2>&1; then \
 		echo "claude detected: $$(command -v claude)"; \

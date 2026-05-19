@@ -12,6 +12,12 @@ export {
   ExecutionToolNames,
   ExecutorSelectionReasons,
 } from "./types";
+export {
+  CONTEXT_RETRIEVAL_STRATEGY_VERSION,
+  ExecutionContextRetriever,
+  type ExecutionContextRetrieval,
+  type RetrievedContextFile,
+} from "./context-retriever";
 export type {
   AttemptDiffMaterialization,
   ExecutePlannedStepInput,

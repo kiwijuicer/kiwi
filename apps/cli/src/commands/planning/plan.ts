@@ -2,9 +2,14 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import chalk from "chalk";
 import { runPlannerProviderWithRetries } from "@kiwi/adapters";
-import { AccessModes, ContractValues, type BudgetProfile, type RiskProfile } from "@kiwi/contracts";
 import {
-  buildRunCostForecast,
+  AccessModes,
+  ContractValues,
+  SchedulerDecisionStatuses,
+  type BudgetProfile,
+  type RiskProfile,
+} from "@kiwi/contracts";
+import {
   generateRunId,
   NotInitializedError,
   isInitialized,
@@ -12,7 +17,7 @@ import {
   loadEffectiveRegistry,
   planRun,
 } from "@kiwi/core";
-import { resolvePlannerProvider } from "@kiwi/runtime";
+import { resolvePlannerProvider, RunCostForecastService } from "@kiwi/runtime";
 import {
   CliProgressStatuses,
   type CliProgressStatus,
@@ -30,7 +35,6 @@ interface PlanOptions extends CliWorkspaceOptions {
   runIdSuffix?: string;
   initiativeIdSuffix?: string;
   planIdSuffix?: string;
-  allowStub?: boolean;
   env?: Record<string, string | undefined>;
   progress?: PlanProgressOptions;
 }
@@ -178,7 +182,6 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
     preferenceByRole: policy.routing.providerPreference,
     ...(opts.env ? { env: opts.env } : {}),
     ...(opts.planIdSuffix ? { planIdSuffix: opts.planIdSuffix } : {}),
-    ...(opts.allowStub ? { allowStub: opts.allowStub } : {}),
   });
   const plannerModel = resolution.model;
   const provider = resolution.provider;
@@ -257,19 +260,20 @@ export async function runPlan(ticketArg: string, opts: PlanOptions = {}, cwd: st
   const plannerLine = `planner: ${planned.plannerModelId} (${planned.providerName})`;
   console.log(plannerModel.accessMode === AccessModes.Stub ? chalk.yellow(plannerLine) : chalk.dim(plannerLine));
   console.log(chalk.dim(`steps: ${planned.taskGraph.steps.length}`));
-  const forecast = buildRunCostForecast({
+  const forecast = new RunCostForecastService().build({
     taskGraph: planned.taskGraph,
+    policy,
+    registry,
     plannerCostUsd: planned.plannerOutput.cost.estimatedUsd,
-    registryModels: registry.models,
+    plannerModelId: planned.plannerModelId,
+    ...(opts.env ? { env: opts.env } : {}),
   });
-  console.log(
-    chalk.dim(
-      `estimated cost: ${formatUsd(forecast.estimatedCostUsd)} (planner ${formatUsd(
-        forecast.phaseCostsUsd.planner,
-      )} + execution ${formatUsd(forecast.phaseCostsUsd.execution)} + review ${formatUsd(
-        forecast.phaseCostsUsd.review,
-      )})`,
-    ),
-  );
+  const costLine = `estimated cost: ${formatUsd(forecast.estimatedCostUsd)} (planner ${formatUsd(
+    forecast.phaseCostsUsd.planner,
+  )} + execution ${formatUsd(forecast.phaseCostsUsd.execution)} + review ${formatUsd(forecast.phaseCostsUsd.review)})`;
+  console.log(forecast.status === SchedulerDecisionStatuses.Blocked ? chalk.yellow(costLine) : chalk.dim(costLine));
+  if (forecast.status === SchedulerDecisionStatuses.Blocked) {
+    console.log(chalk.yellow(`forecast blocked: ${forecast.blockedReasons.join("; ")}`));
+  }
   console.log(chalk.dim(`saved: .kiwi/runs/${planned.runId}/`));
 }

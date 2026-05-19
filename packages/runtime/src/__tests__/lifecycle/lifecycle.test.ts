@@ -250,7 +250,12 @@ describe("run lifecycle", () => {
   it("loads effective config from injected runtime env", () => {
     const repo = cwd();
     const home = path.join(cwd(), "home");
-    const env = { KIWI_HOME: home, KIWI_FORCE_ACCESS_MODE: "stub", PATH: process.env.PATH };
+    const env = {
+      KIWI_HOME: home,
+      KIWI_TEST_ALLOW_STUB: "1",
+      KIWI_FORCE_ACCESS_MODE: "stub",
+      PATH: process.env.PATH,
+    };
     createRun(repo, [{ ...step, requiredGates: [] }], { ...initiative, repoPath: repo });
     writeExecutionConfig(repo, env);
 
@@ -277,7 +282,9 @@ describe("run lifecycle", () => {
     writeExecutionConfig(repo);
 
     const previousForceAccessMode = process.env.KIWI_FORCE_ACCESS_MODE;
+    const previousTestAllowStub = process.env.KIWI_TEST_ALLOW_STUB;
     process.env.KIWI_FORCE_ACCESS_MODE = "stub";
+    process.env.KIWI_TEST_ALLOW_STUB = "1";
     let result: Awaited<ReturnType<typeof executePlannedStep>>;
 
     try {
@@ -293,6 +300,11 @@ describe("run lifecycle", () => {
         delete process.env.KIWI_FORCE_ACCESS_MODE;
       } else {
         process.env.KIWI_FORCE_ACCESS_MODE = previousForceAccessMode;
+      }
+      if (previousTestAllowStub === undefined) {
+        delete process.env.KIWI_TEST_ALLOW_STUB;
+      } else {
+        process.env.KIWI_TEST_ALLOW_STUB = previousTestAllowStub;
       }
     }
 
@@ -321,7 +333,9 @@ describe("run lifecycle", () => {
     createRun(repo, [{ ...step, requiredGates: [] }], { ...initiative, repoPath: repo });
     writeExecutionConfig(repo);
     const previousForceAccessMode = process.env.KIWI_FORCE_ACCESS_MODE;
+    const previousTestAllowStub = process.env.KIWI_TEST_ALLOW_STUB;
     process.env.KIWI_FORCE_ACCESS_MODE = "stub";
+    process.env.KIWI_TEST_ALLOW_STUB = "1";
 
     try {
       await expect(
@@ -349,6 +363,11 @@ describe("run lifecycle", () => {
       } else {
         process.env.KIWI_FORCE_ACCESS_MODE = previousForceAccessMode;
       }
+      if (previousTestAllowStub === undefined) {
+        delete process.env.KIWI_TEST_ALLOW_STUB;
+      } else {
+        process.env.KIWI_TEST_ALLOW_STUB = previousTestAllowStub;
+      }
     }
   });
 
@@ -372,8 +391,10 @@ describe("run lifecycle", () => {
     );
     writeExecutionConfig(repo);
     const previousForceAccessMode = process.env.KIWI_FORCE_ACCESS_MODE;
+    const previousTestAllowStub = process.env.KIWI_TEST_ALLOW_STUB;
     const previousIsolation = process.env.KIWI_EXECUTION_ISOLATION;
     process.env.KIWI_FORCE_ACCESS_MODE = "stub";
+    process.env.KIWI_TEST_ALLOW_STUB = "1";
     process.env.KIWI_EXECUTION_ISOLATION = "worktree";
 
     try {
@@ -406,6 +427,11 @@ describe("run lifecycle", () => {
         delete process.env.KIWI_FORCE_ACCESS_MODE;
       } else {
         process.env.KIWI_FORCE_ACCESS_MODE = previousForceAccessMode;
+      }
+      if (previousTestAllowStub === undefined) {
+        delete process.env.KIWI_TEST_ALLOW_STUB;
+      } else {
+        process.env.KIWI_TEST_ALLOW_STUB = previousTestAllowStub;
       }
       if (previousIsolation === undefined) {
         delete process.env.KIWI_EXECUTION_ISOLATION;

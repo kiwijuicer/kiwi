@@ -21,12 +21,7 @@ export interface ResolvePlannerProviderOptions {
   env?: Record<string, string | undefined>;
   now?: () => Date;
   planIdSuffix?: string;
-  allowStub?: boolean;
   preferenceByRole?: ProviderPreference | undefined;
-}
-
-function stubAllowed(options: ResolvePlannerProviderOptions, env: Record<string, string | undefined>): boolean {
-  return options.allowStub === true || env.KIWI_ALLOW_STUB === "1" || env.KIWI_FORCE_ACCESS_MODE === AccessModes.Stub;
 }
 
 function formatPlannerAvailability(candidates: ModelEntry[], env: Record<string, string | undefined>): string {
@@ -65,7 +60,7 @@ function byPlannerCapability(a: ModelEntry, b: ModelEntry): number {
 export class PlannerProviderRegistry {
   resolve(options: ResolvePlannerProviderOptions): PlannerResolution {
     const env = options.env ?? process.env;
-    const allowStub = stubAllowed(options, env);
+    const allowStub = env.KIWI_TEST_ALLOW_STUB === "1" && env.KIWI_FORCE_ACCESS_MODE === AccessModes.Stub;
     const candidates = options.registryModels
       .filter(
         (model) =>
@@ -80,7 +75,6 @@ export class PlannerProviderRegistry {
       selectEnabledModelByAccessMode({
         candidates,
         env,
-        allowStub,
         excludeStub: !allowStub,
         role: ContractValues.Planner,
         preferenceByRole: options.preferenceByRole,
@@ -88,7 +82,6 @@ export class PlannerProviderRegistry {
       selectEnabledModelByAccessMode({
         candidates: fallbackCandidates,
         env,
-        allowStub,
         excludeStub: !allowStub,
         role: ContractValues.Planner,
         preferenceByRole: options.preferenceByRole,
@@ -100,7 +93,7 @@ export class PlannerProviderRegistry {
           "No real planner model with an available access mode found in the effective model registry",
           "checked:",
           formatPlannerAvailability(fallbackCandidates, env),
-          "Stub planning is disabled by default; use --allow-stub or KIWI_ALLOW_STUB=1 only for tests/dev.",
+          "Stub planning is test-only; set KIWI_TEST_ALLOW_STUB=1 and KIWI_FORCE_ACCESS_MODE=stub in tests.",
         ].join("\n"),
       );
     }

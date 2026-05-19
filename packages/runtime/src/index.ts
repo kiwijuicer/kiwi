@@ -1,4 +1,5 @@
 export * from "./registries/access-mode-resolver";
+export * from "./budget/run-cost-forecast";
 export * from "./execution/diff-workflow";
 export * from "./execution/direct-safety";
 export * from "./execution/planned-steps";

@@ -10,6 +10,8 @@ function testEnv(cwd: string, env: Record<string, string | undefined> = {}): Rec
   return {
     ...env,
     KIWI_HOME: env.KIWI_HOME ?? path.join(path.dirname(cwd), `${path.basename(cwd)}-home`),
+    KIWI_TEST_ALLOW_STUB: env.KIWI_TEST_ALLOW_STUB ?? "1",
+    KIWI_FORCE_ACCESS_MODE: env.KIWI_FORCE_ACCESS_MODE ?? "stub",
   };
 }
 
@@ -20,7 +22,6 @@ describe("kiwi explain", () => {
     await runPlan(
       "# Feature: Explain Tree\n\n## Analyze\n## Implement\n## Validate",
       {
-        allowStub: true,
         env: testEnv(cwd, { PATH: "/empty" }),
         now: new Date("2026-05-06T10:00:00.000Z"),
         runIdSuffix: "x001",

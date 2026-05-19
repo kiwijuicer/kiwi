@@ -3,7 +3,7 @@ import { resolveActiveRun, withRunLock } from "@kiwi/core";
 import { recordFeedbackAndReplan } from "@kiwi/runtime";
 import { resolveCliWorkspace, CliWorkspaceOptions } from "../../workspace/options";
 
-export interface FeedbackOptions extends CliWorkspaceOptions {
+interface FeedbackOptions extends CliWorkspaceOptions {
   message: string;
   author?: string;
   targetStep?: string;

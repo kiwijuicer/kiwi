@@ -1,6 +1,3 @@
-import { execFileSync } from "child_process";
-import { existsSync } from "fs";
-import path from "path";
 import type { CoreServices } from "@kiwi/core";
 import {
   RiskProfiles,
@@ -21,6 +18,7 @@ import {
   type ContextSize,
   type SecuritySensitivity,
 } from "../../policies/scheduler-types";
+import { CONTEXT_RETRIEVAL_STRATEGY_VERSION, ExecutionContextRetriever } from "./context-retriever";
 import { ExecutionPolicyResolver } from "./policy";
 import type { StepExecutionSession } from "./session";
 import type { ExecutionMode } from "./types";
@@ -30,6 +28,7 @@ export class SchedulerDecisionService {
     private readonly policyResolver: ExecutionPolicyResolver,
     private readonly schedulerPolicy: SchedulerPolicyService,
     private readonly core: CoreServices,
+    private readonly contextRetriever = new ExecutionContextRetriever(),
   ) {}
 
   schedule(session: StepExecutionSession): SchedulerDecision {
@@ -130,7 +129,12 @@ export class SchedulerDecisionService {
   }
 
   private decisionInput(session: StepExecutionSession) {
-    const relevantFiles = this.relevantFilesFor(session);
+    const retrieved = this.contextRetriever.retrieve({
+      repoPath: session.context.repoPath,
+      initiative: session.context.initiative,
+      step: session.step,
+    });
+    const relevantFiles = retrieved.relevantFiles;
     const risk = this.riskFor(session.context.initiative, session.context.policy, session.step, relevantFiles);
 
     return {
@@ -154,9 +158,15 @@ export class SchedulerDecisionService {
         : (session.runnerResolution?.runnerAvailability ?? []),
       explicitCommand: Boolean(session.input.command?.length),
       relevantFiles,
-      testFiles: this.testFilesFor(relevantFiles),
-      recentDiffFiles: this.gitChangedFiles(session.context.repoPath),
-      architectureFiles: this.architectureFilesFor(session.context.repoPath),
+      testFiles: retrieved.testFiles,
+      recentDiffFiles: retrieved.recentDiffFiles,
+      symbolHits: retrieved.symbolHits,
+      traces: retrieved.traces,
+      architectureFiles: retrieved.architectureFiles,
+      retrieval: {
+        strategyVersion: CONTEXT_RETRIEVAL_STRATEGY_VERSION,
+        files: retrieved.retrievalFiles,
+      },
     };
   }
 
@@ -182,54 +192,13 @@ export class SchedulerDecisionService {
     return {
       blastRadius: highRisk ? BlastRadii.High : BlastRadii.Low,
       securitySensitivity: highRisk ? SecuritySensitivities.High : SecuritySensitivities.Low,
-      contextSize: highRisk || broadContext ? ContextSizes.Large : relevantFiles.length > 2 ? ContextSizes.Medium : ContextSizes.Small,
+      contextSize:
+        highRisk || broadContext
+          ? ContextSizes.Large
+          : relevantFiles.length > 2
+            ? ContextSizes.Medium
+            : ContextSizes.Small,
     };
-  }
-
-  private relevantFilesFor(session: StepExecutionSession): string[] {
-    const mentioned = this.filesMentionedIn(`${session.context.initiative.rawInput}\n${session.step.title}`);
-    const changed = this.gitChangedFiles(session.context.repoPath);
-
-    return Array.from(new Set([...mentioned, ...changed])).slice(0, 24);
-  }
-
-  private filesMentionedIn(text: string): string[] {
-    return Array.from(text.matchAll(/(?:^|\s)([A-Za-z0-9_.@/-]+\.[A-Za-z0-9]+)(?=\s|$|[,.;:])/g))
-      .map((match) => match[1])
-      .filter((entry): entry is string => Boolean(entry && !entry.startsWith("http")));
-  }
-
-  private gitChangedFiles(repoPath: string): string[] {
-    try {
-      const output = execFileSync("git", ["-C", repoPath, "diff", "--name-only"], {
-        encoding: "utf-8",
-        stdio: ["ignore", "pipe", "ignore"],
-      });
-
-      return output
-        .split("\n")
-        .map((entry) => entry.trim())
-        .filter(Boolean)
-        .slice(0, 24);
-    } catch {
-      return [];
-    }
-  }
-
-  private testFilesFor(relevantFiles: string[]): string[] {
-    return relevantFiles
-      .flatMap((file) => {
-        const base = file.replace(/^src\//, "").replace(/\.[^.]+$/, "");
-
-        return [`tests/${base}.test.ts`, `src/${base}.test.ts`];
-      })
-      .slice(0, 12);
-  }
-
-  private architectureFilesFor(repoPath: string): string[] {
-    const candidates = ["AGENTS.md", "docs/vision.md", "docs/architecture.md", "docs/rules/architecture.md"];
-
-    return candidates.filter((file) => existsSync(path.join(repoPath, file)));
   }
 
   private pathMatches(filePath: string, pattern: string): boolean {

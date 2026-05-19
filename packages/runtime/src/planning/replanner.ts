@@ -5,6 +5,7 @@ import {
   ContractValues,
   ModelInvocationRecord,
   ReviewVerdict,
+  RunFeedback,
   RunStatuses,
   StepSchema,
   TaskGraph,
@@ -50,7 +51,7 @@ export interface FeedbackReplanInput {
   cwd: string;
   runId: string;
   message: string;
-  source: "cli" | "mcp";
+  source: RunFeedback["source"];
   author?: string;
   targetStepId?: string;
   targetAttemptId?: string;
@@ -372,10 +373,7 @@ export async function recordFeedbackAndReplan(input: FeedbackReplanInput): Promi
 
   try {
     const plannerOutput = await runPlannerProviderWithRetries(resolution.provider, plannerInput, { maxAttempts: 2 });
-    const taskGraphInput =
-      typeof plannerOutput.taskGraph === "object" && plannerOutput.taskGraph !== null
-        ? { ...plannerOutput.taskGraph, createdAt: now.toISOString() }
-        : plannerOutput.taskGraph;
+    const taskGraphInput = { ...plannerOutput.taskGraph, createdAt: now.toISOString() };
     const taskGraph = TaskGraphSchema.parse(taskGraphInput);
 
     writeJsonSafely(resolveRunArtifactPath(input.runId, versionedPath, input.cwd), taskGraph);

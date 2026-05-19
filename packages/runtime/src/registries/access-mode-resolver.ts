@@ -139,7 +139,9 @@ export function evaluateAccessModeAvailability(
   env: Record<string, string | undefined>,
 ): AccessModeAvailability {
   if (accessMode === AccessModes.Stub) {
-    return { accessMode, available: true };
+    return stubAccessAllowed(env)
+      ? { accessMode, available: true }
+      : { accessMode, available: false, reason: "stub access is test-only" };
   }
   if (accessMode === AccessModes.Local) {
     return env.KIWI_LOCAL_MODEL_ENDPOINT
@@ -197,8 +199,8 @@ export function preferredAccessModes(env: Record<string, string | undefined>): A
   return DEFAULT_PRIORITY;
 }
 
-export function stubAccessAllowed(env: Record<string, string | undefined>, allowStub?: boolean): boolean {
-  return allowStub === true || env.KIWI_ALLOW_STUB === "1" || env.KIWI_FORCE_ACCESS_MODE === AccessModes.Stub;
+export function stubAccessAllowed(env: Record<string, string | undefined>): boolean {
+  return env.KIWI_TEST_ALLOW_STUB === "1" && env.KIWI_FORCE_ACCESS_MODE === AccessModes.Stub;
 }
 
 export function accessModeOrderForRole(params: {
@@ -228,7 +230,6 @@ export interface SelectModelByAccessModeParams {
   preferenceByRole?: ProviderPreference | undefined;
   role?: AgentRole | undefined;
   excludeStub?: boolean;
-  allowStub?: boolean;
 }
 
 export interface SelectedModel {
@@ -252,7 +253,7 @@ export function selectEnabledModelByAccessMode(params: SelectModelByAccessModePa
   }
   const order = accessModeOrderForRole(orderParams);
   const enabled = params.candidates.filter((entry) => entry.enabled);
-  const allowStub = !params.excludeStub && stubAccessAllowed(params.env, params.allowStub);
+  const allowStub = !params.excludeStub && stubAccessAllowed(params.env);
   const filtered = enabled.filter((entry) => entry.accessMode !== AccessModes.Stub || allowStub);
 
   for (const accessMode of order) {

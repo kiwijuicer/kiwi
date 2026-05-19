@@ -17,6 +17,21 @@ export interface KiwiConfigLoadOptions {
 
 type JsonObject = Record<string, unknown>;
 
+class YamlFileStore {
+  read(target: string): unknown {
+    return load(readFileSync(target, "utf-8"));
+  }
+
+  writeSafely(target: string, value: unknown): void {
+    mkdirSync(path.dirname(target), { recursive: true });
+    const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
+    writeFileSync(tempPath, dump(value, { lineWidth: 120, noRefs: true }), "utf-8");
+    renameSync(tempPath, target);
+  }
+}
+
+const yamlFileStore = new YamlFileStore();
+
 function isRecord(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -44,7 +59,7 @@ export function kiwiHomeModelRegistryPath(env?: Record<string, string | undefine
 }
 
 function readYaml(target: string): unknown {
-  return load(readFileSync(target, "utf-8"));
+  return yamlFileStore.read(target);
 }
 
 export function loadPolicy(path: string): KiwiPolicy {
@@ -61,6 +76,21 @@ export function loadRegistry(path: string): ModelRegistry {
   }
 
   return ModelRegistrySchema.parse(readYaml(path));
+}
+
+export function saveRegistry(path: string, registry: ModelRegistry): ModelRegistry {
+  const parsed = ModelRegistrySchema.parse(registry);
+  writeYamlSafely(path, parsed);
+
+  return parsed;
+}
+
+export function loadRawYaml(path: string): unknown {
+  if (!existsSync(path)) {
+    throw new Error(`YAML file not found: ${path}`);
+  }
+
+  return readYaml(path);
 }
 
 function mergeObjects(base: unknown, override: unknown): unknown {
@@ -92,6 +122,7 @@ function mergeRegistry(base: unknown, override: unknown): unknown {
 
   const baseModels = Array.isArray(base.models) ? base.models : [];
   const hasOverrideModels = Object.prototype.hasOwnProperty.call(override, "models");
+
   if (hasOverrideModels && override.models !== undefined && !Array.isArray(override.models)) {
     throw new Error("Model registry override models must be an array");
   }
@@ -111,6 +142,7 @@ function mergeRegistry(base: unknown, override: unknown): unknown {
     modelsById.set(id, model);
     orderedIds.push(id);
   }
+
   for (const model of overrideModels) {
     const id = modelId(model);
 
@@ -129,9 +161,11 @@ function mergeRegistry(base: unknown, override: unknown): unknown {
 export function loadEffectivePolicy(workspacePath: string, opts: KiwiConfigLoadOptions = {}): KiwiPolicy {
   const homePath = kiwiHomePolicyPath(opts.env);
   const workspacePathValue = kiwiPolicyPath(workspacePath);
+
   if (!existsSync(homePath)) {
     return loadPolicy(homePath);
   }
+
   const base = KiwiPolicySchema.parse(readYaml(homePath));
   const merged = existsSync(workspacePathValue) ? mergeObjects(base, readYaml(workspacePathValue)) : base;
 
@@ -141,9 +175,11 @@ export function loadEffectivePolicy(workspacePath: string, opts: KiwiConfigLoadO
 export function loadEffectiveRegistry(workspacePath: string, opts: KiwiConfigLoadOptions = {}): ModelRegistry {
   const homePath = kiwiHomeModelRegistryPath(opts.env);
   const workspacePathValue = kiwiModelRegistryPath(workspacePath);
+
   if (!existsSync(homePath)) {
     return loadRegistry(homePath);
   }
+
   const base = ModelRegistrySchema.parse(readYaml(homePath));
   const merged = existsSync(workspacePathValue) ? mergeRegistry(base, readYaml(workspacePathValue)) : base;
 
@@ -151,10 +187,7 @@ export function loadEffectiveRegistry(workspacePath: string, opts: KiwiConfigLoa
 }
 
 function writeYamlSafely(target: string, value: unknown): void {
-  mkdirSync(path.dirname(target), { recursive: true });
-  const tempPath = `${target}.tmp-${process.pid}-${Date.now()}`;
-  writeFileSync(tempPath, dump(value, { lineWidth: 120, noRefs: true }), "utf-8");
-  renameSync(tempPath, target);
+  yamlFileStore.writeSafely(target, value);
 }
 
 export function loadKiwiConfig(configPath: string): KiwiConfig {

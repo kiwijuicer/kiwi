@@ -142,6 +142,10 @@ function contextPackage(runId: string, attemptId: string, title: string) {
       architectureFiles: [],
       historicalOutcomeRefs: [],
     },
+    retrieval: {
+      strategyVersion: "test-v1",
+      files: [],
+    },
     generatedAt: "2026-05-04T12:00:00.000Z",
   };
 }

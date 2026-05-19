@@ -4,7 +4,7 @@ import type { RunnerExecutionInput } from "./adapter";
 const DEFAULT_REQUEST =
   "Implement only the contracted step in this working directory. Satisfy acceptance criteria and leave an inspectable working-tree diff when file changes are required.";
 
-export interface ContractRunnerPromptOptions {
+interface ContractRunnerPromptOptions {
   includeWorktreePath?: boolean;
   request?: string;
 }

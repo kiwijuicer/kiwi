@@ -894,6 +894,10 @@ models:
       currency: USD
       inputUsdPerMillion: 0.25
       outputUsdPerMillion: 2
+      source: openai
+      sourceUrl: https://openai.com/api/pricing/
+      sourceVersion: "test"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     enabled: true
   - id: codex-cli-strong
     providerModel: gpt-5.4
@@ -905,6 +909,10 @@ models:
       currency: USD
       inputUsdPerMillion: 2
       outputUsdPerMillion: 10
+      source: openai
+      sourceUrl: https://openai.com/api/pricing/
+      sourceVersion: "test"
+      pricingLastVerifiedAt: "2026-05-19T00:00:00.000Z"
     enabled: true
 `,
       "utf-8",

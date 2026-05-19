@@ -4,6 +4,7 @@ import { runCost } from "../runs/cost";
 import { runDoctor } from "../setup/doctor";
 import { runExplain } from "../planning/explain";
 import { runInit } from "../setup/init";
+import { runModelsUpdate } from "../setup/models";
 import { runPlan } from "../planning/plan";
 import { runRulesSync } from "../setup/rules";
 import { runStatus } from "../runs/status";
@@ -26,7 +27,6 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
       .command("plan <ticket>")
       .description("Generate deterministic TaskGraph from ticket")
       .option("--dry-run", "Print generated plan without writing files")
-      .option("--allow-stub", "Allow deterministic stub planner for tests/dev")
       .option("--risk-profile <profile>", "local|dev|staging|production", "dev")
       .option("--budget-profile <profile>", "tiny|small|normal|large|critical", "normal"),
   ).action(
@@ -34,7 +34,6 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
       ticket: string,
       opts: {
         dryRun?: boolean;
-        allowStub?: boolean;
         workspace?: string;
         repo?: string;
         riskProfile?: RiskProfile;
@@ -88,6 +87,18 @@ export function registerCoreCommands(program: Command, withWorkspaceOptions: Wor
     program.command("doctor").description("Probe configured policies, registry entries, and available access modes"),
   ).action((opts: { workspace?: string; repo?: string }) => {
     runDoctor(withWorkspaceOptions(opts)).catch(handleCommandError);
+  });
+
+  const modelsCommand = program.command("models").description("Model catalog and registry commands");
+  addWorkspaceOptions(
+    modelsCommand
+      .command("update")
+      .description("Update home model registry from the curated release catalog")
+      .option("--apply", "Write ~/.kiwi/defaults/model-registry.yaml")
+      .option("--json", "Print JSON")
+      .option("--catalog-path <path>", "Read a specific model catalog file"),
+  ).action((opts: { workspace?: string; repo?: string; apply?: boolean; json?: boolean; catalogPath?: string }) => {
+    runModelsUpdate(withWorkspaceOptions(opts)).catch(handleCommandError);
   });
 
   program

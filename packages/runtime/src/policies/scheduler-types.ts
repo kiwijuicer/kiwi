@@ -66,6 +66,7 @@ export interface SchedulerInput {
   traces?: string[];
   architectureFiles?: string[];
   historicalOutcomeRefs?: string[];
+  retrieval?: ContextPackage["retrieval"];
   now?: Date;
   attemptId?: string;
 }

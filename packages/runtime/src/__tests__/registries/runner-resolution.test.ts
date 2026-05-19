@@ -235,6 +235,7 @@ describe("runner resolution", () => {
       step: codingStep,
       env: {
         KIWI_FAKE_BINARY_AVAILABLE: "1",
+        KIWI_TEST_ALLOW_STUB: "1",
         KIWI_FORCE_ACCESS_MODE: "stub",
       },
     });

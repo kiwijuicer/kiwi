@@ -1,6 +1,7 @@
 export * from "./errors";
 export * from "./ids";
 export * from "./config";
+export * from "./config/model-catalog";
 export * from "./workspace";
 export * from "./planning/planner";
 export * from "./runs/store";

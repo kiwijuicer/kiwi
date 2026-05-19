@@ -33,6 +33,7 @@ export class StubRunnerAdapter implements RunnerAdapter {
     mkdirSync(path.dirname(outputTarget), { recursive: true });
 
     const mutation = input.contextPackage.mutationRequirement;
+
     if (mutation === "must_change_files") {
       const target = path.join(input.worktreePath, "kiwi-stub-output", `${input.stepId}.txt`);
       mkdirSync(path.dirname(target), { recursive: true });
